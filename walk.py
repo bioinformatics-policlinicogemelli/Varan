@@ -259,15 +259,15 @@ def vcf_filtering(sID_path,output_folder):
 
 def vcf2maf_constructor(k, v, temporary,output_folder):
     tum_id=k.replace(".hard-filtered.bam","")
-    tum_id=k.replace(".strelka.variants.bam","")
+    
     cl = ['perl']
     cl.append(VCF2MAF)
     cl.append('--input-vcf')
     cl.append(v)
     root, file_vcf = os.path.split(v)
     out_file = os.path.join(output_folder,os.path.join(OUTPUT_MAF, file_vcf+'.maf'))
-    # cl.append('--vep-custom')
-    # cl.append(CLINV)
+    cl.append('--vep-custom')
+    cl.append(CLINV)
     cl.append('--output-maf')
     cl.append(out_file)
     cl.append('--ref-fasta')
