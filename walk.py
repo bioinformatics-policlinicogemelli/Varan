@@ -166,6 +166,8 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
     
     
     if oncokb:
+       
+        ################################# OPZIONE 1 #########################################################
         # if not os.path.isfile(input):
         #     tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
         #     input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
@@ -178,7 +180,7 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
         #     df_table.at[index,"discrete"]= ((200*float(row["seg.mean"]))-2*(100-tc))/tc
             
         
-        df_table_filtered=df_table#[(df_table["discrete"]>=3)|(df_table["discrete"]<=0.8)] 
+        # df_table_filtered=df_table#[(df_table["discrete"]>=3)|(df_table["discrete"]<=0.8)] 
         
         #df_table_filtered["Copy_Number_Alteration"]=0
         # df_table_filtered.loc[(df_table_filtered["discrete"]>3)&(df_table_filtered["discrete"]<5), "Copy_Number_Alteration"]=1
@@ -187,11 +189,54 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
         # df_table_filtered.loc[df_table_filtered["discrete"]<=0, "Copy_Number_Alteration"]=-2
         
        
-        df_table_filtered["Copy_Number_Alteration"]=df_table_filtered["discrete"]
-        df_table_filtered.to_csv(os.path.join(output_folder,"data_cna_hg19.seg.filtered.txt"),sep="\t",index=False)
-        temp_cna=reshape_cna(input,os.path.join(output_folder,"data_cna_hg19.seg.filtered.txt"),cancer,output_folder)
-        annotate_cna(temp_cna,output_folder)
+        #df_table_filtered["Copy_Number_Alteration"]=df_table_filtered["discrete"]
+        #df_table_filtered.to_csv(os.path.join(output_folder,"data_cna_hg19.seg.filtered.txt"),sep="\t",index=False)
+        #temp_cna=reshape_cna(input,os.path.join(output_folder,"data_cna_hg19.seg.filtered.txt"),cancer,output_folder)
+        #annotate_cna(temp_cna,output_folder)
    
+        ################################# OPZIONE 2 #########################################################
+   
+        # rename discrete 
+        
+        df_table.rename(columns={"discrete":"Copy_Number_Alteration","ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},inplace=True)
+        df_table=df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
+        if not os.path.isfile(input):
+            tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
+            input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
+        else:
+            input_file=pd.read_csv(input,sep="\t")
+        
+        if not "ONCOTREE_CODE" in input_file.columns:
+            input_file["ONCOTREE_CODE"]=cancer
+
+        input_file["Tumor_Sample_Barcode"]=input_file["SampleID"]+".cnv.bam"
+        
+        annotate= pd.merge( df_table[["Tumor_Sample_Barcode","Hugo_Symbol","seg.mean","Copy_Number_Alteration"]] ,input_file[["Tumor_Sample_Barcode","ONCOTREE_CODE","TC"]],on="Tumor_Sample_Barcode")
+        temppath=os.path.join(output_folder,"temp_cna_toannotate.txt")
+        annotate.to_csv(temppath,index=False,sep="\t")
+    
+        out=temppath.replace("toannotate.txt","annotated.txt")
+        os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {temppath}\
+                        -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
+                
+        cna=pd.read_csv(out,sep="\t",dtype={"Copy_Number_Alteration":int})
+        cna=cna[cna["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
+            
+        for index, row in cna.iterrows():
+            tc= int(input_file[input_file["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]]["TC"])
+            cna.at[index,"discrete"]= ((200*float(row["seg.mean"]))-2*(100-tc))/tc
+        
+    
+        cna["Copy_Number_Alteration"]=0
+        cna.loc[(cna["discrete"]>3)&(cna["discrete"]<5), "Copy_Number_Alteration"]=1
+        cna.loc[cna["discrete"]>5, "Copy_Number_Alteration"]=2
+        cna.loc[(cna["discrete"]>0)&(cna["discrete"]<0.8), "Copy_Number_Alteration"]=-1
+        cna.loc[cna["discrete"]<=0, "Copy_Number_Alteration"]=-2
+        
+        data_cna=cna.pivot_table(index="Hugo_Symbol",columns="Tumor_Sample_Barcode",values="Copy_Number_Alteration",fill_value=0)
+
+        data_cna.to_csv(os.path.join(output_folder,"data_cna.txt"),index=True,sep="\t")
+      
     return sID_path
 
 def tabella_to_dict(df):
