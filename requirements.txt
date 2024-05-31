@@ -1,0 +1,6 @@
+loguru
+pandas
+loguru
+numpy
+pandas
+PyVCF3
