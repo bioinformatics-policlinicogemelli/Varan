@@ -4,3 +4,4 @@ loguru
 numpy
 pandas
 PyVCF3
+yaml
