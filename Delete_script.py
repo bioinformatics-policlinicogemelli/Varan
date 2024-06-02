@@ -1,44 +1,33 @@
 import os
-import sys
-import argparse
+from Make_meta_and_cases import meta_case_main
 from Delete_functions import *
 from ValidateFolder import validateFolderlog
-import loguru
+from versioning import *
 from loguru import logger
 
-def delete_main(oldpath,removepath,output,log=False):
-    
-    if not log:
-        logger.remove()
-        logfile="delete_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
-    
+
+def delete_main(oldpath,removelist,destinationfolder):    
     logger.info("Starting delete_main script:")
-    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{output}]")	
+    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removelist}, destinationfolder:{destinationfolder}]")	
     
     if os.path.exists(oldpath):
         logger.info("Original folder found")
     
-    if os.path.exists(removepath):
+    if os.path.exists(removelist):
         logger.info("Sample list to remove found")
     
-    #output=os.path.join(destinationfolder,"filtered_data")
-    if os.path.exists(output):
-        logger.critical("Filtered_data folder already exists. Please change destination folder (--Destination arg)" )
-        logger.critical("Exit")
-        sys.exit()
-    else:
-        logger.info("Creating a new folder: filtered_data")    
-        os.mkdir(output)
-        output_caseslists=os.path.join(output,"case_lists")
-        os.mkdir(output_caseslists)   
+    old_versions=get_version_list(destinationfolder)
+    if len(old_versions)<=2:
+        logger.warning("Only one version founded!")
+    output=create_newest_version_folder(destinationfolder)
+    logger.info(f"Creating a new folder: {output}")
+    output_caseslists=os.path.join(output,"case_lists")
+    os.mkdir(output_caseslists)   
 
     logger.info("Great! Everything is ready to start")
 
     os.system("cp "+oldpath+"/*meta* "+output)
-    sampleIds=open(removepath,"r").readlines()
+    sampleIds=open(removelist,"r").readlines()
     sampleIds=[sample.strip() for sample in sampleIds]
 
     
@@ -101,44 +90,21 @@ def delete_main(oldpath,removepath,output,log=False):
 
 
 
+    cancer,vus=extract_info_from_meta(oldpath)
+    meta_case_main(cancer,vus,output)
+
+
     logger.info("Starting Validation Folder...")
 
     validateFolderlog(output)
     
+    
+    
+    if len(old_versions)>1:
+        old_version=old_versions[-1]
+        compare_version(output,old_version,"delete",output)
+    
+    
     logger.success("The process ended without errors")
     logger.success("Please, check DeleteScript.log to verify that everything went as expected.")
     logger.success("Successfully deleted sample(s)!")
-    
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)     
-    
-if __name__ == '__main__':
-    
-    logfile="Delete_Script_{time:HH:mm:ss.SS}.log"
-    
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Parser of Delete script for cBioportal')
-     
-    parser.add_argument('-o', '--OldDataPath', required=True,
-                        help='Folder containing old existing data files')
-    parser.add_argument('-s', '--SampleToRemove', required=True,
-                        help='Path of file with SampleIDs to remove')
-    parser.add_argument('-d', '--Destination', required=True,
-                        help='Path of new folder to store updated data',default="./")
-    
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="delete_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
-
-    oldpath=args.OldDataPath
-    removepath=args.SampleToRemove
-    destinationfolder=args.Destination
-    
-    delete_main(oldpath,removepath,destinationfolder,log=False)

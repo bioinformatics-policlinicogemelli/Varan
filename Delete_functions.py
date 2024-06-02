@@ -111,14 +111,10 @@ def delete_sv(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output file will be saved.
 
     """
-    with open(file_path, "r") as old_file:
-        with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
-            for line in old_file:
-                if not any(word in line for word in sample_ids):
-                    list_split = line.split("\t\t")
-                    list_strip = [elem.strip() for elem in list_split]
-                    new_row = "\t".join(list_strip) + '\n'
-                    of.write(new_row)
+
+    old_file=pd.read_csv(file_path,sep="\t")
+    new_file=old_file[~old_file["Sample_Id"].isin(sample_ids)]
+    new_file.to_csv(os.path.join(output_folder,"data_sv.txt"),sep="\t",index=False)
 
 
 def delete_caselist_cna(file_path, sample_ids, output_folder):

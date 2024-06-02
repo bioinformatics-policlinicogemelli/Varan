@@ -4,7 +4,7 @@ import argparse
 from loguru import logger
 import sys
 
-def validateFolderlog(folder, log=False):
+def validateFolderlog(folder):
     """
     Validates the contents of the folder against required files for cBioPortal data upload.
     
@@ -84,7 +84,7 @@ def validateFolderlog(folder, log=False):
 
 
 
-def validateFolder(folder,log=False):
+def validateFolder(folder):
     """
     Validates the contents of a folder against required files for cBioPortal data upload.
 
@@ -107,13 +107,6 @@ def validateFolder(folder,log=False):
         >>> validateFolder('data_folder/')
         
     """
-    
-    if not log:
-        logger.remove()
-        logfile="validateFolder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
 	
     logger.info("Starting validateFolder script:")
     logger.info(f"validateFolder args [folder:{folder}]")
@@ -170,33 +163,7 @@ def validateFolder(folder,log=False):
             print("Missing files:")
             for missing in missing_files:
                 print("* ", missing)
-        
-            
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)  
 
-if __name__ == '__main__':
+    logger.info("Starting cBioportal validateFolder script")
 
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Parser of Update script for cBioportal')
-
-    parser.add_argument('-f', '--Folder', required=True,
-						help='Folder path to check')
-
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="validate_folder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
-    
-    folder=args.Folder
-    
-    if not os.path.exists(folder):
-        print(["[WARNING] Folder not found"])
-    else:
-        validateFolder(folder,log=False)   
+    os.system(f"python3 /importer/validateData.py -s {folder} -p /importer/api_json_system_tests ")

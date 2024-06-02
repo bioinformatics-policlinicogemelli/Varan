@@ -1,9 +1,9 @@
 import os
 import pandas as pd
-import argparse
 from configparser import ConfigParser
+from versioning import extract_version_str
 
-def populate_cases_sv(cancer, project_name, folder,cases_list_dir,logger):
+def populate_cases_sv(cancer, project_name,vus, folder,cases_list_dir,version,logger):
     """
         Function to populate cases_sv file
     Args:
@@ -19,12 +19,11 @@ def populate_cases_sv(cancer, project_name, folder,cases_list_dir,logger):
     nsamples=len(data_sv.Sample_Id.unique())
     sample_ids=list(data_sv.Sample_Id.unique())
     
-    # if vus:
-    #     study_id = cancer+project_name+"_vus"
-    # else:
-    #     study_id = cancer+project_name
-    study_id = cancer+project_name
-    
+    if vus:
+        study_id = cancer+project_name+version+"_NoVus"
+    else:
+        study_id = cancer+project_name+version
+
     stable_id = study_id+"_sv"
     case_list_name = "Samples with SV data"
     case_list_description = "All samples (+"+str(nsamples)+") samples"
@@ -42,12 +41,13 @@ def populate_cases_sv(cancer, project_name, folder,cases_list_dir,logger):
     
     case_sv_file = open(f"{cases_list_dir}/cases_sv.txt", "w")
     for key, value in dictionary_file.items():
+        logger.info(f"{key}: {value}", file=case_sv_file)
         print(f"{key}: {value}", file=case_sv_file)
     case_sv_file.close()
 #
 
 
-def populate_cases_cna(cancer, project_name,folder, cases_list_dir,logger):
+def populate_cases_cna(cancer, project_name,vus,folder, cases_list_dir,version,logger):
     """
         Function to populate cases_cna file
     Args:
@@ -65,14 +65,11 @@ def populate_cases_cna(cancer, project_name,folder, cases_list_dir,logger):
     nsamples=len(data_cna.columns)-1
     sample_ids=list(data_cna.columns)[1:]
     
-    
-    # if vus:
-    #     study_id = cancer+project_name+"_vus"
-    # else:
-    #     study_id = cancer+project_name
+    if vus:
+        study_id = cancer+project_name+version+"_NoVus"
+    else:
+        study_id = cancer+project_name+version
 
-    study_id = cancer+project_name
-    
     stable_id = study_id+"_cna"
 
     case_list_category = "all_cases_with_cna_data"
@@ -96,8 +93,7 @@ def populate_cases_cna(cancer, project_name,folder, cases_list_dir,logger):
     case_cna_file.close()
 
 
-
-def populate_cases_sequenced(cancer,project_name, folder, cases_list_dir,logger):
+def populate_cases_sequenced(cancer,project_name, vus,folder, cases_list_dir,version,logger):
     """
         Function to populate cases_sequenced file
     Args:
@@ -114,12 +110,12 @@ def populate_cases_sequenced(cancer,project_name, folder, cases_list_dir,logger)
     nsamples=len(data_sequenced["Tumor_Sample_Barcode"].unique())
     sample_ids=list(data_sequenced["Tumor_Sample_Barcode"].unique())
 
-    
-    # if vus:
-    #     study_id = cancer+project_name+"_vus"
-    # else:
-    #     study_id = cancer+project_name
-    study_id = cancer+project_name
+
+    if vus:
+        study_id = cancer+project_name+version+"_NoVus"
+    else:
+        study_id = cancer+project_name+version
+
     stable_id = study_id+"_sequenced"
 
     case_list_category = "all_cases_with_mutation_data"
@@ -136,33 +132,10 @@ def populate_cases_sequenced(cancer,project_name, folder, cases_list_dir,logger)
         "case_list_ids": case_list_ids,
     }
 
-    case_sequenced_file = open(f"{cases_list_dir}/cases_sequenced.txt", "w")
+    meta_file = open(f"{cases_list_dir}/cases_sequenced.txt", "w")
     for key, value in dictionary_file.items():
-        print(f"{key}: {value}", file=case_sequenced_file)
-    case_sequenced_file.close()
+        logger.info(f"{key}: {value}", file=meta_file)
+        print(f"{key}: {value}", file=meta_file)
+    meta_file.close()
 
 
-if __name__=="__main__":
-    
-    parser = argparse.ArgumentParser(description='cBioportal arguments')
-    # arguments    
-    parser.add_argument('-f', '--Folder', required=False, 
-                        help='Path of folder containing data')
-    parser.add_argument('-c', '--Cancer', required=False,
-                        help='Cancer Name')
-
-    args = parser.parse_args()
-    
-    folder=args.Folder
-    cancer=args.Cancer
-    
-    config = ConfigParser()
-    configFile = config.read("conf.ini")
-    project=config.get("Project","PROJECT_NAME")
-    project_name="_"+project
-    
-    cases_list_dir = os.path.join(folder, "case_lists")
-    if os.path.exists(cases_list_dir):
-        pass
-    else:
-        os.mkdir(cases_list_dir)

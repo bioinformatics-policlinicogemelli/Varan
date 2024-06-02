@@ -1,40 +1,27 @@
 import os
-import sys
-import argparse
 from ExtractSamples_functions import *
 from ValidateFolder import validateFolderlog
-#import loguru
+from Make_meta_and_cases import meta_case_main
+from versioning import * 
 from loguru import logger
 
+def extract_main(oldpath,removepath,outputfolder):
 
-def extract_main(oldpath,removepath,output,log=False):
-  
-    if not log:
-        logger.remove()
-        logfile="extract_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
-    
     logger.info("Starting extract_main script:")
-    logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, outputfolder:{output}]")	
+    logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{outputfolder}]")	
     
     if os.path.exists(oldpath):
         logger.info("Original folder found")
     if os.path.exists(removepath):
         logger.info("Sample list to extract found")
-    #os.mkdir(outputfolder)
-    #output=outputfolder#os.path.join(outputfolder,"extracted_data")
-    if os.path.exists(output):
-        logger.critical("Extracted_data folder already exists. Please change destination folder (--Destination arg)" )
-        logger.critical("Exit")
-        sys.exit()
-    else: 
-        logger.info(f"Creating a new folder: {output}")     
-        os.mkdir(output)
-        output_caseslists=os.path.join(output,"case_lists")
-        os.mkdir(output_caseslists)   
-
+    
+    old_versions=get_version_list(outputfolder)
+    if len(old_versions)<=2:
+        logger.warning("Only one version founded!")
+    output=create_newest_version_folder(outputfolder)
+    logger.info(f"Creating a new folder: {output}")
+    output_caseslists=os.path.join(output,"case_lists")
+    os.mkdir(output_caseslists)   
 
     logger.info("Great! Everything is ready to start")
 
@@ -80,7 +67,6 @@ def extract_main(oldpath,removepath,output,log=False):
         extract_sv(o_sv,sampleIds,output)
     else:
         logger.warning("data_sv.txt not found in current folder. Skipping")
-    #
     
     #
     o_cases_cna=os.path.join(oldpath,"case_lists/cases_cna.txt")
@@ -100,48 +86,21 @@ def extract_main(oldpath,removepath,output,log=False):
         extract_caselist_sv(o_cases_sv,sampleIds,output_caseslists)
     else:
         logger.warning("cases_sv.txt not found in 'case_lists' folder. Skipping")
+
+
+    cancer,vus=extract_info_from_meta(oldpath)
+    meta_case_main(cancer,vus,output)
     
+    
+   
+    #old_version=outputfolder+"_v"+str(extract_version_int(output)-1)
+    if len(old_versions)>1:
+        old_version=old_versions[-1]
+        compare_version(output,old_version,"delete",output)
+
+
     logger.info("Starting Validation Folder...")
     validateFolderlog(output)
     logger.success("The process ended without errors")
     logger.success("Successfully extracted sample(s)!")
-        
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)     
 
-if __name__ == '__main__':
-    
-    logfile="ExtractSamples_Script_{time:HH:mm:ss.SS}.log"
-    logger.info("Let's see if we have everything we need...")
- 
-    
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Parser of Extract script for cBioportal')
-        # arguments
-    parser.add_argument('-o', '--OldDataPath', required=True,
-                            help='Folder containing old existing data files')
-    parser.add_argument('-s', '--SampleToExtract', required=True,
-                            help='Path of file with SampleIDs to extract')
-    parser.add_argument('-d', '--Destination', required=True,
-                            help='Path of new folder to store extracted data',default="./")
-    try:  
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="extract_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
-
-    oldpath=args.OldDataPath
-    removepath=args.SampleToExtract
-    destinationfolder=args.Destination
-
-    extract_main(oldpath,removepath,destinationfolder,log=False)
-    
-    
-
-    
-    

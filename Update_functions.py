@@ -150,7 +150,7 @@ def update_sv(oldfile_path,newfile_path,output_folder):
                         of.write(new_row)
     data_sv=pd.read_csv(os.path.join(output_folder,"data_sv.txt"),sep="\t")
     data_sv=data_sv.drop_duplicates(subset=["Sample_Id","Site1_Hugo_Symbol","Site2_Hugo_Symbol","Normal_Paired_End_Read_Count"], keep='last')
-    data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"),sep="\t")
+    data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"),index=False,sep="\t")
     
 
 def update_caselist_cna(oldfile_path,newfile_path,output_folder):

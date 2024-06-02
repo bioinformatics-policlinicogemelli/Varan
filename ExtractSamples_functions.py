@@ -25,8 +25,8 @@ def extract_clinical_samples(file_path,sample_ids,output_folder):
     header=file.loc[0:3,:]
     file=pd.read_csv(file_path,sep="\t")
     extracted=file[file["Sample Identifier"].astype(str).isin(sample_ids)]
-    if len(sample_ids) > len(file["Sample Identifier"].unique()):
-        print("[Warning] Some samples names are not present in the DataFrame.")
+    if not all([sample in file["Sample Identifier"].unique() for sample in sample_ids ]):
+        print("[Warning] Some samples names are not present in the DataFrame data_clinical_samples.")
     extracted=pd.concat([header,extracted])
     extracted.to_csv(os.path.join(output_folder,"data_clinical_sample.txt"),index=False,
                    sep="\t")
@@ -56,8 +56,8 @@ def extract_clinical_patient(oldpath,sample_ids,output_folder):
     patient_ids=list(sample[sample["Sample Identifier"].astype(str).isin(sample_ids)]["#Patient Identifier"])
     header=file.loc[0:3,:]
     extracted=file[file["#Patient Identifier"].astype(str).isin(patient_ids)]
-    if len(sample_ids) > len(file["#Patient Identifier"].unique()):
-        print("[Warning] Some samples names are not present in the DataFrame.")
+    if not all([patient in file["#Patient Identifier"].unique() for patient in patient_ids]):
+        print("[Warning] Some samples names are not present in the DataFrame data_clinical_patient.")
     extracted=pd.concat([header,extracted])    
     extracted.to_csv(os.path.join(output_folder,"data_clinical_patient.txt"),index=False,
                    sep="\t")
@@ -89,8 +89,8 @@ def extract_cna_hg19(file_path,sample_ids,output_folder):
 
     file=pd.read_csv(file_path,sep="\t")
     extracted=file[file["ID"].astype(str).isin(sample_ids)]
-    if len(sample_ids) > len(file["ID"].unique()):
-        print("[Warning] Some samples names are not present in the DataFrame.")
+    if not all([sample in file["ID"].unique() for sample in sample_ids]):
+        print("[Warning] Some samples names are not present in the DataFrame data_cna_hg19.")
     extracted.to_csv(os.path.join(output_folder,"data_cna_hg19.seg"),index=False,
                    sep="\t")
         
@@ -117,8 +117,8 @@ def extract_cna(file_path,sample_ids,output_folder):
     """
     file=pd.read_csv(file_path,sep="\t")
     columns_to_keep = [sample for sample in sample_ids if sample in file.columns]
-    if len(sample_ids)> len(sample_ids):
-        print("[Warning] Some samples names are not present in the DataFrame.")
+    if not all([sample in file.columns for sample in sample_ids]):
+        print("[Warning] Some samples names are not present in the DataFrame data_cna.")
     columns_to_keep.insert(0, file.columns[0])
     extracted=file.loc[:,columns_to_keep]
     extracted.to_csv(os.path.join(output_folder,"data_cna.txt"),index=False,
@@ -148,8 +148,8 @@ def extract_mutations(file_path,sample_ids,output_folder):
     
     file=pd.read_csv(file_path,sep="\t")
     extracted=file[file["Tumor_Sample_Barcode"].astype(str).isin(sample_ids)]
-    if len(sample_ids) > len(file["Tumor_Sample_Barcode"].unique()):
-        print("[Warning] Some samples names are not present in the DataFrame.")
+    if not all([sample in file["Tumor_Sample_Barcode"].unique() for sample in sample_ids ]):
+        print("[Warning] Some samples names are not present in the DataFrame data_mutations_extended .")
     extracted.to_csv(os.path.join(output_folder,"data_mutations_extended.txt"),index=False,
                    sep="\t")
     
@@ -174,14 +174,10 @@ def extract_sv(file_path,sample_ids,output_folder):
       >>>  extract_sv('input_sv.txt', ['sample1', 'sample2'], 'output_folder/')
     """
 
-    with open(file_path,"r") as old_file:
-        with open(os.path.join(output_folder,"data_sv.txt"),"w") as of:
-            for line in old_file:
-                if any(word in line for word in sample_ids):
-                            list_split=line.split("\t\t")
-                            list_strip=[elem.strip() for elem in list_split]
-                            new_row="\t".join(list_strip)+'\n'
-                            of.write(new_row)
+    old_file=pd.read_csv(file_path,sep="\t")
+    new_file=old_file[old_file["Sample_Id"].isin(sample_ids)]
+    new_file.to_csv(os.path.join(output_folder,"data_sv.txt"),sep="\t",index=False)
+
 
 def extract_caselist_cna(file_path,sample_ids,output_folder):
     """
