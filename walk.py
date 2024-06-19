@@ -700,4 +700,7 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
                 fusions = tsv.get_fusions(v)
             except Exception as e:
                 logger.error(f"Something went wrong while reading Fusion section of file {v}")
+    except FileNotFoundError:
+        logger.critical(f"No input file '{input}' was found: try check your path")
+        raise(FileNotFoundError("Exiting from walk script!"))
            
