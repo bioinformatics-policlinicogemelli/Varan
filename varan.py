@@ -16,7 +16,14 @@ from Delete_script import delete_main
 from ExtractSamples_script import extract_main
 import shutil
 
-def varan(input, cancer, output_folder,oncoKB, filter_snv=False, vcf_type=None, overwrite_output=False, vus=False, update=False, extract=False, remove=False, log=False):
+config = ConfigParser()
+
+configFile = config.read("conf.ini")
+vaf_default = config.get('Filters', 't_VAF')
+vaf_hotspot = config.get('Filters', 't_VAF')
+vaf_novel = config.get('Filters', 't_VAF_NOVEL')
+
+def varan(input, cancer, output_folder,oncoKB, filter_snv=False, filter_novel=True, vcf_type=None, overwrite_output=False, resume=False, vus=False, update=False, extract=False, remove=False, log=False):
     
     if not log:
         logger.remove()
@@ -27,7 +34,7 @@ def varan(input, cancer, output_folder,oncoKB, filter_snv=False, vcf_type=None, 
         logger.info("Welcome to VARAN") 
 
     logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filter_snv:{filter_snv}, cancer:{cancer}, \
-                            vcf_type:{vcf_type}, overwrite_output:{overwrite_output}, vus:{vus}], \
+                            vcf_type:{vcf_type}, overwrite_output:{overwrite_output}, resume:{resume}, vus:{vus}], \
                             update:{update}, extract:{extract}, remove:{remove}")
 
     if not any([update ,extract , remove]) :       
@@ -37,7 +44,7 @@ def varan(input, cancer, output_folder,oncoKB, filter_snv=False, vcf_type=None, 
             ###########################
             
             logger.info("Starting preparation study folder")
-            walk_folder(input, output_folder,oncoKB,args.Cancer,overwrite_output, vcf_type,filter_snv,log)
+            walk_folder(input, output_folder,oncoKB,cancer,overwrite_output, resume, vcf_type,filter_snv,log)
 
 
             ###########################
@@ -47,14 +54,15 @@ def varan(input, cancer, output_folder,oncoKB, filter_snv=False, vcf_type=None, 
             logger.info("Starting filter")    
             #filter_main(output_folder, output_folder, vus,overwrite_output,log)
             if args.vcf_type =="snv" or (args.vcf_type==None and os.path.exists(os.path.join(args.input,"SNV"))):
-                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer)
+                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer, False, filter_novel)
             elif os.path.exists(os.path.exists(os.path.join(args.input,"maf"))) and not args.vcf_type=="cnv":
-                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer,False)
-                                
+                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer, False, filter_novel)
+
                 
             ############################
             #      3. CONCATENATE      #
             ############################
+            
             if  os.path.exists(os.path.join(output_folder,"maf"))and not args.vcf_type=="cnv":
                 logger.info("Concatenate mutation file")
                 folders=[]
@@ -176,13 +184,18 @@ if __name__ == '__main__':
                                             help='Select the vcf file to parse')
     parser.add_argument('-w', '--overWrite', required=False,action='store_true',
                                                 help='Overwrite output folder if it exists')
-
+    parser.add_argument('-R', '--resume', required=False,action='store_true',
+                                                help='Resume an already started analysis')
     parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
     # FILTER_CLINVAR BLOCK
 
     parser.add_argument('-v', '--vus', required=False,
                                             action='store_true',
                                             help='Filter out VUS variants')
+    
+    parser.add_argument('-N', '--novel', required=False,
+                                            action='store_true',
+                                            help='filtern novel and hotspot separetely')
     
     # UPDATE BLOCK
 
@@ -216,9 +229,11 @@ if __name__ == '__main__':
         cancer = args.Cancer
         input = args.input
         filter_snv=args.filter_snv
+        filter_novel=args.novel
         output_folder = args.output_folder
         vcf_type=args.vcf_type
         overwrite_output=args.overWrite
+        resume=args.resume
         vus=args.vus
         oncoKB=args.oncoKB
         
@@ -242,7 +257,10 @@ if __name__ == '__main__':
             logger.critical("To remove/extract samples from a study, you need to specify both original folder path and list samples")
             raise argparse.ArgumentError("To remove/extract samples from a study, you need to specify both original folder path and list samples")
         
-        varan(input, cancer, output_folder,oncoKB, filter_snv, vcf_type, overwrite_output, vus, update, extract, remove, log)
+        if resume:
+            overwrite_output=False
+            
+        varan(input, cancer, output_folder,oncoKB, filter_snv, filter_novel, vcf_type, overwrite_output, resume, vus, update, extract, remove, log)
     
     except Exception as err:
         logger.critical(f"error: {err}", file=sys.stderr)

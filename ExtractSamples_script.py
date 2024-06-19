@@ -3,11 +3,11 @@ import sys
 import argparse
 from ExtractSamples_functions import *
 from ValidateFolder import validateFolderlog
-import loguru
+#import loguru
 from loguru import logger
 
 
-def extract_main(oldpath,removepath,outputfolder,log=False):
+def extract_main(oldpath,removepath,output,log=False):
   
     if not log:
         logger.remove()
@@ -17,20 +17,20 @@ def extract_main(oldpath,removepath,outputfolder,log=False):
         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
     
     logger.info("Starting extract_main script:")
-    logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{destinationfolder}]")	
+    logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, outputfolder:{output}]")	
     
     if os.path.exists(oldpath):
         logger.info("Original folder found")
     if os.path.exists(removepath):
         logger.info("Sample list to extract found")
-    
-    output=os.path.join(outputfolder,"extracted_data")
+    #os.mkdir(outputfolder)
+    #output=outputfolder#os.path.join(outputfolder,"extracted_data")
     if os.path.exists(output):
         logger.critical("Extracted_data folder already exists. Please change destination folder (--Destination arg)" )
         logger.critical("Exit")
         sys.exit()
     else: 
-        logger.info("Creating a new folder: Extracted_data")     
+        logger.info(f"Creating a new folder: {output}")     
         os.mkdir(output)
         output_caseslists=os.path.join(output,"case_lists")
         os.mkdir(output_caseslists)   

@@ -18,6 +18,9 @@ import shutil
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
+vaf_default = config.get('Filters', 't_VAF')
+vaf_hotspot = config.get('Filters', 't_VAF')
+vaf_novel = config.get('Filters', 't_VAF_NOVEL')
 
 def print_unique_clin_sig(df):
     unique_clin_sig = df['CLIN_SIG'].unique()
@@ -75,7 +78,7 @@ def filter_vf(df):
     df = df[(df['gnomAD_AF'] <gnomAD) | (df['gnomAD_AF'].isnull())]
     return df
 
-def filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False, log=False):
+def filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False, novel=True, log=False):
     if not log:
         logger.remove()
         logfile="filter_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
@@ -153,22 +156,34 @@ def filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False,
         
 
 
+    file_list =concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
+    out_filter=os.path.join(output_folder, 'MAF_filtered')
+    
     if oncokb:   
         file_list = concatenate.get_files_by_ext(output_onco, 'maf')
+        out_filter=os.path.join(output_folder, 'MAF_Onco_filtered')
+    
+    os.mkdir(out_filter)
+    
+    for file in file_list:
+        file_to_filter=pd.read_csv(file,sep="\t")
         
-        os.mkdir(os.path.join(output_folder, 'MAF_Onco_filtered'))
-        for file in file_list:
-            file_to_filter=pd.read_csv(file,sep="\t")
+        file_to_filter=file_to_filter[~file_to_filter["IMPACT"].isin(["LOW","MODIFIER"])]
+        
+        file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
+        
+        if oncokb:
             file_to_filter= file_to_filter[file_to_filter["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
-           
-            file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
-            
-            file_to_filter=file_to_filter[~file_to_filter["IMPACT"].isin(["LOW","MODIFIER"])]
-            file_to_filter=file_to_filter[file_to_filter["t_AF"]>=0.02]
-            
-            file_to_filter.to_csv(os.path.join(output_folder,"MAF_Onco_filtered",file.split("/")[-1]),sep="\t",index=False)   
-    else:
-        file_list = concatenate.get_files_by_ext(folder, 'maf')
+                        
+        if novel:
+            if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel") | (file_to_filter["dbSNP_RS"].isnull())]:
+                file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_novel)]
+            else:
+                file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
+        else:
+            file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
+        
+        file_to_filter.to_csv(os.path.join(out_filter,file.split("/")[-1]),sep="\t",index=False)  
 
     # out_folders.append(os.path.join(output_folder, 'NoBenign'))    
     # extensions.append("_NoBenign.maf")
@@ -267,4 +282,4 @@ if __name__ == '__main__':
     input=args.input
     oncokb=args.oncoKB
     cancer=args.Cancer
-    filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False, log=False)
+    filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False, novel=True, log=False)

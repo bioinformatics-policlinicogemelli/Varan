@@ -20,10 +20,15 @@ import random
 import string
 import sys
 import traceback
+import numpy as np
 
 config = ConfigParser()
 
 configFile = config.read("conf.ini")
+INPUT_PATH=config.get('Paths', 'INPUT_PATH')
+SNV=config.get('Paths', 'SNV')
+CNV=config.get('Paths', 'CNV')
+COMBOUT=config.get('Paths', 'COMBOUT')
 OUTPUT_FILTERED = config.get('Paths', 'OUTPUT_FILTERED')
 OUTPUT_MAF = config.get('Paths', 'OUTPUT_MAF')
 VCF2MAF = config.get('Paths', 'VCF2MAF')
@@ -128,9 +133,9 @@ def annotate_cna(path_cna,output_folder):
 
 
 def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
+    
     c = 0
     sID_path = dict()
-
     for case_folder in cnv_vcf_files:
         if os.path.exists('data_cna_hg19.seg'):
             MODE = 'a'
@@ -163,10 +168,12 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
     
     df_table = pd.read_csv(os.path.join(output_folder,'data_cna_hg19.seg.fc.txt'),sep="\t",header=0)
     result = tabella_to_dict(df_table)
-    
-    
+        
+    df_table.rename(columns={"discrete":"Copy_Number_Alteration","ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},inplace=True)
+    df_table_filt=df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
+        
     if oncokb:
-       
+        
         ################################# OPZIONE 1 #########################################################
         # if not os.path.isfile(input):
         #     tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
@@ -198,45 +205,137 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
    
         # rename discrete 
         
-        df_table.rename(columns={"discrete":"Copy_Number_Alteration","ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},inplace=True)
-        df_table=df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
+        #df_table.rename(columns={"discrete":"Copy_Number_Alteration","ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},inplace=True)
+        #df_table_filt=df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
         if not os.path.isfile(input):
             tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
             input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
         else:
             input_file=pd.read_csv(input,sep="\t")
         
+        #TODO inserire filtro per TC (mettere specifiche su valori di TC da considerare)
+
+        #check for nan TC values
+        if len(input_file[input_file["TC"].isna()])>0:
+            nan_sbj=input_file[input_file["TC"].isna()]
+            nan_sbj=list(nan_sbj["SampleID"])
+            raise(Exception(f"Some aubject have Nan TC: {nan_sbj}. Remove these samples and try again."))
+        
         if not "ONCOTREE_CODE" in input_file.columns:
             input_file["ONCOTREE_CODE"]=cancer
 
         input_file["Tumor_Sample_Barcode"]=input_file["SampleID"]+".cnv.bam"
         
-        annotate= pd.merge( df_table[["Tumor_Sample_Barcode","Hugo_Symbol","seg.mean","Copy_Number_Alteration"]] ,input_file[["Tumor_Sample_Barcode","ONCOTREE_CODE","TC"]],on="Tumor_Sample_Barcode")
+        annotate= pd.merge( df_table_filt[["Tumor_Sample_Barcode","Hugo_Symbol","seg.mean","Copy_Number_Alteration"]] ,input_file[["Tumor_Sample_Barcode","ONCOTREE_CODE","TC"]],on="Tumor_Sample_Barcode")
         temppath=os.path.join(output_folder,"temp_cna_toannotate.txt")
         annotate.to_csv(temppath,index=False,sep="\t")
-    
+
+        
         out=temppath.replace("toannotate.txt","annotated.txt")
         os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {temppath}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
-                
+        #import pdb; pdb.set_trace()       
         cna=pd.read_csv(out,sep="\t",dtype={"Copy_Number_Alteration":int})
         cna=cna[cna["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
-            
+        cna["ESCAT"]="Unmatched"
+        df_table["ESCAT"]="Unmatched"
+        
         for index, row in cna.iterrows():
-            tc= int(input_file[input_file["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]]["TC"])
-            cna.at[index,"discrete"]= ((200*float(row["seg.mean"]))-2*(100-tc))/tc
-        
-    
-        cna["Copy_Number_Alteration"]=0
-        cna.loc[(cna["discrete"]>3)&(cna["discrete"]<5), "Copy_Number_Alteration"]=1
-        cna.loc[cna["discrete"]>5, "Copy_Number_Alteration"]=2
-        cna.loc[(cna["discrete"]>0)&(cna["discrete"]<0.8), "Copy_Number_Alteration"]=-1
-        cna.loc[cna["discrete"]<=0, "Copy_Number_Alteration"]=-2
-        
-        data_cna=cna.pivot_table(index="Hugo_Symbol",columns="Tumor_Sample_Barcode",values="Copy_Number_Alteration",fill_value=0)
+            #import pdb; pdb.set_trace()
+            logger.info("Analyzing cna sample " + row["Tumor_Sample_Barcode"])            
+            try:
+                tc= int(input_file[input_file["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]]["TC"])
+            except ValueError:
+                continue
+            except Exception:
+                raise(Exception(f"Something went wrong while reading TC!"))
 
+            #decomm se cutoff su copy number discreto
+            #cna.at[index,"discrete"]= ((200*float(row["seg.mean"]))-2*(100-tc))/tc 
+            
+            purity = tc/100
+            ploidy = 2
+            copy_nums = np.arange(6)
+            c=2**(np.log2((1 - purity) + purity * (copy_nums + .5) / ploidy ))
+            
+            # ESCAT classification
+            oncocode=input_file[input_file["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]]["ONCOTREE_CODE"].values
+            gene=df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]
+
+            if oncocode=="NSCLC":  
+                if (row["Hugo_Symbol"]=="MET" and row["seg.mean"]>1):
+                    row["ESCAT"]="IIB"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+                elif (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
+                    row["ESCAT"]="IIB"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+            
+            elif oncocode=="BREAST":
+                if (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
+                    row["ESCAT"]="IA"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
+                    
+            elif oncocode=="BOWEL":
+                if (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
+                    row["ESCAT"]="IIB"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+                    
+            elif oncocode=="PROSTATE":
+                if (row["Hugo_Symbol"]=="BRCA1" and row["seg.mean"]<1):
+                    row["ESCAT"]="IA"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
+                elif (row["Hugo_Symbol"]=="BRCA2" and row["seg.mean"]<1):
+                    row["ESCAT"]="IA"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
+                elif (row["Hugo_Symbol"]=="PTEN" and row["seg.mean"]<1):
+                    row["ESCAT"]="IIA"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIA"
+                elif (row["Hugo_Symbol"]=="ATM" and row["seg.mean"]<1):
+                    row["ESCAT"]="IIB"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+                elif (row["Hugo_Symbol"]=="PALB2" and row["seg.mean"]<1):
+                    row["ESCAT"]="IIB"
+                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+                    
+        #nuovi filtri (filtro cnvkit - conservativo)
+        
+        if not cna.empty:
+            cna["Copy_Number_Alteration"]=0
+            cna.loc[(cna["seg.mean"]<c[0]), "Copy_Number_Alteration"]=-2
+            cna.loc[(cna["seg.mean"]>=c[0])&(cna["seg.mean"]<c[1]), "Copy_Number_Alteration"]=-1
+            cna.loc[(cna["seg.mean"]>=c[1])&(cna["seg.mean"]<c[3]), "Copy_Number_Alteration"]=0
+            cna.loc[(cna["seg.mean"]>=c[3])&(cna["seg.mean"]<c[5]), "Copy_Number_Alteration"]=1
+            cna.loc[cna["seg.mean"]>=c[5], "Copy_Number_Alteration"]=2
+        
+        else:
+            logger.warning("After filtering cna dataframe is empty!")
+               
+        #vecchi filtri (decomm se filtro copy number discreto)
+        
+        #decomm se cutoff su copy number discreto
+        #cna.at[index,"discrete"]= ((200*float(row["seg.mean"]))-2*(100-tc))/tc 
+            
+        # cna["Copy_Number_Alteration"]=0
+        # cna.loc[(cna["discrete"]>3)&(cna["discrete"]<5), "Copy_Number_Alteration"]=1
+        # cna.loc[cna["discrete"]>5, "Copy_Number_Alteration"]=2
+        # cna.loc[(cna["discrete"]>0.25)&(cna["discrete"]<1), "Copy_Number_Alteration"]=-1
+        # cna.loc[cna["discrete"]<=0.25, "Copy_Number_Alteration"]=-2
+
+        df_table.to_csv(os.path.join(output_folder,"data_cna_hg19_escat.seg.fc.txt"),index=True,sep="\t")
+        
+        cna.to_csv(os.path.join(output_folder,"CNA_ANNOTATI_NDISCRETO.txt"),index=True,sep="\t")
+        
+        cna["Tumor_Sample_Barcode"]=cna["Tumor_Sample_Barcode"].str.replace(".cnv.bam","")
+        data_cna=cna.pivot_table(index="Hugo_Symbol",columns="Tumor_Sample_Barcode",values="Copy_Number_Alteration",fill_value=0)
         data_cna.to_csv(os.path.join(output_folder,"data_cna.txt"),index=True,sep="\t")
-      
+        
+    else:
+        
+        df_table_filt["Tumor_Sample_Barcode"]=df_table_filt["Tumor_Sample_Barcode"].str.replace(".cnv.bam","")
+        
+        data_cna=df_table_filt.pivot_table(index="Hugo_Symbol",columns="Tumor_Sample_Barcode",values="Copy_Number_Alteration",fill_value=0)
+        data_cna.to_csv(os.path.join(output_folder,"data_cna.txt"),index=True,sep="\t")
+    
     return sID_path
 
 def tabella_to_dict(df):
@@ -303,8 +402,9 @@ def vcf_filtering(sID_path,output_folder):
     return sID_path_filtered
 
 def vcf2maf_constructor(k, v, temporary,output_folder):
-    tum_id=k.replace(".hard-filtered.bam","")
-    
+    #import pdb; pdb.set_trace()
+    tum_id=k.replace(SNV.replace(".vcf",""),"") #da verificare
+    tum_id=tum_id.replace(".bam","")
     cl = ['perl']
     cl.append(VCF2MAF)
     cl.append('--input-vcf')
@@ -400,13 +500,13 @@ def write_clinical_sample(output_folder, table_dict):
     logger.info("Writing data_clinical_sample.txt file...")
     data_clin_samp = os.path.join(output_folder, 'data_clinical_sample.txt')
     cil_sample = open(data_clin_samp, 'w')
-    cil_sample.write('#Patient Identifier\tSample Identifier\tMSI\tTMB\tMSI_THR\tTMB_THR\n')
-    cil_sample.write('#Patient identifier\tSample Identifier\tMicro Satellite Instability\tMutational Tumor Burden\tMSI_THR\tTMB_THR\n')
-    cil_sample.write('#STRING\tSTRING\tNUMBER\tNUMBER\tSTRING\tSTRING\n')
-    cil_sample.write('#1\t1\t1\t1\t1\t1\n')
-    cil_sample.write('PATIENT_ID\tSAMPLE_ID\tMSI\tTMB\tMSI_THR\tTMB_THR\n')
+    cil_sample.write('#Patient Identifier\tSample Identifier\tMSI\tTMB\tMSI_THR\tTMB_THR\tRunID\tONCOTREE_CODE\tTC\n')
+    cil_sample.write('#Patient identifier\tSample Identifier\tMicro Satellite Instability\tMutational Tumor Burden\tMSI_THR\tTMB_THR\tRunID\tONCOTREE_CODE\tTC\n')
+    cil_sample.write('#STRING\tSTRING\tNUMBER\tNUMBER\tSTRING\tSTRING\tSTRING\tSTRING\tNUMBER\n')
+    cil_sample.write('#1\t1\t1\t1\t1\t1\t1\t1\t1\n')
+    cil_sample.write('PATIENT_ID\tSAMPLE_ID\tMSI\tTMB\tMSI_THR\tTMB_THR\tRUNID\tONCOTREE_CODE\tTC\n')
     for k, v in table_dict.items():
-        cil_sample.write(v[0]+'\t'+k+'.bam\t'+v[1]+'\t'+v[2]+'\t'+v[3]+'\t'+v[4]+'\n')
+        cil_sample.write(v[0]+'\t'+k+'\t'+v[1]+'\t'+v[2]+'\t'+v[3]+'\t'+v[4]+'\t'+v[5]+'\t'+v[6]+'\t'+v[7]+'\n')
     cil_sample.close()
     
 def write_clinical_sample_empty(output_folder, table_dict):
@@ -419,7 +519,7 @@ def write_clinical_sample_empty(output_folder, table_dict):
     cil_sample.write('#1\t1\n')
     cil_sample.write('PATIENT_ID\tSAMPLE_ID\n')
     for k, v in table_dict.items():
-        cil_sample.write(v[0]+'\t'+k+'.bam'+'\n')
+        cil_sample.write(v[0]+'\t'+k+'\n')
     cil_sample.close()
 
 def check_cna_vcf(file,inputFolderCNV):
@@ -454,7 +554,7 @@ def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
         except KeyError as e: 
             logger.critical(f"KeyError: {e} not found! Check if column name is correctly spelled or if there are tabs/spaces before or after the coloumn key: \n{row.index}. \nThis error may also occur if the table columns have not been separated by tabs!")
             raise(KeyError("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
-        combined_file = patientID+'_CombinedVariantOutput.tsv'
+        combined_file = patientID+COMBOUT #da verificare
         combined_path = os.path.join(inputFolder,"CombinedOutput",combined_file)
         if os.path.exists(combined_path):
             pass 
@@ -474,12 +574,19 @@ def transform_input(tsv,output_folder):
     tsv_file=pd.read_csv(tsv,sep="\t",dtype="string")
 
     for _,row in tsv_file.iterrows():
-        res_folder="/data/data_storage/novaseq_results/Dragen_2.5"
-        #
-        snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+".hard-filtered.vcf")     #"_MergedSmallVariants.genome.vcf")
-        cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+".cnv.vcf") # "_CopyNumberVariants.vcf")
-        combout=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["PatientID"]+"_CombinedVariantOutput.tsv")
-    
+        res_folder=INPUT_PATH
+        #import pdb; pdb.set_trace()
+        #res_folder="/data/data_storage/novaseq_results"
+        snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
+        #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
+        cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
+        combout=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["PatientID"]+COMBOUT)
+        
+        # #solo per run_160
+        # snv_path=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results", row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
+        # #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
+        # cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
+        # combout=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results",row["PatientID"],row["PatientID"]+COMBOUT)
         if os.path.exists(combout):
             os.system("cp "+combout + " "+os.path.join(output_folder,"temp","CombinedOutput"))
         else:
@@ -495,7 +602,7 @@ def transform_input(tsv,output_folder):
     
     return os.path.join(output_folder,"temp")
 
-def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, vcf_type=None ,filter_snv=False, log=False):
+def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resume=False, vcf_type=None ,filter_snv=False, log=False):
     if not log:
         logger.remove()
         logfile="Walk_folder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
@@ -504,18 +611,20 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, vcf_
         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
     
     logger.info("Starting walk_folder script:")
-    logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, vcf_type:{vcf_type}, filter_snv:{filter_snv}]")
+    logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filter_snv:{filter_snv}]")
  
     config.read('conf.ini')
     
     ###############################
     ###       OUTPUT FOLDER     ###
     ###############################
- 
-    create_folder(output_folder,overwrite_output)
-    if os.path.isfile(input):
+    if not resume or os.path.exists(os.path.join(output_folder,"temp")):
+        create_folder(output_folder,overwrite_output)
+        if os.path.isfile(input):
+            
+            input=transform_input(input,output_folder)
         
-        input=transform_input(input,output_folder)
+    input=os.path.join(output_folder,"temp")
             
     inputFolderSNV=os.path.abspath(os.path.join(input,"SNV"))
     inputFolderCNV=os.path.abspath(os.path.join(input,"CNV"))
@@ -527,36 +636,41 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, vcf_
     if os.path.exists(inputFolderSNV) and vcf_type!="cnv":
         logger.info("Check SNV files...")
         
-        case_folder_arr = get_snv_from_folder(inputFolderSNV)
-        logger.info("Everything ok!")
+    case_folder_arr = get_snv_from_folder(inputFolderSNV)
+    logger.info("Everything ok!")
 
     ###############################
     ###       SNV AND CNV       ###
     ###############################
-    
     if os.path.exists(inputFolderCNV) and vcf_type!="snv":
         sID_path_cnv = cnv_type_from_folder(input,case_folder_arr_cnv,output_folder,oncokb,cancer)
     if os.path.exists(inputFolderSNV) and vcf_type!="cnv":
         sID_path_snv = snv_type_from_folder(inputFolderSNV,case_folder_arr)
         
-        logger.info("Starting vcf2maf conversion...")
-        if filter_snv == True:
-            logger.info("filter option on")
-            temporary = create_random_name_folder()
-            sID_path_filtered = vcf_filtering(sID_path_snv,output_folder)
-            for k, v in sID_path_filtered.items():
-                cl = vcf2maf_constructor(k, v, temporary,output_folder)
-                run_vcf2maf(cl)
-        else:
-            temporary = create_random_name_folder()
-            for k, v in sID_path_snv.items():
-                cl = vcf2maf_constructor(k, v, temporary,output_folder)
-                run_vcf2maf(cl)
+        logger.info("Check maf folder...")
+        maf_path=os.path.join(output_folder,"maf")
+        if os.path.isdir(maf_path) and len([i for i in os.listdir(maf_path) if i.endswith('.maf')])>0:
+            logger.info("a non empty maf folder already exists!")
+        
+        if not resume:
+            logger.info("Starting vcf2maf conversion...")
+            if filter_snv == True:
+                logger.info("filter option on")
+                temporary = create_random_name_folder()
+                sID_path_filtered = vcf_filtering(sID_path_snv,output_folder)
+                for k, v in sID_path_filtered.items():
+                    cl = vcf2maf_constructor(k, v, temporary,output_folder)
+                    run_vcf2maf(cl)
+            else:
+                temporary = create_random_name_folder()
+                for k, v in sID_path_snv.items():
+                    cl = vcf2maf_constructor(k, v, temporary,output_folder)
+                    run_vcf2maf(cl)
     
     logger.info("Clearing scratch folder...")
     clear_scratch()
     
-
+   
     ###############################
     ###       GET FUSION        ###
     ###############################
@@ -586,176 +700,4 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, vcf_
                 fusions = tsv.get_fusions(v)
             except Exception as e:
                 logger.error(f"Something went wrong while reading Fusion section of file {v}")
-            if len(fusions)==0:
-                logger.info(f"No Fusions found in {v}")
-                continue
-            else:
-                logger.info(f"Fusions found in {v}")
-            if not os.path.exists(fusion_table_file):
-                logger.info(f"Creating data_sv.txt file...")
-                fusion_table = open(fusion_table_file, 'w')
-                header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
-                fusion_table.write(header)
-            else:
-                fusion_table = open(fusion_table_file, 'a')
-            for fus in fusions:
-                if len(fusions) > 0:
-                    Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
-                    Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
-                    if Site2_Hugo_Symbol == 'CASC1':
-                        Site2_Hugo_Symbol = 'DNAI7'
-                    Site1_Chromosome = fus['Site1_Chromosome']
-                    Site2_Chromosome = fus['Site2_Chromosome']
-                    Site1_Position = fus['Site1_Position']
-                    Site2_Position = fus['Site2_Position']
-
-                    if int(fus['Normal_Paired_End_Read_Count'])>=15 :
-                        fusion_table.write(k+'.bam\tSOMATIC\tFUSION\t'+\
-        str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
-        '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
-            
-        
-        if oncokb and  os.path.exists(fusion_table_file):
-            
-            data_sv=pd.read_csv(fusion_table_file,sep="\t")
-            if not os.path.isfile(input):
-                tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
-                input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
-            
-            else:
-                input_file=pd.read_csv(input,sep="\t")
-
-            
-            if "ONCOTREE_CODE" in input_file.columns:
-            
-                input_file["SampleID"]=input_file["SampleID"]+".bam"
-                fusion_table_df=data_sv.merge(input_file,how="inner",left_on="Sample_Id",right_on="SampleID")
-                fusion_table_df.to_csv(fusion_table_file,sep="\t",index=False)
-                fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")
-                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
-                        -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
-                
-
-            else:   
-                    
-                fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")       
-                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
-                            -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
-
-            fileonco=pd.read_csv(fusion_table_file_out,sep="\t")
-            
-        # fileonco=fileonco[fileonco["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
-            fileonco.to_csv(fusion_table_file,sep="\t",index=False)           
-            
-            
-    except:
-        logger.warning("No fusion found")
-
-
-    ##############################
-    ##       MAKES TABLE       ###
-    ##############################
-    
-    tsv_file=[file for file in os.listdir(input) if file.endswith("tsv")][0]
-    tsvpath=os.path.join(input,tsv_file)    
-
-    table_dict_patient = get_table_from_folder(tsvpath)
-
-    logger.info("Writing clinical files...")
-    write_clinical_patient(output_folder, table_dict_patient)
-    
-    try:
-        combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
-        MSI_THR=config.get('MSI', 'THRESHOLD')
-        TMB=ast.literal_eval(config.get('TMB', 'THRESHOLD'))
-        
-        for k, v in combined_dict.items():
-            logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
-            try:
-                tmv_msi = tsv.get_msi_tmb(v)
-            except Exception as e:
-                logger.error(f"Something went wrong!")
-            logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
-            
-            if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
-                table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
-            else:
-                table_dict_patient[k].append('NA')
-            table_dict_patient[k].append(tmv_msi['TMB_Total'])
-            if not tmv_msi['MSI'][0][1]=="NA":
-                if not tmv_msi['MSI'][1][1] =="NA":
-                    if float(tmv_msi['MSI'][1][1]) < float(MSI_THR):
-                        table_dict_patient[k].append("Stable")   
-                    else:
-                        table_dict_patient[k].append('Unstable')
-
-                    found = False
-                else:
-                    table_dict_patient[k].append('NA')
-            else:
-                table_dict_patient[k].append('NA')
-            found=False
-            for _k, _v in TMB.items():
-                if not tmv_msi["TMB_Total"]=="NA":
-                    if float(tmv_msi["TMB_Total"])<float(_v):
-                        table_dict_patient[k].append(_k)
-                        found=True
-                        break
-                else:
-                    table_dict_patient[k].append("NA")
-            if found==False:
-                table_dict_patient[k].append(list(TMB.keys())[-1])
-        write_clinical_sample(output_folder, table_dict_patient)
-    except:
-        print("No combined output found")
-        write_clinical_sample_empty(output_folder, table_dict_patient)
-        
-    logger.info("Deleting temp folder")
-    #clear_temp(output_folder)
-    
-    logger.success("Walk script completed!\n")
-
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)
-
-if __name__ == '__main__':
-         
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Argument of walk script')
-
-    parser.add_argument('-i', '--input', required=True,
-                                            help='input folder with data')
-    parser.add_argument('-t', '--vcf_type', required=False,
-                                            choices=['snv', 'cnv'],
-                                            help='Select the vcf file to parse')
-    parser.add_argument('-f', '--filter_snv', required=False,
-                                            action='store_true',
-                                            help='Filter out from the vcf the variants wit dot (.) in Alt column')
-    parser.add_argument('-o', '--output_folder', required=True,
-                                            help='Output folder')
-    parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
-    parser.add_argument('-w', '--overWrite', required=False,action='store_true',
-                                                help='Overwrite output folder if it exists')
-    parser.add_argument('-c', '--Cancer', required=False,
-                        help='Cancer Name')
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="walk_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
-    
-    
-    input = args.input
-    vcf_type = args.vcf_type
-    filter_snv = args.filter_snv
-    output_folder = args.output_folder
-    overwrite_output=args.overWrite
-    onco=args.oncoKB
-    cancer=args.Cancer
-    
-    walk_folder(input, output_folder,onco,cancer, overwrite_output, vcf_type, filter_snv, log=False)
+           

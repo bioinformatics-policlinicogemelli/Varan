@@ -18,15 +18,14 @@ def update_main(path,newpath,output,log=False):
     
     logger.info("Starting update_main script:")
     logger.info(f"update_main args [oldpath:{path}, newpath:{newpath}, output_folder:{output}]")	
-
+    
     if os.path.exists(path):    
         logger.info("Old folder found")
 
     if os.path.exists(newpath):
         logger.info("New folder found")
     
-
-    output=os.path.join(output,"updated_data")
+    output=os.path.join(output)
     
     if os.path.exists(output):
         logger.critical("Updated_data folder for this study already exists. Please change destination folder (--Destination arg)" )

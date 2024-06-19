@@ -6,7 +6,7 @@ from ValidateFolder import validateFolderlog
 import loguru
 from loguru import logger
 
-def delete_main(oldpath,removepath,destinationfolder,log=False):
+def delete_main(oldpath,removepath,output,log=False):
     
     if not log:
         logger.remove()
@@ -16,7 +16,7 @@ def delete_main(oldpath,removepath,destinationfolder,log=False):
         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
     
     logger.info("Starting delete_main script:")
-    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{destinationfolder}]")	
+    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{output}]")	
     
     if os.path.exists(oldpath):
         logger.info("Original folder found")
@@ -24,7 +24,7 @@ def delete_main(oldpath,removepath,destinationfolder,log=False):
     if os.path.exists(removepath):
         logger.info("Sample list to remove found")
     
-    output=os.path.join(destinationfolder,"filtered_data")
+    #output=os.path.join(destinationfolder,"filtered_data")
     if os.path.exists(output):
         logger.critical("Filtered_data folder already exists. Please change destination folder (--Destination arg)" )
         logger.critical("Exit")
