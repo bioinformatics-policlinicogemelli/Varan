@@ -23,7 +23,7 @@ vaf_default = config.get('Filters', 't_VAF')
 vaf_hotspot = config.get('Filters', 't_VAF')
 vaf_novel = config.get('Filters', 't_VAF_NOVEL')
 
-def varan(input, cancer, output_folder,oncoKB, filter_snv=False, filter_novel=True, vcf_type=None, overwrite_output=False, resume=False, vus=False, update=False, extract=False, remove=False, log=False):
+def varan(input, cancer, output_folder, oncoKB, filter_snv=False, filter_novel=True, vcf_type=None, overwrite_output=False, resume=False, vus=False, multiple=False, update=False, extract=False, remove=False, log=False):
     
     if not log:
         logger.remove()
@@ -34,7 +34,7 @@ def varan(input, cancer, output_folder,oncoKB, filter_snv=False, filter_novel=Tr
         logger.info("Welcome to VARAN") 
 
     logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filter_snv:{filter_snv}, cancer:{cancer}, \
-                            vcf_type:{vcf_type}, overwrite_output:{overwrite_output}, resume:{resume}, vus:{vus}], \
+                            vcf_type:{vcf_type}, overwrite_output:{overwrite_output}, resume:{resume}, vus:{vus}, multiple:{multiple}], \
                             update:{update}, extract:{extract}, remove:{remove}")
 
     if not any([update ,extract , remove]) :       
@@ -169,7 +169,7 @@ if __name__ == '__main__':
     log=True
 
 
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Argument of Varan script')
+    parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description='Argument of Varan script')
     
     # WALK BLOCK
     parser.add_argument('-c', '--Cancer', required=False,
@@ -182,11 +182,13 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--vcf_type', required=False, 
                                             choices=['snv', 'cnv'],
                                             help='Select the vcf file to parse')
-    parser.add_argument('-w', '--overWrite', required=False,action='store_true',
+    parser.add_argument('-w', '--overWrite', required=False, action='store_true',
                                                 help='Overwrite output folder if it exists')
-    parser.add_argument('-R', '--resume', required=False,action='store_true',
+    parser.add_argument('-R', '--resume', required=False, action='store_true',
                                                 help='Resume an already started analysis')
-    parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
+    parser.add_argument('-k', '--oncoKB', required=False, action='store_true', help='OncoKB annotation')
+    parser.add_argument('-m', '--multiple', required=False, action='store_true', help='Multiple sample VCF?')
+    
     # FILTER_CLINVAR BLOCK
 
     parser.add_argument('-v', '--vus', required=False,
