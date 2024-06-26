@@ -688,11 +688,34 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
         raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
 
     try:
+        tsvfiles=[file for file in os.listdir(input) if file.endswith("tsv")][0]
+    except IndexError:
+        logger.critical(f"It seems that no tsv file is in your folder!")
+        raise(IndexError("Exiting from walk script!"))
+    except FileNotFoundError:
+        logger.critical(f"No input directory '{input}' was found: try check your path")
+        raise(FileNotFoundError("Exiting from walk script!"))
+    except Exception as e:
+        logger.critical(f"Something went wrong! {print(traceback.format_exc())}")
+        raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
+
+    try:
         tsvpath=os.path.join(input,tsvfiles)    
         combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
         
         fusion_table_file = os.path.join(output_folder,'data_sv.txt')
             
+    #     for k, v in combined_dict.items():
+    #         fusions=[]
+    #         logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+    #         try:
+    #             fusions = tsv.get_fusions(v)
+    #         except Exception as e:
+    #             logger.error(f"Something went wrong while reading Fusion section of file {v}")
+    # except FileNotFoundError:
+    #     logger.critical(f"No input file '{input}' was found: try check your path")
+    #     raise(FileNotFoundError("Exiting from walk script!"))
+
         for k, v in combined_dict.items():
             fusions=[]
             logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
@@ -700,7 +723,190 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
                 fusions = tsv.get_fusions(v)
             except Exception as e:
                 logger.error(f"Something went wrong while reading Fusion section of file {v}")
+            if len(fusions)==0:
+                logger.info(f"No Fusions found in {v}")
+                continue
+            else:
+                logger.info(f"Fusions found in {v}")
+            if not os.path.exists(fusion_table_file):
+                logger.info(f"Creating data_sv.txt file...")
+                fusion_table = open(fusion_table_file, 'w')
+                header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
+                fusion_table.write(header)
+            else:
+                fusion_table = open(fusion_table_file, 'a')
+            for fus in fusions:
+                if len(fusions) > 0:
+                    Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
+                    Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
+                    if Site2_Hugo_Symbol == 'CASC1':
+                        Site2_Hugo_Symbol = 'DNAI7'
+                    Site1_Chromosome = fus['Site1_Chromosome']
+                    Site2_Chromosome = fus['Site2_Chromosome']
+                    Site1_Position = fus['Site1_Position']
+                    Site2_Position = fus['Site2_Position']
+
+                    if int(fus['Normal_Paired_End_Read_Count'])>=15 :
+                        fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
+        str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
+        '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
+            
+        
+        if oncokb and  os.path.exists(fusion_table_file):
+            
+            data_sv=pd.read_csv(fusion_table_file,sep="\t")
+            if not os.path.isfile(input):
+                tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
+                input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
+            
+            else:
+                input_file=pd.read_csv(input,sep="\t")
+
+            
+            if "ONCOTREE_CODE" in input_file.columns:
+            
+                input_file["SampleID"]=input_file["SampleID"]+".bam"
+                fusion_table_df=data_sv.merge(input_file,how="inner",left_on="Sample_Id",right_on="SampleID")
+                fusion_table_df.to_csv(fusion_table_file,sep="\t",index=False)
+                fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")
+                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
+                        -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
+                
+
+            else:   
+                    
+                fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")       
+                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
+                            -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
+
+            
+            
+            fileonco=pd.read_csv(fusion_table_file_out,sep="\t")
+            
+        # fileonco=fileonco[fileonco["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
+            fileonco.to_csv(fusion_table_file,sep="\t",index=False)           
+            
+    
     except FileNotFoundError:
         logger.critical(f"No input file '{input}' was found: try check your path")
         raise(FileNotFoundError("Exiting from walk script!"))
+    
+    ##############################
+    ##       MAKES TABLE       ###
+    ##############################
+    
+    tsv_file=[file for file in os.listdir(input) if file.endswith("tsv")][0]
+    tsvpath=os.path.join(input,tsv_file)    
+
+    table_dict_patient = get_table_from_folder(tsvpath)
+
+    logger.info("Writing clinical files...")
+    write_clinical_patient(output_folder, table_dict_patient)
+    fileinputclinical=pd.read_csv(tsvpath,sep="\t",index_col=False, dtype=str)
+    
+    combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
+    MSI_THR=config.get('MSI', 'THRESHOLD')
+    TMB=ast.literal_eval(config.get('TMB', 'THRESHOLD'))
+    
+    for k, v in combined_dict.items():
+        logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
+        try:
+            tmv_msi = tsv.get_msi_tmb(v)
+        except Exception as e:
+            logger.error(f"Something went wrong!")
+        logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
+        
+        if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
+            table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
+        else:
+            table_dict_patient[k].append('NA')
+        table_dict_patient[k].append(tmv_msi['TMB_Total'])
+        if not tmv_msi['MSI'][0][1]=="NA":
+            if not tmv_msi['MSI'][1][1] =="NA":
+                if float(tmv_msi['MSI'][1][1]) < float(MSI_THR):
+                    table_dict_patient[k].append("Stable")   
+                else:
+                    table_dict_patient[k].append('Unstable')
+
+                found = False
+            else:
+                table_dict_patient[k].append('NA')
+        else:
+            table_dict_patient[k].append('NA')
+        found=False
+        for _k, _v in TMB.items():
+            if not tmv_msi["TMB_Total"]=="NA":
+                if float(tmv_msi["TMB_Total"])<float(_v):
+                    table_dict_patient[k].append(_k)
+                    found=True
+                    break
+            else:
+                table_dict_patient[k].append("NA")
+        if found==False:
+            table_dict_patient[k].append(list(TMB.keys())[-1])
+        
+        run=str(fileinputclinical[fileinputclinical["SampleID"]==k]["RunID"].values[0])
+        tc=str(fileinputclinical[fileinputclinical["SampleID"]==k]["TC"].values[0])
+        oncotree=str(fileinputclinical[fileinputclinical["SampleID"]==k]["ONCOTREE_CODE"].values[0])
+        
+        table_dict_patient[k].append(run) 
+        table_dict_patient[k].append(oncotree)
+        table_dict_patient[k].append(tc)
+
+    write_clinical_sample(output_folder, table_dict_patient)
+    shutil.rmtree(os.path.join(output_folder,"temp"))
+    # except:
+    #     print("No combined output found")
+    #     write_clinical_sample_empty(output_folder, table_dict_patient)
+ 
+    logger.info("Deleting temp folder")
+    #clear_temp(output_folder)
+    
+    logger.success("Walk script completed!\n")
+
+class MyArgumentParser(argparse.ArgumentParser):
+  """An argument parser that raises an error, instead of quits"""
+  def error(self, message):
+    raise ValueError(message)
+
+if __name__ == '__main__':
+         
+    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Argument of walk script')
+
+    parser.add_argument('-i', '--input', required=True,
+                                            help='input folder with data')
+    parser.add_argument('-t', '--vcf_type', required=False,
+                                            choices=['snv', 'cnv'],
+                                            help='Select the vcf file to parse')
+    parser.add_argument('-f', '--filter_snv', required=False,
+                                            action='store_true',
+                                            help='Filter out from the vcf the variants wit dot (.) in Alt column')
+    parser.add_argument('-o', '--output_folder', required=True,
+                                            help='Output folder')
+    parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
+    parser.add_argument('-w', '--overWrite', required=False,action='store_true',
+                                                help='Overwrite output folder if it exists')
+    parser.add_argument('-c', '--Cancer', required=False,
+                        help='Cancer Name')
+    try:
+        args = parser.parse_args()
+    except Exception as err:
+        logger.remove()
+        logfile="walk_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
+        logger.level("INFO", color="<green>")
+        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
+        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
+        logger.critical(f"error: {err}", file=sys.stderr)
+    
+    
+    input = args.input
+    vcf_type = args.vcf_type
+    filter_snv = args.filter_snv
+    output_folder = args.output_folder
+    overwrite_output=args.overWrite
+    onco=args.oncoKB
+    cancer=args.Cancer
+    
+    walk_folder(input, output_folder,onco,cancer, overwrite_output, vcf_type, filter_snv, log=False)
+
            
