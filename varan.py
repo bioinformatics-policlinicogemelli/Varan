@@ -238,6 +238,7 @@ if __name__ == '__main__':
         resume=args.resume
         vus=args.vus
         oncoKB=args.oncoKB
+        multiple=args.multiple
         
         update=args.Update
         extract=args.Extract
@@ -262,7 +263,7 @@ if __name__ == '__main__':
         if resume:
             overwrite_output=False
             
-        varan(input, cancer, output_folder,oncoKB, filter_snv, filter_novel, vcf_type, overwrite_output, resume, vus, update, extract, remove, log)
+        varan(input, cancer, output_folder, oncoKB, filter_snv, filter_novel, vcf_type, overwrite_output, resume, vus, multiple, update, extract, remove, log)
     
     except Exception as err:
         logger.critical(f"error: {err}", file=sys.stderr)
