@@ -479,6 +479,16 @@ def flatten(nested_list):
             flat_list.append(item)
     return flat_list
 
+
+def extract_multiple_cnv(multiple_vcf,input_dir):    
+
+    if not os.path.exists(os.path.join(input_dir,"single_sample_vcf")):
+        os.mkdir(os.path.join(input_dir,"single_sample_vcf"))
+    os.system("bcftools query -l "+multiple_vcf+ " > "+input_dir+"/sample_id.txt")
+    os.system("while read sample; do bcftools view -s $sample " + multiple_vcf +" > "+input_dir+"/single_sample_vcf/${sample}.vcf ; done <"+ input_dir+"/sample_id.txt")
+
+
+
 def write_clinical_patient(output_folder, table_dict):
     logger.info("Writing data_clinical_patient.txt file...")
     data_clin_samp = os.path.join(output_folder,'data_clinical_patient.txt')
@@ -522,19 +532,41 @@ def write_clinical_sample_empty(output_folder, table_dict):
         cil_sample.write(v[0]+'\t'+k+'\n')
     cil_sample.close()
 
-def check_cna_vcf(file,inputFolderCNV):
+def check_cna_vcf(file, inputFolderCNV, multivcf):
     vcf=pd.read_csv(os.path.join(inputFolderCNV,file),comment="#",sep="\t",names=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT","Sample"])
+        
+    nsample=os.popen(f'bcftools query -l {os.path.join(inputFolderCNV,file)}').read().split("\n")
+    nsample=[sample for sample in nsample if not sample ==""]
+    if len(nsample)>1 and not multivcf:
+        logger.critical("VCF contains multiple samples")
+        exit(1)
+
     if vcf.loc[0]["FORMAT"]=="FC":
         return True
     else:
         return False
     
-def check_snv_vcf(file,inputFolderSNV):
+def check_snv_vcf(file,inputFolderSNV, multivcf):
     vcf=pd.read_csv(os.path.join(inputFolderSNV,file),comment="#",sep="\t",names=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT","Sample"])
+    
+    nsample=os.popen(f'bcftools query -l {os.path.join(inputFolderSNV,file)}').read().split("\n")
+    nsample=[sample for sample in nsample if not sample ==""]
+    if len(nsample)>1 and not multivcf:
+        logger.critical("VCF contains multiple samples")
+        exit(1)
+    
     if vcf.loc[0]["FORMAT"].startswith("GT"):
         return True
     else:
         return False
+    
+def extract_multiple_snv(multiple_vcf,input_dir):    
+
+    if not os.path.exists(os.path.join(input_dir,"single_sample_vcf")):
+        os.mkdir(os.path.join(input_dir,"single_sample_vcf"))
+    os.system("bcftools query -l "+multiple_vcf+ " > "+input_dir+"/sample_id.txt")
+    os.system("while read sample; do vcf-subset --exclude-ref -c $sample " + multiple_vcf +" > "+input_dir+"/single_sample_vcf/${sample}.vcf ; done <"+ input_dir+"/sample_id.txt")
+
 
 def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
     combined_dict = dict()
@@ -602,7 +634,7 @@ def transform_input(tsv,output_folder):
     
     return os.path.join(output_folder,"temp")
 
-def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resume=False, vcf_type=None ,filter_snv=False, log=False):
+def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=False, resume=False, vcf_type=None ,filter_snv=False, log=False):
     if not log:
         logger.remove()
         logfile="Walk_folder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
@@ -611,7 +643,7 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
     
     logger.info("Starting walk_folder script:")
-    logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filter_snv:{filter_snv}]")
+    logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filter_snv:{filter_snv}, multiple:{multiple}]")
  
     config.read('conf.ini')
     
@@ -629,11 +661,20 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
     inputFolderSNV=os.path.abspath(os.path.join(input,"SNV"))
     inputFolderCNV=os.path.abspath(os.path.join(input,"CNV"))
  
-    if os.path.exists(inputFolderCNV) and vcf_type!="snv":
+    if os.path.exists(inputFolderCNV) and not type in ["snv", "fus", "tab"]:
+        if multiple:
+            multivcf = os.listdir(inputFolderCNV)[0]
+            extract_multiple_cnv(os.path.join(inputFolderCNV,multivcf),inputFolderCNV)
+            inputFolderCNV= os.path.join(inputFolderCNV,"single_sample_vcf")
         logger.info("Check CNV files...")
         case_folder_arr_cnv = get_cnv_from_folder(inputFolderCNV)
         logger.info("Everything ok!")
-    if os.path.exists(inputFolderSNV) and vcf_type!="cnv":
+
+    if os.path.exists(inputFolderSNV) and not type in ["cnv", "fus", "tab"]:
+        if multiple:
+            multivcf = os.listdir(inputFolderSNV)[0]
+            extract_multiple_snv(os.path.join(inputFolderSNV,multivcf),inputFolderSNV)
+            inputFolderSNV= os.path.join(inputFolderSNV,"single_sample_vcf")
         logger.info("Check SNV files...")
         
     case_folder_arr = get_snv_from_folder(inputFolderSNV)
@@ -642,9 +683,10 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
     ###############################
     ###       SNV AND CNV       ###
     ###############################
-    if os.path.exists(inputFolderCNV) and vcf_type!="snv":
+    if os.path.exists(inputFolderCNV) and not type in ["snv","fus","tab"]:
         sID_path_cnv = cnv_type_from_folder(input,case_folder_arr_cnv,output_folder,oncokb,cancer)
-    if os.path.exists(inputFolderSNV) and vcf_type!="cnv":
+    
+    if os.path.exists(inputFolderSNV) and not type in ["cnv","fus","tab"]:
         sID_path_snv = snv_type_from_folder(inputFolderSNV,case_folder_arr)
         
         logger.info("Check maf folder...")
@@ -888,6 +930,8 @@ if __name__ == '__main__':
                                                 help='Overwrite output folder if it exists')
     parser.add_argument('-c', '--Cancer', required=False,
                         help='Cancer Name')
+    parser.add_argument('-m', '--multiple', required=False, action='store_true', help='Multiple sample VCF?')
+
     try:
         args = parser.parse_args()
     except Exception as err:
@@ -906,7 +950,8 @@ if __name__ == '__main__':
     overwrite_output=args.overWrite
     onco=args.oncoKB
     cancer=args.Cancer
+    multiple=args.multiple
     
-    walk_folder(input, output_folder,onco,cancer, overwrite_output, vcf_type, filter_snv, log=False)
+    walk_folder(input, multiple, output_folder, onco, cancer, overwrite_output, vcf_type, filter_snv, log=False)
 
            

@@ -44,7 +44,7 @@ def varan(input, cancer, output_folder, oncoKB, filter_snv=False, filter_novel=T
             ###########################
             
             logger.info("Starting preparation study folder")
-            walk_folder(input, output_folder,oncoKB,cancer,overwrite_output, resume, vcf_type,filter_snv,log)
+            walk_folder(input, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, vcf_type,filter_snv,log)
 
 
             ###########################
