@@ -671,6 +671,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
         logger.info("Everything ok!")
 
     if os.path.exists(inputFolderSNV) and not type in ["cnv", "fus", "tab"]:
+        os.makedirs(TMP, exist_ok=True)
         if multiple:
             multivcf = os.listdir(inputFolderSNV)[0]
             extract_multiple_snv(os.path.join(inputFolderSNV,multivcf),inputFolderSNV)
