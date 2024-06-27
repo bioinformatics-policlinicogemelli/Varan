@@ -169,16 +169,16 @@ if __name__ == '__main__':
     log=True
 
 
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Argument of Varan script')
+    parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description='Argument of Varan script')
     
     # WALK BLOCK
     parser.add_argument('-c', '--Cancer', required=False,
                         help='Cancer Name')
     parser.add_argument('-i', '--input', required=False,
                                             help='input folder tsv with data or tsv with path of data')
-    parser.add_argument('-f', '--filter_snv', required=False,
-                                            action='store_true',
-                                            help='Filter out from the vcf the variants wit dot (.) in Alt column')
+    # parser.add_argument('-f', '--filter_snv', required=False,
+    #                                         action='store_true',
+    #                                         help='Filter out from the vcf the variants wit dot (.) in Alt column')
     parser.add_argument('-t', '--vcf_type', required=False, 
                                             choices=['snv', 'cnv'],
                                             help='Select the vcf file to parse')
@@ -186,16 +186,23 @@ if __name__ == '__main__':
                                                 help='Overwrite output folder if it exists')
     parser.add_argument('-R', '--resume', required=False,action='store_true',
                                                 help='Resume an already started analysis')
-    parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
-    # FILTER_CLINVAR BLOCK
-
-    parser.add_argument('-v', '--vus', required=False,
-                                            action='store_true',
-                                            help='Filter out VUS variants')
+    #parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
     
-    parser.add_argument('-N', '--novel', required=False,
-                                            action='store_true',
-                                            help='filtern novel and hotspot separetely')
+    # # FILTER_CLINVAR BLOCK
+
+    # parser.add_argument('-v', '--vus', required=False,
+    #                                         action='store_true',
+    #                                         help='Filter out VUS variants')
+    
+    # parser.add_argument('-N', '--novel', required=False,
+    #                                         action='store_true',
+    #                                         help='filtern novel and hotspot separetely')
+    
+    # ANNOTATION BLOCK
+    parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
+
+    # FILTER BLOCK
+    parser.add_argument('-f', '--Filter', required=False, help='Select filter for SNV [p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens -> clin_sig, n -> novel]',default="")
     
     # UPDATE BLOCK
 
