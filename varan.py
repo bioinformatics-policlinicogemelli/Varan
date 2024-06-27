@@ -18,12 +18,12 @@ import shutil
 
 config = ConfigParser()
 
-configFile = config.read("conf.ini")
-vaf_default = config.get('Filters', 't_VAF')
-vaf_hotspot = config.get('Filters', 't_VAF')
-vaf_novel = config.get('Filters', 't_VAF_NOVEL')
+# configFile = config.read("conf.ini")
+# vaf_default = config.get('Filters', 't_VAF')
+# vaf_hotspot = config.get('Filters', 't_VAF')
+# vaf_novel = config.get('Filters', 't_VAF_NOVEL')
 
-def varan(input, cancer, output_folder,oncoKB, filter_snv=False, filter_novel=True, vcf_type=None, overwrite_output=False, resume=False, vus=False, update=False, extract=False, remove=False, log=False):
+def varan(input, cancer, output_folder,oncoKB, filters, vcf_type=None, overwrite_output=False, resume=False, update=False, extract=False, remove=False, log=False):
     
     if not log:
         logger.remove()
@@ -33,8 +33,8 @@ def varan(input, cancer, output_folder,oncoKB, filter_snv=False, filter_novel=Tr
         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
         logger.info("Welcome to VARAN") 
 
-    logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filter_snv:{filter_snv}, cancer:{cancer}, \
-                            vcf_type:{vcf_type}, overwrite_output:{overwrite_output}, resume:{resume}, vus:{vus}], \
+    logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, \
+                            vcf_type:{vcf_type}, overwrite_output:{overwrite_output}, resume:{resume}], \
                             update:{update}, extract:{extract}, remove:{remove}")
 
     if not any([update ,extract , remove]) :       
@@ -44,7 +44,7 @@ def varan(input, cancer, output_folder,oncoKB, filter_snv=False, filter_novel=Tr
             ###########################
             
             logger.info("Starting preparation study folder")
-            walk_folder(input, output_folder,oncoKB,cancer,overwrite_output, resume, vcf_type,filter_snv,log)
+            walk_folder(input, output_folder,oncoKB,cancer,overwrite_output, resume, vcf_type, filters, log)
 
 
             ###########################
@@ -54,9 +54,9 @@ def varan(input, cancer, output_folder,oncoKB, filter_snv=False, filter_novel=Tr
             logger.info("Starting filter")    
             #filter_main(output_folder, output_folder, vus,overwrite_output,log)
             if args.vcf_type =="snv" or (args.vcf_type==None and os.path.exists(os.path.join(args.input,"SNV"))):
-                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer, False, filter_novel)
+                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer, False, filters)
             elif os.path.exists(os.path.exists(os.path.join(args.input,"maf"))) and not args.vcf_type=="cnv":
-                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer, False, filter_novel)
+                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer, False, filters)
 
                 
             ############################
@@ -92,7 +92,7 @@ def varan(input, cancer, output_folder,oncoKB, filter_snv=False, filter_novel=Tr
             ###########################################
 
             logger.info("It's time to create tables!")
-            meta_case_main(cancer,vus,output_folder,log)
+            meta_case_main(cancer,output_folder,log)
 
             
             ############################
@@ -202,7 +202,7 @@ if __name__ == '__main__':
     parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
 
     # FILTER BLOCK
-    parser.add_argument('-f', '--Filter', required=False, help='Select filter for SNV [p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens -> clin_sig, n -> novel]',default="")
+    parser.add_argument('-f', '--Filter', required=False, help='Select filter for SNV [d -> filter p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens -> clin_sig, n -> novel]',default="")
     
     # UPDATE BLOCK
 
@@ -235,13 +235,14 @@ if __name__ == '__main__':
 
         cancer = args.Cancer
         input = args.input
-        filter_snv=args.filter_snv
-        filter_novel=args.novel
+        #filter_snv=args.filter_snv
+        #filter_novel=args.novel
+        filters=args.Filter
         output_folder = args.output_folder
         vcf_type=args.vcf_type
         overwrite_output=args.overWrite
         resume=args.resume
-        vus=args.vus
+        #vus=args.vus
         oncoKB=args.oncoKB
         
         update=args.Update
@@ -267,7 +268,7 @@ if __name__ == '__main__':
         if resume:
             overwrite_output=False
             
-        varan(input, cancer, output_folder,oncoKB, filter_snv, filter_novel, vcf_type, overwrite_output, resume, vus, update, extract, remove, log)
+        varan(input, cancer, output_folder,oncoKB, filters, vcf_type, overwrite_output, resume, update, extract, remove, log)
     
     except Exception as err:
         logger.critical(f"error: {err}", file=sys.stderr)

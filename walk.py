@@ -21,6 +21,7 @@ import string
 import sys
 import traceback
 import numpy as np
+from filter_clinvar import filter_OncoKB
 
 config = ConfigParser()
 
@@ -392,7 +393,8 @@ def snv_type_from_folder(input,snv_vcf_files):
 def vcf_filtering(sID_path,output_folder):
     sID_path_filtered = dict()
     for k, v in sID_path.items():
-        root, vcf_file = os.path.split(v)
+        _, vcf_file = os.path.split(v)
+        
         out_filt=os.path.join(output_folder,OUTPUT_FILTERED) #TEST
         vcf_filtered = os.path.join(out_filt, vcf_file.replace('.vcf','')+'.FILTERED.vcf')
         logger.info(f'[FILTERING] {v}')
@@ -405,14 +407,16 @@ def vcf2maf_constructor(k, v, temporary,output_folder):
     #import pdb; pdb.set_trace()
     tum_id=k.replace(SNV.replace(".vcf",""),"") #da verificare
     tum_id=tum_id.replace(".bam","")
+    
     cl = ['perl']
     cl.append(VCF2MAF)
     cl.append('--input-vcf')
     cl.append(v)
-    root, file_vcf = os.path.split(v)
+    _, file_vcf = os.path.split(v)
     out_file = os.path.join(output_folder,os.path.join(OUTPUT_MAF, file_vcf+'.maf'))
-    cl.append('--vep-custom')
-    cl.append(CLINV)
+    if not CLINV =="":
+        cl.append('--vep-custom')
+        cl.append(CLINV)
     cl.append('--output-maf')
     cl.append(out_file)
     cl.append('--ref-fasta')
@@ -428,7 +432,6 @@ def vcf2maf_constructor(k, v, temporary,output_folder):
     cl.append('--tumor-id') 
     cl.append(tum_id)
     cl.append(" --cache-version 111")
-    
     return cl
 
 def run_vcf2maf(cl):
@@ -602,7 +605,7 @@ def transform_input(tsv,output_folder):
     
     return os.path.join(output_folder,"temp")
 
-def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resume=False, vcf_type=None ,filter_snv=False, log=False):
+def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resume=False, vcf_type=None ,filters="", log=False):
     if not log:
         logger.remove()
         logfile="Walk_folder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
@@ -611,7 +614,7 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
     
     logger.info("Starting walk_folder script:")
-    logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filter_snv:{filter_snv}]")
+    logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filters:{filters}]")
  
     config.read('conf.ini')
     
@@ -654,18 +657,18 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
         
         if not resume:
             logger.info("Starting vcf2maf conversion...")
-            if filter_snv == True:
-                logger.info("filter option on")
-                temporary = create_random_name_folder()
-                sID_path_filtered = vcf_filtering(sID_path_snv,output_folder)
-                for k, v in sID_path_filtered.items():
-                    cl = vcf2maf_constructor(k, v, temporary,output_folder)
-                    run_vcf2maf(cl)
-            else:
-                temporary = create_random_name_folder()
-                for k, v in sID_path_snv.items():
-                    cl = vcf2maf_constructor(k, v, temporary,output_folder)
-                    run_vcf2maf(cl)
+            if "d" in filters:
+                logger.info("filtering out vcfs with dots in ALT column")
+            #     temporary = create_random_name_folder()
+                sID_path_snv = vcf_filtering(sID_path_snv,output_folder)
+            #     for k, v in sID_path_filtered.items():
+            #         cl = vcf2maf_constructor(k, v, temporary,output_folder)
+            #         run_vcf2maf(cl)
+            # else:
+            temporary = create_random_name_folder()
+            for k, v in sID_path_snv.items():
+                cl = vcf2maf_constructor(k, v, temporary,output_folder)
+                run_vcf2maf(cl)
     
     logger.info("Clearing scratch folder...")
     clear_scratch()
@@ -687,109 +690,104 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
         logger.critical(f"Something went wrong! {print(traceback.format_exc())}")
         raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
 
-    try:
-        tsvfiles=[file for file in os.listdir(input) if file.endswith("tsv")][0]
-    except IndexError:
-        logger.critical(f"It seems that no tsv file is in your folder!")
-        raise(IndexError("Exiting from walk script!"))
-    except FileNotFoundError:
-        logger.critical(f"No input directory '{input}' was found: try check your path")
-        raise(FileNotFoundError("Exiting from walk script!"))
-    except Exception as e:
-        logger.critical(f"Something went wrong! {print(traceback.format_exc())}")
-        raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
-
-    try:
-        tsvpath=os.path.join(input,tsvfiles)    
-        combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
+    # try:
+    tsvpath=os.path.join(input,tsvfiles)    
+    combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
+    
+    fusion_table_file = os.path.join(output_folder,'data_sv.txt')
         
-        fusion_table_file = os.path.join(output_folder,'data_sv.txt')
+#     for k, v in combined_dict.items():
+#         fusions=[]
+#         logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+#         try:
+#             fusions = tsv.get_fusions(v)
+#         except Exception as e:
+#             logger.error(f"Something went wrong while reading Fusion section of file {v}")
+# except FileNotFoundError:
+#     logger.critical(f"No input file '{input}' was found: try check your path")
+#     raise(FileNotFoundError("Exiting from walk script!"))
+
+    for k, v in combined_dict.items():
+        fusions=[]
+        logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+        try:
+            fusions = tsv.get_fusions(v)
+        except Exception as e:
+            logger.error(f"Something went wrong while reading Fusion section of file {v}")
+        if len(fusions)==0:
+            logger.info(f"No Fusions found in {v}")
+            continue
+        else:
+            logger.info(f"Fusions found in {v}")
+        if not os.path.exists(fusion_table_file):
+            logger.info(f"Creating data_sv.txt file...")
+            fusion_table = open(fusion_table_file, 'w')
+            header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
+            fusion_table.write(header)
+        else:
+            fusion_table = open(fusion_table_file, 'a')
+        for fus in fusions:
+            if len(fusions) > 0:
+                Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
+                Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
+                if Site2_Hugo_Symbol == 'CASC1':
+                    Site2_Hugo_Symbol = 'DNAI7'
+                Site1_Chromosome = fus['Site1_Chromosome']
+                Site2_Chromosome = fus['Site2_Chromosome']
+                Site1_Position = fus['Site1_Position']
+                Site2_Position = fus['Site2_Position']
+
+                if int(fus['Normal_Paired_End_Read_Count'])>=15 :
+                    fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
+    str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
+    '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
+        
+    
+    if oncokb and  os.path.exists(fusion_table_file):
+        
+        data_sv=pd.read_csv(fusion_table_file,sep="\t")
+        if not os.path.isfile(input):
+            tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
+            input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
+        
+        else:
+            input_file=pd.read_csv(input,sep="\t")
+
+        
+        if "ONCOTREE_CODE" in input_file.columns:
+        
+            input_file["SampleID"]=input_file["SampleID"]+".bam"
+            fusion_table_df=data_sv.merge(input_file,how="inner",left_on="Sample_Id",right_on="SampleID")
+            fusion_table_df.to_csv(fusion_table_file,sep="\t",index=False)
+            fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")
+            os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
+                    -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
             
-    #     for k, v in combined_dict.items():
-    #         fusions=[]
-    #         logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
-    #         try:
-    #             fusions = tsv.get_fusions(v)
-    #         except Exception as e:
-    #             logger.error(f"Something went wrong while reading Fusion section of file {v}")
+
+        else:   
+                
+            fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")       
+            os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
+                        -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
+        
+        if "k" in filters:
+            fus_file=pd.read_csv(fusion_table_file_out,sep="\t")
+            fus_file=filter_OncoKB(fus_file)
+            fus_file.to_csv(fusion_table_file_out,index=False,sep="\t")
+        os.system(f"mv {fusion_table_file_out}  {fusion_table_file}") 
+            
+
+            
+            
+        #     fileonco=pd.read_csv(fusion_table_file_out,sep="\t")
+            
+        # # fileonco=fileonco[fileonco["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
+        #     fileonco.to_csv(fusion_table_file,sep="\t",index=False)           
+            
+    
     # except FileNotFoundError:
     #     logger.critical(f"No input file '{input}' was found: try check your path")
     #     raise(FileNotFoundError("Exiting from walk script!"))
-
-        for k, v in combined_dict.items():
-            fusions=[]
-            logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
-            try:
-                fusions = tsv.get_fusions(v)
-            except Exception as e:
-                logger.error(f"Something went wrong while reading Fusion section of file {v}")
-            if len(fusions)==0:
-                logger.info(f"No Fusions found in {v}")
-                continue
-            else:
-                logger.info(f"Fusions found in {v}")
-            if not os.path.exists(fusion_table_file):
-                logger.info(f"Creating data_sv.txt file...")
-                fusion_table = open(fusion_table_file, 'w')
-                header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
-                fusion_table.write(header)
-            else:
-                fusion_table = open(fusion_table_file, 'a')
-            for fus in fusions:
-                if len(fusions) > 0:
-                    Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
-                    Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
-                    if Site2_Hugo_Symbol == 'CASC1':
-                        Site2_Hugo_Symbol = 'DNAI7'
-                    Site1_Chromosome = fus['Site1_Chromosome']
-                    Site2_Chromosome = fus['Site2_Chromosome']
-                    Site1_Position = fus['Site1_Position']
-                    Site2_Position = fus['Site2_Position']
-
-                    if int(fus['Normal_Paired_End_Read_Count'])>=15 :
-                        fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
-        str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
-        '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
-            
-        
-        if oncokb and  os.path.exists(fusion_table_file):
-            
-            data_sv=pd.read_csv(fusion_table_file,sep="\t")
-            if not os.path.isfile(input):
-                tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
-                input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
-            
-            else:
-                input_file=pd.read_csv(input,sep="\t")
-
-            
-            if "ONCOTREE_CODE" in input_file.columns:
-            
-                input_file["SampleID"]=input_file["SampleID"]+".bam"
-                fusion_table_df=data_sv.merge(input_file,how="inner",left_on="Sample_Id",right_on="SampleID")
-                fusion_table_df.to_csv(fusion_table_file,sep="\t",index=False)
-                fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")
-                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
-                        -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
-                
-
-            else:   
-                    
-                fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")       
-                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
-                            -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
-
-            
-            
-            fileonco=pd.read_csv(fusion_table_file_out,sep="\t")
-            
-        # fileonco=fileonco[fileonco["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
-            fileonco.to_csv(fusion_table_file,sep="\t",index=False)           
-            
-    
-    except FileNotFoundError:
-        logger.critical(f"No input file '{input}' was found: try check your path")
-        raise(FileNotFoundError("Exiting from walk script!"))
     
     ##############################
     ##       MAKES TABLE       ###
@@ -871,16 +869,16 @@ class MyArgumentParser(argparse.ArgumentParser):
 
 if __name__ == '__main__':
          
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Argument of walk script')
+    parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description='Argument of walk script')
 
     parser.add_argument('-i', '--input', required=True,
                                             help='input folder with data')
     parser.add_argument('-t', '--vcf_type', required=False,
                                             choices=['snv', 'cnv'],
                                             help='Select the vcf file to parse')
-    parser.add_argument('-f', '--filter_snv', required=False,
+    parser.add_argument('-f', '--filters', required=False,
                                             action='store_true',
-                                            help='Filter out from the vcf the variants wit dot (.) in Alt column')
+                                            help='Select filter for SNV [p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens -> clin_sig, n -> novel]',default="")
     parser.add_argument('-o', '--output_folder', required=True,
                                             help='Output folder')
     parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
@@ -901,12 +899,12 @@ if __name__ == '__main__':
     
     input = args.input
     vcf_type = args.vcf_type
-    filter_snv = args.filter_snv
+    filters = args.filters
     output_folder = args.output_folder
     overwrite_output=args.overWrite
     onco=args.oncoKB
     cancer=args.Cancer
     
-    walk_folder(input, output_folder,onco,cancer, overwrite_output, vcf_type, filter_snv, log=False)
+    walk_folder(input, output_folder,onco,cancer, overwrite_output, vcf_type, filters, log=False)
 
            
