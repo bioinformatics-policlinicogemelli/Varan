@@ -132,7 +132,7 @@ def annotate_cna(path_cna,output_folder):
 
 
 
-def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
+def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer, multiple):
     
     c = 0
     sID_path = dict()
@@ -149,7 +149,12 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
                 dup.write(sampleID+'\t'+'cnv_vcf')
                 dup.close()
             else:
-                sID_path[sampleID] = os.path.join(os.path.join(input,"CNV"),cnv_vcf)
+                if multiple:
+                    sID_path[sampleID] = os.path.join(os.path.join(input,"CNV", "single_sample_vcf"),cnv_vcf)
+                else:
+                    sID_path[sampleID] = os.path.join(os.path.join(input,"CNV"),cnv_vcf)
+                
+                import pdb; pdb.set_trace()
                 vcf2tab_cnv.vcf_to_table(sID_path[sampleID], os.path.join(output_folder,'data_cna_hg19.seg'), sampleID, MODE)
                 vcf2tab_cnv.vcf_to_table_fc(sID_path[sampleID], os.path.join(output_folder,'data_cna_hg19.seg.fc.txt'), sampleID, MODE)
                
@@ -158,7 +163,7 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
             log_noparsed.write('[WARNING] '+case_folder+'\n')
             log_noparsed.close()
         
-        c = c +1
+        c = c + 1
     logger.info("Writing data_cna_hg19.seg succefully completed!")
     logger.info("Writing data_cna_hg19.seg.fc.txt succefully completed!")
     
@@ -480,14 +485,6 @@ def flatten(nested_list):
     return flat_list
 
 
-def extract_multiple_cnv(multiple_vcf,input_dir):    
-
-    if not os.path.exists(os.path.join(input_dir,"single_sample_vcf")):
-        os.mkdir(os.path.join(input_dir,"single_sample_vcf"))
-    os.system("bcftools query -l "+multiple_vcf+ " > "+input_dir+"/sample_id.txt")
-    os.system("while read sample; do bcftools view -s $sample " + multiple_vcf +" > "+input_dir+"/single_sample_vcf/${sample}.vcf ; done <"+ input_dir+"/sample_id.txt")
-
-
 
 def write_clinical_patient(output_folder, table_dict):
     logger.info("Writing data_clinical_patient.txt file...")
@@ -560,12 +557,38 @@ def check_snv_vcf(file,inputFolderSNV, multivcf):
     else:
         return False
     
-def extract_multiple_snv(multiple_vcf,input_dir):    
+import os
 
+def extract_multiple_cnv(multiple_vcf,input_dir):
+    single_sample_vcf_dir = os.path.join(input_dir, "single_sample_vcf")  
     if not os.path.exists(os.path.join(input_dir,"single_sample_vcf")):
         os.mkdir(os.path.join(input_dir,"single_sample_vcf"))
-    os.system("bcftools query -l "+multiple_vcf+ " > "+input_dir+"/sample_id.txt")
-    os.system("while read sample; do vcf-subset --exclude-ref -c $sample " + multiple_vcf +" > "+input_dir+"/single_sample_vcf/${sample}.vcf ; done <"+ input_dir+"/sample_id.txt")
+
+    cmd= "vcf-query -l " + multiple_vcf + " > " + os.path.join(input_dir, "sample_id.txt")
+    os.system(cmd)
+
+    with open (os.path.join(input_dir, "sample_id.txt"), "r") as file:
+        lines = file.readlines()
+        for sample in lines:
+            sample = sample.strip()
+            single_sample_vcf = os.path.join(single_sample_vcf_dir, f"{sample}.vcf")
+            cmd = f"vcftools --vcf {multiple_vcf} --indv {sample} --recode --stdout > {single_sample_vcf}"
+            os.system(cmd)
+
+    
+def extract_multiple_snv(multiple_vcf,input_dir):    
+    if not os.path.exists(os.path.join(input_dir,"single_sample_vcf")):
+        os.mkdir(os.path.join(input_dir,"single_sample_vcf"))
+
+    cmd= "vcf-query -l " + multiple_vcf + " > " + os.path.join(input_dir, "sample_id.txt")
+    os.system(cmd)
+
+    with open (os.path.join(input_dir, "sample_id.txt"), "r") as file:
+        lines = file.readlines()
+        for sample in lines:
+            print(sample.strip())
+            cmd="vcf-subset --exclude-ref -c " + sample.strip() + " " + multiple_vcf + " > " + os.path.join(os.path.join(input_dir, "single_sample_vcf"), sample.strip() + ".vcf")
+            os.system(cmd)
 
 
 def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
@@ -677,7 +700,6 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
             extract_multiple_snv(os.path.join(inputFolderSNV,multivcf),inputFolderSNV)
             inputFolderSNV= os.path.join(inputFolderSNV,"single_sample_vcf")
         logger.info("Check SNV files...")
-        
     case_folder_arr = get_snv_from_folder(inputFolderSNV)
     logger.info("Everything ok!")
 
@@ -685,7 +707,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     ###       SNV AND CNV       ###
     ###############################
     if os.path.exists(inputFolderCNV) and not type in ["snv","fus","tab"]:
-        sID_path_cnv = cnv_type_from_folder(input,case_folder_arr_cnv,output_folder,oncokb,cancer)
+        sID_path_cnv = cnv_type_from_folder(input,case_folder_arr_cnv,output_folder,oncokb,cancer, multiple)
     
     if os.path.exists(inputFolderSNV) and not type in ["cnv","fus","tab"]:
         sID_path_snv = snv_type_from_folder(inputFolderSNV,case_folder_arr)
