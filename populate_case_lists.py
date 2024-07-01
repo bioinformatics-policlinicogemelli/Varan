@@ -3,7 +3,7 @@ import pandas as pd
 import argparse
 from configparser import ConfigParser
 
-def populate_cases_sv(cancer, project_name,vus, folder,cases_list_dir,logger):
+def populate_cases_sv(cancer, project_name, folder,cases_list_dir,logger):
     """
         Function to populate cases_sv file
     Args:
@@ -19,11 +19,12 @@ def populate_cases_sv(cancer, project_name,vus, folder,cases_list_dir,logger):
     nsamples=len(data_sv.Sample_Id.unique())
     sample_ids=list(data_sv.Sample_Id.unique())
     
-    if vus:
-        study_id = cancer+project_name+"_vus"
-    else:
-        study_id = cancer+project_name
-
+    # if vus:
+    #     study_id = cancer+project_name+"_vus"
+    # else:
+    #     study_id = cancer+project_name
+    study_id = cancer+project_name
+    
     stable_id = study_id+"_sv"
     case_list_name = "Samples with SV data"
     case_list_description = "All samples (+"+str(nsamples)+") samples"
@@ -46,7 +47,7 @@ def populate_cases_sv(cancer, project_name,vus, folder,cases_list_dir,logger):
 #
 
 
-def populate_cases_cna(cancer, project_name,vus,folder, cases_list_dir,logger):
+def populate_cases_cna(cancer, project_name,folder, cases_list_dir,logger):
     """
         Function to populate cases_cna file
     Args:
@@ -65,11 +66,13 @@ def populate_cases_cna(cancer, project_name,vus,folder, cases_list_dir,logger):
     sample_ids=list(data_cna.columns)[1:]
     
     
-    if vus:
-        study_id = cancer+project_name+"_vus"
-    else:
-        study_id = cancer+project_name
+    # if vus:
+    #     study_id = cancer+project_name+"_vus"
+    # else:
+    #     study_id = cancer+project_name
 
+    study_id = cancer+project_name
+    
     stable_id = study_id+"_cna"
 
     case_list_category = "all_cases_with_cna_data"
@@ -94,7 +97,7 @@ def populate_cases_cna(cancer, project_name,vus,folder, cases_list_dir,logger):
 
 
 
-def populate_cases_sequenced(cancer,project_name, vus,folder, cases_list_dir,logger):
+def populate_cases_sequenced(cancer,project_name, folder, cases_list_dir,logger):
     """
         Function to populate cases_sequenced file
     Args:
@@ -112,11 +115,11 @@ def populate_cases_sequenced(cancer,project_name, vus,folder, cases_list_dir,log
     sample_ids=list(data_sequenced["Tumor_Sample_Barcode"].unique())
 
     
-    if vus:
-        study_id = cancer+project_name+"_vus"
-    else:
-        study_id = cancer+project_name
-
+    # if vus:
+    #     study_id = cancer+project_name+"_vus"
+    # else:
+    #     study_id = cancer+project_name
+    study_id = cancer+project_name
     stable_id = study_id+"_sequenced"
 
     case_list_category = "all_cases_with_mutation_data"
@@ -147,13 +150,10 @@ if __name__=="__main__":
                         help='Path of folder containing data')
     parser.add_argument('-c', '--Cancer', required=False,
                         help='Cancer Name')
-    parser.add_argument('-v', '--VUS', required=False, action='store_true', default=False,
-                        help='Are VUS present?')
 
     args = parser.parse_args()
     
     folder=args.Folder
-    vus = args.VUS
     cancer=args.Cancer
     
     config = ConfigParser()

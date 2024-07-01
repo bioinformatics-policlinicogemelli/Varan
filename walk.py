@@ -235,14 +235,14 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer):
         out=temppath.replace("toannotate.txt","annotated.txt")
         os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {temppath}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
-        #import pdb; pdb.set_trace()       
+              
         cna=pd.read_csv(out,sep="\t",dtype={"Copy_Number_Alteration":int})
         cna=cna[cna["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
         cna["ESCAT"]="Unmatched"
         df_table["ESCAT"]="Unmatched"
         
         for index, row in cna.iterrows():
-            #import pdb; pdb.set_trace()
+            
             logger.info("Analyzing cna sample " + row["Tumor_Sample_Barcode"])            
             try:
                 tc= int(input_file[input_file["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]]["TC"])
@@ -404,7 +404,7 @@ def vcf_filtering(sID_path,output_folder):
     return sID_path_filtered
 
 def vcf2maf_constructor(k, v, temporary,output_folder):
-    #import pdb; pdb.set_trace()
+    
     tum_id=k.replace(SNV.replace(".vcf",""),"") #da verificare
     tum_id=tum_id.replace(".bam","")
     
@@ -578,7 +578,7 @@ def transform_input(tsv,output_folder):
 
     for _,row in tsv_file.iterrows():
         res_folder=INPUT_PATH
-        #import pdb; pdb.set_trace()
+        
         #res_folder="/data/data_storage/novaseq_results"
         snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
         #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
@@ -770,7 +770,7 @@ def walk_folder(input, output_folder,oncokb,cancer, overwrite_output=False, resu
             os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
                         -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
         
-        if "k" in filters:
+        if "o" in filters:
             fus_file=pd.read_csv(fusion_table_file_out,sep="\t")
             fus_file=filter_OncoKB(fus_file)
             fus_file.to_csv(fusion_table_file_out,index=False,sep="\t")

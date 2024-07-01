@@ -183,12 +183,12 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=
 
     file_list =concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
     out_filter=os.path.join(output_folder, 'MAF_filtered')
-    
-    if oncokb:   
+
+    if oncokb and "o" in filters:   
         file_list = concatenate.get_files_by_ext(output_onco, 'maf')
         out_filter=os.path.join(output_folder, 'MAF_Onco_filtered')
-    
-    if not filters==None and filters=="d":
+        
+    if not filters==None or not filters=="d":
         
         logger.info("Start filtering vcf...")
         
@@ -207,7 +207,7 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=
                     , regex=True)   
                 file_to_filter=file_to_filter[benign_filter]
             
-            if oncokb and "k" in filters:
+            if oncokb and "o" in filters:
                 oncokb_filter=ast.literal_eval(config.get('Filters', 'ONCOKB_FILTER'))
                 file_to_filter= file_to_filter[file_to_filter["ONCOGENIC"].isin(oncokb_filter)]
             
@@ -261,8 +261,7 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=
             #         file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
             # else:
             #     file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
-            
-            file_to_filter.to_csv(os.path.join(out_filter,file.split("/")[-1]),sep="\t",index=False)  
+            file_to_filter.to_csv(os.path.join(out_filter, os.path.basename(file)),sep="\t",index=False)  
 
     # out_folders.append(os.path.join(output_folder, 'NoBenign'))    
     # extensions.append("_NoBenign.maf")

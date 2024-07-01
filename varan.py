@@ -54,9 +54,9 @@ def varan(input, cancer, output_folder,oncoKB, filters, vcf_type=None, overwrite
             logger.info("Starting filter")    
             #filter_main(output_folder, output_folder, vus,overwrite_output,log)
             if args.vcf_type =="snv" or (args.vcf_type==None and os.path.exists(os.path.join(args.input,"SNV"))):
-                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer, False, filters)
+                filter_main(input,output_folder, output_folder, oncoKB, filters, args.Cancer, False)
             elif os.path.exists(os.path.exists(os.path.join(args.input,"maf"))) and not args.vcf_type=="cnv":
-                filter_main(input,output_folder, output_folder, args.vus,oncoKB,args.Cancer, False, filters)
+                filter_main(input,output_folder, output_folder, oncoKB, filters, args.Cancer, False)
 
                 
             ############################
@@ -68,7 +68,7 @@ def varan(input, cancer, output_folder,oncoKB, filters, vcf_type=None, overwrite
                 folders=[]
                 # if vus:
                 #     folders.append("NoVus")
-                if oncoKB:
+                if oncoKB and "o" in filters:
                     folders.append("MAF_Onco_filtered")
                 
                 for folder in folders:
@@ -76,7 +76,7 @@ def varan(input, cancer, output_folder,oncoKB, filters, vcf_type=None, overwrite
                     output_file=os.path.join(input_folder,"data_mutations_extended.txt")
                     concatenate_main(input_folder,"maf",output_file,log)
             
-                if oncoKB:
+                if oncoKB and "o" in filters:
                     logger.info("Extracting data_mutations_extended from OncoKB folder") 
                     os.system("cp "+os.path.join(output_folder,os.path.join("MAF_Onco_filtered","data_mutations_extended.txt"))+" "+ output_folder )
                 # elif vus:
