@@ -179,8 +179,6 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=
                 os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f}\
                             -o {file_path} -t {cancer.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
         
-
-
     file_list =concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
     out_filter=os.path.join(output_folder, 'MAF_filtered')
 
