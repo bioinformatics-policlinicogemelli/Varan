@@ -154,7 +154,6 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer, multip
                 else:
                     sID_path[sampleID] = os.path.join(os.path.join(input,"CNV"),cnv_vcf)
                 
-                import pdb; pdb.set_trace()
                 vcf2tab_cnv.vcf_to_table(sID_path[sampleID], os.path.join(output_folder,'data_cna_hg19.seg'), sampleID, MODE)
                 vcf2tab_cnv.vcf_to_table_fc(sID_path[sampleID], os.path.join(output_folder,'data_cna_hg19.seg.fc.txt'), sampleID, MODE)
                
@@ -572,7 +571,7 @@ def extract_multiple_cnv(multiple_vcf,input_dir):
         for sample in lines:
             sample = sample.strip()
             single_sample_vcf = os.path.join(single_sample_vcf_dir, f"{sample}.vcf")
-            cmd = f"vcftools --vcf {multiple_vcf} --indv {sample} --recode --stdout > {single_sample_vcf}"
+            cmd = f"vcftools --vcf {multiple_vcf} --indv {sample} --recode --recode-INFO-all --stdout > {single_sample_vcf}"
             os.system(cmd)
 
     
@@ -869,46 +868,47 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     write_clinical_patient(output_folder, table_dict_patient)
     fileinputclinical=pd.read_csv(tsvpath,sep="\t",index_col=False, dtype=str)
     
-    combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
-    MSI_THR=config.get('MSI', 'THRESHOLD')
-    TMB=ast.literal_eval(config.get('TMB', 'THRESHOLD'))
-    
-    for k, v in combined_dict.items():
-        logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
-        try:
-            tmv_msi = tsv.get_msi_tmb(v)
-        except Exception as e:
-            logger.error(f"Something went wrong!")
-        logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
+    if len(os.listdir(os.path.join(output_folder, "temp", "CombinedOutput"))) > 0:
+        combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
+        MSI_THR=config.get('MSI', 'THRESHOLD')
+        TMB=ast.literal_eval(config.get('TMB', 'THRESHOLD'))
         
-        if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
-            table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
-        else:
-            table_dict_patient[k].append('NA')
-        table_dict_patient[k].append(tmv_msi['TMB_Total'])
-        if not tmv_msi['MSI'][0][1]=="NA":
-            if not tmv_msi['MSI'][1][1] =="NA":
-                if float(tmv_msi['MSI'][1][1]) < float(MSI_THR):
-                    table_dict_patient[k].append("Stable")   
-                else:
-                    table_dict_patient[k].append('Unstable')
-
-                found = False
+        for k, v in combined_dict.items():
+            logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
+            try:
+                tmv_msi = tsv.get_msi_tmb(v)
+            except Exception as e:
+                logger.error(f"Something went wrong!")
+            logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
+            
+            if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
+                table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
             else:
                 table_dict_patient[k].append('NA')
-        else:
-            table_dict_patient[k].append('NA')
-        found=False
-        for _k, _v in TMB.items():
-            if not tmv_msi["TMB_Total"]=="NA":
-                if float(tmv_msi["TMB_Total"])<float(_v):
-                    table_dict_patient[k].append(_k)
-                    found=True
-                    break
+            table_dict_patient[k].append(tmv_msi['TMB_Total'])
+            if not tmv_msi['MSI'][0][1]=="NA":
+                if not tmv_msi['MSI'][1][1] =="NA":
+                    if float(tmv_msi['MSI'][1][1]) < float(MSI_THR):
+                        table_dict_patient[k].append("Stable")   
+                    else:
+                        table_dict_patient[k].append('Unstable')
+
+                    found = False
+                else:
+                    table_dict_patient[k].append('NA')
             else:
-                table_dict_patient[k].append("NA")
-        if found==False:
-            table_dict_patient[k].append(list(TMB.keys())[-1])
+                table_dict_patient[k].append('NA')
+            found=False
+            for _k, _v in TMB.items():
+                if not tmv_msi["TMB_Total"]=="NA":
+                    if float(tmv_msi["TMB_Total"])<float(_v):
+                        table_dict_patient[k].append(_k)
+                        found=True
+                        break
+                else:
+                    table_dict_patient[k].append("NA")
+            if found==False:
+                table_dict_patient[k].append(list(TMB.keys())[-1])
         
         run=str(fileinputclinical[fileinputclinical["SampleID"]==k]["RunID"].values[0])
         tc=str(fileinputclinical[fileinputclinical["SampleID"]==k]["TC"].values[0])
