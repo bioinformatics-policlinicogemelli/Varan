@@ -807,10 +807,10 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
         raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
 
     try:
-        tsvpath=os.path.join(input,tsvfiles)    
-        combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
+        tsvpath=os.path.join(input, tsvfiles)    
+        combined_dict = get_combinedVariantOutput_from_folder(input, tsvpath)
         
-        fusion_table_file = os.path.join(output_folder,'data_sv.txt')
+        fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
             
     #     for k, v in combined_dict.items():
     #         fusions=[]
@@ -965,7 +965,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
 
 ###################################################################################################################
 ################ COMMENTATO TEMPORANEAMENTE PER MANTENERE LA CARTELLA E NON RUNNARE OGNI VOLTA ####################
-#    shutil.rmtree(os.path.join(output_folder,"temp"))
+##########################    shutil.rmtree(os.path.join(output_folder,"temp"))    ################################
 ###################################################################################################################
 ###################################################################################################################
 
