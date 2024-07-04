@@ -26,6 +26,7 @@ from filter_clinvar import filter_OncoKB
 config = ConfigParser()
 
 configFile = config.read("conf.ini")
+
 INPUT_PATH=config.get('Paths', 'INPUT_PATH')
 SNV=config.get('Paths', 'SNV')
 CNV=config.get('Paths', 'CNV')
@@ -409,8 +410,12 @@ def vcf_filtering(sID_path,output_folder):
 
 def vcf2maf_constructor(k, v, temporary,output_folder):
     
-    tum_id=k.replace(SNV.replace(".vcf",""),"") #da verificare
-    tum_id=tum_id.replace(".bam","")
+    cmd="grep $'\t'"+k.split(".")[0]+" "+v
+    try:
+        tum_id = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
+        tum_id=[i for i in tum_id.split("\t") if k.split(".")[0] in i][0]
+    except Exception:
+        tum_id=""
     
     cl = ['perl']
     cl.append(VCF2MAF)
@@ -515,9 +520,9 @@ def write_clinical_sample(input, output_folder, table_dict):
 
     tsv_file = [file for file in os.listdir(input) if file.endswith(".tsv")][0]
     
-    conf_header_short = config.get('Sample', 'HEADER_SAMPLE_SHORT')
-    conf_header_long = config.get('Sample', 'HEADER_SAMPLE_LONG')
-    conf_header_type = config.get('Sample', 'HEADER_SAMPLE_TYPE')
+    conf_header_short = config.get('ClinicalSample', 'HEADER_SAMPLE_SHORT')
+    conf_header_long = config.get('ClinicalSample', 'HEADER_SAMPLE_LONG')
+    conf_header_type = config.get('ClinicalSample', 'HEADER_SAMPLE_TYPE')
 
     input_file_path = os.path.join(input, tsv_file)
     with open(input_file_path, 'r') as input_file:
@@ -638,27 +643,32 @@ def extract_multiple_snv(multiple_vcf,input_dir):
             cmd="vcf-subset --exclude-ref -c " + sample.strip() + " " + multiple_vcf + " > " + os.path.join(os.path.join(input_dir, "single_sample_vcf"), sample.strip() + ".vcf")
             os.system(cmd)
 
+def check_field_tsv(row, name):
+    try:
+        field=str(row[name])
+    except KeyError as e: 
+        logger.critical(f"KeyError: {e} not found! Check if column name is correctly spelled or if there are tabs/spaces before or after the coloumn key: \n{row.index}. \nThis error may also occur if the table columns have not been separated by tabs!")
+        raise(KeyError("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
+    return field
 
 def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
+    
     combined_dict = dict()
+    
     try:
         file = pd.read_csv(tsvpath,sep="\t",dtype=str)
     except Exception as e:
         logger.critical(f"Something went wrong while reading {tsvpath}!")
         raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
+    
     for _,row in file.iterrows():
-        try:
-            patientID=str(row["PatientID"])
-        except KeyError as e: 
-            logger.critical(f"KeyError: {e} not found! Check if column name is correctly spelled or if there are tabs/spaces before or after the coloumn key: \n{row.index}. \nThis error may also occur if the table columns have not been separated by tabs!")
-            raise(KeyError("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
-        try:
-            sampleID=str(row["SampleID"])
-        except KeyError as e: 
-            logger.critical(f"KeyError: {e} not found! Check if column name is correctly spelled or if there are tabs/spaces before or after the coloumn key: \n{row.index}. \nThis error may also occur if the table columns have not been separated by tabs!")
-            raise(KeyError("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
+        
+        patientID = check_field_tsv(row, "PatientID")
+        sampleID = check_field_tsv(row, "SampleID")
+        
         combined_file = patientID+COMBOUT #da verificare
         combined_path = os.path.join(inputFolder,"CombinedOutput",combined_file)
+        
         if os.path.exists(combined_path):
             pass 
         else:
@@ -666,7 +676,15 @@ def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
         combined_dict[sampleID] = combined_path
     return combined_dict
 
-def transform_input(tsv,output_folder):
+def check_input_file(output_folder, file, copy_to):
+    if os.path.exists(file):
+        os.system("cp "+file + " "+os.path.join(output_folder,"temp",copy_to))
+    elif not file:
+        logger.warning(f"No final_path set in conf.ini!")
+    else:
+        logger.warning(f"{file} not found")
+        
+def transform_input(tsv,output_folder, multiple):
     os.makedirs(os.path.join(output_folder,"temp"), exist_ok=True)
     os.makedirs(os.path.join(output_folder,"temp","SNV"), exist_ok=True)
     os.makedirs(os.path.join(output_folder,"temp","CNV"), exist_ok=True)
@@ -677,32 +695,30 @@ def transform_input(tsv,output_folder):
     tsv_file=pd.read_csv(tsv,sep="\t",dtype="string")
 
     for _,row in tsv_file.iterrows():
-        res_folder=INPUT_PATH
         
-        #res_folder="/data/data_storage/novaseq_results"
-        snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
-        #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
-        cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
-        combout=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["PatientID"]+COMBOUT)
+        if multiple:
+            snv_path=config.get('Multiple', 'SNV')
+            cnv_path=config.get('Multiple', 'CNV')
+            combout=config.get('Multiple', 'COMBOUT')
+        else:
+            res_folder=INPUT_PATH
+        
+            #res_folder="/data/data_storage/novaseq_results"
+            snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
+            #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
+            cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
+            combout=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["PatientID"]+COMBOUT)
         
         # #solo per run_160
         # snv_path=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results", row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
         # #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
         # cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
         # combout=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results",row["PatientID"],row["PatientID"]+COMBOUT)
-        if os.path.exists(combout):
-            os.system("cp "+combout + " "+os.path.join(output_folder,"temp","CombinedOutput"))
-        else:
-            logger.warning(f"{combout} not found")
-        if os.path.exists(snv_path):
-            os.system("cp "+snv_path + " "+os.path.join(output_folder,"temp","SNV"))
-        else:
-            logger.warning(f"{snv_path} not found")
-        if os.path.exists(cnv_path):
-            os.system("cp "+cnv_path + " "+os.path.join(output_folder,"temp","CNV"))
-        else:
-            logger.warning(f"{cnv_path} not found")
-    
+        
+        check_input_file(output_folder, snv_path, "SNV")
+        check_input_file(output_folder, cnv_path, "CNV")
+        check_input_file(output_folder, combout, "CombinedOutput")
+                
     return os.path.join(output_folder,"temp")
 
 def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=False, resume=False, vcf_type=None ,filters="", log=False):
@@ -725,13 +741,13 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
         create_folder(output_folder,overwrite_output, resume)
         if os.path.isfile(input):
             
-            input=transform_input(input,output_folder)
+            input=transform_input(input,output_folder, multiple)
         
     input=os.path.join(output_folder,"temp")
             
     inputFolderSNV=os.path.abspath(os.path.join(input,"SNV"))
     inputFolderCNV=os.path.abspath(os.path.join(input,"CNV"))
- 
+    
     if os.path.exists(inputFolderCNV) and not type in ["snv", "fus", "tab"]:
         if multiple:
             multivcf = os.listdir(inputFolderCNV)[0]
@@ -787,104 +803,105 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     ###############################
     ###       GET FUSION        ###
     ###############################
-
-    try:
-        tsvfiles=[file for file in os.listdir(input) if file.endswith("tsv")][0]
-    except IndexError:
-        logger.critical(f"It seems that no tsv file is in your folder!")
-        raise(IndexError("Exiting from walk script!"))
-    except FileNotFoundError:
-        logger.critical(f"No input directory '{input}' was found: try check your path")
-        raise(FileNotFoundError("Exiting from walk script!"))
-    except Exception as e:
-        logger.critical(f"Something went wrong! {print(traceback.format_exc())}")
-        raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
-
-    # try:
-    tsvpath=os.path.join(input, tsvfiles)    
-    combined_dict = get_combinedVariantOutput_from_folder(input, tsvpath)
     
-    fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
-        
-#     for k, v in combined_dict.items():
-#         fusions=[]
-#         logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
-#         try:
-#             fusions = tsv.get_fusions(v)
-#         except Exception as e:
-#             logger.error(f"Something went wrong while reading Fusion section of file {v}")
-# except FileNotFoundError:
-#     logger.critical(f"No input file '{input}' was found: try check your path")
-#     raise(FileNotFoundError("Exiting from walk script!"))
-
-    for k, v in combined_dict.items():
-        fusions=[]
-        logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+    if not COMBOUT=="":
         try:
-            fusions = tsv.get_fusions(v)
+            tsvfiles=[file for file in os.listdir(input) if file.endswith("tsv")][0]
+        except IndexError:
+            logger.critical(f"It seems that no tsv file is in your folder!")
+            raise(IndexError("Exiting from walk script!"))
+        except FileNotFoundError:
+            logger.critical(f"No input directory '{input}' was found: try check your path")
+            raise(FileNotFoundError("Exiting from walk script!"))
         except Exception as e:
-            logger.error(f"Something went wrong while reading Fusion section of file {v}")
-        if len(fusions)==0:
-            logger.info(f"No Fusions found in {v}")
-            continue
-        else:
-            logger.info(f"Fusions found in {v}")
-        if not os.path.exists(fusion_table_file):
-            logger.info(f"Creating data_sv.txt file...")
-            fusion_table = open(fusion_table_file, 'w')
-            header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
-            fusion_table.write(header)
-        else:
-            fusion_table = open(fusion_table_file, 'a')
-        for fus in fusions:
-            if len(fusions) > 0:
-                Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
-                Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
-                if Site2_Hugo_Symbol == 'CASC1':
-                    Site2_Hugo_Symbol = 'DNAI7'
-                Site1_Chromosome = fus['Site1_Chromosome']
-                Site2_Chromosome = fus['Site2_Chromosome']
-                Site1_Position = fus['Site1_Position']
-                Site2_Position = fus['Site2_Position']
+            logger.critical(f"Something went wrong! {print(traceback.format_exc())}")
+            raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
 
-                if int(fus['Normal_Paired_End_Read_Count'])>=15 :
-                    fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
-    str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
-    '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
+        # try:
+        tsvpath=os.path.join(input, tsvfiles)    
+        combined_dict = get_combinedVariantOutput_from_folder(input, tsvpath)
+        
+        fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
+            
+    #     for k, v in combined_dict.items():
+    #         fusions=[]
+    #         logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+    #         try:
+    #             fusions = tsv.get_fusions(v)
+    #         except Exception as e:
+    #             logger.error(f"Something went wrong while reading Fusion section of file {v}")
+    # except FileNotFoundError:
+    #     logger.critical(f"No input file '{input}' was found: try check your path")
+    #     raise(FileNotFoundError("Exiting from walk script!"))
+
+        for k, v in combined_dict.items():
+            fusions=[]
+            logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+            try:
+                fusions = tsv.get_fusions(v)
+            except Exception as e:
+                logger.error(f"Something went wrong while reading Fusion section of file {v}")
+            if len(fusions)==0:
+                logger.info(f"No Fusions found in {v}")
+                continue
+            else:
+                logger.info(f"Fusions found in {v}")
+            if not os.path.exists(fusion_table_file):
+                logger.info(f"Creating data_sv.txt file...")
+                fusion_table = open(fusion_table_file, 'w')
+                header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
+                fusion_table.write(header)
+            else:
+                fusion_table = open(fusion_table_file, 'a')
+            for fus in fusions:
+                if len(fusions) > 0:
+                    Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
+                    Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
+                    if Site2_Hugo_Symbol == 'CASC1':
+                        Site2_Hugo_Symbol = 'DNAI7'
+                    Site1_Chromosome = fus['Site1_Chromosome']
+                    Site2_Chromosome = fus['Site2_Chromosome']
+                    Site1_Position = fus['Site1_Position']
+                    Site2_Position = fus['Site2_Position']
+
+                    if int(fus['Normal_Paired_End_Read_Count'])>=15 :
+                        fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
+        str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
+        '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
         
     
-    if oncokb and  os.path.exists(fusion_table_file):
-        
-        data_sv=pd.read_csv(fusion_table_file,sep="\t")
-        if not os.path.isfile(input):
-            tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
-            input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
-        
-        else:
-            input_file=pd.read_csv(input,sep="\t")
-
-        
-        if "ONCOTREE_CODE" in input_file.columns:
-        
-            input_file["SampleID"]=input_file["SampleID"]+".bam"
-            fusion_table_df=data_sv.merge(input_file,how="inner",left_on="Sample_Id",right_on="SampleID")
-            fusion_table_df.to_csv(fusion_table_file,sep="\t",index=False)
-            fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")
-            os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
-                    -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
+        if oncokb and  os.path.exists(fusion_table_file):
             
+            data_sv=pd.read_csv(fusion_table_file,sep="\t")
+            if not os.path.isfile(input):
+                tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
+                input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
+            
+            else:
+                input_file=pd.read_csv(input,sep="\t")
 
-        else:   
+            
+            if "ONCOTREE_CODE" in input_file.columns:
+            
+                input_file["SampleID"]=input_file["SampleID"]+".bam"
+                fusion_table_df=data_sv.merge(input_file,how="inner",left_on="Sample_Id",right_on="SampleID")
+                fusion_table_df.to_csv(fusion_table_file,sep="\t",index=False)
+                fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")
+                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
+                        -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
                 
-            fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")       
-            os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
-                        -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
-        
-        if "o" in filters:
-            fus_file=pd.read_csv(fusion_table_file_out,sep="\t")
-            fus_file=filter_OncoKB(fus_file)
-            fus_file.to_csv(fusion_table_file_out,index=False,sep="\t")
-        os.system(f"mv {fusion_table_file_out}  {fusion_table_file}") 
+
+            else:   
+                    
+                fusion_table_file_out=fusion_table_file.replace(".txt","ann.txt")       
+                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
+                            -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
+            
+            if "o" in filters:
+                fus_file=pd.read_csv(fusion_table_file_out,sep="\t")
+                fus_file=filter_OncoKB(fus_file)
+                fus_file.to_csv(fusion_table_file_out,index=False,sep="\t")
+            os.system(f"mv {fusion_table_file_out}  {fusion_table_file}") 
             
 
             
@@ -902,7 +919,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     ##############################
     ##       MAKES TABLE       ###
     ##############################
-    
+    import pdb; pdb.set_trace()
     tsv_file=[file for file in os.listdir(input) if file.endswith("tsv")][0]
     tsvpath=os.path.join(input,tsv_file)    
 
@@ -964,12 +981,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
 
     write_clinical_sample(input, output_folder, table_dict_patient)
 
-###################################################################################################################
-################ COMMENTATO TEMPORANEAMENTE PER MANTENERE LA CARTELLA E NON RUNNARE OGNI VOLTA ####################
-##########################    shutil.rmtree(os.path.join(output_folder,"temp"))    ################################
-###################################################################################################################
-###################################################################################################################
-
+    shutil.rmtree(os.path.join(output_folder,"temp"))
     # except:
     #     print("No combined output found")
     #     write_clinical_sample_empty(output_folder, table_dict_patient)

@@ -33,9 +33,9 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
         logger.info("Welcome to VARAN") 
 
-    logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, \
-                            vcf_type:{vcf_type}, overwrite_output:{overwrite_output}, resume:{resume}, multiple:{multiple}], \
-                            update:{update}, extract:{extract}, remove:{remove}")
+    logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, vcf_type:{vcf_type},",
+                "overwrite_output:{overwrite_output}, resume:{resume}, multiple:{multiple}],",
+                            "update:{update}, extract:{extract}, remove:{remove}")
 
     if not any([update ,extract , remove]) :       
             
@@ -54,9 +54,9 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             logger.info("Starting filter")    
             #filter_main(output_folder, output_folder, vus,overwrite_output,log)
             if args.vcf_type =="snv" or (args.vcf_type==None and os.path.exists(os.path.join(args.input,"SNV"))):
-                filter_main(input,output_folder, output_folder, oncoKB, filters, args.Cancer, False)
+                filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume, False)
             elif os.path.exists(os.path.exists(os.path.join(args.input,"maf"))) and not args.vcf_type=="cnv":
-                filter_main(input,output_folder, output_folder, oncoKB, filters, args.Cancer, False)
+                filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume, False)
 
                 
             ############################

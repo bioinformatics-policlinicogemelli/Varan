@@ -103,7 +103,7 @@ def write_csv_with_info(df, file_path):
 #     df = df[(df['gnomAD_AF'] <gnomAD) | (df['gnomAD_AF'].isnull())]
 #     return df
 
-def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=False, log=False):
+def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, overwrite=False, log=False):
     if not log:
         logger.remove()
         logfile="filter_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
@@ -118,7 +118,7 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=
         if overwrite:
             logger.warning(f"It seems that the folder 'MAF_OncoKB' already exists. Start removing process...")        
             shutil.rmtree(os.path.join(output_folder,'MAF_OncoKB'))
-        else:
+        elif not resume:
             logger.critical(f"The folder 'MAF_OncoKB' already exists. To overwrite an existing folder add the -w option!")
             logger.critical(f"Exit without completing the task!")
             exit()
@@ -151,8 +151,9 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=
     extensions=[]
     
     if oncokb:
+        import pdb; pdb.set_trace()
         output_onco=os.path.join(output_folder, 'MAF_OncoKB')
-        os.mkdir(output_onco)
+        os.makedirs(output_onco, exist_ok=True)
         extension="_OncoAnnotated.maf"
        
         if not os.path.isfile(input):
@@ -162,7 +163,6 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=
         else:
             input_file=pd.read_csv(input,sep="\t")
     
-        
         for f in file_list:
             _, file = os.path.split(f)
             file_No = file.replace('.maf','') + extension
@@ -190,7 +190,7 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=
         
         logger.info("Start filtering vcf...")
         
-        os.mkdir(out_filter)
+        os.makedirs(out_filter, exist_ok=True)
         
         for file in file_list:
             file_to_filter=pd.read_csv(file,sep="\t")
@@ -356,4 +356,4 @@ if __name__ == '__main__':
     cancer=args.Cancer
     filters=args.filters
     
-    filter_main(input,folder, output_folder, oncokb, filters, cancer, overwrite=False, novel=True, log=False)
+    filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, overwrite=False, novel=True, log=False)

@@ -34,8 +34,8 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 			pass
 		else:
 			table.write('ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\n')
-		SAMPLE=SAMPLE
-		################### QUI PROVARE A RIMUOVERE .BAM #######################
+		SAMPLE=SAMPLE.split(".")[0] #rimozione .bam
+
 		for line in vcf:
 
 			if line.startswith("##fileformat"):
