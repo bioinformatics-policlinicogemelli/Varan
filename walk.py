@@ -238,14 +238,13 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer, multip
         out=temppath.replace("toannotate.txt","annotated.txt")
         os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {temppath}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
-        #import pdb; pdb.set_trace()       
+
         cna=pd.read_csv(out,sep="\t",dtype={"Copy_Number_Alteration":int})
         cna=cna[cna["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
         cna["ESCAT"]="Unmatched"
         df_table["ESCAT"]="Unmatched"
         
         for index, row in cna.iterrows():
-            #import pdb; pdb.set_trace()
             logger.info("Analyzing cna sample " + row["Tumor_Sample_Barcode"])            
             try:
                 tc= int(input_file[input_file["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]]["TC"])
@@ -406,7 +405,6 @@ def vcf_filtering(sID_path,output_folder):
     return sID_path_filtered
 
 def vcf2maf_constructor(k, v, temporary,output_folder):
-    #import pdb; pdb.set_trace()
     tum_id=k.replace(SNV.replace(".vcf",""),"") #da verificare
     tum_id=tum_id.replace(".bam","")
     cl = ['perl']
@@ -446,7 +444,7 @@ def run_vcf2maf(cl):
         else:
             logger.error(sout.stderr.decode('ascii').replace('ERROR: ',''))
     
-def create_folder(output_folder,overwrite_output):
+def create_folder(output_folder,overwrite_output, resume):
     if overwrite_output:
         if os.path.exists(output_folder):
             logger.warning(f"It seems that the folder '{output_folder}' already exists. Start removing process...")
@@ -460,6 +458,10 @@ def create_folder(output_folder,overwrite_output):
         filtered_path = os.path.join(output_folder, 'snv_filtered')
         os.mkdir(filtered_path)
         logger.info(f"The folder '{output_folder}' was correctly created!")
+    
+    elif resume:
+        maf_path = os.path.join(output_folder, 'maf')
+        filtered_path = os.path.join(output_folder, 'snv_filtered')
 
     else:
         logger.critical(f"The folder '{output_folder}' already exists. To overwrite an existing folder add the -w option!")
@@ -502,19 +504,61 @@ def write_clinical_patient(output_folder, table_dict):
         cil_sample.write(v+"\tNaN\tNa\n")
     cil_sample.close()
 
-def write_clinical_sample(output_folder, table_dict):
+def write_clinical_sample(input, output_folder, table_dict):
+
     logger.info("Writing data_clinical_sample.txt file...")
-    data_clin_samp = os.path.join(output_folder, 'data_clinical_sample.txt')
-    cil_sample = open(data_clin_samp, 'w')
-    cil_sample.write('#Patient Identifier\tSample Identifier\tMSI\tTMB\tMSI_THR\tTMB_THR\tRunID\tONCOTREE_CODE\tTC\n')
-    cil_sample.write('#Patient identifier\tSample Identifier\tMicro Satellite Instability\tMutational Tumor Burden\tMSI_THR\tTMB_THR\tRunID\tONCOTREE_CODE\tTC\n')
-    cil_sample.write('#STRING\tSTRING\tNUMBER\tNUMBER\tSTRING\tSTRING\tSTRING\tSTRING\tNUMBER\n')
-    cil_sample.write('#1\t1\t1\t1\t1\t1\t1\t1\t1\n')
-    cil_sample.write('PATIENT_ID\tSAMPLE_ID\tMSI\tTMB\tMSI_THR\tTMB_THR\tRUNID\tONCOTREE_CODE\tTC\n')
-    for k, v in table_dict.items():
-        cil_sample.write(v[0]+'\t'+k+'\t'+v[1]+'\t'+v[2]+'\t'+v[3]+'\t'+v[4]+'\t'+v[5]+'\t'+v[6]+'\t'+v[7]+'\n')
-    cil_sample.close()
+
+    tsv_file = [file for file in os.listdir(input) if file.endswith(".tsv")][0]
     
+    conf_header_short = config.get('Sample', 'HEADER_SAMPLE_SHORT')
+    conf_header_long = config.get('Sample', 'HEADER_SAMPLE_LONG')
+    conf_header_type = config.get('Sample', 'HEADER_SAMPLE_TYPE')
+
+    input_file_path = os.path.join(input, tsv_file)
+    with open(input_file_path, 'r') as input_file:
+        file_header_string = input_file.readline()
+    # Puoi leggere altre righe qui se necessario
+    # ...
+# Il file viene automaticamente chiuso al termine del blocco with
+
+    file_header = file_header_string.split("\t")
+    file_header = list(map(lambda x: x.upper(), file_header))
+    header_string = "\t".join(file_header)
+
+    data_clin_samp = os.path.join(output_folder, 'data_clinical_sample.txt')
+    
+    if not conf_header_short:
+        sample_header_short = file_header
+    else:
+        sample_header_short = conf_header_short
+    header_list_short = "\t".join(sample_header_short)
+    header_list_short = header_list_short + "\n" if not header_list_short.endswith("\n") else header_list_short
+
+    if not conf_header_long:
+        sample_header_long = sample_header_short
+    else:
+        sample_header_long = [field.upper() for field in conf_header_long]
+    header_list_long = "\t".join(sample_header_long)
+    header_list_long = header_list_long + "\n" if not header_list_long.endswith("\n") else header_list_long
+
+    if not conf_header_type:
+        sample_header_type = ("STRING\t" * (len(file_header) - 1) + "STRING\n")
+    else: 
+        sample_header_type = "\t".join(sample_header_type)
+        header_type_list = header_type_list + "\n" if not header_type_list.endswith("\n") else header_type_list
+
+    with open(data_clin_samp, "w") as cil_sample:
+        cil_sample.write("#" + header_list_short)
+        cil_sample.write("#" + header_list_long)
+        cil_sample.write("#" + sample_header_type)
+        cil_sample.write("#" + "1\t" * (len(file_header) - 1) + "1\n") # file input 
+        cil_sample.write(header_string)
+
+    with open(input_file_path, 'r') as input_file:
+        with open(data_clin_samp, 'a') as cil_sample:
+            cil_sample.writelines(input_file.readlines()[1:])
+
+
 def write_clinical_sample_empty(output_folder, table_dict):
     logger.info("Writing data_clinical_sample.txt file...")
     data_clin_samp = os.path.join(output_folder, 'data_clinical_sample.txt')
@@ -618,10 +662,10 @@ def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
     return combined_dict
 
 def transform_input(tsv,output_folder):
-    os.mkdir(os.path.join(output_folder,"temp"))
-    os.mkdir(os.path.join(output_folder,"temp","SNV"))
-    os.mkdir(os.path.join(output_folder,"temp","CNV"))
-    os.mkdir(os.path.join(output_folder,"temp","CombinedOutput"))
+    os.makedirs(os.path.join(output_folder,"temp"), exist_ok=True)
+    os.makedirs(os.path.join(output_folder,"temp","SNV"), exist_ok=True)
+    os.makedirs(os.path.join(output_folder,"temp","CNV"), exist_ok=True)
+    os.makedirs(os.path.join(output_folder,"temp","CombinedOutput"), exist_ok=True)
 
     os.system("cp "+tsv +" "+os.path.join(output_folder,"temp"))
 
@@ -629,7 +673,6 @@ def transform_input(tsv,output_folder):
 
     for _,row in tsv_file.iterrows():
         res_folder=INPUT_PATH
-        #import pdb; pdb.set_trace()
         #res_folder="/data/data_storage/novaseq_results"
         snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
         #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
@@ -673,7 +716,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     ###       OUTPUT FOLDER     ###
     ###############################
     if not resume or os.path.exists(os.path.join(output_folder,"temp")):
-        create_folder(output_folder,overwrite_output)
+        create_folder(output_folder,overwrite_output, resume)
         if os.path.isfile(input):
             
             input=transform_input(input,output_folder)
@@ -918,8 +961,14 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
         table_dict_patient[k].append(oncotree)
         table_dict_patient[k].append(tc)
 
-    write_clinical_sample(output_folder, table_dict_patient)
-    shutil.rmtree(os.path.join(output_folder,"temp"))
+    write_clinical_sample(input, output_folder, table_dict_patient)
+
+###################################################################################################################
+################ COMMENTATO TEMPORANEAMENTE PER MANTENERE LA CARTELLA E NON RUNNARE OGNI VOLTA ####################
+#    shutil.rmtree(os.path.join(output_folder,"temp"))
+###################################################################################################################
+###################################################################################################################
+
     # except:
     #     print("No combined output found")
     #     write_clinical_sample_empty(output_folder, table_dict_patient)
