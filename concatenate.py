@@ -40,7 +40,6 @@ def get_files_by_ext(folder, ext):
 
 
 def concatenate_main(folder, ext, output_file, log=False):
-    
     if not log:
         logger.remove()
         logfile="concatenate_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"

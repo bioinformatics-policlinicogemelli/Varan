@@ -62,23 +62,37 @@ def varan(input, cancer, output_folder,oncoKB, filters, vcf_type=None, overwrite
             ############################
             #      3. CONCATENATE      #
             ############################
-            
-            if  os.path.exists(os.path.join(output_folder,"maf"))and not args.vcf_type=="cnv":
+
+            if  os.path.exists(os.path.join(output_folder,"maf")) and not args.vcf_type=="cnv":
                 logger.info("Concatenate mutation file")
-                folders=[]
+                #folders=[]
                 # if vus:
                 #     folders.append("NoVus")
                 if oncoKB and "o" in filters:
-                    folders.append("MAF_Onco_filtered")
+                    folder="MAF_Onco_filtered"
+                    
+                elif "o" not in filters and not filters=="d":
+                    folder="MAF_filtered"
                 
-                for folder in folders:
-                    input_folder=os.path.join(output_folder,folder)
-                    output_file=os.path.join(input_folder,"data_mutations_extended.txt")
-                    concatenate_main(input_folder,"maf",output_file,log)
+                else:
+                    folder="maf"
+                
+                #for folder in folders:
+                input_folder=os.path.join(output_folder,folder)
+                output_file=os.path.join(input_folder,"data_mutations_extended.txt")
+                concatenate_main(input_folder,"maf",output_file,log)
             
                 if oncoKB and "o" in filters:
                     logger.info("Extracting data_mutations_extended from OncoKB folder") 
                     os.system("cp "+os.path.join(output_folder,os.path.join("MAF_Onco_filtered","data_mutations_extended.txt"))+" "+ output_folder )
+                
+                elif "o" not in filters and not filters=="d":
+                    os.system("cp "+os.path.join(output_folder,os.path.join("MAF_filtered","data_mutations_extended.txt"))+" "+ output_folder )
+                
+                else:
+                    os.system("cp "+os.path.join(output_folder,os.path.join("maf","data_mutations_extended.txt"))+" "+ output_folder )
+                
+                
                 # elif vus:
                 #     logger.info("Extracting data_mutations_extended from NoVUS folder") 
                 #     os.system("cp "+os.path.join(output_folder,os.path.join("NoVus","data_mutations_extended.txt"))+" "+ output_folder )
