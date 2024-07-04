@@ -18,13 +18,20 @@ import shutil
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
-vaf_default = config.get('Filters', 't_VAF')
-vaf_hotspot = config.get('Filters', 't_VAF')
-vaf_novel = config.get('Filters', 't_VAF_NOVEL')
+# vaf_default = config.get('Filters', 't_VAF')
+# vaf_hotspot = config.get('Filters', 't_VAF')
+# vaf_novel = config.get('Filters', 't_VAF_NOVEL')
+
 
 def print_unique_clin_sig(df):
     unique_clin_sig = df['CLIN_SIG'].unique()
     print(unique_clin_sig)
+    
+def filter_OncoKB(df):
+    oncokb_filter=ast.literal_eval(config.get('Filters', 'ONCOKB_FILTER'))
+    
+    df_filtered=df[df["ONCOGENIC"].isin(oncokb_filter)]
+    return df_filtered
 
 def filter_benign(df):
     benign_filter = ~df['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
@@ -33,8 +40,6 @@ def filter_benign(df):
             , regex=True)
     return df[benign_filter]
 
-
-  
 def check_CLIN_SIG(row):
     clin_sig=ast.literal_eval(config.get('Filters', 'CLIN_SIG'))
     output=[]
@@ -50,6 +55,26 @@ def check_consequences(row):
     output=[]
     for _e in str(row['Consequence']).split(","):
         if _e in consequences:
+            output.append(True)
+        else:
+            output.append(False)
+    return any(output)
+
+def check_polyphen(row):
+    consequences=ast.literal_eval(config.get('Filters', 'POLYPHEN'))
+    output=[]
+    for _e in str(row['PolyPhen']).split(","):
+        if any(_e in s for s in consequences):
+            output.append(True)
+        else:
+            output.append(False)
+    return any(output)
+
+def check_sift(row):
+    consequences=ast.literal_eval(config.get('Filters', 'SIFT'))
+    output=[]
+    for _e in str(row['SIFT']).split(","):
+        if any(_e in s for s in consequences):
             output.append(True)
         else:
             output.append(False)
@@ -71,14 +96,14 @@ def write_csv_with_info(df, file_path):
     f.close()
     df.to_csv(file_path, sep='\t', index=False, header=True, mode='w')
 
-def filter_vf(df):
-    t_vaf=float(config.get('Filters', 't_VAF'))
-    gnomAD=float(config.get('Filters', 'gnomAD'))
-    df = df[(df['t_VF'] > t_vaf) | (df['t_VF'].isnull())]
-    df = df[(df['gnomAD_AF'] <gnomAD) | (df['gnomAD_AF'].isnull())]
-    return df
+# def filter_vf(df):
+#     t_vaf=float(config.get('Filters', 't_VAF'))
+#     gnomAD=float(config.get('Filters', 'gnomAD'))
+#     df = df[(df['t_VF'] > t_vaf) | (df['t_VF'].isnull())]
+#     df = df[(df['gnomAD_AF'] <gnomAD) | (df['gnomAD_AF'].isnull())]
+#     return df
 
-def filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False, novel=True, log=False):
+def filter_main(input,folder, output_folder ,oncokb, filters, cancer, overwrite=False, log=False):
     if not log:
         logger.remove()
         logfile="filter_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
@@ -87,7 +112,7 @@ def filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False,
         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
     
     logger.info("Starting filter_main script:")
-    logger.info(f"filter_main args [maf_folder:{folder}, output_folder:{output_folder}, vus:{vus}, overwrite:{overwrite}]")
+    logger.info(f"filter_main args [maf_folder:{folder}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, overwrite:{overwrite}]")
 
     if os.path.exists(os.path.join(output_folder,'MAF_OncoKB')) and len(os.listdir(os.path.join(output_folder,'MAF_OncoKB')))>0:
         if overwrite:
@@ -139,7 +164,7 @@ def filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False,
     
         
         for f in file_list:
-            root, file = os.path.split(f)
+            _, file = os.path.split(f)
             file_No = file.replace('.maf','') + extension
             file_path = os.path.join(output_onco, file_No)
             if "ONCOTREE_CODE" in input_file.columns:
@@ -154,36 +179,87 @@ def filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False,
                 os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f}\
                             -o {file_path} -t {cancer.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
         
-
-
     file_list =concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
     out_filter=os.path.join(output_folder, 'MAF_filtered')
-    
-    if oncokb:   
+
+    if oncokb and "o" in filters:   
         file_list = concatenate.get_files_by_ext(output_onco, 'maf')
         out_filter=os.path.join(output_folder, 'MAF_Onco_filtered')
-    
-    os.mkdir(out_filter)
-    
-    for file in file_list:
-        file_to_filter=pd.read_csv(file,sep="\t")
         
-        file_to_filter=file_to_filter[~file_to_filter["IMPACT"].isin(["LOW","MODIFIER"])]
+    if not filters==None or not filters=="d":
         
-        file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
+        logger.info("Start filtering vcf...")
         
-        if oncokb:
-            file_to_filter= file_to_filter[file_to_filter["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
-                        
-        if novel:
-            if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel") | (file_to_filter["dbSNP_RS"].isnull())]:
-                file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_novel)]
-            else:
-                file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
-        else:
-            file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
+        os.mkdir(out_filter)
         
-        file_to_filter.to_csv(os.path.join(out_filter,file.split("/")[-1]),sep="\t",index=False)  
+        for file in file_list:
+            file_to_filter=pd.read_csv(file,sep="\t")
+            
+            if "f" in filters:
+                file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
+            
+            if "b" in filters:
+                benign_filter = ~file_to_filter['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
+                    , case=False
+                    , na=False
+                    , regex=True)   
+                file_to_filter=file_to_filter[benign_filter]
+            
+            if oncokb and "o" in filters:
+                oncokb_filter=ast.literal_eval(config.get('Filters', 'ONCOKB_FILTER'))
+                file_to_filter= file_to_filter[file_to_filter["ONCOGENIC"].isin(oncokb_filter)]
+            
+            if "v" in filters:
+                t_VAF_min=float(config.get('Filters', 't_VAF_min'))
+                t_VAF_max=float(config.get('Filters', 't_VAF_max'))
+                
+                if "n" in filters:
+                    t_VAF_min_novel=float(config.get('Filters', 't_VAF_min_novel'))
+                    
+                    if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel") | (file_to_filter["dbSNP_RS"].isnull())]:
+                        file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min_novel) | (file_to_filter['t_VF'].isnull()) | (file_to_filter['t_VF'] <= t_VAF_max)]
+                    else:
+                        file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) | (file_to_filter['t_VF'].isnull()) | (file_to_filter['t_VF'] <= t_VAF_max)]
+                    
+                else:
+                    file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) | (file_to_filter['t_VF'].isnull()) | (file_to_filter['t_VF'] <= t_VAF_max)]
+            
+            if "g" in filters:     
+                    gnomAD=float(config.get('Filters', 'gnomAD'))
+                    file_to_filter =file_to_filter[(file_to_filter['AF'] < gnomAD) | (file_to_filter['AF'].isnull())]
+                
+            if "c" in filters:
+                file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]
+                
+            if "i" in filters:
+                file_to_filter= file_to_filter[file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
+                
+            if "q" in filters:
+                file_to_filter = file_to_filter[file_to_filter.apply(check_consequences,axis=1)]
+                
+            if "y" in filters:
+                file_to_filter = file_to_filter[file_to_filter.apply(check_polyphen,axis=1)]
+            
+            if "s" in filters:
+                file_to_filter=file_to_filter[file_to_filter.apply(check_sift,axis=1)]
+                 
+                
+            logger.info(f"Filtered file: {file}")                  
+            #file_to_filter=file_to_filter[~file_to_filter["IMPACT"].isin(["LOW","MODIFIER"])]
+            
+            
+            
+            # if oncokb:
+            #     file_to_filter= file_to_filter[file_to_filter["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
+                            
+            # if novel:
+            #     if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel") | (file_to_filter["dbSNP_RS"].isnull())]:
+            #         file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_novel)]
+            #     else:
+            #         file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
+            # else:
+            #     file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
+            file_to_filter.to_csv(os.path.join(out_filter, os.path.basename(file)),sep="\t",index=False)  
 
     # out_folders.append(os.path.join(output_folder, 'NoBenign'))    
     # extensions.append("_NoBenign.maf")
@@ -256,9 +332,6 @@ if __name__ == '__main__':
                                             help='Path folder containing the maf files')
     parser.add_argument('-o', '--output_folder', required=True,
                                             help='Output folder')
-    parser.add_argument('-v', '--vus', required=False,
-                                            action='store_true',
-                                            help='Filter out VUS variants')
     parser.add_argument('-w', '--overWrite', required=False,action='store_true',
                                                 help='Overwrite output folder if it exists')
     parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
@@ -277,9 +350,10 @@ if __name__ == '__main__':
     
     folder = args.folder
     output_folder = args.output_folder
-    vus = args.vus
     overwrite = args.overWrite
     input=args.input
     oncokb=args.oncoKB
     cancer=args.Cancer
-    filter_main(input,folder, output_folder, vus,oncokb,cancer, overwrite=False, novel=True, log=False)
+    filters=args.filters
+    
+    filter_main(input,folder, output_folder, oncokb, filters, cancer, overwrite=False, novel=True, log=False)
