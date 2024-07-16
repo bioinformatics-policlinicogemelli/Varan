@@ -684,23 +684,31 @@ def check_input_file(output_folder, file, copy_to):
     else:
         logger.warning(f"{file} not found")
         
+def check_folders(output_folder, snv_path, cnv_path, combout):
+    check_input_file(output_folder, snv_path, "SNV")
+    check_input_file(output_folder, cnv_path, "CNV")
+    check_input_file(output_folder, combout, "CombinedOutput")
+        
 def transform_input(tsv,output_folder, multiple):
     os.makedirs(os.path.join(output_folder,"temp"), exist_ok=True)
     os.makedirs(os.path.join(output_folder,"temp","SNV"), exist_ok=True)
     os.makedirs(os.path.join(output_folder,"temp","CNV"), exist_ok=True)
     os.makedirs(os.path.join(output_folder,"temp","CombinedOutput"), exist_ok=True)
 
-    os.system("cp "+tsv +" "+os.path.join(output_folder,"temp"))
+    os.system("cp "+ tsv +" "+os.path.join(output_folder,"temp"))
 
-    tsv_file=pd.read_csv(tsv,sep="\t",dtype="string")
-
-    for _,row in tsv_file.iterrows():
+    if multiple:
+        snv_path=config.get('Multiple', 'SNV')
+        cnv_path=config.get('Multiple', 'CNV')
+        combout=config.get('Multiple', 'COMBOUT')
         
-        if multiple:
-            snv_path=config.get('Multiple', 'SNV')
-            cnv_path=config.get('Multiple', 'CNV')
-            combout=config.get('Multiple', 'COMBOUT')
-        else:
+        check_folders(output_folder, snv_path, cnv_path, combout)
+    
+    else:   
+        tsv_file=pd.read_csv(tsv,sep="\t",dtype="string")
+            
+        for _,row in tsv_file.iterrows():
+
             res_folder=INPUT_PATH
         
             #res_folder="/data/data_storage/novaseq_results"
@@ -708,16 +716,8 @@ def transform_input(tsv,output_folder, multiple):
             #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
             cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
             combout=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["PatientID"]+COMBOUT)
-        
-        # #solo per run_160
-        # snv_path=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results", row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
-        # #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
-        # cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
-        # combout=os.path.join(res_folder,row["RunID"],"Results",row["RunID"]+"_urgenze", "Results",row["PatientID"],row["PatientID"]+COMBOUT)
-        
-        check_input_file(output_folder, snv_path, "SNV")
-        check_input_file(output_folder, cnv_path, "CNV")
-        check_input_file(output_folder, combout, "CombinedOutput")
+
+            check_folders(output_folder, snv_path, cnv_path, combout)
                 
     return os.path.join(output_folder,"temp")
 
@@ -743,11 +743,14 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
             
             input=transform_input(input,output_folder, multiple)
         
-    input=os.path.join(output_folder,"temp")
-            
+    input=os.path.join(output_folder,"temp") 
     inputFolderSNV=os.path.abspath(os.path.join(input,"SNV"))
     inputFolderCNV=os.path.abspath(os.path.join(input,"CNV"))
+    inputFolderCombOut=os.path.abspath(os.path.join(input,"CombinedOutput"))
     
+    assert (len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
+        "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
+       
     if os.path.exists(inputFolderCNV) and not type in ["snv", "fus", "tab"]:
         if multiple:
             multivcf = os.listdir(inputFolderCNV)[0]
@@ -919,7 +922,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     ##############################
     ##       MAKES TABLE       ###
     ##############################
-    import pdb; pdb.set_trace()
+    
     tsv_file=[file for file in os.listdir(input) if file.endswith("tsv")][0]
     tsvpath=os.path.join(input,tsv_file)    
 

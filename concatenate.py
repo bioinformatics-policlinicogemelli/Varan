@@ -10,14 +10,14 @@ import argparse
 from loguru import logger
 import sys
 
-
 def concatenate_files(file_list, output_file):
     with open(output_file, 'w') as out_file:
         for i, file_name in enumerate(file_list):
             with open(file_name) as in_file:
                 lines = in_file.readlines()
+                lines=list(map(lambda x: x.replace(".bam",""),lines))
                 if i > 0:
-                    lines = lines[1:]
+                    lines = lines[1:]     
                 out_file.write("".join(lines))
                 
     if not os.path.exists(output_file):

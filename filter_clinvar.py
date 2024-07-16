@@ -151,7 +151,7 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
     extensions=[]
     
     if oncokb:
-        import pdb; pdb.set_trace()
+        
         output_onco=os.path.join(output_folder, 'MAF_OncoKB')
         os.makedirs(output_onco, exist_ok=True)
         extension="_OncoAnnotated.maf"
