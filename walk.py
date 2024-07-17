@@ -220,12 +220,18 @@ def cnv_type_from_folder(input,cnv_vcf_files,output_folder,oncokb,cancer, multip
             input_file=pd.read_csv(input,sep="\t")
         
         #TODO inserire filtro per TC (mettere specifiche su valori di TC da considerare)
-
+        
         #check for nan TC values
+        
+        try:
+            input_file["TC"]
+        except:
+            input_file["TC"]=np.nan
+        
         if len(input_file[input_file["TC"].isna()])>0:
             nan_sbj=input_file[input_file["TC"].isna()]
             nan_sbj=list(nan_sbj["SampleID"])
-            raise(Exception(f"Some aubject have Nan TC: {nan_sbj}. Remove these samples and try again."))
+            logger.warning(f"Some subject have Nan TC in tsv input file: {nan_sbj}!")
         
         if not "ONCOTREE_CODE" in input_file.columns:
             input_file["ONCOTREE_CODE"]=cancer
@@ -465,6 +471,7 @@ def create_folder(output_folder,overwrite_output, resume):
         os.mkdir(output_folder)
         maf_path = os.path.join(output_folder, 'maf')
         os.mkdir(maf_path)
+        #TODO capire se serve tenere cartella snv_filtered
         filtered_path = os.path.join(output_folder, 'snv_filtered')
         os.mkdir(filtered_path)
         logger.info(f"The folder '{output_folder}' was correctly created!")
@@ -556,7 +563,7 @@ def write_clinical_sample(input, output_folder, table_dict):
     else: 
         sample_header_type = "\t".join(sample_header_type)
         header_type_list = header_type_list + "\n" if not header_type_list.endswith("\n") else header_type_list
-
+  
     with open(data_clin_samp, "w") as cil_sample:
         cil_sample.write("#" + header_list_short)
         cil_sample.write("#" + header_list_long)
@@ -663,11 +670,11 @@ def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
     
     for _,row in file.iterrows():
         
-        patientID = check_field_tsv(row, "PatientID")
+        #patientID = check_field_tsv(row, "PatientID")
         sampleID = check_field_tsv(row, "SampleID")
-        
-        combined_file = patientID+COMBOUT #da verificare
-        combined_path = os.path.join(inputFolder,"CombinedOutput",combined_file)
+        combined_path = check_field_tsv(row, "comb_path")
+        # combined_file = patientID+COMBOUT #da verificare
+        # combined_path = os.path.join(inputFolder,"CombinedOutput",combined_file)
         
         if os.path.exists(combined_path):
             pass 
@@ -712,22 +719,27 @@ def transform_input(tsv,output_folder, multiple):
             res_folder=INPUT_PATH
         
             #res_folder="/data/data_storage/novaseq_results"
-            snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
-            #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
-            cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
-            combout=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["PatientID"]+COMBOUT)
+            snv_path=row["snv_path"]
+            cnv_path=row["cnv_path"]
+            combout=row["comb_path"]
+            
+            # snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
+            # #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
+            # cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
+            # combout=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["PatientID"]+COMBOUT)
 
             check_folders(output_folder, snv_path, cnv_path, combout)
                 
     return os.path.join(output_folder,"temp")
 
 def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=False, resume=False, vcf_type=None ,filters="", log=False):
+    
     if not log:
         logger.remove()
         logfile="Walk_folder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
         logger.level("INFO", color="<green>")
         logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
+        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
     
     logger.info("Starting walk_folder script:")
     logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filters:{filters}, multiple:{multiple}]")
@@ -737,12 +749,13 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     ###############################
     ###       OUTPUT FOLDER     ###
     ###############################
+ 
     if not resume or os.path.exists(os.path.join(output_folder,"temp")):
         create_folder(output_folder,overwrite_output, resume)
         if os.path.isfile(input):
             
             input=transform_input(input,output_folder, multiple)
-        
+    
     input=os.path.join(output_folder,"temp") 
     inputFolderSNV=os.path.abspath(os.path.join(input,"SNV"))
     inputFolderCNV=os.path.abspath(os.path.join(input,"CNV"))
@@ -852,6 +865,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
             if not os.path.exists(fusion_table_file):
                 logger.info(f"Creating data_sv.txt file...")
                 fusion_table = open(fusion_table_file, 'w')
+                #TODO far leggere l'header da template fusioni
                 header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
                 fusion_table.write(header)
             else:
@@ -930,7 +944,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
 
     logger.info("Writing clinical files...")
     write_clinical_patient(output_folder, table_dict_patient)
-    fileinputclinical=pd.read_csv(tsvpath,sep="\t",index_col=False, dtype=str)
+    #fileinputclinical=pd.read_csv(tsvpath,sep="\t",index_col=False, dtype=str)
     
     if len(os.listdir(os.path.join(output_folder, "temp", "CombinedOutput"))) > 0:
         combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
@@ -938,12 +952,12 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
         TMB=ast.literal_eval(config.get('TMB', 'THRESHOLD'))
         
         for k, v in combined_dict.items():
-            logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
+            logger.debug(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
             try:
                 tmv_msi = tsv.get_msi_tmb(v)
             except Exception as e:
                 logger.error(f"Something went wrong!")
-            logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
+            #logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
             
             if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
                 table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
@@ -974,17 +988,18 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
             if found==False:
                 table_dict_patient[k].append(list(TMB.keys())[-1])
         
-        run=str(fileinputclinical[fileinputclinical["SampleID"]==k]["RunID"].values[0])
-        tc=str(fileinputclinical[fileinputclinical["SampleID"]==k]["TC"].values[0])
-        oncotree=str(fileinputclinical[fileinputclinical["SampleID"]==k]["ONCOTREE_CODE"].values[0])
+        # run=str(fileinputclinical[fileinputclinical["SampleID"]==k]["RunID"].values[0])
+        # tc=str(fileinputclinical[fileinputclinical["SampleID"]==k]["TC"].values[0])
+        # oncotree=str(fileinputclinical[fileinputclinical["SampleID"]==k]["ONCOTREE_CODE"].values[0])
         
-        table_dict_patient[k].append(run) 
-        table_dict_patient[k].append(oncotree)
-        table_dict_patient[k].append(tc)
-
+        # table_dict_patient[k].append(run) 
+        # table_dict_patient[k].append(oncotree)
+        # table_dict_patient[k].append(tc)
+    import pdb; pdb.set_trace()
     write_clinical_sample(input, output_folder, table_dict_patient)
 
-    shutil.rmtree(os.path.join(output_folder,"temp"))
+    #DECOMMENTARE UNA VOLTA FINITI TEST
+    #shutil.rmtree(os.path.join(output_folder,"temp"))
     # except:
     #     print("No combined output found")
     #     write_clinical_sample_empty(output_folder, table_dict_patient)
