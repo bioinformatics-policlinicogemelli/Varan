@@ -22,6 +22,7 @@ import sys
 import traceback
 import numpy as np
 from filter_clinvar import filter_OncoKB
+import pandas as pd
 
 config = ConfigParser()
 
@@ -486,13 +487,13 @@ def create_folder(output_folder,overwrite_output, resume):
 
 def get_table_from_folder(tsvpath):
     table_dict = dict()
-    file=pd.read_csv(tsvpath,sep="\t",index_col=False, dtype=str)
+    file = pd.read_csv(tsvpath, sep="\t", index_col=False, dtype=str)
     for _, row in file.iterrows():
-        sampleID=str(row["SampleID"])
+        sampleID = str(row["SampleID"])
         if ".bam" in sampleID:
-           sampleID=sampleID.replace(".bam","")
+           sampleID = sampleID.replace(".bam","")
         if sampleID not in table_dict.keys():
-            table_dict[sampleID]=[str(row["PatientID"])]  
+            table_dict[sampleID] = [str(row["PatientID"])]  
     return table_dict
     
 def flatten(nested_list):
@@ -534,13 +535,15 @@ def write_clinical_sample(input, output_folder, table_dict):
     input_file_path = os.path.join(input, tsv_file)
     with open(input_file_path, 'r') as input_file:
         file_header_string = input_file.readline()
-    # Puoi leggere altre righe qui se necessario
-    # ...
-# Il file viene automaticamente chiuso al termine del blocco with
 
     file_header = file_header_string.split("\t")
+    file_header = list(map(lambda x: x.strip(), file_header))
+    snv_index = file_header.index('snv_path')
+    cnv_index = file_header.index('cnv_path')
+    comb_index = file_header.index('comb_path')
+
     file_header = list(map(lambda x: x.upper(), file_header))
-    header_string = "\t".join(file_header)
+    header_string = "\t".join(file_header) + "\n"
 
     data_clin_samp = os.path.join(output_folder, 'data_clinical_sample.txt')
     
@@ -568,12 +571,55 @@ def write_clinical_sample(input, output_folder, table_dict):
         cil_sample.write("#" + header_list_short)
         cil_sample.write("#" + header_list_long)
         cil_sample.write("#" + sample_header_type)
-        cil_sample.write("#" + "1\t" * (len(file_header) - 1) + "1\n") # file input 
+        cil_sample.write("#" + "1\t" * (len(file_header) - 1) + "1\n") 
         cil_sample.write(header_string)
 
     with open(input_file_path, 'r') as input_file:
         with open(data_clin_samp, 'a') as cil_sample:
             cil_sample.writelines(input_file.readlines()[1:])
+
+    import pdb; pdb.set_trace()
+
+    # Leggi i file come dataframe
+    cil_sample_df = pd.read_csv(data_clin_samp, sep="\t", header=None, dtype=str)
+    table_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
+    table_df.columns = ["SAMPLEID", "PATIENTID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
+
+    # Rimuovi le colonne indesiderate
+    columns_to_drop = [snv_index, cnv_index, comb_index]
+    cil_sample_df.drop(columns=columns_to_drop, axis=1, inplace=True)
+
+    # Dividi il dataframe in intestazione e corpo
+    cil_sample_header = cil_sample_df.iloc[:4, :]
+    cil_sample_body = cil_sample_df.iloc[4:, :]
+
+    # Imposta i nomi delle colonne per il corpo del dataframe
+    cil_sample_body.columns = cil_sample_body.iloc[0]
+    cil_sample_body = cil_sample_body[1:]  # Rimuovi la riga usata come intestazione
+
+    # Unisci il corpo del dataframe con table_df
+    cil_sample_body = pd.merge(cil_sample_body, table_df, on=["PATIENTID", "SAMPLEID"])
+
+    # Pulisci il dataframe di intestazione
+    cil_sample_header.columns = ["SAMPLEID", "PATIENTID"]
+    extra_values = {
+        "MSI": ["MSI", "MSI", "NUMBER", 1],
+        "TMB": ["TMB", "TMB", "NUMBER", 1],
+        "MSI_THR": ["MSI_THR", "MSI_THR", "STRING", 1],
+        "TMB_THR": ["TMB_THR", "TMB_THR", "STRING", 1],
+    }
+    for col, values in extra_values.items():
+        cil_sample_header[col] = values
+
+    # Aggiungi la riga dei nomi delle colonne al dataframe di intestazione
+    column_names = cil_sample_body.columns.tolist()
+    cil_sample_header = cil_sample_header.append(pd.Series(column_names, index=cil_sample_header.columns), ignore_index=True)
+
+    # Unisci il dataframe di intestazione e corpo
+    result = pd.concat([cil_sample_header, cil_sample_body], ignore_index=True)
+
+    # Scrivi il dataframe risultante in un file di testo
+    result.to_csv(data_clin_samp, sep="\t", index=False, header=False)
 
 
 def write_clinical_sample_empty(output_folder, table_dict):
@@ -685,7 +731,7 @@ def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
 
 def check_input_file(output_folder, file, copy_to):
     if os.path.exists(file):
-        os.system("cp "+file + " "+os.path.join(output_folder,"temp",copy_to))
+        os.system("cp " + file + " " + os.path.join(output_folder, "temp", copy_to))
     elif not file:
         logger.warning(f"No final_path set in conf.ini!")
     else:
@@ -712,12 +758,11 @@ def transform_input(tsv,output_folder, multiple):
         check_folders(output_folder, snv_path, cnv_path, combout)
     
     else:   
-        tsv_file=pd.read_csv(tsv,sep="\t",dtype="string")
+        tsv_file=pd.read_csv(tsv,sep="\t",dtype="string", keep_default_na=False)
             
         for _,row in tsv_file.iterrows():
 
             res_folder=INPUT_PATH
-        
             #res_folder="/data/data_storage/novaseq_results"
             snv_path=row["snv_path"]
             cnv_path=row["cnv_path"]
@@ -745,17 +790,19 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filters:{filters}, multiple:{multiple}]")
  
     config.read('conf.ini')
+
+    assert os.path.exists(input), \
+        f"No valid file/folder {input} found. Check your input path"
     
     ###############################
     ###       OUTPUT FOLDER     ###
     ###############################
- 
-    if not resume or os.path.exists(os.path.join(output_folder,"temp")):
-        create_folder(output_folder,overwrite_output, resume)
+
+    if not resume or not os.path.exists(os.path.join(output_folder,"temp")):
+        create_folder(output_folder, overwrite_output, resume)
         if os.path.isfile(input):
-            
-            input=transform_input(input,output_folder, multiple)
-    
+            input=transform_input(input, output_folder, multiple)
+       
     input=os.path.join(output_folder,"temp") 
     inputFolderSNV=os.path.abspath(os.path.join(input,"SNV"))
     inputFolderCNV=os.path.abspath(os.path.join(input,"CNV"))
@@ -947,17 +994,17 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
     #fileinputclinical=pd.read_csv(tsvpath,sep="\t",index_col=False, dtype=str)
     
     if len(os.listdir(os.path.join(output_folder, "temp", "CombinedOutput"))) > 0:
-        combined_dict = get_combinedVariantOutput_from_folder(input,tsvpath)
-        MSI_THR=config.get('MSI', 'THRESHOLD')
-        TMB=ast.literal_eval(config.get('TMB', 'THRESHOLD'))
+        combined_dict = get_combinedVariantOutput_from_folder(input, tsvpath)
+        MSI_THR = config.get('MSI', 'THRESHOLD')
+        TMB = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
         
         for k, v in combined_dict.items():
-            logger.debug(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
+            logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
             try:
                 tmv_msi = tsv.get_msi_tmb(v)
             except Exception as e:
                 logger.error(f"Something went wrong!")
-            #logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
+            logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
             
             if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
                 table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
@@ -995,7 +1042,7 @@ def walk_folder(input, multiple, output_folder,oncokb,cancer, overwrite_output=F
         # table_dict_patient[k].append(run) 
         # table_dict_patient[k].append(oncotree)
         # table_dict_patient[k].append(tc)
-    import pdb; pdb.set_trace()
+
     write_clinical_sample(input, output_folder, table_dict_patient)
 
     #DECOMMENTARE UNA VOLTA FINITI TEST
