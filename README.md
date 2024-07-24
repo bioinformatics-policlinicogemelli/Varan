@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/788270006.svg)](https://zenodo.org/doi/10.5281/zenodo.12806060)
+
 # Varan-Release
 
 
