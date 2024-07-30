@@ -519,13 +519,11 @@ def write_clinical_patient(output_folder, table_dict):
     list_patients = flatten(nested_list)
     list_patients = set(list_patients)
     for v in list_patients:
-        cil_sample.write(v + "\tNaN\tNa\n")
+        cil_sample.write(v + "\tNaN\tNaN\n")
     cil_sample.close()
 
 def write_clinical_sample(input, output_folder, table_dict):
     logger.info("Writing data_clinical_sample.txt file...")
-
-
 
     # Get tsv file name and path
     # !!!!!!!!!!!!!!POTREBBE ESSERCI UN PROBLEMA SE METTIAMO NELLA CARTELLA ANCHE sample.tsv!!!!!!!!!!!!!!!!!!!!
@@ -549,14 +547,19 @@ def write_clinical_sample(input, output_folder, table_dict):
 
     # Read CombinedOutput and add column names (sempre gli stessi)(!!!!! TODO ADD CHECK IF PRESENT OR NOT !!!!!)
     combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
-    combout_df.columns = ["SAMPLEID", "PATIENTID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
+
+    # Create columns if they don't exist and add names
+    desired_columns = ["SAMPLEID", "PATIENTID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
+    combout_df.columns = desired_columns[:len(combout_df.columns)]
+
+    for col in desired_columns:
+        if col not in combout_df.columns:
+            combout_df[col] = np.nan
 
     # Merge the two dataframes
     final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
 
     # TODO prove per vedere come gestisce gli header forniti dall'utente (es. se sono di numero sbagliato, se mette bene \t e \n)
-    # TODO AGGIUNGERE CASO IN CUI VENGA DATO SOLO MSI O SOLO TMB O NESSUNO DEI DUE
-    # QUESTI VALORI VENGONO DAL COMBINED OUTPUT, VEDERE Lì COME GESTISCE LA CREAZIONE DI TABLE_DICT NEI VARI CASI
 
     # Crea lista di nomi delle colonne da usare di default
     dataclin_columns = list(final_data_sample.columns)
@@ -568,8 +571,6 @@ def write_clinical_sample(input, output_folder, table_dict):
     # Add header's fourth row (SERIES OF 1s)
     header_numbers = pd.DataFrame([[1] * len(final_data_sample.columns)], columns=final_data_sample.columns)
     final_data_sample = pd.concat([header_numbers, final_data_sample], ignore_index=True)
-
-    additional_headers = ["MSI", "TMB", "MSI_THR", "TMB_THR"]
 
     # Add header's third row (HEADER_SAMPLE_TYPE)
     if not conf_header_type:
@@ -591,7 +592,7 @@ def write_clinical_sample(input, output_folder, table_dict):
         sample_header_long = default_row
     else:
         try:
-            combined_headers = conf_header_long + additional_headers
+            combined_headers = conf_header_long + desired_columns[2:]
             sample_header_long = pd.DataFrame([combined_headers], columns=final_data_sample.columns)
         except ValueError:
             print("The number of columns is different from the number of given column names for HEADER_SAMPLE_LONG")    
@@ -602,7 +603,7 @@ def write_clinical_sample(input, output_folder, table_dict):
         sample_header_short = default_row
     else:
         try:
-            combined_headers = conf_header_short + additional_headers
+            combined_headers = conf_header_short + desired_columns[2:]
             sample_header_short = pd.DataFrame([combined_headers], columns=final_data_sample.columns)
         except ValueError:
             print("The number of columns is different from the number of given column names for HEADER_SAMPLE_SHORT")    
