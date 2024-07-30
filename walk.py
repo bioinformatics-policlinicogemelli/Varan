@@ -65,8 +65,8 @@ def clear_temp(folder):
     shutil.rmtree(os.path.join(folder, "temp"))
 
 def get_cnv_from_folder(inputFolderCNV):
-    files= os.listdir(inputFolderCNV)
-    cnv_vcf_files=[file for file in files if file.endswith("vcf")]
+    files = os.listdir(inputFolderCNV)
+    cnv_vcf_files = [file for file in files if file.endswith("vcf")]
     # check=list(map(lambda x: check_cna_vcf(x,inputFolderCNV), cnv_vcf_files))
     # incorrect_files=[]
     # for i, check_res in enumerate(check):
@@ -78,14 +78,13 @@ def get_cnv_from_folder(inputFolderCNV):
     # logger.info(f"#{len(cnv_vcf_files)} vcf files found in CNV folder")
     return cnv_vcf_files
 
+
 def get_sampleID_from_cnv(cnv_vcf):
     if "_CopyNumberVariants.vcf" in cnv_vcf:
         sample=cnv_vcf.replace("_CopyNumberVariants.vcf", ".bam")
     else:
         sample=cnv_vcf.replace("vcf", "bam")
     return sample
-
-
 
 
 def reshape_cna(input, cna_df_path, cancer, output_dir):
@@ -347,7 +346,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         
         df_table_filt["Tumor_Sample_Barcode"] = df_table_filt["Tumor_Sample_Barcode"].str.replace(".cnv.bam", "")
         
-        data_cna=df_table_filt.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0)
+        data_cna = df_table_filt.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0)
         data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
     
     return sID_path
@@ -389,7 +388,7 @@ def snv_type_from_folder(input, snv_vcf_files):
     for case_folder in snv_vcf_files:
         try:
             snv_vcf= case_folder
-            sampleID =get_sampleID_from_snv(case_folder)
+            sampleID = get_sampleID_from_snv(case_folder)
             if sampleID in sID_path:
                 dup = open('sampleID_dup'.log, 'w')
                 dup.write(sampleID + '\t' + 'snv_vcf')
@@ -416,7 +415,7 @@ def vcf_filtering(sID_path, output_folder):
         sID_path_filtered[k] = vcf_filtered
     return sID_path_filtered
 
-def vcf2maf_constructor(k, v, temporary,output_folder):
+def vcf2maf_constructor(k, v, temporary, output_folder):
     
     cmd = "grep $'\t'" + k.split(".")[0] + " " + v
     try:
@@ -524,103 +523,97 @@ def write_clinical_patient(output_folder, table_dict):
     cil_sample.close()
 
 def write_clinical_sample(input, output_folder, table_dict):
-
     logger.info("Writing data_clinical_sample.txt file...")
 
+
+
+    # Get tsv file name and path
+    # !!!!!!!!!!!!!!POTREBBE ESSERCI UN PROBLEMA SE METTIAMO NELLA CARTELLA ANCHE sample.tsv!!!!!!!!!!!!!!!!!!!!
     tsv_file = [file for file in os.listdir(input) if file.endswith(".tsv")][0]
-    
+    input_file_path = os.path.join(input, tsv_file)
+
+    # Get headers from conf.ini if they're present
     conf_header_short = config.get('ClinicalSample', 'HEADER_SAMPLE_SHORT')
     conf_header_long = config.get('ClinicalSample', 'HEADER_SAMPLE_LONG')
     conf_header_type = config.get('ClinicalSample', 'HEADER_SAMPLE_TYPE')
 
-    input_file_path = os.path.join(input, tsv_file)
-    with open(input_file_path, 'r') as input_file:
-        file_header_string = input_file.readline()
+    # Read tsv file as dataframe
+    data_clin_samp = pd.read_csv(input_file_path, sep="\t", header=0, dtype=str)
 
-    file_header = file_header_string.split("\t")
-    file_header = list(map(lambda x: x.strip(), file_header))
-    snv_index = file_header.index('snv_path')
-    cnv_index = file_header.index('cnv_path')
-    comb_index = file_header.index('comb_path')
-
-    file_header = list(map(lambda x: x.upper(), file_header))
-    header_string = "\t".join(file_header) + "\n"
-
-    data_clin_samp = os.path.join(output_folder, 'data_clinical_sample.txt')
+    # Drop paths columns
+    if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no
+        data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
     
-    if not conf_header_short:
-        sample_header_short = file_header
-    else:
-        sample_header_short = conf_header_short
-    header_list_short = "\t".join(sample_header_short)
-    header_list_short = header_list_short + "\n" if not header_list_short.endswith("\n") else header_list_short
+    # Capitalize df columns
+    data_clin_samp.columns = data_clin_samp.columns.str.upper()
 
-    if not conf_header_long:
-        sample_header_long = sample_header_short
-    else:
-        sample_header_long = [field.upper() for field in conf_header_long]
-    header_list_long = "\t".join(sample_header_long)
-    header_list_long = header_list_long + "\n" if not header_list_long.endswith("\n") else header_list_long
+    # Read CombinedOutput and add column names (sempre gli stessi)(!!!!! TODO ADD CHECK IF PRESENT OR NOT !!!!!)
+    combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
+    combout_df.columns = ["SAMPLEID", "PATIENTID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
 
+    # Merge the two dataframes
+    final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
+
+    # TODO prove per vedere come gestisce gli header forniti dall'utente (es. se sono di numero sbagliato, se mette bene \t e \n)
+    # TODO AGGIUNGERE CASO IN CUI VENGA DATO SOLO MSI O SOLO TMB O NESSUNO DEI DUE
+    # QUESTI VALORI VENGONO DAL COMBINED OUTPUT, VEDERE Lì COME GESTISCE LA CREAZIONE DI TABLE_DICT NEI VARI CASI
+
+    # Crea lista di nomi delle colonne da usare di default
+    dataclin_columns = list(final_data_sample.columns)
+
+    # Add header's fifth row
+    default_row = pd.DataFrame([dataclin_columns], columns=dataclin_columns)
+    final_data_sample = pd.concat([default_row, final_data_sample], ignore_index=True) 
+
+    # Add header's fourth row (SERIES OF 1s)
+    header_numbers = pd.DataFrame([[1] * len(final_data_sample.columns)], columns=final_data_sample.columns)
+    final_data_sample = pd.concat([header_numbers, final_data_sample], ignore_index=True)
+
+    additional_headers = ["MSI", "TMB", "MSI_THR", "TMB_THR"]
+
+    # Add header's third row (HEADER_SAMPLE_TYPE)
     if not conf_header_type:
-        sample_header_type = ("STRING\t" * (len(file_header) - 1) + "STRING\n")
-    else: 
-        sample_header_type = "\t".join(sample_header_type)
-        header_type_list = header_type_list + "\n" if not header_type_list.endswith("\n") else header_type_list
-  
-    with open(data_clin_samp, "w") as cil_sample:
-        cil_sample.write("#" + header_list_short)
-        cil_sample.write("#" + header_list_long)
-        cil_sample.write("#" + sample_header_type)
-        cil_sample.write("#" + "1\t" * (len(file_header) - 1) + "1\n") 
-        cil_sample.write(header_string)
+        cols = final_data_sample.columns.tolist()
+        header_row = ["STRING"] * len(cols)
+        header_row[cols.index('MSI')] = "NUMBER"
+        header_row[cols.index('TMB')] = "NUMBER"
+        sample_header_type = pd.DataFrame([header_row], columns=cols)
+    else:
+        try:
+            conf_header_type = conf_header_type + ["NUMBER", "NUMBER", "STRING", "STRING"]
+            sample_header_type = pd.DataFrame([conf_header_type], columns=final_data_sample.columns)
+        except ValueError:
+            print("The number of columns is different from the number of given column names for HEADER_SAMPLE_TYPE")
+    final_data_sample = pd.concat([sample_header_type, final_data_sample], ignore_index=True)   
 
-    with open(input_file_path, 'r') as input_file:
-        with open(data_clin_samp, 'a') as cil_sample:
-            cil_sample.writelines(input_file.readlines()[1:])
+    # Add header's second row (HEADER_SAMPLE_LONG)
+    if not conf_header_long:
+        sample_header_long = default_row
+    else:
+        try:
+            combined_headers = conf_header_long + additional_headers
+            sample_header_long = pd.DataFrame([combined_headers], columns=final_data_sample.columns)
+        except ValueError:
+            print("The number of columns is different from the number of given column names for HEADER_SAMPLE_LONG")    
+    final_data_sample = pd.concat([sample_header_long, final_data_sample], ignore_index=True)
 
-    # Leggi i file come dataframe
-    cil_sample_df = pd.read_csv(data_clin_samp, sep="\t", header=None, dtype=str)
-    table_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
+    # Add header's first row (HEADER_SAMPLE_SHORT)
+    if not conf_header_short:
+        sample_header_short = default_row
+    else:
+        try:
+            combined_headers = conf_header_short + additional_headers
+            sample_header_short = pd.DataFrame([combined_headers], columns=final_data_sample.columns)
+        except ValueError:
+            print("The number of columns is different from the number of given column names for HEADER_SAMPLE_SHORT")    
+    final_data_sample = pd.concat([sample_header_short, final_data_sample], ignore_index=True)
 
-    # AGGIUNGERE CASO IN CUI VENGA DATO SOLO MSI O SOLO TMB O NESSUNO DEI DUE
-    table_df.columns = ["SAMPLEID", "PATIENTID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
+    # Add '#' where needed 
+    final_data_sample.loc[0:3, 'SAMPLEID'] = final_data_sample.loc[0:3, 'SAMPLEID'].apply(lambda x: f'#{x}')
 
-    # Rimuovi le colonne indesiderate
-    columns_to_drop = [snv_index, cnv_index, comb_index]
-    cil_sample_df.drop(columns=columns_to_drop, axis=1, inplace=True)
-
-    # Dividi il dataframe in intestazione e corpo
-    cil_sample_header = cil_sample_df.iloc[:4, :]
-    cil_sample_body = cil_sample_df.iloc[4:, :]
-
-    # Imposta i nomi delle colonne per il corpo del dataframe
-    cil_sample_body.columns = cil_sample_body.iloc[0]
-    cil_sample_body = cil_sample_body[1:]  # Rimuovi la riga usata come intestazione
-
-    # Unisci il corpo del dataframe con table_df
-    cil_sample_body = pd.merge(cil_sample_body, table_df, on=["PATIENTID", "SAMPLEID"])
-
-    # Pulisci il dataframe di intestazione
-    cil_sample_header.columns = ["SAMPLEID", "PATIENTID"]
-    extra_values = {
-        "MSI": ["MSI", "MSI", "NUMBER", 1],
-        "TMB": ["TMB", "TMB", "NUMBER", 1],
-        "MSI_THR": ["MSI_THR", "MSI_THR", "STRING", 1],
-        "TMB_THR": ["TMB_THR", "TMB_THR", "STRING", 1],
-    }
-    for col, values in extra_values.items():
-        cil_sample_header[col] = values
-
-    # Aggiungi la riga dei nomi delle colonne al dataframe di intestazione
-    column_names = cil_sample_body.columns.tolist()
-    cil_sample_header = cil_sample_header.append(pd.Series(column_names, index=cil_sample_header.columns), ignore_index=True)
-
-    # Unisci il dataframe di intestazione e corpo
-    result = pd.concat([cil_sample_header, cil_sample_body], ignore_index=True)
-
-    # Scrivi il dataframe risultante in un file di testo
-    result.to_csv(data_clin_samp, sep="\t", index=False, header=False)
+    # Write the final data_clinical_sample
+    data_clin_txt = os.path.join(output_folder, 'data_clinical_sample.txt')
+    final_data_sample.to_csv(data_clin_txt, sep="\t", index=False, header=False)
 
 
 def write_clinical_sample_empty(output_folder, table_dict):
@@ -803,6 +796,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     if not resume or not os.path.exists(os.path.join(output_folder, "temp")):
         create_folder(output_folder, overwrite_output, resume)
 
+    global isinputfile 
     if os.path.isdir(input):
         isinputfile = False
         input_folder = input
