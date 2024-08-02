@@ -146,6 +146,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         try:
             cnv_vcf = case_folder 
             sampleID = get_sampleID_from_cnv(case_folder)
+
             if sampleID in sID_path:
                 dup = open('sampleID_dup'.log, 'w')
                 dup.write(sampleID + '\t' + 'cnv_vcf')
@@ -539,13 +540,13 @@ def write_clinical_sample(input, output_folder, table_dict):
     data_clin_samp = pd.read_csv(input_file_path, sep="\t", header=0, dtype=str)
 
     # Drop paths columns
-    if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no
-        data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
+    #if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no
+    data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
     
     # Capitalize df columns
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
 
-    # Read CombinedOutput and add column names (sempre gli stessi)(!!!!! TODO ADD CHECK IF PRESENT OR NOT !!!!!)
+    # Read CombinedOutput and add column names
     combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
 
     # Create columns if they don't exist and add names
@@ -561,7 +562,7 @@ def write_clinical_sample(input, output_folder, table_dict):
 
     # TODO prove per vedere come gestisce gli header forniti dall'utente (es. se sono di numero sbagliato, se mette bene \t e \n)
 
-    # Crea lista di nomi delle colonne da usare di default
+    # Create list of default columns
     dataclin_columns = list(final_data_sample.columns)
 
     # Add header's fifth row
@@ -758,12 +759,14 @@ def transform_input(tsv, output_folder, multiple):
             
         for _,row in tsv_file.iterrows():
 
-            res_folder = INPUT_PATH
-            #res_folder = "/data/data_storage/novaseq_results"
+            # Decommentare se si fornsicono path come colonne dell'input
             snv_path = row["snv_path"]
             cnv_path = row["cnv_path"]
             combout = row["comb_path"]
-            
+
+            # Decommentare se deve costruire i path in base alle posizioni delle cartelle
+            # #res_folder = "/data/data_storage/novaseq_results"
+            # res_folder = INPUT_PATH
             # snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
             # #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
             # cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
