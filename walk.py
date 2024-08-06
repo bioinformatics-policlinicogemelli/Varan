@@ -28,10 +28,10 @@ config = ConfigParser()
 
 configFile = config.read("conf.ini")
 
-INPUT_PATH = config.get('Paths', 'INPUT_PATH')
-SNV = config.get('Paths', 'SNV')
-CNV = config.get('Paths', 'CNV')
-COMBOUT = config.get('Paths', 'COMBOUT')
+# INPUT_PATH = config.get('Paths', 'INPUT_PATH')
+# SNV = config.get('Paths', 'SNV')
+# CNV = config.get('Paths', 'CNV')
+# COMBOUT = config.get('Paths', 'COMBOUT')
 OUTPUT_FILTERED = config.get('Paths', 'OUTPUT_FILTERED')
 OUTPUT_MAF = config.get('Paths', 'OUTPUT_MAF')
 VCF2MAF = config.get('Paths', 'VCF2MAF')
@@ -504,7 +504,69 @@ def flatten(nested_list):
             flat_list.append(item)
     return flat_list
 
+def check_multiple_file(input_file, multiple):
+    conf_snv = config.get('Multiple', 'SNV')
+    conf_cnv = config.get('Multiple', 'CNV')
+    file_paths = pd.read_csv(input_file, sep="\t", header=0)
+    snv_file_path = file_paths['snv_path'].isnull().all() # True mancano tutti i valori
+    cnv_file_path = file_paths['cnv_path'].isnull().all() # False se almeno uno è pieno
 
+    if multiple and not (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
+        logger.critical("-m was selected and Muliple section in conf.ini was filled but the file doesn't looks like a multiVCF")
+        raise Exception ("Input error")
+    elif multiple and not (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
+        logger.critical("-m was selected but Muliple section in conf.ini wasn't filled and the file doesn't looks like a multiVCF")
+        raise Exception ("Input error")
+    elif not multiple and (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
+        logger.critical("-m was not selected and the Muliple section in conf.ini was filled but the file looks like a multiVCF")
+        raise Exception ("Input error")
+    elif not multiple and (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
+        logger.critical("-m was not selected but the file looks like a multiVCF and the Muliple section in conf.ini was not filled")
+        raise Exception ("Input error")
+    
+
+def check_multiple_folder(input_dir, multiple):
+    import pdb; pdb.set_trace()
+    snv_mulitple = False
+    snv_single = False
+    cnv_mulitple = False
+    cnv_single = False
+    snv_folder = os.path.join(input_dir, "SNV")
+    multiple_vcf_snv = [file for file in os.listdir(snv_folder) if file.endswith(".vcf")][0]
+    snv_file = os.path.join(input_dir, "sample_id_snv.txt")
+    cmd_snv = "vcf-query -l " + os.path.join(snv_folder, multiple_vcf_snv) + " > " + snv_file
+    os.system(cmd_snv)
+    with open (snv_file, "r") as file:
+        lines = file.readlines()
+        if len(lines) >= 2 and not multiple:
+            snv_mulitple = True
+            logger.error("-m option was not selected but the SNV.vcf file is multiple!")
+        elif len(lines) < 2 and multiple:
+            snv_single = True
+            logger.error("-m option was selected but the SNV.vcf file is not multiple!")        
+    os.remove(snv_file)
+
+    cnv_folder = os.path.join(input_dir, "CNV")
+    multiple_vcf_cnv = [file for file in os.listdir(cnv_folder) if file.endswith(".vcf")][0]
+    cnv_file = os.path.join(input_dir, "sample_id_cnv.txt")
+    cmd_cnv = "vcf-query -l " +  os.path.join(cnv_folder, multiple_vcf_cnv) + " > " + cnv_file
+    os.system(cmd_cnv)
+    with open (cnv_file, "r") as file:
+        lines = file.readlines()
+        if len(lines) >= 2 and not multiple:
+            cnv_mulitple = True
+            logger.error("-m option was not selected but the CNV.vcf file is multiple!")
+        elif len(lines) < 2 and multiple:
+            cnv_single = True
+            logger.error("-m option was selected but the CNV.vcf file is not multiple!")   
+    os.remove(cnv_file)
+
+    if cnv_mulitple or snv_mulitple:
+        raise Exception ("Input error")
+    if cnv_single or snv_single:
+        raise Exception ("Input error")
+
+    
 
 def write_clinical_patient(output_folder, table_dict):
     logger.info("Writing data_clinical_patient.txt file...")
@@ -540,8 +602,8 @@ def write_clinical_sample(input, output_folder, table_dict):
     data_clin_samp = pd.read_csv(input_file_path, sep="\t", header=0, dtype=str)
 
     # Drop paths columns
-    #if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no
-    data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
+    if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no
+        data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
     
     # Capitalize df columns
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
@@ -631,42 +693,41 @@ def write_clinical_sample_empty(output_folder, table_dict):
         cil_sample.write(v[0] + '\t' + k + '\n')
     cil_sample.close()
 
-def check_cna_vcf(file, inputFolderCNV, multivcf):
-    vcf=pd.read_csv(os.path.join(inputFolderCNV, file), comment="#", sep="\t", \
-                    names=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT","Sample"])
+# def check_cna_vcf(file, inputFolderCNV, multivcf):
+#     vcf=pd.read_csv(os.path.join(inputFolderCNV, file), comment="#", sep="\t", \
+#                     names=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT","Sample"])
         
-    nsample = os.popen(f'bcftools query -l {os.path.join(inputFolderCNV,file)}').read().split("\n")
-    nsample = [sample for sample in nsample if not sample == ""]
-    if len(nsample)>1 and not multivcf:
-        logger.critical("VCF contains multiple samples")
-        exit(1)
+#     nsample = os.popen(f'bcftools query -l {os.path.join(inputFolderCNV,file)}').read().split("\n")
+#     nsample = [sample for sample in nsample if not sample == ""]
+#     if len(nsample)>1 and not multivcf:
+#         logger.critical("VCF contains multiple samples")
+#         exit(1)
 
-    if vcf.loc[0]["FORMAT"] == "FC":
-        return True
-    else:
-        return False
+#     if vcf.loc[0]["FORMAT"] == "FC":
+#         return True
+#     else:
+#         return False
     
-def check_snv_vcf(file,inputFolderSNV, multivcf):
-    vcf = pd.read_csv(os.path.join(inputFolderSNV, file), comment="#", sep="\t", \
-                    names=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT","Sample"])
+# def check_snv_vcf(file,inputFolderSNV, multivcf):
+#     vcf = pd.read_csv(os.path.join(inputFolderSNV, file), comment="#", sep="\t", \
+#                     names=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT","Sample"])
     
-    nsample = os.popen(f'bcftools query -l {os.path.join(inputFolderSNV, file)}').read().split("\n")
-    nsample = [sample for sample in nsample if not sample == ""]
-    if len(nsample)>1 and not multivcf:
-        logger.critical("VCF contains multiple samples")
-        exit(1)
+#     nsample = os.popen(f'bcftools query -l {os.path.join(inputFolderSNV, file)}').read().split("\n")
+#     nsample = [sample for sample in nsample if not sample == ""]
+#     if len(nsample)>1 and not multivcf:
+#         logger.critical("VCF contains multiple samples")
+#         exit(1)
     
-    if vcf.loc[0]["FORMAT"].startswith("GT"):
-        return True
-    else:
-        return False
+#     if vcf.loc[0]["FORMAT"].startswith("GT"):
+#         return True
+#     else:
+#         return False
    
 
 def extract_multiple_cnv(multiple_vcf, input_dir):
     single_sample_vcf_dir = os.path.join(input_dir, "single_sample_vcf")  
     if not os.path.exists(os.path.join(input_dir, "single_sample_vcf")):
         os.mkdir(os.path.join(input_dir, "single_sample_vcf"))
-
     cmd = "vcf-query -l " + multiple_vcf + " > " + os.path.join(input_dir, "sample_id.txt")
     os.system(cmd)
 
@@ -683,7 +744,7 @@ def extract_multiple_snv(multiple_vcf,input_dir):
     if not os.path.exists(os.path.join(input_dir, "single_sample_vcf")):
         os.mkdir(os.path.join(input_dir, "single_sample_vcf"))
 
-    cmd= "vcf-query -l " + multiple_vcf + " > " + os.path.join(input_dir, "sample_id.txt")
+    cmd = "vcf-query -l " + multiple_vcf + " > " + os.path.join(input_dir, "sample_id.txt")
     os.system(cmd)
 
     with open (os.path.join(input_dir, "sample_id.txt"), "r") as file:
@@ -701,8 +762,7 @@ def check_field_tsv(row, name):
         raise(KeyError("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
     return field
 
-def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
-    
+def get_combinedVariantOutput_from_folder(inputFolder, tsvpath, isinputfile):
     combined_dict = dict()
     
     try:
@@ -714,10 +774,14 @@ def get_combinedVariantOutput_from_folder(inputFolder, tsvpath):
     for _,row in file.iterrows():
         
         #patientID = check_field_tsv(row, "PatientID")
-        sampleID = check_field_tsv(row, "SampleID")
-        combined_path = check_field_tsv(row, "comb_path")
         # combined_file = patientID+COMBOUT #da verificare
         # combined_path = os.path.join(inputFolder,"CombinedOutput",combined_file)
+        sampleID = check_field_tsv(row, "SampleID")
+        patientID = check_field_tsv(row, "PatientID")
+        if isinputfile:
+            combined_path = check_field_tsv(row, "comb_path")
+        else: # TODO rivedere se mantenere così o meno
+            combined_path = os.path.join(inputFolder, "CombinedOutput", patientID + "_CombinedVariantOutput.tsv")
         
         if os.path.exists(combined_path):
             pass 
@@ -748,9 +812,9 @@ def transform_input(tsv, output_folder, multiple):
     os.system("cp " + tsv + " " + os.path.join(output_folder, "temp"))
 
     if multiple:
-        snv_path=config.get('Multiple', 'SNV')
-        cnv_path=config.get('Multiple', 'CNV')
-        combout=config.get('Multiple', 'COMBOUT')
+        snv_path = config.get('Multiple', 'SNV')
+        cnv_path = config.get('Multiple', 'CNV')
+        combout = config.get('Multiple', 'COMBOUT')
         
         check_folders(output_folder, snv_path, cnv_path, combout)
     
@@ -791,7 +855,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     config.read("conf.ini")
 
     assert os.path.exists(input), \
-        f"No valid file/folder {input} found. Check your input path"
+        f"No valid file/folder {input} found. Check your input path"   
     
     ###############################
     ###       OUTPUT FOLDER     ###
@@ -804,9 +868,11 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     if os.path.isdir(input):
         isinputfile = False
         input_folder = input
+        check_multiple_folder(input_folder, multiple)
    
     elif os.path.isfile(input):
         isinputfile = True
+        check_multiple_file(input, multiple)
         input_folder = transform_input(input, output_folder, multiple)
     #input=os.path.join(output_folder, "temp")
 
@@ -817,14 +883,16 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     inputFolderSNV = os.path.abspath(os.path.join(input_folder, "SNV"))
     inputFolderCNV = os.path.abspath(os.path.join(input_folder, "CNV"))
     inputFolderCombOut = os.path.abspath(os.path.join(input_folder, "CombinedOutput"))
+
+    
     
     assert (len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
         "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
        
     if os.path.exists(inputFolderCNV) and not type in ["snv", "fus", "tab"]:
         if multiple:
-            multivcf = os.listdir(inputFolderCNV)[0]
-            extract_multiple_cnv(os.path.join(inputFolderCNV,multivcf), inputFolderCNV)
+            multivcf = [i for i in os.listdir(inputFolderCNV) if i.endswith('.vcf')][0]
+            extract_multiple_cnv(os.path.join(inputFolderCNV, multivcf), inputFolderCNV)
             inputFolderCNV= os.path.join(inputFolderCNV, "single_sample_vcf")
         logger.info("Check CNV files...")
         case_folder_arr_cnv = get_cnv_from_folder(inputFolderCNV)
@@ -833,8 +901,8 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     if os.path.exists(inputFolderSNV) and not type in ["cnv", "fus", "tab"]:
         os.makedirs(TMP, exist_ok=True)
         if multiple:
-            multivcf = os.listdir(inputFolderSNV)[0]
-            extract_multiple_snv(os.path.join(inputFolderSNV,multivcf), inputFolderSNV)
+            multivcf = [i for i in os.listdir(inputFolderSNV) if i.endswith('.vcf')][0]
+            extract_multiple_snv(os.path.join(inputFolderSNV, multivcf), inputFolderSNV)
             inputFolderSNV = os.path.join(inputFolderSNV, "single_sample_vcf")
         logger.info("Check SNV files...")
     case_folder_arr = get_snv_from_folder(inputFolderSNV)
@@ -876,24 +944,25 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ###############################
     ###       GET FUSION        ###
     ###############################
-    
-    if not COMBOUT == "":
-        try:
-            tsvfiles = [file for file in os.listdir(input_folder) if file.endswith("tsv")][0]
-        except IndexError:
-            logger.critical(f"It seems that no tsv file is in your folder!")
-            raise(IndexError("Exiting from walk script!"))
-        except FileNotFoundError:
-            logger.critical(f"No input directory '{input_folder}' was found: try check your path")
-            raise(FileNotFoundError("Exiting from walk script!"))
-        except Exception as e:
-            logger.critical(f"Something went wrong! {print(traceback.format_exc())}")
-            raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
 
-        # try:
-        tsvpath=os.path.join(input_folder, tsvfiles)    
-        combined_dict = get_combinedVariantOutput_from_folder(input_folder, tsvpath)
-        
+    # if not COMBOUT == "":
+    try:
+        tsvfiles = [file for file in os.listdir(input_folder) if file.endswith("tsv")][0]
+    except IndexError:
+        logger.critical(f"It seems that no tsv file is in your folder!")
+        raise(IndexError("Exiting from walk script!"))
+    except FileNotFoundError:
+        logger.critical(f"No input directory '{input_folder}' was found: try check your path")
+        raise(FileNotFoundError("Exiting from walk script!"))
+    except Exception as e:
+        logger.critical(f"Something went wrong! {print(traceback.format_exc())}")
+        raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
+
+    tsvpath = os.path.join(input_folder, tsvfiles)
+
+    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.path.join(input_folder, "CombinedOutput"))>0:
+        combined_dict = get_combinedVariantOutput_from_folder(input_folder, tsvpath, isinputfile)
+    
         fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
             
     #     for k, v in combined_dict.items():
@@ -1003,8 +1072,9 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     write_clinical_patient(output_folder, table_dict_patient)
     #fileinputclinical=pd.read_csv(tsvpath, sep="\t", index_col=False, dtype=str)
     
-    if len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
-        combined_dict = get_combinedVariantOutput_from_folder(input_folder, tsvpath)
+    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and \
+    len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
+        combined_dict = get_combinedVariantOutput_from_folder(input_folder, tsvpath, isinputfile)
         MSI_THR = config.get('MSI', 'THRESHOLD')
         TMB = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
         
