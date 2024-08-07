@@ -518,15 +518,14 @@ def check_multiple_file(input_file, multiple):
         logger.critical("-m was selected but Muliple section in conf.ini wasn't filled and the file doesn't looks like a multiVCF")
         raise Exception ("Input error")
     elif not multiple and (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was not selected and the Muliple section in conf.ini was filled but the file looks like a multiVCF")
+        logger.critical("-m was not selected and the Muliple section in conf.ini wasn't filled but the file looks like a multiVCF")
         raise Exception ("Input error")
     elif not multiple and (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was not selected but the file looks like a multiVCF and the Muliple section in conf.ini was not filled")
+        logger.critical("-m was not selected but the file looks like a multiVCF and the Muliple section in conf.ini was filled")
         raise Exception ("Input error")
     
 
 def check_multiple_folder(input_dir, multiple):
-    import pdb; pdb.set_trace()
     snv_mulitple = False
     snv_single = False
     cnv_mulitple = False
@@ -621,8 +620,6 @@ def write_clinical_sample(input, output_folder, table_dict):
 
     # Merge the two dataframes
     final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
-
-    # TODO prove per vedere come gestisce gli header forniti dall'utente (es. se sono di numero sbagliato, se mette bene \t e \n)
 
     # Create list of default columns
     dataclin_columns = list(final_data_sample.columns)
