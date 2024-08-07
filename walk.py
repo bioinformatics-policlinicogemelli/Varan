@@ -526,10 +526,9 @@ def check_multiple_file(input_file, multiple):
     
 
 def check_multiple_folder(input_dir, multiple):
-    snv_mulitple = False
-    snv_single = False
-    cnv_mulitple = False
-    cnv_single = False
+    
+    snv_mulitple, snv_single, cnv_mulitple, cnv_single = False, False, False, False
+
     snv_folder = os.path.join(input_dir, "SNV")
     multiple_vcf_snv = [file for file in os.listdir(snv_folder) if file.endswith(".vcf")][0]
     snv_file = os.path.join(input_dir, "sample_id_snv.txt")
