@@ -9,6 +9,7 @@ import argparse
 import math
 import pandas as pd
 import os
+from loguru import logger
 
 def is_positive(number, SAMPLE):
 	"""
@@ -25,6 +26,7 @@ def is_positive(number, SAMPLE):
 
 
 def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
+
 	if os.path.exists(table_file):
 		MODE="a"
 	else:
@@ -34,7 +36,7 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 			pass
 		else:
 			table.write('ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\n')
-		SAMPLE=SAMPLE.split(".")[0] #rimozione .bam
+		SAMPLE=SAMPLE.split(".")[0] #remove .bam
 
 		for line in vcf:
 
@@ -48,11 +50,13 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 
 			if line.startswith("#"):
 				fields_names = line.split("\t")
+				fields_names = list(map(lambda x: x.strip(), fields_names))
 				chrom_position = fields_names.index("#CHROM")
 				info_position = fields_names.index("INFO")
 				start_position = fields_names.index("POS")
 				qual_position = fields_names.index("QUAL")
-				format_position = fields_names.index("FORMAT")
+				format_infos_position = fields_names.index("FORMAT")
+				format_position = fields_names.index(SAMPLE)
 				
 				continue
 
@@ -64,34 +68,39 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 			infos = fields[info_position].split(";")
 			end = [info.split("=")[-1] for info in infos if "END" in info][0]
 			qual = fields[qual_position]
+			info = fields[format_position]
+		
+
+			# Id = fields[2]
+			# position=Id.split(":")[-1]
+			# start=position.split("-")[0]
+			# end=position.split("-")[1]
+
 			
-
-
-#			Id = fields[2]
-#			position=Id.split(":")[-1]
-#			start=position.split("-")[0]
-#			end=position.split("-")[1]
-
-			
-#			info = fields[7].split(';')
-#			if len(info) == 2:
-#			# 	end = info[0].split('=')[1]
-#			 	gene =info[1].split('=')[1]
-#			else:
-#			# 	end = info[1].split('=')[1]
-#				gene =info[2].split('=')[1]
+			# info = fields[7].split(';')
+			# if len(info) == 2:
+			# # 	end = info[0].split('=')[1]
+			#  	gene =info[1].split('=')[1]
+			# else:
+			# # 	end = info[1].split('=')[1]
+			# 	gene =info[2].split('=')[1]
 				
 			#fc = float(fields[9])
 
 ############### CASISTICHE POSSIBILI DA RICONTROLLARE CON LUCIANO ################################
-			format = fields[format_position]
+			format = fields[format_infos_position]
 			if version == "VCFv4.1":
 				if format == "FC":
 					fc = fields[-1]
 			elif version == "VCFv4.2":
 				format_infos = format.split(":")
 				fc_position = format_infos.index("SM")
-				fc = format_infos[fc_position]
+				sample_info = info.split(":")
+				fc = sample_info[fc_position]
+			else:
+				logger.critical(f"The {version} version of VCF is not currently supported")
+
+
 			if fc != ".":
 				fc = float(fc)
 				if is_positive(fc, SAMPLE):
@@ -106,11 +115,11 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 			# check negative Fold change values
 			# if a negative fold chenge is found
 			# the Fold change value is changed in 0.0001
-#			if is_positive(fc, SAMPLE):
-#				log2fc = math.log(fc,2)
-#			else:
-#				fc = 0.0001
-#				log2fc = math.log(fc,2)
+			# if is_positive(fc, SAMPLE):
+			# 	log2fc = math.log(fc,2)
+			# else:
+			# 	fc = 0.0001
+			# 	log2fc = math.log(fc,2)
 			# Write the data to the table file
 			# segmentated data example
 			# ID<TAB>chrom<TAB>loc.start<TAB>loc.end<TAB>num.mark<TAB>seg.mean
@@ -141,12 +150,14 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 
 			if line.startswith("#"):
 				fields_names = line.split("\t")
+				fields_names = list(map(lambda x: x.strip(), fields_names))
 				chrom_position = fields_names.index("#CHROM")
 				info_position = fields_names.index("INFO")
 				start_position = fields_names.index("POS")
 				qual_position = fields_names.index("QUAL")
 				format_position = fields_names.index("FORMAT")
 				alt_position = fields_names.index("ALT")
+				sample_position = fields_names.index(SAMPLE)
 				
 				continue
 
@@ -160,7 +171,9 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 			qual = fields[qual_position]
 			alt = fields[alt_position]
 			format = fields[format_position]
+			sample_infos = fields[sample_position]
 
+			# Acts differently based on VCF version
 			if version == "VCFv4.1":
 				gene = [info.split("=")[-1] for info in infos if "ANT" in info][0]
 				end = [info.split("=")[-1] for info in infos if "END" in info][0]
@@ -169,8 +182,10 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 			elif version == "VCFv4.2":
 				gene = [info.split("=")[-1] for info in infos if "SEGID" in info][0]
 				format_infos = format.split(":")
+				sample_infos = sample_infos.split(":")
 				fc_position = format_infos.index("SM")
-				fc = format_infos[fc_position]
+				fc = sample_infos[fc_position]
+			
 
 			if fc != ".":
 				fc = float(fc)

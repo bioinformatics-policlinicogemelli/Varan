@@ -116,8 +116,17 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             logger.info("Starting Validation Folder")
             validateFolderlog(output_folder,log)
             logger.success("The end! The study is ready to be uploaded on cBioportal")
-            shutil.make_archive(os.path.join(output_folder,"snv_filtered"),"zip",os.path.join(output_folder,"snv_filtered"))
-            shutil.rmtree(os.path.join(output_folder,"snv_filtered"))
+
+            ##########################################################################################
+            ############ DA RIVEDERE #################################################################
+            # shutil.make_archive(os.path.join(output_folder,"snv_filtered"),"zip",os.path.join(output_folder,"snv_filtered"))
+            # shutil.rmtree(os.path.join(output_folder,"snv_filtered"))
+            # shutil.make_archive(os.path.join(output_folder,"maf"),"zip",os.path.join(output_folder,"maf"))
+            # shutil.rmtree(os.path.join(output_folder,"maf"))
+            ##########################################################################################
+            ##########################################################################################
+
+
             #
             # if os.path.exists(os.path.join(output_folder,"NoVus")):
             #     shutil.make_archive(os.path.join(output_folder,"NoVus"),"zip",os.path.join(output_folder,"NoVus"))
@@ -128,8 +137,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             #     shutil.make_archive(os.path.join(output_folder,"NoBenign"),"zip",os.path.join(output_folder,"NoBenign"))
             #     shutil.rmtree(os.path.join(output_folder,"NoBenign"))
             #
-            shutil.make_archive(os.path.join(output_folder,"maf"),"zip",os.path.join(output_folder,"maf"))
-            shutil.rmtree(os.path.join(output_folder,"maf"))
+            
 
 
     ############################
