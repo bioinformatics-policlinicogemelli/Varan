@@ -29,14 +29,15 @@ def get_version_list(output_folder):
 
 def get_newest_version(output_folder):
     outputfolderpath = os.path.dirname(output_folder)
+    
     if outputfolderpath == "":
         outputfolderpath = os.getcwd()
-    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if os.path.basename(output_folder).split("_v")[0] in file]
-    #if len(old_versions)>0:
+    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.split(r'_v[0-9]',os.path.basename(output_folder))[0] in file]
+
     logger.info(f"{len(old_versions)} output folder versions found: {old_versions}")
     old_versions_number = list(map(extract_version_int, old_versions))
     version = "_v" + str(max(old_versions_number) + 1)
-    output_folder_version = output_folder.split("_v")[0] + version
+    output_folder_version = re.split(r'_v[0-9]',os.path.basename(output_folder))[0] + version
     return output_folder_version, "_v" + str(max(old_versions_number))
 
 
