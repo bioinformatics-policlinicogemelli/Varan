@@ -3,7 +3,7 @@ import pandas as pd
 import argparse
 from configparser import ConfigParser
 
-def populate_cases_sv(cancer, project_name, folder,cases_list_dir,logger):
+def populate_cases_sv(cancer, project_name, folder, cases_list_dir, version, logger):
     """
         Function to populate cases_sv file
     Args:
@@ -12,22 +12,22 @@ def populate_cases_sv(cancer, project_name, folder,cases_list_dir,logger):
         cases_list_dir : path of case_list output dir
     """
     try:
-        data_sv=pd.read_csv(os.path.join(folder,"data_sv.txt"),sep="\t")
+        data_sv=pd.read_csv(os.path.join(folder,"data_sv.txt"), sep="\t")
     except pd.errors.EmptyDataError:
         logger.error("data_sv.txt is empty, skipping this step!")
         return
-    nsamples=len(data_sv.Sample_Id.unique())
-    sample_ids=list(data_sv.Sample_Id.unique())
+    nsamples = len(data_sv.Sample_Id.unique())
+    sample_ids = list(data_sv.Sample_Id.unique())
     
     # if vus:
     #     study_id = cancer+project_name+"_vus"
     # else:
     #     study_id = cancer+project_name
-    study_id = cancer+project_name
+    study_id = cancer + project_name + version
     
-    stable_id = study_id+"_sv"
+    stable_id = study_id + "_sv"
     case_list_name = "Samples with SV data"
-    case_list_description = "All samples (+"+str(nsamples)+") samples"
+    case_list_description = "All samples (+" + str(nsamples) + ") samples"
     case_list_category = "all_cases_with_sv_data"
     case_list_ids = "\t".join(sample_ids)
 
@@ -47,7 +47,7 @@ def populate_cases_sv(cancer, project_name, folder,cases_list_dir,logger):
 #
 
 
-def populate_cases_cna(cancer, project_name,folder, cases_list_dir,logger):
+def populate_cases_cna(cancer, project_name, folder, cases_list_dir, version, logger):
     """
         Function to populate cases_cna file
     Args:
@@ -57,13 +57,13 @@ def populate_cases_cna(cancer, project_name,folder, cases_list_dir,logger):
     """
     
     try:
-        data_cna=pd.read_csv(os.path.join(folder,"data_cna.txt"),sep="\t")
+        data_cna = pd.read_csv(os.path.join(folder, "data_cna.txt"), sep="\t")
     except pd.errors.EmptyDataError:
         logger.error("data_cna.txt is empty, skipping this step!")
         return
     
-    nsamples=len(data_cna.columns)-1
-    sample_ids=list(data_cna.columns)[1:]
+    nsamples = len(data_cna.columns)-1
+    sample_ids = list(data_cna.columns)[1:]
     
     
     # if vus:
@@ -71,13 +71,13 @@ def populate_cases_cna(cancer, project_name,folder, cases_list_dir,logger):
     # else:
     #     study_id = cancer+project_name
 
-    study_id = cancer+project_name
+    study_id = cancer + project_name + version
     
-    stable_id = study_id+"_cna"
+    stable_id = study_id + "_cna"
 
     case_list_category = "all_cases_with_cna_data"
     case_list_name = "Samples with CNA data"
-    case_list_description = "Samples with CNA data ("+str(nsamples)+ " samples)"
+    case_list_description = "Samples with CNA data (" + str(nsamples) + " samples)"
     case_list_ids = "\t".join(sample_ids)
 
     dictionary_file = {
@@ -97,7 +97,7 @@ def populate_cases_cna(cancer, project_name,folder, cases_list_dir,logger):
 
 
 
-def populate_cases_sequenced(cancer,project_name, folder, cases_list_dir,logger):
+def populate_cases_sequenced(cancer, project_name, folder, cases_list_dir, version, logger):
     """
         Function to populate cases_sequenced file
     Args:
@@ -107,24 +107,24 @@ def populate_cases_sequenced(cancer,project_name, folder, cases_list_dir,logger)
     """
 
     try:
-        data_sequenced=pd.read_csv(os.path.join(folder,"data_mutations_extended.txt"),sep="\t")
+        data_sequenced=pd.read_csv(os.path.join(folder, "data_mutations_extended.txt"), sep="\t")
     except pd.errors.EmptyDataError:
         logger.error("data_mutations_extended.txt is empty, skipping this step!")
         return
-    nsamples=len(data_sequenced["Tumor_Sample_Barcode"].unique())
-    sample_ids=list(data_sequenced["Tumor_Sample_Barcode"].unique())
+    nsamples = len(data_sequenced["Tumor_Sample_Barcode"].unique())
+    sample_ids = list(data_sequenced["Tumor_Sample_Barcode"].unique())
 
     
     # if vus:
     #     study_id = cancer+project_name+"_vus"
     # else:
     #     study_id = cancer+project_name
-    study_id = cancer+project_name
-    stable_id = study_id+"_sequenced"
+    study_id = cancer + project_name + version
+    stable_id = study_id + "_sequenced"
 
     case_list_category = "all_cases_with_mutation_data"
     case_list_name = "Sequenced Tumors"
-    case_list_description = "All sequenced samples (" +str(nsamples)+"samples)"
+    case_list_description = "All sequenced samples (" + str(nsamples) + "samples)"
     case_list_ids = "\t".join(sample_ids)
 
     dictionary_file = {
@@ -158,8 +158,8 @@ if __name__=="__main__":
     
     config = ConfigParser()
     configFile = config.read("conf.ini")
-    project=config.get("Project","PROJECT_NAME")
-    project_name="_"+project
+    project = config.get("Project", "PROJECT_NAME")
+    project_name = "_" + project
     
     cases_list_dir = os.path.join(folder, "case_lists")
     if os.path.exists(cases_list_dir):

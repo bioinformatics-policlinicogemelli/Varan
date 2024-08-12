@@ -22,6 +22,7 @@ import sys
 import traceback
 import numpy as np
 from filter_clinvar import filter_OncoKB
+from versioning import get_newest_version
 import pandas as pd
 
 config = ConfigParser()
@@ -462,29 +463,60 @@ def run_vcf2maf(cl):
         else:
             logger.error(sout.stderr.decode('ascii').replace('ERROR: ',''))
     
-def create_folder(output_folder, overwrite_output, resume):
-    if overwrite_output:
-        if os.path.exists(output_folder):
-            logger.warning(f"It seems that the folder '{output_folder}' already exists. Start removing process...")
-            shutil.rmtree(output_folder)
-    
-    if not os.path.exists(output_folder):
-        logger.info(f"Creating the output folder '{output_folder}' in {os.getcwd()}...")
-        os.mkdir(output_folder)
-        maf_path = os.path.join(output_folder, 'maf')
-        os.mkdir(maf_path)
-        #TODO capire se serve tenere cartella snv_filtered
-        filtered_path = os.path.join(output_folder, 'snv_filtered')
-        os.mkdir(filtered_path)
-        logger.info(f"The folder '{output_folder}' was correctly created!")
-    
-    elif resume:
-        maf_path = os.path.join(output_folder, 'maf')
-        filtered_path = os.path.join(output_folder, 'snv_filtered')
 
-    else:
-        logger.critical(f"The folder '{output_folder}' already exists. To overwrite an existing folder add the -w option!")
-        raise(Exception('Error in create_folder script: exiting from walk script!'))
+def create_folder(output_folder, overwrite_output, resume):
+    version = "_v1"
+    output_folder_version = output_folder + version
+    if os.path.exists(output_folder_version):
+        logger.warning(f"It seems that a version of the folder '{output_folder}' already exists.")
+        if overwrite_output:
+            logger.info(f"Overwrite option set. Start removing folder")
+            shutil.rmtree(output_folder_version)
+
+        elif resume:
+            _,current_version = get_newest_version(output_folder_version)
+            return output_folder + current_version
+            # filtered_path = os.path.join(output_folder_version, 'snv_filtered')
+        else:
+            output_folder_version,_ = get_newest_version(output_folder_version)
+    
+    logger.info(f"Creating the output folder '{output_folder_version}' in {os.getcwd()}...")
+    os.mkdir(output_folder_version)
+    maf_path = os.path.join(output_folder_version, 'maf')
+    os.mkdir(maf_path)
+    #TODO capire se serve tenere cartella snv_filtered
+    #filtered_path = os.path.join(output_folder_version, 'snv_filtered')
+    #os.mkdir(filtered_path)
+    logger.info(f"The folder '{output_folder_version}' was correctly created!")
+    
+    return output_folder_version    
+    
+    
+    #logger.info(f"Creating the output folder '{output_folder_version}' in {os.getcwd()}...")
+    
+
+    # if overwrite_output:
+    #     if os.path.exists(output_folder):
+    #         logger.warning(f"It seems that the folder '{output_folder}' already exists. Start removing process...")
+    #         shutil.rmtree(output_folder)
+    
+    # if not os.path.exists(output_folder):
+    #     logger.info(f"Creating the output folder '{output_folder}' in {os.getcwd()}...")
+    #     os.mkdir(output_folder)
+    #     maf_path = os.path.join(output_folder, 'maf')
+    #     os.mkdir(maf_path)
+    #     #TODO capire se serve tenere cartella snv_filtered
+    #     filtered_path = os.path.join(output_folder, 'snv_filtered')
+    #     os.mkdir(filtered_path)
+    #     logger.info(f"The folder '{output_folder}' was correctly created!")
+    
+    # elif resume:
+    #     maf_path = os.path.join(output_folder, 'maf')
+    #     filtered_path = os.path.join(output_folder, 'snv_filtered')
+
+    # else:
+    #     logger.critical(f"The folder '{output_folder}' already exists. To overwrite an existing folder add the -w option!")
+    #     raise(Exception('Error in create_folder script: exiting from walk script!'))
 
 def get_table_from_folder(tsvpath):
     table_dict = dict()
@@ -858,7 +890,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ###############################
 
     if not resume or not os.path.exists(os.path.join(output_folder, "temp")):
-        create_folder(output_folder, overwrite_output, resume)
+        output_folder = create_folder(output_folder, overwrite_output, resume)
 
     global isinputfile 
     if os.path.isdir(input):
@@ -885,7 +917,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     assert (len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
         "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
        
-    if os.path.exists(inputFolderCNV) and not type in ["snv", "fus", "tab"]:
+    if os.path.exists(inputFolderCNV) and not vcf_type in ["snv", "fus", "tab"]:
         if multiple:
             multivcf = [i for i in os.listdir(inputFolderCNV) if i.endswith('.vcf')][0]
             extract_multiple_cnv(os.path.join(inputFolderCNV, multivcf), inputFolderCNV)
@@ -894,7 +926,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         case_folder_arr_cnv = get_cnv_from_folder(inputFolderCNV)
         logger.info("Everything ok!")
 
-    if os.path.exists(inputFolderSNV) and not type in ["cnv", "fus", "tab"]:
+    if os.path.exists(inputFolderSNV) and not vcf_type in ["cnv", "fus", "tab"]:
         os.makedirs(TMP, exist_ok=True)
         if multiple:
             multivcf = [i for i in os.listdir(inputFolderSNV) if i.endswith('.vcf')][0]
@@ -907,10 +939,10 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ###############################
     ###       SNV AND CNV       ###
     ###############################
-    if os.path.exists(inputFolderCNV) and not type in ["snv", "fus", "tab"]:
+    if os.path.exists(inputFolderCNV) and not vcf_type in ["snv", "fus", "tab"]:
         sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
     
-    if os.path.exists(inputFolderSNV) and not type in ["cnv", "fus", "tab"]:
+    if os.path.exists(inputFolderSNV) and not vcf_type in ["cnv", "fus", "tab"]:
         sID_path_snv = snv_type_from_folder(inputFolderSNV, case_folder_arr)
         
         logger.info("Check maf folder...")
@@ -1134,6 +1166,8 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     # clear_temp(output_folder)
     
     logger.success("Walk script completed!\n")
+
+    return output_folder
 
 class MyArgumentParser(argparse.ArgumentParser):
   """An argument parser that raises an error, instead of quits"""

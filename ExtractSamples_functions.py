@@ -1,9 +1,10 @@
 import os
 import pandas as pd
 import re
+from loguru import logger
 
 
-def extract_clinical_samples(file_path,sample_ids,output_folder):
+def extract_clinical_samples(file_path, sample_ids, output_folder):
     """
     Extracts specific clinical information for samples from the original data_clinical_samples.txt and saves the result to a new file.
     
@@ -21,17 +22,19 @@ def extract_clinical_samples(file_path,sample_ids,output_folder):
     Example:
       >>>  extract_clinical_samples('input_data.csv', ['sample1', 'sample2'], 'output_folder/')
     """
-    file=pd.read_csv(file_path,sep="\t")
-    header=file.loc[0:3,:]
-    file=pd.read_csv(file_path,sep="\t")
-    extracted=file[file["Sample Identifier"].astype(str).isin(sample_ids)]
-    if len(sample_ids) > len(file["Sample Identifier"].unique()):
-        print("[Warning] Some samples names are not present in the DataFrame.")
-    extracted=pd.concat([header,extracted])
-    extracted.to_csv(os.path.join(output_folder,"data_clinical_sample.txt"),index=False,
-                   sep="\t")
+    file = pd.read_csv(file_path, sep="\t")
+    header = file.loc[0:3, :]
+    file = pd.read_csv(file_path, sep="\t")
+    extracted = file[file.iloc[:, 0].astype(str).isin(sample_ids)]
 
-def extract_clinical_patient(oldpath,sample_ids,output_folder):
+    if not set(sample_ids).issubset(set(file.iloc[4:, 0])):
+        not_found = set(sample_ids) - set(file.iloc[4:, 0])
+        logger.warning(f"{not_found} patient(s) are not in data_clinical_patient.txt and won't be extraced.")
+
+    extracted = pd.concat([header,extracted])
+    extracted.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=False, sep="\t")
+
+def extract_clinical_patient(oldpath, sample_ids, output_folder):
     
     """
     Extracts clinical patient data corresponding to specified sample identifiers and saves the result to a new file. 
@@ -50,20 +53,23 @@ def extract_clinical_patient(oldpath,sample_ids,output_folder):
     Example:
       >>>  extract_clinical_patient('input_folder/', ['sample1', 'sample2'], 'output_folder/')
     """
-    
-    file=pd.read_csv(os.path.join(oldpath,"data_clinical_patient.txt"),sep="\t")
-    sample=pd.read_csv(os.path.join(oldpath,"data_clinical_sample.txt"),sep="\t")
-    patient_ids=list(sample[sample["Sample Identifier"].astype(str).isin(sample_ids)]["#Patient Identifier"])
-    header=file.loc[0:3,:]
-    extracted=file[file["#Patient Identifier"].astype(str).isin(patient_ids)]
-    if len(sample_ids) > len(file["#Patient Identifier"].unique()):
-        print("[Warning] Some samples names are not present in the DataFrame.")
-    extracted=pd.concat([header,extracted])    
-    extracted.to_csv(os.path.join(output_folder,"data_clinical_patient.txt"),index=False,
-                   sep="\t")
+
+    file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t")
+    sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t")
+    patient_ids = list(sample[sample.iloc[:, 0].astype(str).isin(sample_ids)][sample.iloc[0,1]])
+
+    if not set(sample_ids).issubset(set(sample.iloc[4:, 0])):
+        not_found = set(sample_ids) - set(sample.iloc[4:, 0])
+        logger.warning(f"{not_found} sample(s) are not in data_clinical_sample.txt and won't be extraced.")
+          
+    header = file.loc[0:3,:]
+    extracted = file[file.iloc[:, 0].astype(str).isin(patient_ids)]
+
+    extracted = pd.concat([header, extracted])    
+    extracted.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t")
    
 
-def extract_cna_hg19(file_path,sample_ids,output_folder):
+def extract_cna_hg19(file_path, sample_ids, output_folder):
     """
     Extracts specific samples from a copy number alteration (CNA) data file in hg19 genome format.
     
@@ -87,15 +93,14 @@ def extract_cna_hg19(file_path,sample_ids,output_folder):
       >>>  Extracts data for 'sample1' and 'sample2' from 'input_data.tsv' and saves it in 'output_folder/data_cna_hg19.seg'.
     """
 
-    file=pd.read_csv(file_path,sep="\t")
-    extracted=file[file["ID"].astype(str).isin(sample_ids)]
+    file = pd.read_csv(file_path, sep="\t")
+    extracted = file[file["ID"].astype(str).isin(sample_ids)]
     if len(sample_ids) > len(file["ID"].unique()):
         print("[Warning] Some samples names are not present in the DataFrame.")
-    extracted.to_csv(os.path.join(output_folder,"data_cna_hg19.seg"),index=False,
-                   sep="\t")
+    extracted.to_csv(os.path.join(output_folder, "data_cna_hg19.seg"), index=False, sep="\t")
         
     
-def extract_cna(file_path,sample_ids,output_folder):
+def extract_cna(file_path, sample_ids, output_folder):
     """
     Extracts specific samples' copy number alteration (CNA) data from the original CNA  file.
 
@@ -115,16 +120,15 @@ def extract_cna(file_path,sample_ids,output_folder):
     Example:
       >>> extract_cna('input_data.tsv', ['sample1', 'sample2'], 'output_folder/')
     """
-    file=pd.read_csv(file_path,sep="\t")
+    file = pd.read_csv(file_path, sep="\t")
     columns_to_keep = [sample for sample in sample_ids if sample in file.columns]
-    if len(sample_ids)> len(sample_ids):
+    if len(sample_ids) > len(sample_ids):
         print("[Warning] Some samples names are not present in the DataFrame.")
     columns_to_keep.insert(0, file.columns[0])
-    extracted=file.loc[:,columns_to_keep]
-    extracted.to_csv(os.path.join(output_folder,"data_cna.txt"),index=False,
-                   sep="\t")
+    extracted = file.loc[:, columns_to_keep]
+    extracted.to_csv(os.path.join(output_folder, "data_cna.txt"), index=False, sep="\t")
         
-def extract_mutations(file_path,sample_ids,output_folder):
+def extract_mutations(file_path, sample_ids, output_folder):
     """
     Extracts specific samples' mutation data from the original `data_mutations_extended.txt`
     
@@ -146,14 +150,13 @@ def extract_mutations(file_path,sample_ids,output_folder):
        >>> extract_mutations('input_mutations.tsv', ['sample1', 'sample2'], 'output_folder/')
     """
     
-    file=pd.read_csv(file_path,sep="\t")
-    extracted=file[file["Tumor_Sample_Barcode"].astype(str).isin(sample_ids)]
+    file = pd.read_csv(file_path, sep="\t")
+    extracted = file[file["Tumor_Sample_Barcode"].astype(str).isin(sample_ids)]
     if len(sample_ids) > len(file["Tumor_Sample_Barcode"].unique()):
         print("[Warning] Some samples names are not present in the DataFrame.")
-    extracted.to_csv(os.path.join(output_folder,"data_mutations_extended.txt"),index=False,
-                   sep="\t")
+    extracted.to_csv(os.path.join(output_folder, "data_mutations_extended.txt"), index=False, sep="\t")
     
-def extract_sv(file_path,sample_ids,output_folder):
+def extract_sv(file_path, sample_ids, output_folder):
     """
     Extracts specific samples' structural variation (SV) data from the original `data_sv.txt`.
     
@@ -174,16 +177,16 @@ def extract_sv(file_path,sample_ids,output_folder):
       >>>  extract_sv('input_sv.txt', ['sample1', 'sample2'], 'output_folder/')
     """
 
-    with open(file_path,"r") as old_file:
-        with open(os.path.join(output_folder,"data_sv.txt"),"w") as of:
+    with open(file_path, "r") as old_file:
+        with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
             for line in old_file:
                 if any(word in line for word in sample_ids):
-                            list_split=line.split("\t\t")
-                            list_strip=[elem.strip() for elem in list_split]
-                            new_row="\t".join(list_strip)+'\n'
+                            list_split = line.split("\t\t")
+                            list_strip = [elem.strip() for elem in list_split]
+                            new_row = "\t".join(list_strip) + '\n'
                             of.write(new_row)
 
-def extract_caselist_cna(file_path,sample_ids,output_folder):
+def extract_caselist_cna(file_path, sample_ids, output_folder):
     """
     Extracts specific cases' CNA data from the CNA case list file.
     
@@ -204,27 +207,27 @@ def extract_caselist_cna(file_path,sample_ids,output_folder):
     Example:
         >>> extract_caselist_cna('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
     """
-    with open(file_path,"r") as file:
+    with open(file_path, "r") as file:
         for line in file:
-            line=line.strip()
+            line = line.strip()
             if line.startswith("case_list_ids"):
-                samples=line.split(":")[1].split("\t")
-                samples=list(map(str.strip, samples))
-                extracted=[elem for elem in samples if elem in sample_ids]
+                samples = line.split(":")[1].split("\t")
+                samples = list(map(str.strip, samples))
+                extracted = [elem for elem in samples if elem in sample_ids]
         
-        with open(os.path.join(output_folder,"cases_cna.txt"),"w") as filtered:
+        with open(os.path.join(output_folder, "cases_cna.txt"), "w") as filtered:
                 file.seek(0)
                 for line in file:
                     if line.startswith("case_list_description"):
-                        n_old_samples=re.findall(r'\d+',line)[0]
-                        line=line.replace(n_old_samples,str(len(extracted)))
+                        n_old_samples = re.findall(r'\d+', line)[0]
+                        line = line.replace(n_old_samples, str(len(extracted)))
                         
                     if line.startswith("case_list_ids"):
-                        line="case_list_ids:"+"\t".join(extracted)
+                        line = "case_list_ids:" + "\t".join(extracted)
                     filtered.write(line)
         
 
-def extract_caselist_sequenced(file_path,sample_ids,output_folder):
+def extract_caselist_sequenced(file_path, sample_ids, output_folder):
     """
     Extracts specific cases' sequenced data from the original sequenced case list file.
    
@@ -244,27 +247,27 @@ def extract_caselist_sequenced(file_path,sample_ids,output_folder):
     Example:
         >>> extract_caselist_sequenced('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
     """
-    with open(file_path,"r") as file:
+    with open(file_path, "r") as file:
         for line in file:
-            line=line.strip()
+            line = line.strip()
             if line.startswith("case_list_ids"):
-                samples=line.split(":")[1].split("\t")
-                samples=list(map(str.strip, samples))
-                extracted=[elem for elem in samples if elem in sample_ids]
+                samples = line.split(":")[1].split("\t")
+                samples = list(map(str.strip, samples))
+                extracted = [elem for elem in samples if elem in sample_ids]
         
-        with open(os.path.join(output_folder,"cases_sequenced.txt"),"w") as filtered:
+        with open(os.path.join(output_folder, "cases_sequenced.txt"), "w") as filtered:
                 file.seek(0)
                 for line in file:
                     if line.startswith("case_list_description"):
-                        n_old_samples=re.findall(r'\d+',line)[0]
-                        line=line.replace(n_old_samples,str(len(extracted)))
+                        n_old_samples = re.findall(r'\d+', line)[0]
+                        line = line.replace(n_old_samples, str(len(extracted)))
                         
                     if line.startswith("case_list_ids"):
-                        line="case_list_ids:"+"\t".join(extracted)
+                        line = "case_list_ids:"+"\t".join(extracted)
                     filtered.write(line)
     
     
-def extract_caselist_sv(file_path,sample_ids,output_folder):
+def extract_caselist_sv(file_path, sample_ids, output_folder):
     """
     Extracts specific cases of structural variation (SV) data from the original SV case list file.
     
@@ -285,21 +288,21 @@ def extract_caselist_sv(file_path,sample_ids,output_folder):
     Example:
         >>> extract_caselist_sv('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
     """
-    with open(file_path,"r") as file:
+    with open(file_path, "r") as file:
         for line in file:
-            line=line.strip()
+            line = line.strip()
             if line.startswith("case_list_ids"):
-                samples=line.split(":")[1].split("\t")
-                samples=list(map(str.strip, samples))
-                extracted=[elem for elem in samples if elem in sample_ids]
+                samples = line.split(":")[1].split("\t")
+                samples = list(map(str.strip, samples))
+                extracted = [elem for elem in samples if elem in sample_ids]
         
-        with open(os.path.join(output_folder,"cases_sv.txt"),"w") as filtered:
+        with open(os.path.join(output_folder, "cases_sv.txt"), "w") as filtered:
                 file.seek(0)
                 for line in file:
                     if line.startswith("case_list_description"):
-                        n_old_samples=re.findall(r'\d+',line)[0]
-                        line=line.replace(n_old_samples,str(len(extracted)))
+                        n_old_samples = re.findall(r'\d+', line)[0]
+                        line = line.replace(n_old_samples, str(len(extracted)))
                         
                     if line.startswith("case_list_ids"):
-                        line="case_list_ids:"+"\t".join(extracted)
+                        line = "case_list_ids:" + "\t".join(extracted)
                     filtered.write(line)

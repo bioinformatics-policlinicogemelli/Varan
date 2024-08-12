@@ -44,7 +44,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             ###########################
             
             logger.info("Starting preparation study folder")
-            walk_folder(input, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, vcf_type, filters, log)
+            output_folder = walk_folder(input, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, vcf_type, filters, log)
 
 
             ###########################
@@ -106,7 +106,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             ###########################################
 
             logger.info("It's time to create tables!")
-            meta_case_main(cancer,output_folder,log)
+            meta_case_main(cancer,output_folder)
 
             
             ############################
@@ -168,10 +168,10 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
 
     if extract:
         logger.info("Starting Extract samples from study")
-        oldpath=args.Path
-        removepath=args.SampleList
-        output_folder=args.output_folder
-        extract_main(oldpath,removepath,output_folder,log)
+        oldpath = args.Path
+        removepath = args.SampleList
+        output_folder = args.output_folder
+        extract_main(oldpath, removepath, output_folder, overwrite_output, log)
 
 #################################################################################################################
 
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     logger.remove()
     logfile="Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
     logger.level("INFO", color="<green>")
-    logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True, catch=True)
+    logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}", colorize=True, catch=True)
     logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
     logger.info("Welcome to VARAN")
     log=True
@@ -291,7 +291,10 @@ if __name__ == '__main__':
             raise argparse.ArgumentError("To remove/extract samples from a study, you need to specify both original folder path and list samples")
         
         if resume:
-            overwrite_output=False
+            if overwrite_output:
+                logger.critical("Both resume and overwrite options are selected. Please select only one!")
+                raise argparse.ArgumentError(None, "Specify only one between Resume and Overwrite options!")
+        
             
         varan(input, cancer, output_folder, oncoKB, filters, vcf_type, overwrite_output, resume, multiple, update, extract, remove, log)
     
