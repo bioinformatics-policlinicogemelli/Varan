@@ -8,7 +8,7 @@ from versioning import *
 from loguru import logger
 import shutil
 
-def extract_main(oldpath, removepath, output, overwrite):
+def extract_main(oldpath, removepath, output, study_id, overwrite):
     
     logger.info("Starting extract_main script:")
     logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, outputfolder:{output}]")	
@@ -21,6 +21,7 @@ def extract_main(oldpath, removepath, output, overwrite):
     #os.mkdir(outputfolder)
     #output=outputfolder#os.path.join(outputfolder,"extracted_data")
     old_versions=get_version_list(output)
+
     if len(old_versions)>0 and os.path.exists(old_versions[-1]):
     #     logger.warning(f"It seems that a version of the folder '{output}' already exists.")
         if overwrite:
@@ -100,7 +101,7 @@ def extract_main(oldpath, removepath, output, overwrite):
     # else:
     #     logger.warning("cases_sv.txt not found in 'case_lists' folder. Skipping")
     cancer=extract_info_from_meta(oldpath)
-    meta_case_main(cancer, output)
+    meta_case_main(cancer, output, study_id)
     
     if len(old_versions)>1:
         old_version=old_versions[-1]

@@ -17,27 +17,28 @@ def extract_version_int(foldername):
 
 
 def get_version_list(output_folder):
-    foldername = output_folder.split("_v")[0]
+    foldername = re.split(r'_v[0-9]$',os.path.basename(output_folder))[0]
     outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
-        outputfolderpath = "./"
-    old_versions = [file for file in os.listdir(os.path.dirname(outputfolderpath)) if foldername + "_v" in file ]
+        outputfolderpath = os.getcwd()
+    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if foldername in file]
     versioni_n = [extract_version_int(version) for version in old_versions]
     sorted_version = sorted(versioni_n, key=int)
     version_name_ordered = list(map(lambda x: foldername + "_v" + str(x), sorted_version))
     return version_name_ordered
 
 def get_newest_version(output_folder):
-    outputfolderpath = os.path.dirname(output_folder)
     
+    foldername = re.split(r'_v[0-9]$',os.path.basename(output_folder))[0]
+    outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
         outputfolderpath = os.getcwd()
-    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.split(r'_v[0-9]$',os.path.basename(output_folder))[0] in file]
+    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if foldername in file]
 
     logger.info(f"{len(old_versions)} output folder versions found: {old_versions}")
     old_versions_number = list(map(extract_version_int, old_versions))
     version = "_v" + str(max(old_versions_number) + 1)
-    output_folder_version = re.split(r'_v[0-9]$',os.path.basename(output_folder))[0] + version
+    output_folder_version = foldername + version
     return output_folder_version, "_v" + str(max(old_versions_number))
 
 
@@ -81,7 +82,7 @@ def extract_sample_list(filecase):
 
 def compare_sample_file(file1, file2, filename, action, outputfolder):
     
-    summary_file = open(f"{outputfolder}/summary.txt", "a")
+    summary_file = open(os.path.join(outputfolder, "summary.txt"), "a")
     if os.path.exists(file1) and os.path.exists(file2):
         samples_file1 = extract_sample_list(file1)  
         samples_file2 = extract_sample_list(file2)

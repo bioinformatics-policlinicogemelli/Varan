@@ -23,14 +23,14 @@ def create_meta_study(cancer, project_name, project_id, description, output_dir,
 
     if project_name == "":
         project_name = cancer.capitalize() + " Cancer " + name.upper() + " " + version.upper().replace("_", "")
-    project_name = project_name + " (" + data + ")"
+    project_name = project_name.upper() + " (" + data + ")"
 
     if project_id == "":
         project_id = cancer + "_" + name + version 
     
     add_global_case_list = "true"
 
-    if description == " ":
+    if description == "":
         description = "Comprehensive profiling of " + cancer.capitalize() + " cancer samples."
                 
     dictionary_file = {
@@ -355,15 +355,22 @@ def create_meta_cna_hg19(project_id, profile, output_dir):
 
 
 
-def meta_case_main(cancer, output_folder):
+def meta_case_main(cancer, output_folder, rename=""):
     logger.info("Starting meta_case_main script:")
     logger.info(f"meta_case_main args [cancer:{cancer}, output_file:{output_folder}]")
+    
+    version = extract_version_str(output_folder)
     
     config = ConfigParser()
     config.read("conf.ini")
     
-    project_name = config.get("Project","PROJECT_NAME")
-    project_id = config.get("Project","PROJECT_ID")
+    if rename=="":
+        project_id = config.get("Project","PROJECT_ID")
+        project_name = config.get("Project","PROJECT_NAME")
+    else:
+        project_id = rename + version
+        project_name = rename + version.replace("_"," ")
+    
     description=config.get("Project","DESCRIPTION")
     profile_mut=config.get("Project","PROFILE_MUT")
     profile_cna=config.get("Project","PROFILE_CNA")
@@ -378,7 +385,6 @@ def meta_case_main(cancer, output_folder):
     else:
         os.mkdir(cases_list_dir)
 
-    version = extract_version_str(output_folder)
     # output_folder = output_folder.split("_v")[0]
 
     ###########  METAFILE FUNCTIONS ###########
