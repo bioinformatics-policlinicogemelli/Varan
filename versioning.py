@@ -48,7 +48,7 @@ def create_newest_version_folder(outputfolder):
         os.mkdir(output)
         return output
     else:
-        outputfolder_newest_version = get_newest_version(outputfolder)
+        outputfolder_newest_version, _ = get_newest_version(outputfolder)
         os.mkdir(outputfolder_newest_version)
         return outputfolder_newest_version
     
@@ -56,16 +56,16 @@ def create_newest_version_folder(outputfolder):
 
 def extract_info_from_meta(folder):
     file_meta = os.path.join(folder, "meta_study.txt")
-    vus = False
+    #vus = False
     with open(file_meta, 'r') as meta:
         for line in meta:
             if line.startswith("type_of_cancer"):
                 cancer = line.split(" ")[1]
-            if line.startswith("cancer_study_identifier"):
-                if "NoVus" in line:
-                    vus = True
+            # if line.startswith("cancer_study_identifier"):
+            #     if "NoVus" in line:
+            #         vus = True
                     
-    return cancer.strip(), vus 
+    return cancer.strip()#, vus 
         
         
 def extract_sample_list(filecase):

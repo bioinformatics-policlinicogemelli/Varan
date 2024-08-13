@@ -27,9 +27,9 @@ def extract_clinical_samples(file_path, sample_ids, output_folder):
     file = pd.read_csv(file_path, sep="\t")
     extracted = file[file.iloc[:, 0].astype(str).isin(sample_ids)]
 
-    if not set(sample_ids).issubset(set(file.iloc[4:, 0])):
-        not_found = set(sample_ids) - set(file.iloc[4:, 0])
-        logger.warning(f"{not_found} patient(s) are not in data_clinical_patient.txt and won't be extraced.")
+    # if not set(sample_ids).issubset(set(file.iloc[4:, 0])):
+    #     not_found = set(sample_ids) - set(file.iloc[4:, 0])
+    #     logger.warning(f"{not_found} patient(s) are not in data_clinical_patient.txt and won't be extraced.")
 
     extracted = pd.concat([header,extracted])
     extracted.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=False, sep="\t")
@@ -176,133 +176,138 @@ def extract_sv(file_path, sample_ids, output_folder):
     Example:
       >>>  extract_sv('input_sv.txt', ['sample1', 'sample2'], 'output_folder/')
     """
-
-    with open(file_path, "r") as old_file:
-        with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
-            for line in old_file:
-                if any(word in line for word in sample_ids):
-                            list_split = line.split("\t\t")
-                            list_strip = [elem.strip() for elem in list_split]
-                            new_row = "\t".join(list_strip) + '\n'
-                            of.write(new_row)
-
-def extract_caselist_cna(file_path, sample_ids, output_folder):
-    """
-    Extracts specific cases' CNA data from the CNA case list file.
     
-    This function reads a text file specified by 'file_path', extracts the case list IDs
-    corresponding to the provided 'sample_ids', and saves the modified case list file in the 'output_folder'.
-
-    Args:
-        file_path (str): Path to the input case list file.
-        sample_ids (list): List of case IDs to be extracted from the case list.
-        output_folder (str): Path to the directory where the modified case list file will be saved.
+    old_file=pd.read_csv(file_path,sep="\t")
+    new_file=old_file[old_file["Sample_Id"].isin(sample_ids)]
+    new_file.to_csv(os.path.join(output_folder,"data_sv.txt"),sep="\t",index=False)
     
-    Notes:
-        - The case list file is assumed to have sections starting with "case_list_ids" and "case_list_description".
-        - The function first identifies the relevant case IDs based on 'sample_ids' and modifies the case list
-          description and IDs accordingly.
-        - The modified case list is saved in a new file named 'cases_cna.txt' in the 'output_folder'.
+    # with open(file_path, "r") as old_file:
+    #     with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
+    #         for line in old_file:
+    #             if any(word in line for word in sample_ids):
+    #                         list_split = line.split("\t\t")
+    #                         list_strip = [elem.strip() for elem in list_split]
+    #                         new_row = "\t".join(list_strip) + '\n'
+    #                         of.write(new_row)
 
-    Example:
-        >>> extract_caselist_cna('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
-    """
-    with open(file_path, "r") as file:
-        for line in file:
-            line = line.strip()
-            if line.startswith("case_list_ids"):
-                samples = line.split(":")[1].split("\t")
-                samples = list(map(str.strip, samples))
-                extracted = [elem for elem in samples if elem in sample_ids]
+
+# def extract_caselist_cna(file_path, sample_ids, output_folder):
+#     """
+#     Extracts specific cases' CNA data from the CNA case list file.
+    
+#     This function reads a text file specified by 'file_path', extracts the case list IDs
+#     corresponding to the provided 'sample_ids', and saves the modified case list file in the 'output_folder'.
+
+#     Args:
+#         file_path (str): Path to the input case list file.
+#         sample_ids (list): List of case IDs to be extracted from the case list.
+#         output_folder (str): Path to the directory where the modified case list file will be saved.
+    
+#     Notes:
+#         - The case list file is assumed to have sections starting with "case_list_ids" and "case_list_description".
+#         - The function first identifies the relevant case IDs based on 'sample_ids' and modifies the case list
+#           description and IDs accordingly.
+#         - The modified case list is saved in a new file named 'cases_cna.txt' in the 'output_folder'.
+
+#     Example:
+#         >>> extract_caselist_cna('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
+#     """
+#     with open(file_path, "r") as file:
+#         for line in file:
+#             line = line.strip()
+#             if line.startswith("case_list_ids"):
+#                 samples = line.split(":")[1].split("\t")
+#                 samples = list(map(str.strip, samples))
+#                 extracted = [elem for elem in samples if elem in sample_ids]
         
-        with open(os.path.join(output_folder, "cases_cna.txt"), "w") as filtered:
-                file.seek(0)
-                for line in file:
-                    if line.startswith("case_list_description"):
-                        n_old_samples = re.findall(r'\d+', line)[0]
-                        line = line.replace(n_old_samples, str(len(extracted)))
+#         with open(os.path.join(output_folder, "cases_cna.txt"), "w") as filtered:
+#                 file.seek(0)
+#                 for line in file:
+#                     if line.startswith("case_list_description"):
+#                         n_old_samples = re.findall(r'\d+', line)[0]
+#                         line = line.replace(n_old_samples, str(len(extracted)))
                         
-                    if line.startswith("case_list_ids"):
-                        line = "case_list_ids:" + "\t".join(extracted)
-                    filtered.write(line)
+#                     if line.startswith("case_list_ids"):
+#                         line = "case_list_ids:" + "\t".join(extracted)
+#                     filtered.write(line)
         
 
-def extract_caselist_sequenced(file_path, sample_ids, output_folder):
-    """
-    Extracts specific cases' sequenced data from the original sequenced case list file.
+# def extract_caselist_sequenced(file_path, sample_ids, output_folder):
+#     """
+#     Extracts specific cases' sequenced data from the original sequenced case list file.
    
-    This function reads a text file specified by 'file_path', extracts the case list IDs
-    corresponding to the provided 'sample_ids', and saves the modified case list file in the 'output_folder'.
+#     This function reads a text file specified by 'file_path', extracts the case list IDs
+#     corresponding to the provided 'sample_ids', and saves the modified case list file in the 'output_folder'.
 
-    Args:
-        file_path (str): Path to the input case list file.
-        sample_ids (list): List of case IDs to be extracted from the case list.
-        output_folder (str): Path to the directory where the modified case list file will be saved.
-    Notes:
-        - The case list file is assumed to have sections starting with "case_list_ids" and "case_list_description".
-        - The function first identifies the relevant case IDs based on 'sample_ids' and modifies the case list
-          description and IDs accordingly.
-        - The modified case list is saved in a new file named 'cases_sequenced.txt' in the 'output_folder'.
+#     Args:
+#         file_path (str): Path to the input case list file.
+#         sample_ids (list): List of case IDs to be extracted from the case list.
+#         output_folder (str): Path to the directory where the modified case list file will be saved.
+#     Notes:
+#         - The case list file is assumed to have sections starting with "case_list_ids" and "case_list_description".
+#         - The function first identifies the relevant case IDs based on 'sample_ids' and modifies the case list
+#           description and IDs accordingly.
+#         - The modified case list is saved in a new file named 'cases_sequenced.txt' in the 'output_folder'.
     
-    Example:
-        >>> extract_caselist_sequenced('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
-    """
-    with open(file_path, "r") as file:
-        for line in file:
-            line = line.strip()
-            if line.startswith("case_list_ids"):
-                samples = line.split(":")[1].split("\t")
-                samples = list(map(str.strip, samples))
-                extracted = [elem for elem in samples if elem in sample_ids]
+#     Example:
+#         >>> extract_caselist_sequenced('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
+#     """
+#     with open(file_path, "r") as file:
+#         for line in file:
+#             line = line.strip()
+#             if line.startswith("case_list_ids"):
+#                 samples = line.split(":")[1].split("\t")
+#                 samples = list(map(str.strip, samples))
+#                 extracted = [elem for elem in samples if elem in sample_ids]
         
-        with open(os.path.join(output_folder, "cases_sequenced.txt"), "w") as filtered:
-                file.seek(0)
-                for line in file:
-                    if line.startswith("case_list_description"):
-                        n_old_samples = re.findall(r'\d+', line)[0]
-                        line = line.replace(n_old_samples, str(len(extracted)))
+#         with open(os.path.join(output_folder, "cases_sequenced.txt"), "w") as filtered:
+#                 file.seek(0)
+#                 for line in file:
+#                     if line.startswith("case_list_description"):
+#                         n_old_samples = re.findall(r'\d+', line)[0]
+#                         line = line.replace(n_old_samples, str(len(extracted)))
                         
-                    if line.startswith("case_list_ids"):
-                        line = "case_list_ids:"+"\t".join(extracted)
-                    filtered.write(line)
+#                     if line.startswith("case_list_ids"):
+#                         line = "case_list_ids:"+"\t".join(extracted)
+#                     filtered.write(line)
     
     
-def extract_caselist_sv(file_path, sample_ids, output_folder):
-    """
-    Extracts specific cases of structural variation (SV) data from the original SV case list file.
+# def extract_caselist_sv(file_path, sample_ids, output_folder):
+#     """
+#     Extracts specific cases of structural variation (SV) data from the original SV case list file.
     
-    This function reads a text file specified by 'file_path', extracts the case list IDs
-    corresponding to the provided 'sample_ids', and saves the modified case list file in the 'output_folder'.
+#     This function reads a text file specified by 'file_path', extracts the case list IDs
+#     corresponding to the provided 'sample_ids', and saves the modified case list file in the 'output_folder'.
 
-    Args:
-        file_path (str): Path to the input case list file.
-        sample_ids (list): List of case IDs to be extracted from the case list.
-        output_folder (str): Path to the directory where the modified case list file will be saved.
+#     Args:
+#         file_path (str): Path to the input case list file.
+#         sample_ids (list): List of case IDs to be extracted from the case list.
+#         output_folder (str): Path to the directory where the modified case list file will be saved.
   
-    Notes:
-        - The case list file is assumed to have sections starting with "case_list_ids" and "case_list_description".
-        - The function first identifies the relevant case IDs based on 'sample_ids' and modifies the case list
-          description and IDs accordingly.
-        - The modified case list is saved in a new file named 'cases_sv.txt' in the 'output_folder'.
+#     Notes:
+#         - The case list file is assumed to have sections starting with "case_list_ids" and "case_list_description".
+#         - The function first identifies the relevant case IDs based on 'sample_ids' and modifies the case list
+#           description and IDs accordingly.
+#         - The modified case list is saved in a new file named 'cases_sv.txt' in the 'output_folder'.
 
-    Example:
-        >>> extract_caselist_sv('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
-    """
-    with open(file_path, "r") as file:
-        for line in file:
-            line = line.strip()
-            if line.startswith("case_list_ids"):
-                samples = line.split(":")[1].split("\t")
-                samples = list(map(str.strip, samples))
-                extracted = [elem for elem in samples if elem in sample_ids]
+#     Example:
+#         >>> extract_caselist_sv('input_case_list.txt', ['case1', 'case2'], 'output_folder/')
+#     """
+#     with open(file_path, "r") as file:
+#         for line in file:
+#             line = line.strip()
+#             if line.startswith("case_list_ids"):
+#                 samples = line.split(":")[1].split("\t")
+#                 samples = list(map(str.strip, samples))
+#                 extracted = [elem for elem in samples if elem in sample_ids]
         
-        with open(os.path.join(output_folder, "cases_sv.txt"), "w") as filtered:
-                file.seek(0)
-                for line in file:
-                    if line.startswith("case_list_description"):
-                        n_old_samples = re.findall(r'\d+', line)[0]
-                        line = line.replace(n_old_samples, str(len(extracted)))
+#         with open(os.path.join(output_folder, "cases_sv.txt"), "w") as filtered:
+#                 file.seek(0)
+#                 for line in file:
+#                     if line.startswith("case_list_description"):
+#                         n_old_samples = re.findall(r'\d+', line)[0]
+#                         line = line.replace(n_old_samples, str(len(extracted)))
                         
-                    if line.startswith("case_list_ids"):
-                        line = "case_list_ids:" + "\t".join(extracted)
-                    filtered.write(line)
+#                     if line.startswith("case_list_ids"):
+#                         line = "case_list_ids:" + "\t".join(extracted)
+#                     filtered.write(line)
