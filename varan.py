@@ -160,7 +160,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
         oldpath=args.Path
         removepath=args.SampleList
         output_folder=args.output_folder
-        delete_main(oldpath,removepath,output_folder,log)
+        delete_main(oldpath,removepath,output_folder, overwrite_output)
 
     ############################
     #         EXTRACT          #

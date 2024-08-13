@@ -48,7 +48,7 @@ def create_newest_version_folder(outputfolder):
         os.mkdir(output)
         return output
     else:
-        outputfolder_newest_version = get_newest_version(outputfolder)
+        outputfolder_newest_version, _ = get_newest_version(outputfolder)
         os.mkdir(outputfolder_newest_version)
         return outputfolder_newest_version
     
@@ -65,7 +65,7 @@ def extract_info_from_meta(folder):
                 if "NoVus" in line:
                     vus = True
                     
-    return cancer.strip(), vus 
+    return cancer.strip()
         
         
 def extract_sample_list(filecase):
