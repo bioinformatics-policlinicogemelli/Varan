@@ -22,7 +22,7 @@ import sys
 import traceback
 import numpy as np
 from filter_clinvar import filter_OncoKB
-from versioning import get_newest_version
+from versioning import get_newest_version, get_version_list
 import pandas as pd
 
 config = ConfigParser()
@@ -465,22 +465,27 @@ def run_vcf2maf(cl):
     
 
 def create_folder(output_folder, overwrite_output, resume):
-    version = "_v1"
-    output_folder_version = output_folder + version
-    if os.path.exists(output_folder_version):
+
+    output = get_version_list(output_folder)[-1]
+    if os.path.exists(output):
         logger.warning(f"It seems that a version of the folder '{output_folder}' already exists.")
         if overwrite_output:
             logger.info(f"Overwrite option set. Start removing folder")
-            shutil.rmtree(output_folder_version)
-
+            shutil.rmtree(output)
         elif resume:
-            _,current_version = get_newest_version(output_folder_version)
+            _,current_version = get_newest_version(output_folder)
             return output_folder + current_version
-            # filtered_path = os.path.join(output_folder_version, 'snv_filtered')
-        else:
-            output_folder_version,_ = get_newest_version(output_folder_version)
-    
+
+    if output == "":
+        version = "_v1"
+        output_folder_version = output_folder + version
+  
+    else:
+        output_folder_version,_ = get_newest_version(output_folder)
+
+
     logger.info(f"Creating the output folder '{output_folder_version}' in {os.getcwd()}...")
+
     os.mkdir(output_folder_version)
     maf_path = os.path.join(output_folder_version, 'maf')
     os.mkdir(maf_path)

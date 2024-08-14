@@ -18,12 +18,14 @@ def extract_version_int(foldername):
 
 def get_version_list(output_folder):
     foldername = re.split(r'_v[0-9]$',os.path.basename(output_folder))[0]
-    outputfolderpath = os.path.dirname(output_folder)
+    outputfolderpath = os.getcwd()
     if outputfolderpath == "":
         outputfolderpath = os.getcwd()
-    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if foldername in file]
-    versioni_n = [extract_version_int(version) for version in old_versions]
-    sorted_version = sorted(versioni_n, key=int)
+        
+    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) \
+                    if re.split(r'_v[0-9]$',os.path.basename(output_folder))[0] in file]
+    version_n = [extract_version_int(version) for version in old_versions]
+    sorted_version = sorted(version_n, key=int)
     version_name_ordered = list(map(lambda x: foldername + "_v" + str(x), sorted_version))
     return version_name_ordered
 
@@ -42,13 +44,12 @@ def get_newest_version(output_folder):
     return output_folder_version, "_v" + str(max(old_versions_number))
 
 def create_newest_version_folder(outputfolder):
-    version = "_v1"
-    output = outputfolder + version
-    if not os.path.exists(output):
-        os.mkdir(output)
-        return output
+    if len(get_version_list(outputfolder)) == 0:
+        version = "_v1"
+        outputfolder_newest_version = outputfolder + version
+        os.mkdir(outputfolder_newest_version)
     else:
-        outputfolder_newest_version, _ = get_newest_version(outputfolder)
+        outputfolder_newest_version, _,_ = get_newest_version(outputfolder)
         os.mkdir(outputfolder_newest_version)
         return outputfolder_newest_version
     
@@ -82,7 +83,6 @@ def extract_sample_list(filecase):
         
 
 def compare_sample_file(file1, file2, filename, action, outputfolder):
-    
     summary_file = open(os.path.join(outputfolder, "summary.txt"), "a")
     if os.path.exists(file1) and os.path.exists(file2):
         samples_file1 = extract_sample_list(file1)  
@@ -110,12 +110,10 @@ def compare_sample_file(file1, file2, filename, action, outputfolder):
 def compare_version(folder1, folder2, action, outputfolder):
     case_list1 = os.path.join(folder1, "case_lists")
     case_list2 = os.path.join(folder2, "case_lists")
-    
-    
+
     # Compare case_list_cna
     cna_1 = os.path.join(case_list1, "cases_cna.txt")
     cna_2 = os.path.join(case_list2, "cases_cna.txt")
-
     compare_sample_file(cna_1, cna_2, "cases_cna", action, outputfolder)
     
     # Compare case_list_sequenced
