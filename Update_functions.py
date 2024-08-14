@@ -2,6 +2,8 @@ import os
 import pandas as pd
 import re
 import numpy as np
+from loguru import logger
+import shutil
 
 def update_clinical_samples(oldfile_path, newfile_path, output_folder):
     """ 
@@ -275,4 +277,32 @@ def update_caselist_sv(oldfile_path, newfile_path, output_folder):
                     new_samples_filtered = [sample for sample in new_samples.split("\t") if sample not in line]
                     line = "\t".join([line, "\t".join(new_samples_filtered)])
                 updated.write(line)
+
+def check_files(oldpath, newpath, output, file_name):
+    o_data = os.path.join(oldpath, file_name)
+    n_data = os.path.join(newpath, file_name)
+    if os.path.exists(o_data) and os.path.exists(n_data):
+        update_clinical_samples(o_data,n_data,output)
+    elif os.path.exists(o_data) and not os.path.exists(n_data):
+        logger.warning(f"{file_name} was not found in path 2. The file is being copied from path 1.")
+        shutil.copy(o_data, output)
+    elif not os.path.exists(o_data) and os.path.exists(n_data):
+        logger.warning(f"{file_name} was not found in path 1. The file is being copied from path 2.")  
+        shutil.copy(n_data, output)
+    else:
+        logger.warning(f"{file_name} not found in current folders. Skipping")
+
+def check_files_cases(oldpath, newpath, output_caseslists, file_name):
+    o_data = os.path.join(oldpath,"case_lists",file_name)
+    n_data = os.path.join(newpath,"case_lists",file_name)
+    if os.path.exists(o_data) and os.path.exists(n_data):
+        update_caselist_cna(o_data,n_data,output_caseslists)
+    elif os.path.exists(o_data) and not os.path.exists(n_data):
+        logger.warning(f"{file_name} was not found in path 2 case_lists folder. The file is being copied from path 1.")  
+        shutil.copy(o_data, output_caseslists)
+    elif not os.path.exists(o_data) and os.path.exists(n_data):
+        logger.warning(f"{file_name} was not found in path 1 case_lists folder. The file is being copied from path 2.") 
+        shutil.copy(n_data, output_caseslists)
+    else:
+        logger.warning(f"{file_name} not found in 'case_lists' folders. Skipping")
     
