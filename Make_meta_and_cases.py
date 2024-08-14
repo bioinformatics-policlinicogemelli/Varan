@@ -5,8 +5,9 @@ from configparser import ConfigParser
 from populate_case_lists import populate_cases_cna,populate_cases_sequenced,populate_cases_sv
 from loguru import logger
 import sys
-from versioning import extract_version_str
+from versioning import extract_version_str, get_newest_version, extract_version_str
 from datetime import datetime
+import re
 
 
 def create_meta_study(cancer, project_name, project_id, description, output_dir, version):
@@ -355,23 +356,37 @@ def create_meta_cna_hg19(project_id, profile, output_dir):
 
 
 
-def meta_case_main(cancer, output_folder, rename=""):
+def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
 
     logger.info("Starting meta_case_main script:")
     logger.info(f"meta_case_main args [cancer:{cancer}, output_file:{output_folder}]")
-    
+
     version = extract_version_str(output_folder)
     
     config = ConfigParser()
     config.read("conf.ini")
-    
-    if rename=="":
+    import pdb; pdb.set_trace()
+    if len(old_study_info)==0:
         project_id = config.get("Project","PROJECT_ID")
         project_name = config.get("Project","PROJECT_NAME")
-    else:
-        project_id = rename + version
-        project_name = rename + version.replace("_"," ")
     
+    if not old_study_info[-1]:    
+        if rename!="":
+            logger.info(f"Study will be renamed in meta as {rename}")
+            try:
+                version, _= get_newest_version(rename)
+            except ValueError: version="_v1"
+            project_id = rename + version
+            project_name = rename + version.replace("_"," ")
+        else:
+            project_id = output_folder
+            project_name = output_folder.replace("_"," ")      
+    elif old_study_info[-1] and len(old_study_info)>0:
+        version = extract_version_str(output_folder)
+        #version=re.search(r'_v(\d+)$', version).group(0)
+        project_id = old_study_info[0]+version
+        project_name = old_study_info[1]+version.replace("_"," ")
+        
     description=config.get("Project","DESCRIPTION")
     profile_mut=config.get("Project","PROFILE_MUT")
     profile_cna=config.get("Project","PROFILE_CNA")

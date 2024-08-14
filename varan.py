@@ -156,18 +156,19 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
     ############################
 
     if remove:
-        logger.info("Starting Delete samples from study")
+        logger.info("Starting Delete sample(s) from study")
         oldpath=args.Path
         removepath=args.SampleList
+        new_name = args.Name
         output_folder=args.output_folder
-        delete_main(oldpath,removepath,output_folder, overwrite_output)
+        delete_main(oldpath, removepath, output_folder, new_name, overwrite_output)
 
     ############################
     #         EXTRACT          #
     ############################
 
     if extract:
-        logger.info("Starting Extract samples from study")
+        logger.info("Starting Extract sample(s) from study")
         oldpath = args.Path
         removepath = args.SampleList
         new_name = args.Name
@@ -247,17 +248,18 @@ if __name__ == '__main__':
 
     parser.add_argument('-e', '--Extract', required=False,action='store_true',
                         help='Add this argument if you want to extract samples from a study')
-    parser.add_argument('-N', '--Name', required=False,default="",
-                        help='Add this argument if you want to give a custom name to the extract study')
     
     # COMMON BLOCK 
 
-    parser.add_argument('-o', '--output_folder', required=True,
+    parser.add_argument('-o', '--output_folder', required=False, default="",
                         help='Output folder')
     parser.add_argument('-s', '--SampleList', required=False,
                         help='Path of file with list of SampleIDs')
     parser.add_argument('-p', '--Path', required=False,
                         help='Path of original study folder')
+    parser.add_argument('-N', '--Name', required=False,default="",
+                        help='Add this argument if you want to give a custom name to the extract study')
+    
     
     try:
         args = parser.parse_args()
@@ -281,26 +283,33 @@ if __name__ == '__main__':
         
         if not any([args.Update ,args.Extract , args.Remove]) and args.input==None:
             logger.critical("Error Argument: Input is required")
-            raise argparse.ArgumentError("Input is required")
+            sys.exit()
+
+        if not any([args.Update ,args.Extract , args.Remove]) and args.output_folder=="":
+            logger.critical("Error Argument: Output is required")
+            sys.exit()
         
         if not any([args.Update ,args.Extract , args.Remove]) and args.Cancer==None:
             logger.critical("Error Argument: Cancer name is required")
-            raise argparse.ArgumentError("Cancer is required")
+            sys.exit()
 
         if args.Update and (args.Path==None or args.NewPath==None):
             logger.critical("To update a study, you need to specify both original and new folder paths")
-            raise argparse.ArgumentError("To update a study, you need to specify both old and new paths")
+            sys.exit()
 
         if (any([args.Remove,args.Extract]) and args.Path==None) or (any([args.Remove,args.Extract]) and args.SampleList==None):
             logger.critical("To remove/extract samples from a study, you need to specify both original folder path and list samples")
-            raise argparse.ArgumentError("To remove/extract samples from a study, you need to specify both original folder path and list samples")
+            sys.exit()
+            
+        if (args.output_folder=="" and args.Name!=""):
+            logger.critical("To use -N option it's required to set also -o")
+            sys.exit()
         
         if resume:
             if overwrite_output:
                 logger.critical("Both resume and overwrite options are selected. Please select only one!")
-                raise argparse.ArgumentError(None, "Specify only one between Resume and Overwrite options!")
-        
-            
+                sys.exit()
+         
         varan(input, cancer, output_folder, oncoKB, filters, vcf_type, overwrite_output, resume, multiple, update, extract, remove, log)
     
     except Exception as err:
