@@ -49,9 +49,10 @@ def create_newest_version_folder(outputfolder):
         outputfolder_newest_version = outputfolder + version
         os.mkdir(outputfolder_newest_version)
     else:
-        outputfolder_newest_version, _,_ = get_newest_version(outputfolder)
+        outputfolder_newest_version, _= get_newest_version(outputfolder)
         os.mkdir(outputfolder_newest_version)
-        return outputfolder_newest_version
+    
+    return outputfolder_newest_version
     
 def extract_info_from_meta(folder):
     file_meta = os.path.join(folder, "meta_study.txt")

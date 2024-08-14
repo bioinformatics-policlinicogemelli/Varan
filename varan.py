@@ -148,8 +148,9 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
         logger.info("Starting Update study")
         oldpath=args.Path
         new=args.NewPath
+        new_name = args.Name
         output_folder=args.output_folder
-        update_main(oldpath, new, output_folder, overwrite_output, log)
+        update_main(oldpath, new, output_folder, new_name, overwrite_output)
 
     ############################
     #         DELETE           #
