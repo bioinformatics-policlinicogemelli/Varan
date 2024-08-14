@@ -41,7 +41,6 @@ def get_newest_version(output_folder):
     output_folder_version = foldername + version
     return output_folder_version, "_v" + str(max(old_versions_number))
 
-
 def create_newest_version_folder(outputfolder):
     version = "_v1"
     output = outputfolder + version
@@ -49,12 +48,10 @@ def create_newest_version_folder(outputfolder):
         os.mkdir(output)
         return output
     else:
-        outputfolder_newest_version, _, _ = get_newest_version(outputfolder)
+        outputfolder_newest_version, _ = get_newest_version(outputfolder)
         os.mkdir(outputfolder_newest_version)
         return outputfolder_newest_version
     
-
-
 def extract_info_from_meta(folder):
     file_meta = os.path.join(folder, "meta_study.txt")
     #vus = False
