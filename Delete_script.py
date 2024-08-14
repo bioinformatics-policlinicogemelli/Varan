@@ -1,19 +1,21 @@
 import os
 import sys
 import argparse
+import shutil
+from Make_meta_and_cases import meta_case_main
 from Delete_functions import *
 from ValidateFolder import validateFolderlog
-import loguru
+from versioning import *
 from loguru import logger
 
-def delete_main(oldpath,removepath,output,log=False):
+def delete_main(oldpath,removepath,output, overwrite):
     
-    if not log:
-        logger.remove()
-        logfile="delete_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
+    # if not log:
+    #     logger.remove()
+    #     logfile="delete_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
+    #     logger.level("INFO", color="<green>")
+    #     logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
+    #     logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
     
     logger.info("Starting delete_main script:")
     logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{output}]")	
@@ -24,16 +26,27 @@ def delete_main(oldpath,removepath,output,log=False):
     if os.path.exists(removepath):
         logger.info("Sample list to remove found")
     
+    old_versions=get_version_list(output)
+    if len(old_versions)>0 and os.path.exists(old_versions[-1]):
+        if overwrite:
+            logger.info(f"Overwrite option set. Start removing folder")
+            shutil.rmtree(old_versions[-1])
+    
+    output=create_newest_version_folder(output)
+    logger.info(f"Creating a new folder: {output}")
+    output_caseslists=os.path.join(output,"case_lists")
+    os.mkdir(output_caseslists)
+    
     #output=os.path.join(destinationfolder,"filtered_data")
-    if os.path.exists(output):
-        logger.critical("Filtered_data folder already exists. Please change destination folder (--Destination arg)" )
-        logger.critical("Exit")
-        sys.exit()
-    else:
-        logger.info("Creating a new folder: filtered_data")    
-        os.mkdir(output)
-        output_caseslists=os.path.join(output,"case_lists")
-        os.mkdir(output_caseslists)   
+    # if os.path.exists(output):
+    #     logger.critical("Filtered_data folder already exists. Please change destination folder (--Destination arg)" )
+    #     logger.critical("Exit")
+    #     sys.exit()
+    # else:
+    #     logger.info("Creating a new folder: filtered_data")    
+    #     os.mkdir(output)
+    #     output_caseslists=os.path.join(output,"case_lists")
+    #     os.mkdir(output_caseslists)   
 
     logger.info("Great! Everything is ready to start")
 
@@ -41,7 +54,6 @@ def delete_main(oldpath,removepath,output,log=False):
     sampleIds=open(removepath,"r").readlines()
     sampleIds=[sample.strip() for sample in sampleIds]
 
-    
     o_clinical_patient=os.path.join(oldpath,"data_clinical_patient.txt")
     if os.path.exists(o_clinical_patient):
         delete_clinical_patient(oldpath,sampleIds,output)
@@ -81,64 +93,74 @@ def delete_main(oldpath,removepath,output,log=False):
         logger.warning("data_sv.txt not found in current folder. Skipping")
     #
     
-    o_cases_cna=os.path.join(oldpath,"case_lists/cases_cna.txt")
-    if os.path.exists(o_cases_cna):
-        delete_caselist_cna(o_cases_cna,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_cna.txt not found in 'case_lists' folder. Skipping")
+    # o_cases_cna=os.path.join(oldpath,"case_lists/cases_cna.txt")
+    # if os.path.exists(o_cases_cna):
+    #     delete_caselist_cna(o_cases_cna,sampleIds,output_caseslists)
+    # else:
+    #     logger.warning("cases_cna.txt not found in 'case_lists' folder. Skipping")
     
-    o_cases_sequenced=os.path.join(oldpath,"case_lists/cases_sequenced.txt")
-    if os.path.exists(o_cases_sequenced):
-        delete_caselist_sequenced(o_cases_sequenced,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_sequenced.txt not found in 'case_lists' folder. Skipping")
-    #  
-    o_cases_sv=os.path.join(oldpath,"case_lists/cases_sv.txt")
-    if os.path.exists(o_cases_sv):
-        delete_caselist_sv(o_cases_sv,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_sv.txt not found in 'case_lists' folder. Skipping")
-
-
+    # o_cases_sequenced=os.path.join(oldpath,"case_lists/cases_sequenced.txt")
+    # if os.path.exists(o_cases_sequenced):
+    #     delete_caselist_sequenced(o_cases_sequenced,sampleIds,output_caseslists)
+    # else:
+    #     logger.warning("cases_sequenced.txt not found in 'case_lists' folder. Skipping")
+    # #  
+    # o_cases_sv=os.path.join(oldpath,"case_lists/cases_sv.txt")
+    # if os.path.exists(o_cases_sv):
+    #     delete_caselist_sv(o_cases_sv,sampleIds,output_caseslists)
+    # else:
+    #     logger.warning("cases_sv.txt not found in 'case_lists' folder. Skipping")
+    
+    cancer=extract_info_from_meta(oldpath)
+    meta_case_main(cancer, output)
+    
+    if len(old_versions)>1:
+        old_version=old_versions[-1]
+        compare_version(output,old_version,"delete",output)
 
     logger.info("Starting Validation Folder...")
-
     validateFolderlog(output)
-    
     logger.success("The process ended without errors")
-    logger.success("Please, check DeleteScript.log to verify that everything went as expected.")
-    logger.success("Successfully deleted sample(s)!")
-    
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)     
-    
-if __name__ == '__main__':
-    
-    logfile="Delete_Script_{time:HH:mm:ss.SS}.log"
-    
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Parser of Delete script for cBioportal')
-     
-    parser.add_argument('-o', '--OldDataPath', required=True,
-                        help='Folder containing old existing data files')
-    parser.add_argument('-s', '--SampleToRemove', required=True,
-                        help='Path of file with SampleIDs to remove')
-    parser.add_argument('-d', '--Destination', required=True,
-                        help='Path of new folder to store updated data',default="./")
-    
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="delete_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
+    logger.success("Successfully remove sample(s)!")
 
-    oldpath=args.OldDataPath
-    removepath=args.SampleToRemove
-    destinationfolder=args.Destination
+    # logger.info("Starting Validation Folder...")
+
+    # validateFolderlog(output)
     
-    delete_main(oldpath,removepath,destinationfolder,log=False)
+    # logger.success("The process ended without errors")
+    # logger.success("Please, check DeleteScript.log to verify that everything went as expected.")
+    # logger.success("Successfully deleted sample(s)!")
+    
+# class MyArgumentParser(argparse.ArgumentParser):
+#   """An argument parser that raises an error, instead of quits"""
+#   def error(self, message):
+#     raise ValueError(message)     
+    
+# if __name__ == '__main__':
+    
+#     logfile="Delete_Script_{time:HH:mm:ss.SS}.log"
+    
+#     parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Parser of Delete script for cBioportal')
+     
+#     parser.add_argument('-o', '--OldDataPath', required=True,
+#                         help='Folder containing old existing data files')
+#     parser.add_argument('-s', '--SampleToRemove', required=True,
+#                         help='Path of file with SampleIDs to remove')
+#     parser.add_argument('-d', '--Destination', required=True,
+#                         help='Path of new folder to store updated data',default="./")
+    
+#     try:
+#         args = parser.parse_args()
+#     except Exception as err:
+#         logger.remove()
+#         logfile="delete_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
+#         logger.level("INFO", color="<green>")
+#         logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
+#         logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
+#         logger.critical(f"error: {err}", file=sys.stderr)
+
+#     oldpath=args.OldDataPath
+#     removepath=args.SampleToRemove
+#     destinationfolder=args.Destination
+    
+#     delete_main(oldpath,removepath,destinationfolder,log=False)

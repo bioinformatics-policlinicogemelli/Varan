@@ -356,6 +356,7 @@ def create_meta_cna_hg19(project_id, profile, output_dir):
 
 
 def meta_case_main(cancer, output_folder, rename=""):
+
     logger.info("Starting meta_case_main script:")
     logger.info(f"meta_case_main args [cancer:{cancer}, output_file:{output_folder}]")
     

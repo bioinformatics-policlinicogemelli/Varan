@@ -49,7 +49,7 @@ def create_newest_version_folder(outputfolder):
         os.mkdir(output)
         return output
     else:
-        outputfolder_newest_version, _ = get_newest_version(outputfolder)
+        outputfolder_newest_version, _, _ = get_newest_version(outputfolder)
         os.mkdir(outputfolder_newest_version)
         return outputfolder_newest_version
     
