@@ -121,18 +121,12 @@ def annotate_cna(path_cna, output_folder):
     os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {path_cna}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
                 
-    
     cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration":int})
     cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
-    
-    
-    
+        
     data_cna = cna.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0)
 
     data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
-    
-
-
 
 
 def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, multiple):

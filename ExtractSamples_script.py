@@ -5,12 +5,18 @@ from Make_meta_and_cases import meta_case_main
 from versioning import *
 from loguru import logger
 import shutil
+import sys
 
 def extract_main(oldpath, removepath, output, study_id, overwrite):
     
     logger.info("Starting extract_main script:")
     logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, outputfolder:{output}]")	
     
+    logger.info("Checking input...")
+    if not os.path.isdir(oldpath):
+        logger.critical(f"{oldpath} is not a valid folder!")
+        sys.exit()	
+
     if output!="":
         no_out=False
         if os.path.exists(oldpath):

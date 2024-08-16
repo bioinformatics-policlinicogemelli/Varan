@@ -271,7 +271,7 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
         if rename!="":
             logger.info(f"Study will be renamed in meta")
             try:
-                version, _= get_newest_version(rename)
+                _, version = get_newest_version(old_study_info[2])
             except ValueError: version="_v1"
             project_id = rename + version
             project_name = rename + version.replace("_"," ")

@@ -11,7 +11,12 @@ from loguru import logger
 def delete_main(oldpath, removepath, output, study_id, overwrite):
     
     logger.info("Starting delete_main script:")
-    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{output}]")	
+    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{output}]")
+
+    logger.info("Checking input...")
+    if not os.path.isdir(oldpath):
+        logger.critical(f"{oldpath} is not a valid folder!")
+        sys.exit()	
 
     if output!="":
         no_out=False

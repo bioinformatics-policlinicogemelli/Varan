@@ -5,12 +5,21 @@ from ValidateFolder import validateFolderlog
 from versioning import *
 from Make_meta_and_cases import meta_case_main
 import shutil
+import sys
 
 
 def update_main(oldpath, newpath, output, study_id, overwrite):
     
     logger.info("Starting update_main script:")
     logger.info(f"update_main args [oldpath:{oldpath}, newpath:{newpath}, output_folder:{output}]")	
+
+    logger.info("Checking inputs...")
+    if not os.path.isdir(oldpath):
+        logger.critical(f"{oldpath} is not a valid folder!")
+        sys.exit()
+    if not os.path.isdir(newpath):
+        logger.critical(f"{newpath} is not a valid folder!")
+        sys.exit()
     
     if output!="":
         no_out=False
