@@ -278,11 +278,23 @@ def update_caselist_sv(oldfile_path, newfile_path, output_folder):
                     line = "\t".join([line, "\t".join(new_samples_filtered)])
                 updated.write(line)
 
+
 def check_files(oldpath, newpath, output, file_name):
     o_data = os.path.join(oldpath, file_name)
     n_data = os.path.join(newpath, file_name)
     if os.path.exists(o_data) and os.path.exists(n_data):
-        update_clinical_samples(o_data,n_data,output)
+        if file_name == "data_clinical_sample.txt":
+            update_clinical_samples(o_data,n_data,output)
+        elif file_name == "data_clinical_patient.txt":
+            update_clinical_patient(o_data,n_data,output)
+        elif file_name == "data_cna_hg19.seg":
+            update_cna_hg19(o_data,n_data,output)
+        elif file_name == "data_cna.txt":
+            update_cna(o_data,n_data,output)
+        elif file_name == "data_mutations_extended.txt":
+            update_mutations(o_data,n_data,output)
+        elif file_name == "data_sv.txt":
+            update_sv(o_data,n_data,output)
     elif os.path.exists(o_data) and not os.path.exists(n_data):
         logger.warning(f"{file_name} was not found in path 2. The file is being copied from path 1.")
         shutil.copy(o_data, output)
@@ -292,11 +304,17 @@ def check_files(oldpath, newpath, output, file_name):
     else:
         logger.warning(f"{file_name} not found in current folders. Skipping")
 
+
 def check_files_cases(oldpath, newpath, output_caseslists, file_name):
     o_data = os.path.join(oldpath,"case_lists",file_name)
     n_data = os.path.join(newpath,"case_lists",file_name)
     if os.path.exists(o_data) and os.path.exists(n_data):
-        update_caselist_cna(o_data,n_data,output_caseslists)
+        if file_name == "cases_cna.txt":
+            update_caselist_cna(o_data,n_data,output_caseslists)
+        elif file_name == "cases_sequenced.txt":
+            update_caselist_sequenced(o_data,n_data,output_caseslists)
+        elif file_name == "cases_sv.txt":
+            update_caselist_sv(o_data,n_data,update_caselist_sv)
     elif os.path.exists(o_data) and not os.path.exists(n_data):
         logger.warning(f"{file_name} was not found in path 2 case_lists folder. The file is being copied from path 1.")  
         shutil.copy(o_data, output_caseslists)

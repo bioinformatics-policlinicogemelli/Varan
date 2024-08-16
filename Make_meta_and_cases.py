@@ -267,7 +267,7 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
         project_id = config.get("Project","PROJECT_ID")
         project_name = config.get("Project","PROJECT_NAME")
     
-    if not old_study_info[-1]:    
+    elif len(old_study_info)>0 and not old_study_info[-1]:    
         if rename!="":
             logger.info(f"Study will be renamed in meta")
             try:
@@ -278,7 +278,8 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
         else:
             project_id = output_folder
             project_name = output_folder.replace("_"," ")      
-    elif old_study_info[-1] and len(old_study_info)>0:
+            
+    elif len(old_study_info)>0 and old_study_info[-1]:
         version = extract_version_str(output_folder)
         #version=re.search(r'_v(\d+)$', version).group(0)
         project_id = old_study_info[0]+version

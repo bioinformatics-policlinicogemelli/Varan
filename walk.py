@@ -465,9 +465,10 @@ def run_vcf2maf(cl):
     
 
 def create_folder(output_folder, overwrite_output, resume):
+    output_list = get_version_list(output_folder)
 
-    output = get_version_list(output_folder)[-1]
-    if os.path.exists(output):
+    if output_list != [] and os.path.exists(output_list[-1]):
+        output = output_list[-1]
         logger.warning(f"It seems that a version of the folder '{output_folder}' already exists.")
         if overwrite_output:
             logger.info(f"Overwrite option set. Start removing folder")
@@ -476,7 +477,7 @@ def create_folder(output_folder, overwrite_output, resume):
             _,current_version = get_newest_version(output_folder)
             return output_folder + current_version
 
-    if output == "":
+    if output_list == []:
         version = "_v1"
         output_folder_version = output_folder + version
   
