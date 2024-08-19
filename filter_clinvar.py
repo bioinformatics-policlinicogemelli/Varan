@@ -224,9 +224,9 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
                 else:
                     file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) | (file_to_filter['t_VF'].isnull()) | (file_to_filter['t_VF'] <= t_VAF_max)]
             
-            if "g" in filters:     
-                    gnomAD=float(config.get('Filters', 'gnomAD'))
-                    file_to_filter =file_to_filter[(file_to_filter['AF'] < gnomAD) | (file_to_filter['AF'].isnull())]
+            if "g" in filters:    
+                    gnomAD=config.get('Filters', 'gnomAD')
+                    file_to_filter =file_to_filter[(eval("file_to_filter['AF']" + gnomAD)) | (file_to_filter['AF'].isnull())]
                 
             if "c" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]

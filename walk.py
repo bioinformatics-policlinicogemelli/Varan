@@ -1121,7 +1121,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             table_dict_patient[k].append(tmv_msi['TMB_Total'])
             if not tmv_msi['MSI'][0][1]=="NA":
                 if not tmv_msi['MSI'][1][1] =="NA":
-                    if float(tmv_msi['MSI'][1][1]) < float(MSI_THR):
+                    if eval("float(tmv_msi['MSI'][1][1])"+MSI_THR):
                         table_dict_patient[k].append("Stable")   
                     else:
                         table_dict_patient[k].append('Unstable')
