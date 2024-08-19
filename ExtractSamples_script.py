@@ -87,9 +87,11 @@ def extract_main(oldpath, removepath, output, study_id, overwrite):
     study_info.append(no_out)
     meta_case_main(cancer, output, study_info, study_id)
     
-    if len(old_versions)>1:
-        old_version=old_versions[-1]
-        compare_version(output,old_version,"delete",output)
+    # if len(old_versions)>=1:
+    #     old_version=old_versions[-1]
+    #     compare_version(output, old_version, "extract", output)
+
+    compare_version(output, oldpath, "extract")
     
     logger.info("Starting Validation Folder...")
     validateFolderlog(output)
