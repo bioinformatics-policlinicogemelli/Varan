@@ -103,13 +103,7 @@ def write_csv_with_info(df, file_path):
 #     df = df[(df['gnomAD_AF'] <gnomAD) | (df['gnomAD_AF'].isnull())]
 #     return df
 
-def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, overwrite=False, log=False):
-    if not log:
-        logger.remove()
-        logfile="filter_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
+def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, overwrite=False):
     
     logger.info("Starting filter_main script:")
     logger.info(f"filter_main args [maf_folder:{folder}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, overwrite:{overwrite}]")

@@ -25,17 +25,17 @@ config = ConfigParser()
 
 def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrite_output=False, resume=False, multiple=False, update=False, extract=False, remove=False, log=False):
     
-    if not log:
-        logger.remove()
-        logfile="Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
-        logger.info("Welcome to VARAN") 
+    # if not log:
+    #     logger.remove()
+    #     logfile="Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
+    #     logger.level("INFO", color="<green>")
+    #     logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
+    #     logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
+    #     logger.info("Welcome to VARAN") 
 
     logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, vcf_type:{vcf_type},",
-                "overwrite_output:{overwrite_output}, resume:{resume}, multiple:{multiple}],",
-                            "update:{update}, extract:{extract}, remove:{remove}")
+                f"overwrite_output:{overwrite_output}, resume:{resume}, multiple:{multiple}],",
+                            f"update:{update}, extract:{extract}, remove:{remove}")
 
     if not any([update ,extract , remove]) :       
             
@@ -43,8 +43,15 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             #        1.  WALK         #
             ###########################
             
+            import pdb; pdb.set_trace()
             logger.info("Starting preparation study folder")
-            output_folder = walk_folder(input, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, vcf_type, filters, log)
+            
+            if len(input)==1 or input[1].strip=="": 
+                pzt_tsv=""
+            else: pzt_tsv=input[1]
+                
+            input= input[0]
+            output_folder = walk_folder(input, multiple, output_folder, oncoKB, cancer, pzt_tsv, overwrite_output, resume, vcf_type, filters)
 
 
             ###########################
@@ -52,18 +59,19 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             ###########################
         
             logger.info("Starting filter")    
+            import pdb;pdb.set_trace()
             #filter_main(output_folder, output_folder, vus,overwrite_output,log)
-            if args.vcf_type =="snv" or (args.vcf_type==None and os.path.exists(os.path.join(args.input,"SNV"))):
-                filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume, False)
-            elif os.path.exists(os.path.exists(os.path.join(args.input,"maf"))) and not args.vcf_type=="cnv":
-                filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume, False)
+            if args.vcf_type =="snv" or (vcf_type==None and os.path.exists(os.path.join(input,"SNV"))):
+                filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
+            elif os.path.exists(os.path.exists(os.path.join(input,"maf"))) and not vcf_type=="cnv":
+                filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
 
                 
             ############################
             #      3. CONCATENATE      #
             ############################
 
-            if  os.path.exists(os.path.join(output_folder,"maf")) and not args.vcf_type=="cnv":
+            if  os.path.exists(os.path.join(output_folder,"maf")) and not vcf_type=="cnv":
                 logger.info("Concatenate mutation file")
                 #folders=[]
                 # if vus:
@@ -126,20 +134,6 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             ##########################################################################################
             ##########################################################################################
 
-
-            #
-            # if os.path.exists(os.path.join(output_folder,"NoVus")):
-            #     shutil.make_archive(os.path.join(output_folder,"NoVus"),"zip",os.path.join(output_folder,"NoVus"))
-            #     shutil.rmtree(os.path.join(output_folder,"NoVus"))
-            # #
-            # #
-            # if os.path.exists(os.path.join(output_folder,"NoBenign")):
-            #     shutil.make_archive(os.path.join(output_folder,"NoBenign"),"zip",os.path.join(output_folder,"NoBenign"))
-            #     shutil.rmtree(os.path.join(output_folder,"NoBenign"))
-            #
-            
-
-
     ############################
     #         UPDATE           #
     ############################
@@ -197,30 +191,18 @@ if __name__ == '__main__':
     parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description='Argument of Varan script')
     
     # WALK BLOCK
-    parser.add_argument('-c', '--Cancer', required=False,
+    parser.add_argument('-c', '--Cancer', required=False, 
                         help='Cancer Name')
-    parser.add_argument('-i', '--input', required=False,
-                        help='input folder tsv with data or tsv with path of data')
-    # parser.add_argument('-f', '--filter_snv', required=False,
-    #                                         action='store_true',
-    #                                         help='Filter out from the vcf the variants wit dot (.) in Alt column')
+    # parser.add_argument('-i', '--input', required=False,
+    #                     help='input folder tsv with data or tsv with path of data')
+    parser.add_argument('-i', '--input', nargs='+', required=False, type=str,
+                        help='list with input folder/sample file tsv (required) and patient tsv')
     parser.add_argument('-t', '--vcf_type', required=False, choices=['snv', 'cnv'],
                         help='Select the vcf file to parse')
     parser.add_argument('-w', '--overWrite', required=False, action='store_true',
                         help='Overwrite output folder if it exists')
     parser.add_argument('-R', '--resume', required=False, action='store_true',
                         help='Resume an already started analysis')
-    #parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
-    
-    # # FILTER_CLINVAR BLOCK
-
-    # parser.add_argument('-v', '--vus', required=False,
-    #                                         action='store_true',
-    #                                         help='Filter out VUS variants')
-    
-    # parser.add_argument('-N', '--novel', required=False,
-    #                                         action='store_true',
-    #                                         help='filtern novel and hotspot separetely')
     
     # ANNOTATION BLOCK
     parser.add_argument('-k', '--oncoKB', required=False, action='store_true', 
@@ -228,30 +210,25 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--multiple', required=False, action='store_true', 
                         help='Multiple sample VCF?')
     
-
     # FILTER BLOCK
     parser.add_argument('-f', '--Filter', required=False, 
                         help='Select filter for SNV [d -> filter, p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens, c -> clin_sig, n -> novel]',default="")
     
     # UPDATE BLOCK
-
     parser.add_argument('-u', '--Update', required=False,action='store_true',
                         help='Add this argument if you want to concatenate two studies')
     parser.add_argument('-n', '--NewPath', required=False,
                         help='Path of new study folder to add')
         
     # DELETE BLOCK
-
     parser.add_argument('-r', '--Remove', required=False,action='store_true',
                         help='Add this argument if you want to remove samples from a study')
     
     # EXTRACT BLOCK
-
     parser.add_argument('-e', '--Extract', required=False,action='store_true',
                         help='Add this argument if you want to extract samples from a study')
     
     # COMMON BLOCK 
-
     parser.add_argument('-o', '--output_folder', required=False, default="",
                         help='Output folder')
     parser.add_argument('-s', '--SampleList', required=False,
@@ -264,33 +241,29 @@ if __name__ == '__main__':
     
     try:
         args = parser.parse_args()
-
+        
         cancer = args.Cancer
         input = args.input
-        #filter_snv=args.filter_snv
-        #filter_novel=args.novel
         filters=args.Filter
         output_folder = args.output_folder
         vcf_type=args.vcf_type
         overwrite_output=args.overWrite
         resume=args.resume
-        #vus=args.vus
         oncoKB=args.oncoKB
         multiple=args.multiple
         
         update=args.Update
         extract=args.Extract
         remove=args.Remove
-        
-
+                    
         if sum([args.Update, args.Extract, args.Remove]) > 1:
             logger.critical("Please select only one option between Update, Extract and Remove")
             sys.exit()
 
-        if not any([args.Update, args.Extract, args.Remove]) and args.input==None:
-            logger.critical("Error Argument: Input is required")
+        if not any([args.Update, args.Extract, args.Remove]) and (args.input==None or args.input[0].strip()==""):
+            logger.critical("Error Argument: Valid Input is required")
             sys.exit()
-
+        
         if not any([args.Update, args.Extract, args.Remove]) and args.output_folder=="":
             logger.critical("Error Argument: Output is required")
             sys.exit()

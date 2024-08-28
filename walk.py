@@ -868,14 +868,7 @@ def transform_input(tsv, output_folder, multiple):
                 
     return os.path.join(output_folder, "temp")
 
-def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters="", log=False):
-    
-    if not log:
-        logger.remove()
-        logfile="Walk_folder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}", colorize=True)
-        logger.add(os.path.join('Logs', logfile), format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
+def walk_folder(input, multiple, output_folder, oncokb, cancer, sample_pzt, overwrite_output=False, resume=False, vcf_type=None, filters=""):
     
     logger.info("Starting walk_folder script:")
     logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filters:{filters}, multiple:{multiple}]")
@@ -1097,7 +1090,12 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     table_dict_patient = get_table_from_folder(tsvpath)
 
     logger.info("Writing clinical files...")
-    write_clinical_patient(output_folder, table_dict_patient)
+    
+    if sample_pzt.strip()!="":
+        #TODO FUNZIONE CHE COSTRUISCE DATA_CLINICAL_PATIENT DA FILE IN INPUT
+        pass
+    else:
+        write_clinical_patient(output_folder, table_dict_patient)
     #fileinputclinical=pd.read_csv(tsvpath, sep="\t", index_col=False, dtype=str)
     
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and \
@@ -1168,51 +1166,3 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     logger.success("Walk script completed!\n")
 
     return output_folder
-
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)
-
-if __name__ == '__main__':
-         
-    parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description='Argument of walk script')
-
-    parser.add_argument('-i', '--input', required=True,
-                                            help='input folder with data')
-    parser.add_argument('-t', '--vcf_type', required=False,
-                                            choices=['snv', 'cnv'],
-                                            help='Select the vcf file to parse')
-    parser.add_argument('-f', '--filters', required=False,
-                                            action='store_true',
-                                            help='Select filter for SNV [p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens -> clin_sig, n -> novel]',default="")
-    parser.add_argument('-o', '--output_folder', required=True,
-                                            help='Output folder')
-    parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
-    parser.add_argument('-w', '--overWrite', required=False,action='store_true',
-                                                help='Overwrite output folder if it exists')
-    parser.add_argument('-c', '--Cancer', required=False,
-                        help='Cancer Name')
-    parser.add_argument('-m', '--multiple', required=False, action='store_true', help='Multiple sample VCF?')
-
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="walk_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
-    
-    
-    input = args.input
-    vcf_type = args.vcf_type
-    filters = args.filters
-    output_folder = args.output_folder
-    overwrite_output = args.overWrite
-    onco = args.oncoKB
-    cancer = args.Cancer
-    multiple = args.multiple
-    
-    walk_folder(input, multiple, output_folder, onco, cancer, overwrite_output, vcf_type, filters, log=False)
