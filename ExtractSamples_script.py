@@ -2,105 +2,108 @@ import os
 from ExtractSamples_functions import *
 from ValidateFolder import validateFolderlog
 from Make_meta_and_cases import meta_case_main
-from versioning import * 
+from versioning import *
 from loguru import logger
+import shutil
+import sys
 
-def extract_main(oldpath,removepath,outputfolder):
-
+def extract_main(oldpath, removepath, output, study_id, overwrite):
+    
     logger.info("Starting extract_main script:")
-    logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{outputfolder}]")	
+    logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, outputfolder:{output}]")	
     
-    if os.path.exists(oldpath):
-        logger.info("Original folder found")
-    if os.path.exists(removepath):
-        logger.info("Sample list to extract found")
-    
-    old_versions=get_version_list(outputfolder)
-    if len(old_versions)<=2:
-        logger.warning("Only one version founded!")
-    output=create_newest_version_folder(outputfolder)
-    logger.info(f"Creating a new folder: {output}")
-    output_caseslists=os.path.join(output,"case_lists")
+    logger.info("Checking input...")
+    if not os.path.isdir(oldpath):
+        logger.critical(f"{oldpath} is not a valid folder!")
+        sys.exit()	
+
+    if output!="":
+        no_out=False
+        if os.path.exists(oldpath):
+            logger.info("Original folder found")
+        if os.path.exists(removepath):
+            logger.info("Sample list to extract found")
+    else:
+        no_out=True
+        output=re.split(r'_v[0-9]$',oldpath)[0]
+   
+    old_versions=get_version_list(output)
+
+    if len(old_versions)>0 and os.path.exists(old_versions[-1]):
+        if overwrite:
+            logger.info(f"Overwrite option set. Start removing folder")
+            shutil.rmtree(old_versions[-1])
+
+    output=create_newest_version_folder(output)
+    logger.info(f"Creating a new folder: {output}")     
+    # os.mkdir(output)
+    output_caseslists=os.path.join(output, "case_lists")
     os.mkdir(output_caseslists)   
 
     logger.info("Great! Everything is ready to start")
 
-    os.system("cp "+oldpath+"/*meta* "+output)
-    sampleIds=open(removepath,"r").readlines()
-    sampleIds=[sample.strip() for sample in sampleIds]
+    os.system("cp " + oldpath + "/*meta* " + output)
 
-    
-    o_clinical_patient=os.path.join(oldpath,"data_clinical_patient.txt")
+    with open(removepath) as sample_list:
+        first_line = sample_list.readline()
+        if len(first_line.split("\t")) > 1:
+            logger.warning(f"The file {removepath} contains more than a column. It may not be in the correct format!")
+
+    sampleIds = open(removepath, "r").readlines()
+    sampleIds = [sample.strip() for sample in sampleIds]
+
+    o_clinical_patient = os.path.join(oldpath,"data_clinical_patient.txt")
     if os.path.exists(o_clinical_patient):
         extract_clinical_patient(oldpath,sampleIds,output)
     else:
         logger.warning("data_clinical_patient.txt not found in current folder. Skipping")
-    #
-    o_clinical_sample=os.path.join(oldpath,"data_clinical_sample.txt")
+    
+    o_clinical_sample = os.path.join(oldpath,"data_clinical_sample.txt")
     if os.path.exists(o_clinical_sample) :
         extract_clinical_samples(o_clinical_sample,sampleIds,output)
     else:
         logger.warning("data_clinical_sample.txt not found in current folder. Skipping")
     
-    o_cna_hg19=os.path.join(oldpath,"data_cna_hg19.seg")
+    o_cna_hg19 = os.path.join(oldpath,"data_cna_hg19.seg")
     if os.path.exists(o_cna_hg19):
         extract_cna_hg19(o_cna_hg19,sampleIds,output)
     else:
         logger.warning("data_cna_hg19.seg not found in current folder. Skipping")
     
-    #
-    o_cna=os.path.join(oldpath,"data_cna.txt")
+    o_cna = os.path.join(oldpath, "data_cna.txt")
     if os.path.exists(o_cna):
-        extract_cna(o_cna,sampleIds,output)
+        extract_cna(o_cna, sampleIds, output)
     else:
         logger.warning("data_cna.txt not found in current folder. Skipping")
     
-    #
-    o_mutations=os.path.join(oldpath,"data_mutations_extended.txt")
+    o_mutations = os.path.join(oldpath, "data_mutations_extended.txt")
     if os.path.exists(o_mutations):
-        extract_mutations(o_mutations,sampleIds,output)
+        extract_mutations(o_mutations, sampleIds, output)
     else:
         logger.warning("data_mutations_extended.txt not found in current folder. Skipping")
-    #
-    o_sv=os.path.join(oldpath,"data_sv.txt")
+    
+    o_sv = os.path.join(oldpath, "data_sv.txt")
     if os.path.exists(o_sv):
-        extract_sv(o_sv,sampleIds,output)
+        extract_sv(o_sv,sampleIds, output)
     else:
         logger.warning("data_sv.txt not found in current folder. Skipping")
     
-    #
-    o_cases_cna=os.path.join(oldpath,"case_lists/cases_cna.txt")
-    if os.path.exists(o_cases_cna):
-        extract_caselist_cna(o_cases_cna,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_cna.txt not found in 'case_lists' folder. Skipping")
+    cancer, study_info = extract_info_from_meta(oldpath)
+    study_info.append(oldpath)
+    study_info.append(no_out)
+    meta_case_main(cancer, output, study_info, study_id)
     
-    o_cases_sequenced=os.path.join(oldpath,"case_lists/cases_sequenced.txt")
-    if os.path.exists(o_cases_sequenced):
-        extract_caselist_sequenced(o_cases_sequenced,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_sequenced.txt not found in 'case_lists' folder. Skipping")
-    #  
-    o_cases_sv=os.path.join(oldpath,"case_lists/cases_sv.txt")
-    if os.path.exists(o_cases_sv):
-        extract_caselist_sv(o_cases_sv,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_sv.txt not found in 'case_lists' folder. Skipping")
+    # if len(old_versions)>=1:
+    #     old_version=old_versions[-1]
+    #     compare_version(output, old_version, "extract", output)
 
-
-    cancer,vus=extract_info_from_meta(oldpath)
-    meta_case_main(cancer,vus,output)
+    compare_version(oldpath, output, "extract")
     
-    
-   
-    #old_version=outputfolder+"_v"+str(extract_version_int(output)-1)
-    if len(old_versions)>1:
-        old_version=old_versions[-1]
-        compare_version(output,old_version,"delete",output)
-
-
     logger.info("Starting Validation Folder...")
     validateFolderlog(output)
     logger.success("The process ended without errors")
     logger.success("Successfully extracted sample(s)!")
+    
 
+    
+    

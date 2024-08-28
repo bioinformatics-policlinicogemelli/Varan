@@ -35,3 +35,26 @@ def main(INPUT, OUTPUT):
     write_header_lines(INPUT,OUTPUT)
     parsing_vcf(INPUT,OUTPUT)
 
+if __name__ == '__main__':
+
+
+# parse arguments
+    parser = argparse.ArgumentParser(description="Filter for a vcf",
+                                            epilog="Version: 1.0\n\
+                                            Author: Bioinformatics Facility GSTeP'\n\
+                                            email: luciano.giaco@policlinicogemelli.it")
+
+    # arguments
+    parser.add_argument('-i', '--input', help="<input.vcf>\
+                                            VCF file to filter",
+                                            required=True)
+    parser.add_argument('-o', '--output', help="<output-file.tab>\
+                                            file path of the Table output",
+                                            required=True)
+
+    args = parser.parse_args()
+    INPUT = args.input
+    OUTPUT = args.output
+
+    main(INPUT, OUTPUT)
+

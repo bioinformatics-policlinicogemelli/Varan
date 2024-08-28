@@ -19,7 +19,7 @@ def delete_clinical_samples(file_path, sample_ids, output_folder):
         
     """
     file = pd.read_csv(file_path, sep="\t")
-    filtered = file[~file["Sample Identifier"].astype(str).isin(sample_ids)]
+    filtered = file[~file.iloc[:, 0].astype(str).isin(sample_ids)]
     filtered.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=False, sep="\t")
 
 
@@ -39,12 +39,23 @@ def delete_clinical_patient(oldpath, sample_ids, output_folder):
     """
     file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t")
     sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t")
-    patient_ids = list(sample[sample["Sample Identifier"].astype(str).isin(sample_ids)]["#Patient Identifier"])
-    filtered = file[~file["#Patient Identifier"].astype(str).isin(patient_ids)]
-    filtered.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t")
-
+    patient_ids = list(sample[sample.iloc[:, 0].astype(str).isin(sample_ids)].iloc[:, 1])
     
-
+    # clean file from un-find samples
+    sample_ids=list(sample[sample.iloc[:, 0].astype(str).isin(sample_ids)].iloc[:, 0])
+    
+    if len(sample[sample.iloc[:, 1].astype(str).isin(patient_ids)]) > len(sample_ids):
+        pzt_list=sample[sample.iloc[:, 1].astype(str).isin(patient_ids)]
+        pzt_dup=[pzt_list[pzt_list.duplicated(subset=sample.iloc[0, 1])].iloc[0,1]]
+        
+        for p_dup in pzt_dup:
+            df_dup=pzt_list[pzt_list.iloc[:,1]==p_dup]
+            if len(df_dup[df_dup.iloc[:, 0].astype(str).isin(sample_ids)])<df_dup.shape[0]:
+                patient_ids.remove(p_dup)
+        
+    filtered = file[~file.iloc[:, 0].astype(str).isin(patient_ids)]
+    filtered.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t")
+   
 def delete_cna_hg19(file_path, sample_ids, output_folder):
     """
     Delete specific copy number alteration data from a file in hg19 format.
@@ -111,10 +122,14 @@ def delete_sv(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output file will be saved.
 
     """
-
-    old_file=pd.read_csv(file_path,sep="\t")
-    new_file=old_file[~old_file["Sample_Id"].isin(sample_ids)]
-    new_file.to_csv(os.path.join(output_folder,"data_sv.txt"),sep="\t",index=False)
+    with open(file_path, "r") as old_file:
+        with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
+            for line in old_file:
+                if not any(word in line for word in sample_ids):
+                    list_split = line.split("\t\t")
+                    list_strip = [elem.strip() for elem in list_split]
+                    new_row = "\t".join(list_strip) + '\n'
+                    of.write(new_row)
 
 
 def delete_caselist_cna(file_path, sample_ids, output_folder):

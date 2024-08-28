@@ -1,36 +1,56 @@
 import os
+import sys
+import argparse
+import shutil
 from Make_meta_and_cases import meta_case_main
 from Delete_functions import *
 from ValidateFolder import validateFolderlog
 from versioning import *
 from loguru import logger
 
-
-def delete_main(oldpath,removelist,destinationfolder):    
+def delete_main(oldpath, removepath, output, study_id, overwrite):
+    
     logger.info("Starting delete_main script:")
-    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removelist}, destinationfolder:{destinationfolder}]")	
-    
-    if os.path.exists(oldpath):
-        logger.info("Original folder found")
-    
-    if os.path.exists(removelist):
-        logger.info("Sample list to remove found")
-    
-    old_versions=get_version_list(destinationfolder)
-    if len(old_versions)<=2:
-        logger.warning("Only one version founded!")
-    output=create_newest_version_folder(destinationfolder)
-    logger.info(f"Creating a new folder: {output}")
-    output_caseslists=os.path.join(output,"case_lists")
-    os.mkdir(output_caseslists)   
+    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{output}]")
 
+    logger.info("Checking input...")
+    if not os.path.isdir(oldpath):
+        logger.critical(f"{oldpath} is not a valid folder!")
+        sys.exit()	
+
+    if output!="":
+        no_out=False
+        if os.path.exists(oldpath):
+            logger.info("Original folder found")
+        if os.path.exists(removepath):
+            logger.info("Sample list to remove found")
+    else:
+        no_out=True
+        output=re.split(r'_v[0-9]$',oldpath)[0]
+    
+    old_versions = get_version_list(output)
+    if len(old_versions)>0 and os.path.exists(old_versions[-1]):
+        if overwrite:
+            logger.info(f"Overwrite option set. Start removing folder")
+            shutil.rmtree(old_versions[-1])
+    
+    output = create_newest_version_folder(output)
+    logger.info(f"Creating a new folder: {output}")
+    output_caseslists = os.path.join(output, "case_lists")
+    os.mkdir(output_caseslists)
+    
     logger.info("Great! Everything is ready to start")
 
-    os.system("cp "+oldpath+"/*meta* "+output)
-    sampleIds=open(removelist,"r").readlines()
-    sampleIds=[sample.strip() for sample in sampleIds]
+    os.system("cp " + oldpath + "/*meta* " + output)
 
-    
+    with open(removepath) as sample_list:
+        first_line = sample_list.readline()
+        if len(first_line.split("\t")) > 1:
+            logger.warning(f"The file {removepath} contains more than a column. It may not be in the correct format!")
+
+    sampleIds = open(removepath,"r").readlines()
+    sampleIds = [sample.strip() for sample in sampleIds]
+
     o_clinical_patient=os.path.join(oldpath,"data_clinical_patient.txt")
     if os.path.exists(o_clinical_patient):
         delete_clinical_patient(oldpath,sampleIds,output)
@@ -68,43 +88,20 @@ def delete_main(oldpath,removelist,destinationfolder):
         delete_sv(o_sv,sampleIds,output)
     else:
         logger.warning("data_sv.txt not found in current folder. Skipping")
-    #
     
-    o_cases_cna=os.path.join(oldpath,"case_lists/cases_cna.txt")
-    if os.path.exists(o_cases_cna):
-        delete_caselist_cna(o_cases_cna,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_cna.txt not found in 'case_lists' folder. Skipping")
+    cancer, study_info = extract_info_from_meta(oldpath)
+    study_info.append(oldpath)
+    study_info.append(no_out)
     
-    o_cases_sequenced=os.path.join(oldpath,"case_lists/cases_sequenced.txt")
-    if os.path.exists(o_cases_sequenced):
-        delete_caselist_sequenced(o_cases_sequenced,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_sequenced.txt not found in 'case_lists' folder. Skipping")
-    #  
-    o_cases_sv=os.path.join(oldpath,"case_lists/cases_sv.txt")
-    if os.path.exists(o_cases_sv):
-        delete_caselist_sv(o_cases_sv,sampleIds,output_caseslists)
-    else:
-        logger.warning("cases_sv.txt not found in 'case_lists' folder. Skipping")
+    meta_case_main(cancer, output, study_info, study_id)
+    
+    # if len(old_versions)>=1:
+    #     old_version=old_versions[-1]
+    #     compare_version(output, old_version, "delete", output)
 
-
-
-    cancer,vus=extract_info_from_meta(oldpath)
-    meta_case_main(cancer,vus,output)
-
+    compare_version(oldpath, output, "delete")
 
     logger.info("Starting Validation Folder...")
-
     validateFolderlog(output)
-    
-    
-    
-    if len(old_versions)>1:
-        old_version=old_versions[-1]
-        compare_version(output,old_version,"delete",output)
-    
-    
     logger.success("The process ended without errors")
-    logger.success("Please, check DeleteScript.log to verify that everything went as expected.")
-    logger.success("Successfully deleted sample(s)!")
+    logger.success("Successfully removed sample(s)!")
