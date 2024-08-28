@@ -72,7 +72,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     # if len(old_versions)>=1:
     #     compare_version(newpath, oldpath, "update", output)
 
-    compare_version(output, newpath, "update")
+    compare_version_update(oldpath, newpath, output, "update")
 
     logger.success("The process ended without errors")
     logger.success("Successfully updated study!")

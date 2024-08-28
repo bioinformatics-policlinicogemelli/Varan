@@ -43,6 +43,12 @@ def extract_main(oldpath, removepath, output, study_id, overwrite):
     logger.info("Great! Everything is ready to start")
 
     os.system("cp " + oldpath + "/*meta* " + output)
+
+    with open(removepath) as sample_list:
+        first_line = sample_list.readline()
+        if len(first_line.split("\t")) > 1:
+            logger.warning(f"The file {removepath} contains more than a column. It may not be in the correct format!")
+
     sampleIds = open(removepath, "r").readlines()
     sampleIds = [sample.strip() for sample in sampleIds]
 
@@ -91,7 +97,7 @@ def extract_main(oldpath, removepath, output, study_id, overwrite):
     #     old_version=old_versions[-1]
     #     compare_version(output, old_version, "extract", output)
 
-    compare_version(output, oldpath, "extract")
+    compare_version(oldpath, output, "extract")
     
     logger.info("Starting Validation Folder...")
     validateFolderlog(output)

@@ -7,13 +7,13 @@ version = "1.0"
 
 import os
 import ast
-import argparse
 import concatenate
 import pandas as pd
 from configparser import ConfigParser
 from loguru import logger
 import sys
 import shutil
+import numpy as np
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
@@ -142,6 +142,7 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
     #         raise(Exception('Exiting from filter_clinvar script!'))
 
     file_list = concatenate.get_files_by_ext(folder, 'maf')
+
     if len(file_list)==0:
         logger.warning(f"The maf folder {os.path.join(folder, 'maf')} seems to be empty! Filtering cannot be done.")
         logger.critical("Empty maf folder: Filter script exited before completing!")
@@ -164,6 +165,8 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
             input_file=pd.read_csv(input,sep="\t")
     
         for f in file_list:
+            if extension in f:
+                continue
             _, file = os.path.split(f)
             file_No = file.replace('.maf','') + extension
             file_path = os.path.join(output_onco, file_No)
@@ -172,14 +175,15 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
                 for _ ,row in input_file.iterrows():
                     if row["SampleID"] in file_No:
                         cancer_onco=row["ONCOTREE_CODE"]
-                        
+                        if np.isnan(cancer_onco) or cancer_onco == "":
+                            cancer_onco = cancer
                         os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f}\
                                 -o {file_path} -t {cancer_onco.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
             else:               
                 os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f}\
                             -o {file_path} -t {cancer.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
         
-    file_list =concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
+    file_list = concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
     out_filter=os.path.join(output_folder, 'MAF_filtered')
 
     if oncokb and "o" in filters:   
@@ -315,45 +319,3 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
     #             write_csv_with_info(filtered_data, file_path)
     
     logger.success("Filter script completed!\n")
-
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)
-
-if __name__ == '__main__':
-    
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='filter out the variants with benign and likely benign from maf file \
-                                                The filter is on clinVar annotation')
-
-    parser.add_argument('-i', '--input', required=True,
-                                            help='Path folder containing the maf files')
-    parser.add_argument('-f', '--folder', required=True,
-                                            help='Path folder containing the maf files')
-    parser.add_argument('-o', '--output_folder', required=True,
-                                            help='Output folder')
-    parser.add_argument('-w', '--overWrite', required=False,action='store_true',
-                                                help='Overwrite output folder if it exists')
-    parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
-    parser.add_argument('-c', '--Cancer', required=False,
-                        help='Cancer Name')
-
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="filter_clinvar_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
-    
-    folder = args.folder
-    output_folder = args.output_folder
-    overwrite = args.overWrite
-    input=args.input
-    oncokb=args.oncoKB
-    cancer=args.Cancer
-    filters=args.filters
-    
-    filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, overwrite=False, novel=True, log=False)

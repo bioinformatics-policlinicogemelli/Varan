@@ -28,22 +28,28 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
         no_out=True
         output=re.split(r'_v[0-9]$',oldpath)[0]
     
-    old_versions=get_version_list(output)
+    old_versions = get_version_list(output)
     if len(old_versions)>0 and os.path.exists(old_versions[-1]):
         if overwrite:
             logger.info(f"Overwrite option set. Start removing folder")
             shutil.rmtree(old_versions[-1])
     
-    output=create_newest_version_folder(output)
+    output = create_newest_version_folder(output)
     logger.info(f"Creating a new folder: {output}")
-    output_caseslists=os.path.join(output,"case_lists")
+    output_caseslists = os.path.join(output, "case_lists")
     os.mkdir(output_caseslists)
     
     logger.info("Great! Everything is ready to start")
 
-    os.system("cp "+oldpath+"/*meta* "+output)
-    sampleIds=open(removepath,"r").readlines()
-    sampleIds=[sample.strip() for sample in sampleIds]
+    os.system("cp " + oldpath + "/*meta* " + output)
+
+    with open(removepath) as sample_list:
+        first_line = sample_list.readline()
+        if len(first_line.split("\t")) > 1:
+            logger.warning(f"The file {removepath} contains more than a column. It may not be in the correct format!")
+
+    sampleIds = open(removepath,"r").readlines()
+    sampleIds = [sample.strip() for sample in sampleIds]
 
     o_clinical_patient=os.path.join(oldpath,"data_clinical_patient.txt")
     if os.path.exists(o_clinical_patient):
@@ -93,7 +99,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
     #     old_version=old_versions[-1]
     #     compare_version(output, old_version, "delete", output)
 
-    compare_version(output, oldpath, "delete")
+    compare_version(oldpath, output, "delete")
 
     logger.info("Starting Validation Folder...")
     validateFolderlog(output)

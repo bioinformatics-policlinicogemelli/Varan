@@ -231,7 +231,7 @@ if __name__ == '__main__':
 
     # FILTER BLOCK
     parser.add_argument('-f', '--Filter', required=False, 
-                        help='Select filter for SNV [d -> filter p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens -> clin_sig, n -> novel]',default="")
+                        help='Select filter for SNV [d -> filter, p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens, c -> clin_sig, n -> novel]',default="")
     
     # UPDATE BLOCK
 
@@ -282,15 +282,20 @@ if __name__ == '__main__':
         extract=args.Extract
         remove=args.Remove
         
-        if not any([args.Update ,args.Extract , args.Remove]) and args.input==None:
+
+        if sum([args.Update, args.Extract, args.Remove]) > 1:
+            logger.critical("Please select only one option between Update, Extract and Remove")
+            sys.exit()
+
+        if not any([args.Update, args.Extract, args.Remove]) and args.input==None:
             logger.critical("Error Argument: Input is required")
             sys.exit()
 
-        if not any([args.Update ,args.Extract , args.Remove]) and args.output_folder=="":
+        if not any([args.Update, args.Extract, args.Remove]) and args.output_folder=="":
             logger.critical("Error Argument: Output is required")
             sys.exit()
         
-        if not any([args.Update ,args.Extract , args.Remove]) and args.Cancer==None:
+        if not any([args.Update, args.Extract, args.Remove]) and args.Cancer==None:
             logger.critical("Error Argument: Cancer name is required")
             sys.exit()
 
@@ -299,7 +304,7 @@ if __name__ == '__main__':
             sys.exit()
 
         if (any([args.Remove,args.Extract]) and args.Path==None) or (any([args.Remove,args.Extract]) and args.SampleList==None):
-            logger.critical("To remove/extract samples from a study, you need to specify both original folder path and list samples")
+            logger.critical("To remove/extract samples from a study, you need to specify both original folder path and samples' list")
             sys.exit()
             
         if (args.output_folder=="" and args.Name!=""):

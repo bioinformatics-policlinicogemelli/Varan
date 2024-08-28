@@ -310,10 +310,10 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     if os.path.exists(os.path.join(output_folder,"data_clinical_sample.txt")):
         create_meta_clinical_sample(project_id, output_folder)
         logger.info("meta_clinical_sample.txt created!")
-    if os.path.exists(os.path.join(os.path.join(output_folder,"data_mutations_extended.txt"))):
+    if os.path.exists(os.path.join(output_folder,"data_mutations_extended.txt")):
         create_meta_mutations(cancer, project_id, profile_mut, output_folder)
         logger.info("meta_mutations_extended.txt created!")
-    if os.path.exists(os.path.join(os.path.join(output_folder,"data_sv.txt"))):
+    if os.path.exists(os.path.join(output_folder,"data_sv.txt")):
         create_meta_sv(project_id, profile_sv, output_folder)
         logger.info("meta_sv.txt created!")
     if os.path.exists(os.path.join(output_folder,"data_cna.txt")):
@@ -322,7 +322,7 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     if os.path.exists(os.path.join(output_folder,"data_cna_hg19.seg")):
         create_meta_cna_hg19(project_id, profile_cna19, output_folder)
         logger.info("meta_cna_hg19.txt created!")
-
+        
     ########### CASE LIST FUNCTION ###########
 
     if os.path.exists(os.path.join(output_folder,"data_mutations_extended.txt")):
