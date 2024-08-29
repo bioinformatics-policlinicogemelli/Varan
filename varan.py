@@ -37,21 +37,20 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
                 f"overwrite_output:{overwrite_output}, resume:{resume}, multiple:{multiple}],",
                             f"update:{update}, extract:{extract}, remove:{remove}")
 
-    if not any([update ,extract , remove]) :       
+    if not any([update, extract, remove]) :       
             
             ###########################
             #        1.  WALK         #
             ###########################
             
-            import pdb; pdb.set_trace()
             logger.info("Starting preparation study folder")
             
-            if len(input)==1 or input[1].strip=="": 
-                pzt_tsv=""
-            else: pzt_tsv=input[1]
+            if len(input) == 1 or input[1].strip == "": 
+                patient_tsv = ""
+            else: patient_tsv = input[1]
                 
-            input= input[0]
-            output_folder = walk_folder(input, multiple, output_folder, oncoKB, cancer, pzt_tsv, overwrite_output, resume, vcf_type, filters)
+            input = input[0]
+            output_folder = walk_folder(input, patient_tsv, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, vcf_type, filters)
 
 
             ###########################
@@ -59,7 +58,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, vcf_type=None, overwrit
             ###########################
         
             logger.info("Starting filter")    
-            import pdb;pdb.set_trace()
+
             #filter_main(output_folder, output_folder, vus,overwrite_output,log)
             if args.vcf_type =="snv" or (vcf_type==None and os.path.exists(os.path.join(input,"SNV"))):
                 filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
