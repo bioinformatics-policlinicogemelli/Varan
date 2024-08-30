@@ -609,7 +609,6 @@ def check_multiple_folder(input_dir, multiple):
 
 def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     logger.info("Writing data_clinical_sample.txt file...")
-
     # Get headers from conf.ini if they're present
     conf_header_short = config.get('ClinicalSample', 'HEADER_SAMPLE_SHORT')
     conf_header_long = config.get('ClinicalSample', 'HEADER_SAMPLE_LONG')
@@ -619,25 +618,26 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     data_clin_samp = pd.read_csv(clin_samp_path, sep="\t", header=0, dtype=str)
 
     # Drop paths columns
-    if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no
+    if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no TODO decidere se mantenere così
         data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
     
     # Capitalize df columns
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
 
-    # Read CombinedOutput and add column names
     combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
+    combout_df = combout_df.rename(columns={"index": "SAMPLEID", 0: "PATIENTID"})
+    
+    final_data_sample = data_clin_samp
+    import pdb; pdb.set_trace()
 
-    # Create columns if they don't exist and add names
-    desired_columns = ["SAMPLEID", "PATIENTID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
-    combout_df.columns = desired_columns[:len(combout_df.columns)]
+    if len(combout_df.columns) > 2:
+        data_clin_samp.drop(columns=["MSI_THR", "TMB_THR"], inplace=True)
+        combout_df = combout_df.rename(columns={1: "MSI", 2: "TMB", 3: "MSI_THR", 4:"TMB_THR"})
+        if any(data_clin_samp["MSI"] != combout_df["MSI"]) or any(data_clin_samp["TMB"] != combout_df["TMB"]):
+            logger.warning("MSI and/or TMB values are reported in sample.tsv and CombinedOutput but they mismatch! CombinedOutput values were selected by default")
+            data_clin_samp.drop(columns=["MSI", "TMB"], inplace=True)
+        final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
 
-    for col in desired_columns:
-        if col not in combout_df.columns:
-            combout_df[col] = np.nan
-
-    # Merge the two dataframes
-    final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
 
     # Create list of default columns
     dataclin_columns = list(final_data_sample.columns)
@@ -647,16 +647,15 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     final_data_sample = pd.concat([default_row, final_data_sample], ignore_index=True) 
 
     # Add header's fourth row (SERIES OF 1s)
-    header_numbers = pd.DataFrame([[1] * len(final_data_sample.columns)], columns=final_data_sample.columns)
+    header_numbers = pd.DataFrame([[1] * len(final_data_sample.columns)], columns=dataclin_columns)
     final_data_sample = pd.concat([header_numbers, final_data_sample], ignore_index=True)
 
     # Add header's third row (HEADER_SAMPLE_TYPE)
     if not conf_header_type:
-        cols = final_data_sample.columns.tolist()
-        header_row = ["STRING"] * len(cols)
-        header_row[cols.index('MSI')] = "NUMBER"
-        header_row[cols.index('TMB')] = "NUMBER"
-        sample_header_type = pd.DataFrame([header_row], columns=cols)
+        header_row = ["STRING"] * len(dataclin_columns)
+        header_row[dataclin_columns.index('MSI')] = "NUMBER"
+        header_row[dataclin_columns.index('TMB')] = "NUMBER"
+        sample_header_type = pd.DataFrame([header_row], columns=dataclin_columns)
     else:
         types_list = conf_header_type.split(',')
         types_list = list(map(lambda x: x.strip(), types_list))
@@ -667,7 +666,7 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
         try:
             types_list = list(map(lambda x: x.upper(), types_list))
             types_list = types_list + ["NUMBER", "NUMBER", "STRING", "STRING"]
-            sample_header_type = pd.DataFrame([types_list], columns=final_data_sample.columns)
+            sample_header_type = pd.DataFrame([types_list], columns=dataclin_columns)
         except ValueError:
             logger.critical(f"The number of column names ({len(types_list)}) in HEADER_SAMPLE_TYPE is different from the effective number of columns ({len(final_data_sample.columns)}).") 
             raise(NameError("Different number of columns: exiting from walk script!"))
@@ -678,8 +677,8 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
         sample_header_long = default_row
     else:
         try:
-            combined_headers = conf_header_long.split(",") + desired_columns[2:]
-            sample_header_long = pd.DataFrame([combined_headers], columns=final_data_sample.columns)
+            combined_headers = conf_header_long.split(",")
+            sample_header_long = pd.DataFrame([combined_headers], columns=dataclin_columns)
         except ValueError:
             logger.critical(f"The number of column names ({len(combined_headers)}) in HEADER_SAMPLE_LONG in conf.ini is different from the effective number of columns ({len(final_data_sample.columns)}).") 
             raise(NameError("Different number of columns: exiting from walk script!"))    
@@ -690,8 +689,8 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
         sample_header_short = default_row
     else:
         try:
-            combined_headers = conf_header_short.split(",") + desired_columns[2:]
-            sample_header_short = pd.DataFrame([combined_headers], columns=final_data_sample.columns)
+            combined_headers = conf_header_short.split(",")
+            sample_header_short = pd.DataFrame([combined_headers], columns=dataclin_columns)
         except ValueError:
             logger.critical(f"The number of column names ({len(combined_headers)}) in HEADER_SAMPLE_SHORT in conf.ini is different from the effective number of columns ({len(final_data_sample.columns)}).") 
             raise(NameError("Different number of columns: exiting from walk script!")) 
@@ -1151,7 +1150,7 @@ def walk_folder(input, sample_pzt, multiple, output_folder, oncokb, cancer, over
     
     if sample_pzt.strip()!="":
         logger.info("Writing data_clinical_patient.txt file...")
-
+        
         input_file_path = os.path.join(input_folder, os.path.basename(sample_pzt))
         data_clin_pat = pd.read_csv(input_file_path, sep="\t", header=0, dtype=str)
         
@@ -1187,58 +1186,19 @@ def walk_folder(input, sample_pzt, multiple, output_folder, oncokb, cancer, over
 
     else:
         write_default_clinical_patient(output_folder, table_dict_patient)
-    #fileinputclinical=pd.read_csv(tsvpath, sep="\t", index_col=False, dtype=str)
+
+    fileinputclinical = pd.read_csv(os.path.join(input_folder, "sample.tsv"), sep="\t", index_col=False, dtype=str)
+    
+    MSI_THR = config.get('MSI', 'THRESHOLD')
+    TMB = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
     
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and \
-    len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
-        combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_sample_path, isinputfile)
-        MSI_THR = config.get('MSI', 'THRESHOLD')
-        TMB = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
-        
-        for k, v in combined_dict.items():
-            logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
-            try:
-                tmv_msi = tsv.get_msi_tmb(v)
-            except Exception as e:
-                logger.error(f"Something went wrong!")
-            logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
-            
-            if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
-                table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
-            else:
-                table_dict_patient[k].append('NA')
-            table_dict_patient[k].append(tmv_msi['TMB_Total'])
-            if not tmv_msi['MSI'][0][1]=="NA":
-                if not tmv_msi['MSI'][1][1] =="NA":
-                    if eval("float(tmv_msi['MSI'][1][1])"+MSI_THR):
-                        table_dict_patient[k].append("Stable")   
-                    else:
-                        table_dict_patient[k].append('Unstable')
+        len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
+        combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_sample_path, isinputfile)        
+        table_dict_patient = fill_from_combined(combined_dict, table_dict_patient, MSI_THR, TMB)
+    else:
+        table_dict_patient = fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB)
 
-                    found = False
-                else:
-                    table_dict_patient[k].append('NA')
-            else:
-                table_dict_patient[k].append('NA')
-            found = False
-            for _k, _v in TMB.items():
-                if not tmv_msi["TMB_Total"]=="NA":
-                    if float(tmv_msi["TMB_Total"])<float(_v):
-                        table_dict_patient[k].append(_k)
-                        found = True
-                        break
-                else:
-                    table_dict_patient[k].append("NA")
-            if found==False:
-                table_dict_patient[k].append(list(TMB.keys())[-1])
-        
-        # run=str(fileinputclinical[fileinputclinical["SampleID"]==k]["RunID"].values[0])
-        # tc=str(fileinputclinical[fileinputclinical["SampleID"]==k]["TC"].values[0])
-        # oncotree=str(fileinputclinical[fileinputclinical["SampleID"]==k]["ONCOTREE_CODE"].values[0])
-        
-        # table_dict_patient[k].append(run) 
-        # table_dict_patient[k].append(oncotree)
-        # table_dict_patient[k].append(tc)
     write_clinical_sample(clin_sample_path, output_folder, table_dict_patient)
 
     #DECOMMENTARE UNA VOLTA FINITI TEST
@@ -1256,3 +1216,67 @@ def walk_folder(input, sample_pzt, multiple, output_folder, oncokb, cancer, over
     logger.success("Walk script completed!\n")
 
     return output_folder
+
+def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
+    logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
+    import pdb; pdb.set_trace()
+    for k, m, t in zip(fileinputclinical["SampleID"], fileinputclinical["MSI"], fileinputclinical["TMB"]):
+        table_dict_patient[k].append(m)
+        table_dict_patient[k].append(t)
+        
+        if np.isnan(float(m)):
+            table_dict_patient[k].append("NA")
+        else:
+            if eval("float(m)" + MSI_THR):
+                table_dict_patient[k].append("Stable")   
+            else:
+                table_dict_patient[k].append('Unstable')
+
+        for _k, _v in TMB.items():
+            if not np.isnan(float(t)):
+                if eval("float(t)" + _v):
+                    table_dict_patient[k].append(_k)
+                    break
+            else:
+                table_dict_patient[k].append("NA")
+    return table_dict_patient
+
+def fill_from_combined(combined_dict, table_dict_patient, MSI_THR, TMB):
+    for k, v in combined_dict.items():
+        logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
+        try:
+            tmv_msi = tsv.get_msi_tmb(v)
+        except Exception as e:
+            logger.error(f"Something went wrong!")
+        logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
+        
+            # TODO mettere soglia 40 in conf.ini
+        if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
+            table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
+        else:
+            table_dict_patient[k].append('NA')
+        table_dict_patient[k].append(tmv_msi['TMB_Total'])
+        if not tmv_msi['MSI'][0][1]=="NA":
+            if not tmv_msi['MSI'][1][1] =="NA":
+                if eval("float(tmv_msi['MSI'][1][1])"+MSI_THR):
+                    table_dict_patient[k].append("Stable")   
+                else:
+                    table_dict_patient[k].append('Unstable')
+
+                found = False
+            else:
+                table_dict_patient[k].append('NA')
+        else:
+            table_dict_patient[k].append('NA')
+        found = False
+        for _k, _v in TMB.items():
+            if not tmv_msi["TMB_Total"]=="NA":
+                if eval(tmv_msi["TMB_Total"] + _v):
+                    table_dict_patient[k].append(_k)
+                    found = True
+                    break
+            else:
+                table_dict_patient[k].append("NA")
+        if found==False:
+            table_dict_patient[k].append(list(TMB.keys())[-1])
+    return table_dict_patient
