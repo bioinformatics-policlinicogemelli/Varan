@@ -67,7 +67,7 @@ optional arguments:
 -o OUTPUT_FOLDER, --output_folder OUTPUT_FOLDER Output folder
 -s SAMPLELIST, --SampleList SAMPLELIST Path of file with list of SampleIDs
 -p PATH, --Path PATH Path of original study folder
--N NAME, --Name Name Add this argument if you want to extract samples froma a study
+-N NAME, --Name Name Add this argument if you want to give a custom name to the extract study
 ```
 <p align="justify">
 ⚠️ <i>If any error is printed while launching varan.py, check if the step 3 completed without errors</i>
