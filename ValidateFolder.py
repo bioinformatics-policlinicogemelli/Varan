@@ -1,10 +1,9 @@
 import os
-from os import walk
 import argparse
 from loguru import logger
 import sys
 
-def validateFolderlog(folder, log=False):
+def validateFolderlog(folder):
     """
     Validates the contents of the folder against required files for cBioPortal data upload.
     
