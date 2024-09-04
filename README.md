@@ -53,19 +53,21 @@ Argument of Varan script
 optional arguments:
 -h, --help show this help message and exit
 -c CANCER, --Cancer CANCER Cancer Name
--d, --Directory Add this argument if input is a folder
--i INPUT, --input INPUT input folder tsv with data or tsv with path of data
--f, --filter_snv Filter out from the vcf the variants wit dot (.) in Alt column
--t {snv,cnv}, --vcf_type {snv,cnv} Select the vcf file to parse
+-i INPUT[INPUT ...], --input INPUT [INPUT ...]input folder/sample tsv (required) and patient tsv
+-t {snv,cnv}, --analysis_type {snv,cnv,fus,tab} Select the the analysis to follow [snv -> snv analysis; cnv -> cnv analysis; fus -> fusions analysis; tab -> table creation]
 -w, --overWrite Overwrite output folder if it exists
--v, --vus Filter out VUS variants
+-R, --resume Resume an already started analysis
+-m, --multiple Multiple sample VCF
+-f, -f FILTER,
+-Filter FILTER Select filter for SNV [d → filter, p → filter=PASS, b-> Benign, v-> vaf, o→> Oncokb, g → gnomAD, q > Consequence, y→ polyphens, c → clin_sig, n → novel]
 -u, --Update Add this argument if you want to concatenate two studies
--n NEWPATH, --NewPath NEWPATH Path of new study folder to add
--r, --Remove Add this argument if you want to remove samples from a study
+-n NEWPATH, --NewPath NEWPATH Path of new study to add
+-r, --Remove Add this argument if you want remove samples from a study
 -e, --Extract Add this argument if you want to extract samples from a study
 -o OUTPUT_FOLDER, --output_folder OUTPUT_FOLDER Output folder
 -s SAMPLELIST, --SampleList SAMPLELIST Path of file with list of SampleIDs
 -p PATH, --Path PATH Path of original study folder
+-N NAME, --Name Name Add this argument if you want to extract samples froma a study
 ```
 <p align="justify">
 ⚠️ <i>If any error is printed while launching varan.py, check if the step 3 completed without errors</i>
