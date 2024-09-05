@@ -799,7 +799,7 @@ def check_field_tsv(row, name):
 
 def get_combinedVariantOutput_from_folder(inputFolder, file, isinputfile):
     combined_dict = dict()
-        
+
     for _,row in file.iterrows():
         
         #patientID = check_field_tsv(row, "PatientID")
@@ -876,7 +876,7 @@ def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
 
 
 def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
-    import pdb;pdb.set_trace()
+
     nfusion=len(fusion_files) 
     logger.info(f"Found {nfusion} Fusion files ")
             
@@ -980,7 +980,7 @@ def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
                 table_dict_patient[k].append("NA")
     return table_dict_patient
 
-def fill_from_combined(combined_dict, table_dict_patient, MSI_THR, TMB):
+def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB):
     for k, v in combined_dict.items():
         logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
         try:
@@ -988,9 +988,8 @@ def fill_from_combined(combined_dict, table_dict_patient, MSI_THR, TMB):
         except Exception as e:
             logger.error(f"Something went wrong!")
         logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
-        
-            # TODO mettere soglia 40 in conf.ini
-        if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
+
+        if not tmv_msi['MSI'][0][1]=="NA" and eval("float(tmv_msi['MSI'][0][1])" + MSI_SITES_THR):    
             table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
         else:
             table_dict_patient[k].append('NA')
@@ -1111,12 +1110,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             logger.info("Starting vcf2maf conversion...")
             if "d" in filters:
                 logger.info("filtering out vcfs with dots in ALT column")
-            #     temporary = create_random_name_folder()
                 sID_path_snv = vcf_filtering(sID_path_snv,output_folder)
-            #     for k, v in sID_path_filtered.items():
-            #         cl = vcf2maf_constructor(k, v, temporary,output_folder)
-            #         run_vcf2maf(cl)
-            # else:
             temporary = create_random_name_folder()
             for k, v in sID_path_snv.items():
                 cl = vcf2maf_constructor(k, v, temporary,output_folder)
@@ -1138,7 +1132,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     except Exception as e:
         logger.critical(f"Something went wrong while reading {clin_sample_path}!")
         raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
-    
+
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)       
         fill_fusion_from_combined(fusion_table_file, combined_dict)
@@ -1213,8 +1207,10 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and \
         len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
-        combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_sample_path, isinputfile)        
-        table_dict_patient = fill_from_combined(combined_dict, table_dict_patient, MSI_THR, TMB)
+        MSI_SITES_THR = config.get('MSI', 'THRESHOLD_SITES')
+
+        combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)        
+        table_dict_patient = fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB)
     else:
         table_dict_patient = fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB)
 

@@ -30,7 +30,6 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ###########################
         
         logger.info("Starting preparation study folder")
-        
         output_folder, input, _ = walk_folder(input, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, analysis_type, filters)
 
 
@@ -39,7 +38,6 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ###########################
     
         logger.info("Starting filter")  
-        
         if not analysis_type in ["cnv", "fus", "tab"]:
             filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
 
@@ -50,7 +48,6 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
 
         if  os.path.exists(os.path.join(output_folder,"maf")) and not analysis_type in ["cnv", "fus", "tab"]:
             logger.info("Concatenate mutation file")
-
             concatenate_main(filters, output_folder,"maf", oncoKB)
                 
                 
@@ -68,6 +65,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
 
         logger.info("Starting Validation Folder")
         validateFolderlog(output_folder)
+        
         logger.success("The end! The study is ready to be uploaded on cBioportal")
 
         ##########################################################################################
@@ -79,6 +77,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ##########################################################################################
         ##########################################################################################
 
+    
     ############################
     #         UPDATE           #
     ############################
