@@ -489,23 +489,29 @@ def flatten(nested_list):
 
 
 def check_multiple_file(input_file, multiple):
+    
     conf_snv = config.get('Multiple', 'SNV')
     conf_cnv = config.get('Multiple', 'CNV')
     file_paths = pd.read_csv(input_file, sep="\t", header=0)
     snv_file_path = file_paths['snv_path'].isnull().all() # True mancano tutti i valori
     cnv_file_path = file_paths['cnv_path'].isnull().all() # False se almeno uno è pieno
-
+    
+    #TODO ridiscutere CASE 3
+    #CASE 1: multiple = True; neither snv or cnv are filled in sample.tsv; multiple snv or cnv are filled in conf.ini
     if multiple and not (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
         logger.critical("-m was selected and Muliple section in conf.ini was filled but the file doesn't looks like a multiVCF")
         raise Exception ("Input error")
+    #CASE 2: multiple = True; neither snv or cnv are filled in sample.tsv; neither multiple snv or cnv are filled in conf.ini
     elif multiple and not (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
         logger.critical("-m was selected but Muliple section in conf.ini wasn't filled and the file doesn't looks like a multiVCF")
         raise Exception ("Input error")
-    elif not multiple and (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was not selected and the Muliple section in conf.ini wasn't filled but the file looks like a multiVCF")
-        raise Exception ("Input error")
+    #CASE 3: multiple = False; snv or cnv are filled in sample.tsv; neither multiple snv or cnv are filled in conf.ini
+    # elif not multiple and (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
+    #     logger.critical("-m was not selected and the Muliple section in conf.ini wasn't filled but the file looks like a multiVCF")
+    #     raise Exception ("Input error")
+    #CASE 4: multiple = False; snv or cnv are filled in sample.tsv; multiple snv or cnv are filled in conf.ini
     elif not multiple and (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was not selected but the file looks like a multiVCF and the Muliple section in conf.ini was filled")
+        logger.critical("-m was not selected but both sample.tsv and Muliple section in conf.ini were filled")
         raise Exception ("Input error")
 
 
@@ -826,14 +832,18 @@ def check_folders(output_folder, snv_path, cnv_path, combout):
     check_input_file(output_folder, cnv_path, "CNV")
     check_input_file(output_folder, combout, "CombinedOutput")
         
-def transform_input(tsv, clin_pzt, output_folder, multiple):
+def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
     os.makedirs(os.path.join(output_folder, "temp"), exist_ok=True)
     os.makedirs(os.path.join(output_folder, "temp", "SNV"), exist_ok=True)
     os.makedirs(os.path.join(output_folder, "temp", "CNV"), exist_ok=True)
     os.makedirs(os.path.join(output_folder, "temp", "CombinedOutput"), exist_ok=True)
-
+    os.makedirs(os.path.join(output_folder, "temp", "FUSIONS"), exist_ok=True)
+   
     os.system("cp " + tsv + " " + os.path.join(output_folder, "temp", "sample.tsv"))
-    os.system("cp " + clin_pzt + " " + os.path.join(output_folder, "temp", "patient.tsv"))
+    if clin_pzt!="":
+        os.system("cp " + clin_pzt + " " + os.path.join(output_folder, "temp", "patient.tsv"))
+    if fusion_tsv!="":
+        os.system("cp " + fusion_tsv + " " + os.path.join(output_folder, "temp", "FUSIONS", "fusion.tsv"))
 
     if multiple:
         snv_path = config.get('Multiple', 'SNV')
@@ -866,6 +876,7 @@ def transform_input(tsv, clin_pzt, output_folder, multiple):
 
 
 def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
+    import pdb;pdb.set_trace()
     nfusion=len(fusion_files) 
     logger.info(f"Found {nfusion} Fusion files ")
             
@@ -1010,44 +1021,34 @@ def fill_from_combined(combined_dict, table_dict_patient, MSI_THR, TMB):
     return table_dict_patient
 
 def input_extraction(input):
-    
     sample_tsv=input[0]
+    patient_tsv, fusion_tsv = "",""
     
-    if len(input) == 1 or input[1].strip == "": 
-        patient_tsv, fusion_tsv = "",""
-    if len(input) == 2:
-        if input[1].strip == "":
-            patient_tsv = ""
-    if len(input) == 3:
-        if input[1].strip == "":
-            patient_tsv = ""
-        else:
-            patient_tsv = input[1]
-        if input[2].strip == "":
-            fusion_tsv = ""
-        else:
-            fusion_tsv=input[2]
+    if len(input)>1:
+        patient_tsv=input[1].strip()
+        if len(input)>2:
+            fusion_tsv=input[2].strip()
+
     return sample_tsv, patient_tsv, fusion_tsv
 
-def walk_folder(input, sample_pzt, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
+def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
     
     logger.info("Starting walk_folder script:")
     logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filters:{filters}, multiple:{multiple}]")
  
     config.read("conf.ini")
-
+    
+    input, sample_pzt, fusion_tsv = input_extraction(input)
     assert os.path.exists(input), \
         f"No valid file/folder {input} found. Check your input path"   
     
     ###############################
     ###       OUTPUT FOLDER     ###
     ###############################
-
-    input, sample_pzt, fusion_tsv = input_extraction(input)
     
     if not resume or not os.path.exists(os.path.join(output_folder, "temp")):
         output_folder = create_folder(output_folder, overwrite_output, resume)
-
+    
     global isinputfile 
     if os.path.isdir(input):
         isinputfile = False
@@ -1057,7 +1058,7 @@ def walk_folder(input, sample_pzt, multiple, output_folder, oncokb, cancer, over
     elif os.path.isfile(input):
         isinputfile = True
         check_multiple_file(input, multiple)
-        input_folder = transform_input(input, sample_pzt, output_folder, multiple)
+        input_folder = transform_input(input, sample_pzt, fusion_tsv, output_folder, multiple)
     #input=os.path.join(output_folder, "temp")
 
     else:
@@ -1138,13 +1139,13 @@ def walk_folder(input, sample_pzt, multiple, output_folder, oncokb, cancer, over
         logger.critical(f"Something went wrong while reading {clin_sample_path}!")
         raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
     
-    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.path.join(input_folder, "CombinedOutput"))>0 and not type in ["cnv","snv","tab"]:
+    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)       
         fill_fusion_from_combined(fusion_table_file, combined_dict)
     
     elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]:    
         fusion_files=[file for file in os.listdir(os.path.join(input_folder,"FUSIONS")) if "tsv" in file]
-        fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files)     
+        fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)     
 
     if oncokb and os.path.exists(fusion_table_file):
         data_sv = pd.read_csv(fusion_table_file, sep="\t")

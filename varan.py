@@ -23,61 +23,61 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
                             f"update:{update}, extract:{extract}, remove:{remove}")
 
     if not any([update, extract, remove]) :       
-            
-            ###########################
-            #        1.  WALK         #
-            ###########################
-            
-            logger.info("Starting preparation study folder")
-                
-            input = input[0]
-            output_folder, input, fusion_tsv = walk_folder(input, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, analysis_type, filters)
-
-
-            ###########################
-            #       2. FILTER         #
-            ###########################
+   
+       
+        ###########################
+        #        1.  WALK         #
+        ###########################
         
-            logger.info("Starting filter")  
-            
-            if not analysis_type in ["cnv", "fus", "tab"]:
-                filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
+        logger.info("Starting preparation study folder")
+        
+        output_folder, input, _ = walk_folder(input, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, analysis_type, filters)
 
-                
-            ############################
-            #      3. CONCATENATE      #
-            ############################
 
-            if  os.path.exists(os.path.join(output_folder,"maf")) and not analysis_type in ["cnv", "fus", "tab"]:
-                logger.info("Concatenate mutation file")
-
-                concatenate_main(filters, output_folder,"maf", oncoKB)
-                
-
-            ###########################################
-            #      4. MAKE AND POPULATE TABLES        #
-            ###########################################
-
-            logger.info("It's time to create tables!")
-            meta_case_main(cancer,output_folder)
+        ###########################
+        #       2. FILTER         #
+        ###########################
+    
+        logger.info("Starting filter")  
+        
+        if not analysis_type in ["cnv", "fus", "tab"]:
+            filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
 
             
-            ############################
-            #      5. VALIDATION       #
-            ############################
+        ############################
+        #      3. CONCATENATE      #
+        ############################
 
-            logger.info("Starting Validation Folder")
-            validateFolderlog(output_folder)
-            logger.success("The end! The study is ready to be uploaded on cBioportal")
+        if  os.path.exists(os.path.join(output_folder,"maf")) and not analysis_type in ["cnv", "fus", "tab"]:
+            logger.info("Concatenate mutation file")
 
-            ##########################################################################################
-            ############ DA RIVEDERE #################################################################
-            # shutil.make_archive(os.path.join(output_folder,"snv_filtered"),"zip",os.path.join(output_folder,"snv_filtered"))
-            # shutil.rmtree(os.path.join(output_folder,"snv_filtered"))
-            # shutil.make_archive(os.path.join(output_folder,"maf"),"zip",os.path.join(output_folder,"maf"))
-            # shutil.rmtree(os.path.join(output_folder,"maf"))
-            ##########################################################################################
-            ##########################################################################################
+            concatenate_main(filters, output_folder,"maf", oncoKB)
+                
+                
+        ###########################################
+        #      4. MAKE AND POPULATE TABLES        #
+        ###########################################
+
+        logger.info("It's time to create tables!")
+        meta_case_main(cancer,output_folder)
+
+        
+        ############################
+        #      5. VALIDATION       #
+        ############################
+
+        logger.info("Starting Validation Folder")
+        validateFolderlog(output_folder)
+        logger.success("The end! The study is ready to be uploaded on cBioportal")
+
+        ##########################################################################################
+        ############ DA RIVEDERE #################################################################
+        # shutil.make_archive(os.path.join(output_folder,"snv_filtered"),"zip",os.path.join(output_folder,"snv_filtered"))
+        # shutil.rmtree(os.path.join(output_folder,"snv_filtered"))
+        # shutil.make_archive(os.path.join(output_folder,"maf"),"zip",os.path.join(output_folder,"maf"))
+        # shutil.rmtree(os.path.join(output_folder,"maf"))
+        ##########################################################################################
+        ##########################################################################################
 
     ############################
     #         UPDATE           #
