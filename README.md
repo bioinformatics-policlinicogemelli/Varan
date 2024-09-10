@@ -9,7 +9,7 @@
 ## Introduction  
 
 <p align="justify">
-Varan 2.0 is a Python-based application that provides a pipeline to automatically prepare cancer genomics data in the specific format supported by the <a href="https://www.cbioportal.org/">cBioPortal</a>.<br>
+Varan is a Python-based application that provides a pipeline to automatically prepare cancer genomics data in the specific format supported by the <a href="https://www.cbioportal.org/">cBioPortal</a>.<br>
 Specifically, starting with a folder containing the vcf files, or with a single file containing a list of vcf file paths, this application can structure and validate a study folder ready to be uploaded to its local instance of cBioPortal.<br>
 This application also gives the possibility to work on existing study folder. In fact, it permits to update a study folder by adding new samples or extract/remove samples from it.<br>
 Click <a href="https://github.com/bioinformatics-policlinicogemelli/Varan-Release/blob/main/cBioPortal%20docker%20install.md")>here</a> for more information on the steps for cBioportal installation.
@@ -54,12 +54,13 @@ optional arguments:
 -h, --help show this help message and exit
 -c CANCER, --Cancer CANCER Cancer Name
 -i INPUT[INPUT ...], --input INPUT [INPUT ...]input folder/sample tsv (required) and patient tsv
--t {snv,cnv}, --analysis_type {snv,cnv,fus,tab} Select the the analysis to follow [snv -> snv analysis; cnv -> cnv analysis; fus -> fusions analysis; tab -> table creation]
+-t {snv,cnv}, --analysis_type {snv,cnv,fus,tab} Select the analysis to follow [snv → snv analysis; cnv → cnv analysis; fus → fusions analysis; tab → table creation]
 -w, --overWrite Overwrite output folder if it exists
 -R, --resume Resume an already started analysis
+-k, --oncoKB OncoKB annotation
 -m, --multiple Multiple sample VCF
--f, -f FILTER,
--Filter FILTER Select filter for SNV [d → filter, p → filter=PASS, b-> Benign, v-> vaf, o→> Oncokb, g → gnomAD, q > Consequence, y→ polyphens, c → clin_sig, n → novel]
+-f FILTER,
+--Filter FILTER Select filter for SNV [d → filter, p → filter==PASS, b → Benign, v → vaf, o → Oncokb, g → gnomAD, q → Consequence, y → polyphens, c → clin_sig, n → novel]
 -u, --Update Add this argument if you want to concatenate two studies
 -n NEWPATH, --NewPath NEWPATH Path of new study to add
 -r, --Remove Add this argument if you want remove samples from a study
@@ -74,37 +75,71 @@ optional arguments:
 
 ## Usage
 
-<p align="justify">The first step to start using Varan is to correctly set the configuration file *conf.ini*. This file is divided in 6 subsessions:
-* <p align="justify">Paths: here is possible to specify Vep, vcf2maf and fasta paths and data.
-* <p align="justify">Project: here is possible to specify project info like name, description and profile
-* <p align="justify">Filters: here are specified the filters applied in the filtering step
-* <p align="justify">Cna: here are specified the CNV genotypes
-* <p align="justify">TMB: here are specified the TMB thresholds
-* <p align="justify">MSI: here are specified the MSI thresholds
+<p align="justify">The first step to start using Varan is to correctly set the configuration file *conf.ini*. This file is divided in N subsessions:
+* <p align="justify">Paths: here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path.
+* <p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
+* <p align="justify">OncoKB: here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
+* <p align="justify">Project: here is possible to specify project info like name, description and profile.
+* <p align="justify">Filters: here are specified the filters applied in the filtering step. #####Aggiungere sezione sottoparagrafo filtri###
+* <p align="justify">Cna: here are specified the CNV genotypes and the ploidy.
+* <p align="justify">TMB: here are specified the TMB thresholds.
+* <p align="justify">MSI: here are specified the MSI thresholds.
+* <p align="justify">Fusion: here are specified the Fusion thresholds.
+* <p align="justify">Clinical Sample: here is possible to customize the name and type (example: string, number) of the columns in the Clinical Sample.
+* <p align="justify">Clinical Patient: here is possible to customize the name and type (example: string, number) of the columns in the Clinical Patient.
 
-<p align="justify">Varan application can be divided into two separate main blocks that require different inputs and ensure different operations to perform on them. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder.
+
+
+<p align="justify">Varan application can be divided into two separate main blocks that require different inputs and ensure different operations to perform on them. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder. To keep track of all operations performed by Varan, a versioning system is provided.
 
 Here below are reported the steps and the options to set to run each block.
 
-### Block One: Create Study Folder ex-Novo
-
-#### Workflow
-
-```mermaid
-flowchart  TD
-A[Conda activate VEP\ Start VARAN]  --> B[FOLDER CNV,SNV, TSV]
-B -->  C[W A L K] 
-C --> D((FILTER_CLINVAR))
-D((FILTER_CLINVAR)) --> E((CONCATENATE)) 
-E((CONCATENATE)) --> F((MAKE_META, MAKE_CASES, INPUT MAF))
- F --> U[STUDY_FOLDER]
-U --> G[UPLOAD_ON_CBIOPORTAL]
-```
+### Block One: Create Study ex-Novo
 
 #### 1. Preparing Input
 
 <p align="justify">
 To create a new study folder, the user must give .vcf files as input to the program.
+Below, before specifically explaining how the tool works, are examples of standard templates that Varan takes as input.
+
+
+Template_n1:Sample.tsv
+
+⚠️ <i>For the proper functioning of Varan, the existence of this template is required.</i>
+
+```
+SampleID	PatientID	MSI	TMB	MSI_THR	TMB_THR	ONCOTREE_CODE	snv_path	cnv_path	comb_path
+0000000_DNA	00000000	1	12			BOWEL	/your_path/snv	/your_path/cnv	/your_path/combined_output
+0000001_DNA	00000001	8.0	8.0			UTERUS	/your_path/snv	/your_path/cnv	/your_path/combined_output
+0000002_DNA	00000002	0	33			BOWEL	/your_path/snv	/your_path/cnv	/your_path/combined_output
+0000003_DNA	00000003	222	127			UTERUS	/your_path/snv	/your_path/cnv	/your_path/combined_output			
+	
+
+```
+Template_n2:Patient.tsv
+
+```
+PATIENTID	AGE	GENDER	SMOKER
+00000000	45	M	YES
+00000001	65	F	YES
+00000002	76	F	NO
+00000003	45	F	YES
+
+```
+
+Tempalte_n3:Fusion.tsv
+
+```
+Sample_Id	SV_Status	Site1_Hugo_Symbol	Site2_Hugo_Symbol
+0000000_DNA	SOMATIC	APC	BRCA1
+0000001_DNA	SOMATIC	TP53	BRAF
+0000002_DNA	SOMATIC	APC	BRCA1
+0000003_DNA	SOMATIC	ALK	BRCA2
+
+```
+⚠️ <i>The formatting of these 3 templates must match those described above. (Adding new columns starting from the last existing one is allowed, but modifying or deleting the default columns is strictly forbidden.).If there is no data in the column, leave a tab.</i>
+
+
 This can be done in two different ways:
 
 
@@ -124,12 +159,19 @@ input_folder/
 │   ├── 001_CombinedVariantOutput.tsv
 │   ├── 002_CombinedVariantOutput.tsv
 │   └── 003_CombinedVariantOutput.tsv
-└── clinical_info.tsv
+├── FUSIONS
+│   └── Fusions.tsv
+│    
+└── sample.tsv
+│    
+└── patient.tsv
 ```
 Where:
 * <p align="justify">*CombinedVariantOutput.tsv* is a tsv file that is necessary to TMB, MSI and Fusions evaluation and that has to contain [TMB], [MSI] and [Fusions] fields. It has to be named as *PatientID_CombinedVariantOutput.tsv*
 
-* <p align="justify">*clinical_info.tsv* is a tsv file that is necessary to map tha sample ID to the patient ID. It has to be structured as a two columns tables with "PatientID" and "SampleID" fields.
+⚠️ <i> If this file is not present, the information regarding [TMB] and [MSI] will be taken from the previously mentioned template (sample.tsv), while [Fusions] will be taken from the Fusions.tsv file<i>
+
+* <p align="justify">*patient.tsv* is a tsv file that is necessary to map the sample ID to the patient ID.
 
 ⚠️ *An example of both input types can be found in the **input_templates** folder*
 
