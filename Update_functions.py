@@ -56,8 +56,6 @@ def update_clinical_patient(oldfile_path, newfile_path, output_folder):
     new.set_index(new.columns[0], inplace=True)
 
     only_old_col = set(old.columns) - set(new.columns)
-    # TODO scrivere queste colonne nel summary indicando che sono state rimosse perche presenti nell'old e assenti nel new
-
     common_patients = old.index.intersection(new.index)
 
     old_updated = old.drop(list(only_old_col), axis=1)
@@ -314,7 +312,7 @@ def check_files_cases(oldpath, newpath, output_caseslists, file_name):
         elif file_name == "cases_sequenced.txt":
             update_caselist_sequenced(o_data,n_data,output_caseslists)
         elif file_name == "cases_sv.txt":
-            update_caselist_sv(o_data,n_data,update_caselist_sv)
+            update_caselist_sv(o_data,n_data,output_caseslists)
     elif os.path.exists(o_data) and not os.path.exists(n_data):
         logger.warning(f"{file_name} was not found in path 2 case_lists folder. The file is being copied from path 1.")  
         shutil.copy(o_data, output_caseslists)
