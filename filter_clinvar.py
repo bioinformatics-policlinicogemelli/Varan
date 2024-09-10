@@ -18,11 +18,6 @@ import numpy as np
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
-# vaf_default = config.get('Filters', 't_VAF')
-# vaf_hotspot = config.get('Filters', 't_VAF')
-# vaf_novel = config.get('Filters', 't_VAF_NOVEL')
-
-
 def print_unique_clin_sig(df):
     unique_clin_sig = df['CLIN_SIG'].unique()
     print(unique_clin_sig)
@@ -96,24 +91,12 @@ def write_csv_with_info(df, file_path):
     f.close()
     df.to_csv(file_path, sep='\t', index=False, header=True, mode='w')
 
-# def filter_vf(df):
-#     t_vaf=float(config.get('Filters', 't_VAF'))
-#     gnomAD=float(config.get('Filters', 'gnomAD'))
-#     df = df[(df['t_VF'] > t_vaf) | (df['t_VF'].isnull())]
-#     df = df[(df['gnomAD_AF'] <gnomAD) | (df['gnomAD_AF'].isnull())]
-#     return df
 
-def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, overwrite=False, log=False):
-    if not log:
-        logger.remove()
-        logfile="filter_main_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
+def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, overwrite=False):
     
     logger.info("Starting filter_main script:")
     logger.info(f"filter_main args [maf_folder:{folder}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, overwrite:{overwrite}]")
-
+    
     if os.path.exists(os.path.join(output_folder,'MAF_OncoKB')) and len(os.listdir(os.path.join(output_folder,'MAF_OncoKB')))>0:
         if overwrite:
             logger.warning(f"It seems that the folder 'MAF_OncoKB' already exists. Start removing process...")        
@@ -121,35 +104,14 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
         elif not resume:
             logger.critical(f"The folder 'MAF_OncoKB' already exists. To overwrite an existing folder add the -w option!")
             logger.critical(f"Exit without completing the task!")
-            exit()
+            sys.exit()
 
-    # if os.path.exists(os.path.join(output_folder,'NoBenign')) and len(os.listdir(os.path.join(output_folder,'NoBenign')))>0:
-    #     if overwrite:
-    #         logger.warning(f"It seems that the folder 'NoBenign' already exists. Start removing process...")        
-    #         shutil.rmtree(os.path.join(output_folder,'NoBenign'))
-    #     else:
-    #         logger.critical(f"The folder 'NoBenign' already exists. To overwrite an existing folder add the -w option!")
-    #         logger.critical(f"Exit without completing the task!")
-    #         raise(Exception('Exiting from filter_clinvar script!'))
-    
-    # if os.path.exists(os.path.join(output_folder,'NoVus')) and len(os.listdir(os.path.join(output_folder,'NoVus')))>0:
-    #     if overwrite:
-    #         logger.warning(f"It seems that the folder 'NoVus' already exists. Start removing process...")       
-    #         shutil.rmtree(os.path.join(output_folder,'NoVus'))
-    #     else:
-    #         logger.critical(f"The folder 'NoVus' already exists. To overwrite an existing folder add the -w option!")
-    #         logger.critical(f"Exit without completing the task!")
-    #         raise(Exception('Exiting from filter_clinvar script!'))
-
-    file_list = concatenate.get_files_by_ext(folder, 'maf')
+    file_list = concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
 
     if len(file_list)==0:
         logger.warning(f"The maf folder {os.path.join(folder, 'maf')} seems to be empty! Filtering cannot be done.")
         logger.critical("Empty maf folder: Filter script exited before completing!")
         raise(Exception("Exiting from filter_clinvar script!"))
-    
-    out_folders=[]
-    extensions=[]
     
     if oncokb:
         
@@ -185,12 +147,12 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
         
     file_list = concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
     out_filter=os.path.join(output_folder, 'MAF_filtered')
-
+    
     if oncokb and "o" in filters:   
         file_list = concatenate.get_files_by_ext(output_onco, 'maf')
-        out_filter=os.path.join(output_folder, 'MAF_Onco_filtered')
-        
-    if not filters==None or not filters=="d":
+        out_filter=os.path.join(output_folder, 'MAF_Onco_filtered')   
+    
+    if filters!="" and filters!="d":
         
         logger.info("Start filtering vcf...")
         
@@ -248,74 +210,8 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
                 file_to_filter=file_to_filter[file_to_filter.apply(check_sift,axis=1)]
                  
                 
-            logger.info(f"Filtered file: {file}")                  
-            #file_to_filter=file_to_filter[~file_to_filter["IMPACT"].isin(["LOW","MODIFIER"])]
+            logger.info(f"Filtered file: {file}")             
             
-            
-            
-            # if oncokb:
-            #     file_to_filter= file_to_filter[file_to_filter["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
-                            
-            # if novel:
-            #     if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel") | (file_to_filter["dbSNP_RS"].isnull())]:
-            #         file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_novel)]
-            #     else:
-            #         file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
-            # else:
-            #     file_to_filter=file_to_filter[file_to_filter["t_AF"]>=float(vaf_default)]
             file_to_filter.to_csv(os.path.join(out_filter, os.path.basename(file)),sep="\t",index=False)  
 
-    # out_folders.append(os.path.join(output_folder, 'NoBenign'))    
-    # extensions.append("_NoBenign.maf")
-
-    # out_folders.append(os.path.join(output_folder, 'NoBenign'))
-    # extensions.append("_NoBenign.maf")
-    # if vus:
-    #     out_folders.append(os.path.join(output_folder, 'NoVus'))
-    #     extensions.append('_NoVus.maf')
-
-    # for out_folder,extension in zip(out_folders,extensions):
-
-    #     if os.path.exists(out_folder):
-    #         pass
-    #     else:
-    #         logger.info(f"Creating folder {out_folder}...")
-    #         os.mkdir(out_folder)
-
-    #     for f in file_list:
-    #         root, file = os.path.split(f)
-    #         file_No = file.replace('.maf','') + extension
-    #         file_path = os.path.join(out_folder, file_No)
-
-    #         if os.path.isfile(file_path):
-    #             logger.warning(f"Skipping {file_path}: already filtered!")
-    #             continue
-    #         else:
-    #             logger.info(f"Filtering file {f}")
-                
-    #             data = pd.read_csv(f, sep='\t', comment="#")
-                
-    #             if out_folder == os.path.join(output_folder, 'NoVus'):
-    #                 try:
-    #                     df = keep_risk_factors(data)
-    #                 except KeyError as e:
-    #                     logger.error(f"{e} key value not found: check your maf file!")
-    #                     continue
-    #                 except Exception as e:
-    #                     logger.error(f"Something went wrong!")
-    #                     continue
-    #             else:
-    #                 try:
-    #                     df = filter_benign(data)
-    #                 except KeyError as e:
-    #                     logger.error(f"{e} key value not found: check your maf file!")
-    #                     continue
-    #                 except Exception as e:
-    #                     logger.error(f"Something went wrong! Cannot create {file_No}")
-    #                     continue
-      
-    #             filtered_data = filter_vf(df)
-    #             logger.info(f"Filtered file: {file_path}")
-    #             write_csv_with_info(filtered_data, file_path)
-    
     logger.success("Filter script completed!\n")

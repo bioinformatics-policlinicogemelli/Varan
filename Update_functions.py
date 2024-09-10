@@ -56,8 +56,6 @@ def update_clinical_patient(oldfile_path, newfile_path, output_folder):
     new.set_index(new.columns[0], inplace=True)
 
     only_old_col = set(old.columns) - set(new.columns)
-    # TODO scrivere queste colonne nel summary indicando che sono state rimosse perche presenti nell'old e assenti nel new
-
     common_patients = old.index.intersection(new.index)
 
     old_updated = old.drop(list(only_old_col), axis=1)
@@ -155,6 +153,7 @@ def update_sv(oldfile_path, newfile_path, output_folder):
     Example:
       >>>  update_sv('old_data_sv.txt', 'new_data_sv.txt', 'output_folder/')
     """
+
     with open(oldfile_path,"r") as old_file:
         with open(newfile_path,"r") as new_file:
             with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
@@ -164,18 +163,18 @@ def update_sv(oldfile_path, newfile_path, output_folder):
                     list_strip = [elem.strip() for elem in list_split]
                     new_row = "\t".join(list_strip) + '\n'
                     of.write(new_row)
-                for linenew in old_file:
-                    if linenew.startswith("Sample_ID"):
-                        new_row = linenew.replace("Sample_ID", "Sample_Id")
-                        of.write(new_row)
+                for linenew in new_file:
+                    # if linenew.startswith("Sample_ID"):
+                    #     new_row = linenew.replace("Sample_ID", "Sample_Id")
+                    #     of.write(new_row)
                     if not linenew.startswith("Sample") :
                         list_split = linenew.split("\t\t")
                         list_strip = [elem.strip() for elem in list_split]
                         new_row = "\t".join(list_strip) + '\n'
                         of.write(new_row)
     data_sv = pd.read_csv(os.path.join(output_folder, "data_sv.txt"), sep="\t")
-    data_sv = data_sv.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "Normal_Paired_End_Read_Count"], keep='last')
-    data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"), sep="\t")
+    data_sv = data_sv.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "SV_Status", "Class"], keep='last')
+    data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"), sep="\t", index=False)
     
 
 def update_caselist_cna(oldfile_path, newfile_path, output_folder):
@@ -314,7 +313,7 @@ def check_files_cases(oldpath, newpath, output_caseslists, file_name):
         elif file_name == "cases_sequenced.txt":
             update_caselist_sequenced(o_data,n_data,output_caseslists)
         elif file_name == "cases_sv.txt":
-            update_caselist_sv(o_data,n_data,update_caselist_sv)
+            update_caselist_sv(o_data,n_data,output_caseslists)
     elif os.path.exists(o_data) and not os.path.exists(n_data):
         logger.warning(f"{file_name} was not found in path 2 case_lists folder. The file is being copied from path 1.")  
         shutil.copy(o_data, output_caseslists)
