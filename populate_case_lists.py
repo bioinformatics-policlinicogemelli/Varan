@@ -21,16 +21,16 @@ def populate_cases_sv(project_id, folder, cases_list_dir, logger):
     
     stable_id = project_id + "_sv"
     case_list_name = "Samples with SV data"
-    case_list_description = "All samples (+" + str(nsamples) + ") samples"
     case_list_category = "all_cases_with_sv_data"
+    case_list_description = "Samples with SV data (" + str(nsamples) + " sample(s))"
     case_list_ids = "\t".join(sample_ids)
 
     dictionary_file = {
         "cancer_study_identifier": project_id,
         "stable_id": stable_id,
+        "case_list_category": case_list_category,
         "case_list_name": case_list_name,
         "case_list_description": case_list_description,
-        "case_list_category": case_list_category,
         "case_list_ids": case_list_ids,
     }
     
@@ -38,8 +38,6 @@ def populate_cases_sv(project_id, folder, cases_list_dir, logger):
     for key, value in dictionary_file.items():
         print(f"{key}: {value}", file=case_sv_file)
     case_sv_file.close()
-#
-
 
 def populate_cases_cna(project_id, folder, cases_list_dir, logger):
     """
@@ -63,7 +61,7 @@ def populate_cases_cna(project_id, folder, cases_list_dir, logger):
 
     case_list_category = "all_cases_with_cna_data"
     case_list_name = "Samples with CNA data"
-    case_list_description = "Samples with CNA data (" + str(nsamples) + " samples)"
+    case_list_description = "Samples with CNA data (" + str(nsamples) + " sample(s))"
     case_list_ids = "\t".join(sample_ids)
 
     dictionary_file = {
@@ -104,7 +102,7 @@ def populate_cases_sequenced(project_id, folder, cases_list_dir, logger):
 
     case_list_category = "all_cases_with_mutation_data"
     case_list_name = "Sequenced Tumors"
-    case_list_description = "All sequenced samples (" + str(nsamples) + "samples)"
+    case_list_description = "All sequenced samples (" + str(nsamples) + " sample(s))"
     case_list_ids = "\t".join(sample_ids)
 
     dictionary_file = {
@@ -120,28 +118,3 @@ def populate_cases_sequenced(project_id, folder, cases_list_dir, logger):
     for key, value in dictionary_file.items():
         print(f"{key}: {value}", file=case_sequenced_file)
     case_sequenced_file.close()
-
-
-if __name__=="__main__":
-    
-    parser = argparse.ArgumentParser(description='cBioportal arguments')
-    # arguments    
-    parser.add_argument('-f', '--Folder', required=False, 
-                        help='Path of folder containing data')
-    parser.add_argument('-c', '--Cancer', required=False,
-                        help='Cancer Name')
-
-    args = parser.parse_args()
-    
-    # cancer = args.Cancer
-    
-    # config = ConfigParser()
-    # configFile = config.read("conf.ini")
-    # project = config.get("Project", "PROJECT_NAME")
-    # project_name = "_" + project
-    
-    cases_list_dir = os.path.join(args.Folder, "case_lists")
-    if os.path.exists(cases_list_dir):
-        pass
-    else:
-        os.mkdir(cases_list_dir)

@@ -7,7 +7,6 @@ version = "1.0"
 from operator import index
 import os
 import ast
-import argparse
 import subprocess
 import vcf2tab_cnv
 import vcf_filter
@@ -18,21 +17,14 @@ import shutil
 from loguru import logger 
 import random
 import string
-import sys
-import traceback
 import numpy as np
 from filter_clinvar import filter_OncoKB
 from versioning import get_newest_version, get_version_list
 import pandas as pd
 
 config = ConfigParser()
-
 configFile = config.read("conf.ini")
 
-# INPUT_PATH = config.get('Paths', 'INPUT_PATH')
-# SNV = config.get('Paths', 'SNV')
-# CNV = config.get('Paths', 'CNV')
-# COMBOUT = config.get('Paths', 'COMBOUT')
 OUTPUT_FILTERED = config.get('Paths', 'OUTPUT_FILTERED')
 OUTPUT_MAF = config.get('Paths', 'OUTPUT_MAF')
 VCF2MAF = config.get('Paths', 'VCF2MAF')
@@ -42,6 +34,7 @@ VEP_PATH = config.get('Paths', 'VEP_PATH')
 VEP_DATA = config.get('Paths', 'VEP_DATA')
 CLINV = config.get('Paths', 'CLINV')
 CNA = ast.literal_eval(config.get('Cna', 'HEADER_CNV'))
+PLOIDY=config.get('Cna', 'PLOIDY')
 
 def create_random_name_folder():
     nome_cartella = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
@@ -56,6 +49,7 @@ def create_random_name_folder():
         raise(Exception("Error in create_random_name_folder: exiting from walk script!"))
     return(temporary)
 
+
 def clear_scratch():
     for root, dirs, files in os.walk(TMP):
         for dir in dirs:
@@ -65,18 +59,10 @@ def clear_scratch():
 def clear_temp(folder):
     shutil.rmtree(os.path.join(folder, "temp"))
 
+
 def get_cnv_from_folder(inputFolderCNV):
     files = os.listdir(inputFolderCNV)
     cnv_vcf_files = [file for file in files if file.endswith("vcf")]
-    # check=list(map(lambda x: check_cna_vcf(x,inputFolderCNV), cnv_vcf_files))
-    # incorrect_files=[]
-    # for i, check_res in enumerate(check):
-    #     if not check_res:
-    #         incorrect_files.append(cnv_vcf_files[i])
-    # if len(incorrect_files)!=0:
-    #     logger.critical(f"It seems that the files \n{incorrect_files} \nare not CNV! Please check your CNV input data and try again.")
-    #     raise Exception("Error in get_cnv_from_folder script: exiting from walk script!")       
-    # logger.info(f"#{len(cnv_vcf_files)} vcf files found in CNV folder")
     return cnv_vcf_files
 
 
@@ -91,8 +77,7 @@ def get_sampleID_from_cnv(cnv_vcf):
 def reshape_cna(input, cna_df_path, cancer, output_dir):
    
     if not os.path.isfile(input):
-        tsv_file = [file for file in os.listdir(input) if file.endswith(".tsv")][0]
-        input_file = pd.read_csv(os.path.join(input, tsv_file), sep="\t")    
+        input_file = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t")    
     else:
         input_file = pd.read_csv(input, sep="\t")
 
@@ -105,7 +90,7 @@ def reshape_cna(input, cna_df_path, cancer, output_dir):
         input_file["ONCOTREE_CODE"] = cancer
   
     input_file["Tumor_Sample_Barcode"] = input_file["Tumor_Sample_Barcode"] + ".cnv.bam"
-    #cna_df["Tumor_Sample_Barcode"] = cna_df["Tumor_Sample_Barcode"].str.replace(".bam", "")
+    
     annotate = pd.merge(cna_df[["Tumor_Sample_Barcode", "Hugo_Symbol", "discrete", "Copy_Number_Alteration"]], \
                         input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE"]], on="Tumor_Sample_Barcode")
    
@@ -210,15 +195,13 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         #df_table.rename(columns={"discrete":"Copy_Number_Alteration","ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},inplace=True)
         #df_table_filt=df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
         if not os.path.isfile(input):
-            tsv_file = [file for file in os.listdir(input) if file.endswith(".tsv")][0]
-            input_file = pd.read_csv(os.path.join(input, tsv_file), sep="\t")
+            input_file = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t")
         else:
             input_file = pd.read_csv(input, sep="\t")
         
         #TODO inserire filtro per TC (mettere specifiche su valori di TC da considerare)
         
         #check for nan TC values
-        
         try:
             input_file["TC"]
         except:
@@ -263,9 +246,8 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
             #cna.at[index,"discrete"]= ((200*float(row["seg.mean"]))-2*(100-tc))/tc 
             
             purity = tc / 100
-            ploidy = 2
             copy_nums = np.arange(6)
-            c = 2 ** (np.log2((1 - purity) + purity * (copy_nums + .5) / ploidy ))
+            c = 2 ** (np.log2((1 - purity) + purity * (copy_nums + .5) / PLOIDY ))
             
             # ESCAT classification
             oncocode = input_file[input_file["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"]]["ONCOTREE_CODE"].values
@@ -347,6 +329,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
     
     return sID_path
 
+
 def tabella_to_dict(df):
     result = {}
     for index, row in df.iterrows():
@@ -356,20 +339,13 @@ def tabella_to_dict(df):
         result[row['ID']].append(row_values)
     return result
 
+
 def get_snv_from_folder(inputFolderSNV):
     files = os.listdir(inputFolderSNV)
     
     snv_vcf_files = [file for file in files if file.endswith("vcf")]
-    # check=list(map(lambda x: check_snv_vcf(x,inputFolderSNV),snv_vcf_files))
-    # incorrect_files=[]
-    # for i, check_res in enumerate(check):
-    #     if not check_res:
-    #         incorrect_files.append(snv_vcf_files[i])
-    # if len(incorrect_files)!=0:
-    #     logger.critical(f"It seems that the files \n{incorrect_files} \nare not SNV! Please check your SNV input data and try again.")
-    #     raise Exception("Error in get_snv_from_folder: exiting from walk script")   
-    # logger.info(f"#{len(snv_vcf_files)} vcf files found in SNV folder")
     return snv_vcf_files
+
 
 def get_sampleID_from_snv(snv_vcf):
     if "MergedSmallVariants.genome.vcf" in snv_vcf:
@@ -377,6 +353,7 @@ def get_sampleID_from_snv(snv_vcf):
     else:
         sample = snv_vcf.replace("vcf", "bam")
     return sample
+
 
 def snv_type_from_folder(input, snv_vcf_files):
     c = 0
@@ -398,6 +375,7 @@ def snv_type_from_folder(input, snv_vcf_files):
         c = c + 1
     return sID_path
 
+
 def vcf_filtering(sID_path, output_folder):
     sID_path_filtered = dict()
     for k, v in sID_path.items():
@@ -410,6 +388,7 @@ def vcf_filtering(sID_path, output_folder):
         logger.info(f'filtered file {vcf_filtered} created!')
         sID_path_filtered[k] = vcf_filtered
     return sID_path_filtered
+
 
 def vcf2maf_constructor(k, v, temporary, output_folder):
     
@@ -446,6 +425,7 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     cl.append(" --cache-version 111")
     return cl
 
+
 def run_vcf2maf(cl):
     logger.info('Starting vcf2maf conversion...')
     logger.info(f'args={cl}')
@@ -456,7 +436,7 @@ def run_vcf2maf(cl):
             logger.warning(sout.stderr.decode('ascii').replace('ERROR: ',''))
         else:
             logger.error(sout.stderr.decode('ascii').replace('ERROR: ',''))
-    
+
 
 def create_folder(output_folder, overwrite_output, resume):
     output_list = get_version_list(output_folder)
@@ -478,45 +458,15 @@ def create_folder(output_folder, overwrite_output, resume):
     else:
         output_folder_version,_ = get_newest_version(output_folder)
 
-
     logger.info(f"Creating the output folder '{output_folder_version}' in {os.getcwd()}...")
 
     os.mkdir(output_folder_version)
     maf_path = os.path.join(output_folder_version, 'maf')
     os.mkdir(maf_path)
-    #TODO capire se serve tenere cartella snv_filtered
-    #filtered_path = os.path.join(output_folder_version, 'snv_filtered')
-    #os.mkdir(filtered_path)
     logger.info(f"The folder '{output_folder_version}' was correctly created!")
     
     return output_folder_version    
-    
-    
-    #logger.info(f"Creating the output folder '{output_folder_version}' in {os.getcwd()}...")
-    
 
-    # if overwrite_output:
-    #     if os.path.exists(output_folder):
-    #         logger.warning(f"It seems that the folder '{output_folder}' already exists. Start removing process...")
-    #         shutil.rmtree(output_folder)
-    
-    # if not os.path.exists(output_folder):
-    #     logger.info(f"Creating the output folder '{output_folder}' in {os.getcwd()}...")
-    #     os.mkdir(output_folder)
-    #     maf_path = os.path.join(output_folder, 'maf')
-    #     os.mkdir(maf_path)
-    #     #TODO capire se serve tenere cartella snv_filtered
-    #     filtered_path = os.path.join(output_folder, 'snv_filtered')
-    #     os.mkdir(filtered_path)
-    #     logger.info(f"The folder '{output_folder}' was correctly created!")
-    
-    # elif resume:
-    #     maf_path = os.path.join(output_folder, 'maf')
-    #     filtered_path = os.path.join(output_folder, 'snv_filtered')
-
-    # else:
-    #     logger.critical(f"The folder '{output_folder}' already exists. To overwrite an existing folder add the -w option!")
-    #     raise(Exception('Error in create_folder script: exiting from walk script!'))
 
 def get_table_from_folder(tsvpath):
     table_dict = dict()
@@ -528,7 +478,8 @@ def get_table_from_folder(tsvpath):
         if sampleID not in table_dict.keys():
             table_dict[sampleID] = [str(row["PatientID"])]  
     return table_dict
-    
+
+
 def flatten(nested_list):
     flat_list = []
     for sublist in nested_list:
@@ -536,26 +487,33 @@ def flatten(nested_list):
             flat_list.append(item)
     return flat_list
 
+
 def check_multiple_file(input_file, multiple):
+    
     conf_snv = config.get('Multiple', 'SNV')
     conf_cnv = config.get('Multiple', 'CNV')
     file_paths = pd.read_csv(input_file, sep="\t", header=0)
     snv_file_path = file_paths['snv_path'].isnull().all() # True mancano tutti i valori
     cnv_file_path = file_paths['cnv_path'].isnull().all() # False se almeno uno è pieno
-
-    if multiple and not (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was selected and Muliple section in conf.ini was filled but the file doesn't looks like a multiVCF")
-        raise Exception ("Input error")
-    elif multiple and not (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was selected but Muliple section in conf.ini wasn't filled and the file doesn't looks like a multiVCF")
-        raise Exception ("Input error")
-    elif not multiple and (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was not selected and the Muliple section in conf.ini wasn't filled but the file looks like a multiVCF")
-        raise Exception ("Input error")
-    elif not multiple and (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was not selected but the file looks like a multiVCF and the Muliple section in conf.ini was filled")
-        raise Exception ("Input error")
     
+    #TODO ridiscutere CASE 4
+    #CASE 1: multiple = True; neither snv or cnv are filled in sample.tsv; multiple snv or cnv are filled in conf.ini
+    if multiple and not (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
+        logger.critical("-m was selected and Muliple section in conf.ini was filled but the file doesn't looks like a multiVCF.")
+        raise Exception ("Input error")
+    #CASE 2: multiple = True; neither snv or cnv are filled in sample.tsv; neither multiple snv or cnv are filled in conf.ini
+    elif multiple and not (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
+        logger.critical("-m was selected but Muliple section in conf.ini wasn't filled and the file doesn't looks like a multiVCF.")
+        raise Exception ("Input error")
+    #CASE 3: multiple = False; snv or cnv are filled in sample.tsv; multiple snv or cnv are filled in conf.ini
+    elif not multiple and (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
+        logger.critical("-m was not selected but both sample.tsv and Muliple section in conf.ini were filled.")
+        raise Exception ("Input error")
+    #CASE 4: multiple = False; snv or cnv are filled in sample.tsv; neither multiple snv or cnv are filled in conf.ini
+    elif not multiple and (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
+        logger.warning("SNV and/or CNV columns in sample.tsv were not filled.")
+        # raise Exception ("Input error")
+
 
 def check_multiple_folder(input_dir, multiple):
     
@@ -596,9 +554,100 @@ def check_multiple_folder(input_dir, multiple):
     if cnv_single or snv_single:
         raise Exception ("Input error")
 
-    
 
-def write_clinical_patient(output_folder, table_dict):
+def write_clinical_sample(clin_samp_path, output_folder, table_dict):
+
+    logger.info("Writing data_clinical_sample.txt file...")
+
+    conf_header_short = config.get('ClinicalSample', 'HEADER_SAMPLE_SHORT')
+    conf_header_long = config.get('ClinicalSample', 'HEADER_SAMPLE_LONG')
+    conf_header_type = config.get('ClinicalSample', 'HEADER_SAMPLE_TYPE')
+
+    data_clin_samp = pd.read_csv(clin_samp_path, sep="\t", header=0, dtype=str)
+
+    # if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no TODO decidere se mantenere così
+    data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
+    
+    data_clin_samp.columns = data_clin_samp.columns.str.upper()
+
+    combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
+    combout_df = combout_df.rename(columns={"index": "SAMPLEID", 0: "PATIENTID"})
+    
+    final_data_sample = data_clin_samp
+
+    if len(combout_df.columns) > 2:
+        data_clin_samp.drop(columns=["MSI_THR", "TMB_THR"], inplace=True)
+        combout_df = combout_df.rename(columns={1: "MSI", 2: "TMB", 3: "MSI_THR", 4:"TMB_THR"})
+        if any(data_clin_samp["MSI"] != combout_df["MSI"]) or any(data_clin_samp["TMB"] != combout_df["TMB"]):
+            logger.warning("MSI and/or TMB values are reported in sample.tsv and CombinedOutput but they mismatch! CombinedOutput values were selected by default")
+            data_clin_samp.drop(columns=["MSI", "TMB"], inplace=True)
+        final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
+
+    dataclin_columns = list(final_data_sample.columns)
+
+    # Add header's fifth row
+    default_row = pd.DataFrame([dataclin_columns], columns=dataclin_columns)
+    final_data_sample = pd.concat([default_row, final_data_sample], ignore_index=True) 
+
+    # Add header's fourth row (SERIES OF 1s)
+    header_numbers = pd.DataFrame([[1] * len(final_data_sample.columns)], columns=dataclin_columns)
+    final_data_sample = pd.concat([header_numbers, final_data_sample], ignore_index=True)
+
+    # Add header's third row (HEADER_SAMPLE_TYPE)
+    if not conf_header_type:
+        header_row = ["STRING"] * len(dataclin_columns)
+        header_row[dataclin_columns.index('MSI')] = "NUMBER"
+        header_row[dataclin_columns.index('TMB')] = "NUMBER"
+        sample_header_type = pd.DataFrame([header_row], columns=dataclin_columns)
+    else:
+        types_list = conf_header_type.split(',')
+        types_list = list(map(lambda x: x.strip(), types_list))
+        for type in types_list:
+            if type.upper() not in ["STRING", "BOOLEAN", "NUMBER"]:
+                logger.critical(f"{type} is not a valid type. Please check the given input in conf.ini. Valid types: STRING, NUMBER, BOOLEAN")
+                raise(NameError("The type is not valid: exiting from walk script!"))
+        try:
+            types_list = list(map(lambda x: x.upper(), types_list))
+            types_list = types_list + ["NUMBER", "NUMBER", "STRING", "STRING"]
+            sample_header_type = pd.DataFrame([types_list], columns=dataclin_columns)
+        except ValueError:
+            logger.critical(f"The number of column names ({len(types_list)}) in HEADER_SAMPLE_TYPE is different from the effective number of columns ({len(final_data_sample.columns)}).") 
+            raise(NameError("Different number of columns: exiting from walk script!"))
+    final_data_sample = pd.concat([sample_header_type, final_data_sample], ignore_index=True)   
+
+    # Add header's second row (HEADER_SAMPLE_LONG)
+    if not conf_header_long:
+        sample_header_long = default_row
+    else:
+        try:
+            combined_headers = conf_header_long.split(",")
+            sample_header_long = pd.DataFrame([combined_headers], columns=dataclin_columns)
+        except ValueError:
+            logger.critical(f"The number of column names ({len(combined_headers)}) in HEADER_SAMPLE_LONG in conf.ini is different from the effective number of columns ({len(final_data_sample.columns)}).") 
+            raise(NameError("Different number of columns: exiting from walk script!"))    
+    final_data_sample = pd.concat([sample_header_long, final_data_sample], ignore_index=True)
+
+    # Add header's first row (HEADER_SAMPLE_SHORT)
+    if not conf_header_short:
+        sample_header_short = default_row
+    else:
+        try:
+            combined_headers = conf_header_short.split(",")
+            sample_header_short = pd.DataFrame([combined_headers], columns=dataclin_columns)
+        except ValueError:
+            logger.critical(f"The number of column names ({len(combined_headers)}) in HEADER_SAMPLE_SHORT in conf.ini is different from the effective number of columns ({len(final_data_sample.columns)}).") 
+            raise(NameError("Different number of columns: exiting from walk script!")) 
+    final_data_sample = pd.concat([sample_header_short, final_data_sample], ignore_index=True)
+
+    # Add '#' where needed 
+    final_data_sample.loc[0:3, 'SAMPLEID'] = final_data_sample.loc[0:3, 'SAMPLEID'].apply(lambda x: f'#{x}')
+
+    # Write the final data_clinical_sample
+    data_clin_txt = os.path.join(output_folder, 'data_clinical_sample.txt')
+    final_data_sample.to_csv(data_clin_txt, sep="\t", index=False, header=False)
+
+
+def write_default_clinical_patient(output_folder, table_dict):
     logger.info("Writing data_clinical_patient.txt file...")
     data_clin_samp = os.path.join(output_folder, 'data_clinical_patient.txt')
     cil_sample = open(data_clin_samp, 'w')
@@ -615,98 +664,53 @@ def write_clinical_patient(output_folder, table_dict):
         cil_sample.write(v + "\tNaN\tNaN\n")
     cil_sample.close()
 
-def write_clinical_sample(input, output_folder, table_dict):
-    logger.info("Writing data_clinical_sample.txt file...")
-
-    # Get tsv file name and path
-    # !!!!!!!!!!!!!!POTREBBE ESSERCI UN PROBLEMA SE METTIAMO NELLA CARTELLA ANCHE sample.tsv!!!!!!!!!!!!!!!!!!!!
-    tsv_file = [file for file in os.listdir(input) if file.endswith(".tsv")][0]
-    input_file_path = os.path.join(input, tsv_file)
-
-    # Get headers from conf.ini if they're present
-    conf_header_short = config.get('ClinicalSample', 'HEADER_SAMPLE_SHORT')
-    conf_header_long = config.get('ClinicalSample', 'HEADER_SAMPLE_LONG')
-    conf_header_type = config.get('ClinicalSample', 'HEADER_SAMPLE_TYPE')
-
-    # Read tsv file as dataframe
-    data_clin_samp = pd.read_csv(input_file_path, sep="\t", header=0, dtype=str)
-
-    # Drop paths columns
-    if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no
-        data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
-    
-    # Capitalize df columns
-    data_clin_samp.columns = data_clin_samp.columns.str.upper()
-
-    # Read CombinedOutput and add column names
-    combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
-
-    # Create columns if they don't exist and add names
-    desired_columns = ["SAMPLEID", "PATIENTID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
-    combout_df.columns = desired_columns[:len(combout_df.columns)]
-
-    for col in desired_columns:
-        if col not in combout_df.columns:
-            combout_df[col] = np.nan
-
-    # Merge the two dataframes
-    final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
-
-    # Create list of default columns
-    dataclin_columns = list(final_data_sample.columns)
-
-    # Add header's fifth row
-    default_row = pd.DataFrame([dataclin_columns], columns=dataclin_columns)
-    final_data_sample = pd.concat([default_row, final_data_sample], ignore_index=True) 
-
-    # Add header's fourth row (SERIES OF 1s)
-    header_numbers = pd.DataFrame([[1] * len(final_data_sample.columns)], columns=final_data_sample.columns)
-    final_data_sample = pd.concat([header_numbers, final_data_sample], ignore_index=True)
-
-    # Add header's third row (HEADER_SAMPLE_TYPE)
+def add_header_patient_type(sample_pzt, datapat_columns, conf_header_type, final_data_pat):
     if not conf_header_type:
-        cols = final_data_sample.columns.tolist()
-        header_row = ["STRING"] * len(cols)
-        header_row[cols.index('MSI')] = "NUMBER"
-        header_row[cols.index('TMB')] = "NUMBER"
-        sample_header_type = pd.DataFrame([header_row], columns=cols)
+        def_type = ["STRING", "NUMBER", "STRING"]
+        header_type = def_type + ["STRING"] * (len(datapat_columns)-3)
+        header_type_df = pd.DataFrame([header_type], columns=datapat_columns)
     else:
+        types_list = conf_header_type.split(',')
+        types_list = list(map(lambda x: x.strip().upper(), types_list))
+        for type in types_list:
+            if type not in ["STRING", "BOOLEAN", "NUMBER"]:
+                logger.critical(f"{type} is not a valid type. Please check the given input in conf.ini. " +
+                                    "Valid types: STRING, NUMBER, BOOLEAN")
+                raise(NameError("The type is not valid: exiting from walk script!"))
         try:
-            conf_header_type = conf_header_type + ["NUMBER", "NUMBER", "STRING", "STRING"]
-            sample_header_type = pd.DataFrame([conf_header_type], columns=final_data_sample.columns)
+            header_type_df = pd.DataFrame([types_list], columns=datapat_columns)
         except ValueError:
-            print("The number of columns is different from the number of given column names for HEADER_SAMPLE_TYPE")
-    final_data_sample = pd.concat([sample_header_type, final_data_sample], ignore_index=True)   
+            logger.critical(f"The number of column names ({len(types_list)}) in HEADER_PATIENT_TYPE " +
+                                f"is different from the effective number of columns ({len(datapat_columns)}) in {sample_pzt}.") 
+            raise(NameError("Different number of columns: exiting from walk script!"))
+    final_data_pat = pd.concat([header_type_df, final_data_pat], ignore_index=True)
+    return final_data_pat
 
-    # Add header's second row (HEADER_SAMPLE_LONG)
-    if not conf_header_long:
-        sample_header_long = default_row
-    else:
-        try:
-            combined_headers = conf_header_long + desired_columns[2:]
-            sample_header_long = pd.DataFrame([combined_headers], columns=final_data_sample.columns)
-        except ValueError:
-            print("The number of columns is different from the number of given column names for HEADER_SAMPLE_LONG")    
-    final_data_sample = pd.concat([sample_header_long, final_data_sample], ignore_index=True)
-
-    # Add header's first row (HEADER_SAMPLE_SHORT)
+def add_header_patient_short(sample_pzt, datapat_columns, conf_header_short, default_row, final_data_pat):
     if not conf_header_short:
-        sample_header_short = default_row
+        pat_header_short = default_row
     else:
         try:
-            combined_headers = conf_header_short + desired_columns[2:]
-            sample_header_short = pd.DataFrame([combined_headers], columns=final_data_sample.columns)
+            pat_header_short = pd.DataFrame([conf_header_short.split(', ')], columns=datapat_columns)
         except ValueError:
-            print("The number of columns is different from the number of given column names for HEADER_SAMPLE_SHORT")    
-    final_data_sample = pd.concat([sample_header_short, final_data_sample], ignore_index=True)
+            logger.critical(f"The number of column names ({len(conf_header_short.split(', '))}) in HEADER_PATIENT_SHORT in conf.ini " +
+                                f"is different from the effective number of columns ({len(datapat_columns)}) in {sample_pzt}.") 
+            raise(NameError("Different number of columns: exiting from walk script!"))
+    final_data_pat = pd.concat([pat_header_short, final_data_pat], ignore_index=True)
+    return final_data_pat
 
-    # Add '#' where needed 
-    final_data_sample.loc[0:3, 'SAMPLEID'] = final_data_sample.loc[0:3, 'SAMPLEID'].apply(lambda x: f'#{x}')
-
-    # Write the final data_clinical_sample
-    data_clin_txt = os.path.join(output_folder, 'data_clinical_sample.txt')
-    final_data_sample.to_csv(data_clin_txt, sep="\t", index=False, header=False)
-
+def add_header_patient_long(sample_pzt, datapat_columns, conf_header_long, default_row, final_data_pat):
+    if not conf_header_long:
+        pat_header_long = default_row
+    else:
+        try:
+            pat_header_long = pd.DataFrame([conf_header_long.split(', ')], columns=datapat_columns)
+        except ValueError:
+            logger.critical(f"The number of column names ({len(conf_header_long.split(', '))}) in HEADER_PATIENT_LONG " +
+                                f"in conf.ini is different from the effective number of columns ({len(datapat_columns)}) in {sample_pzt}.") 
+            raise(NameError("Different number of columns: exiting from walk script!"))
+    final_data_pat = pd.concat([pat_header_long, final_data_pat], ignore_index=True)
+    return final_data_pat
 
 def write_clinical_sample_empty(output_folder, table_dict):
     logger.info("Writing data_clinical_sample.txt file...")
@@ -766,7 +770,6 @@ def extract_multiple_cnv(multiple_vcf, input_dir):
             single_sample_vcf = os.path.join(single_sample_vcf_dir, f"{sample}.vcf")
             cmd = f"vcftools --vcf {multiple_vcf} --indv {sample} --recode --recode-INFO-all --stdout > {single_sample_vcf}"
             os.system(cmd)
-
     
 def extract_multiple_snv(multiple_vcf,input_dir):    
     if not os.path.exists(os.path.join(input_dir, "single_sample_vcf")):
@@ -790,15 +793,9 @@ def check_field_tsv(row, name):
         raise(KeyError("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
     return field
 
-def get_combinedVariantOutput_from_folder(inputFolder, tsvpath, isinputfile):
+def get_combinedVariantOutput_from_folder(inputFolder, file, isinputfile):
     combined_dict = dict()
-    
-    try:
-        file = pd.read_csv(tsvpath, sep="\t", dtype=str)
-    except Exception as e:
-        logger.critical(f"Something went wrong while reading {tsvpath}!")
-        raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
-    
+
     for _,row in file.iterrows():
         
         #patientID = check_field_tsv(row, "PatientID")
@@ -831,13 +828,18 @@ def check_folders(output_folder, snv_path, cnv_path, combout):
     check_input_file(output_folder, cnv_path, "CNV")
     check_input_file(output_folder, combout, "CombinedOutput")
         
-def transform_input(tsv, output_folder, multiple):
+def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
     os.makedirs(os.path.join(output_folder, "temp"), exist_ok=True)
     os.makedirs(os.path.join(output_folder, "temp", "SNV"), exist_ok=True)
     os.makedirs(os.path.join(output_folder, "temp", "CNV"), exist_ok=True)
     os.makedirs(os.path.join(output_folder, "temp", "CombinedOutput"), exist_ok=True)
-
-    os.system("cp " + tsv + " " + os.path.join(output_folder, "temp"))
+    os.makedirs(os.path.join(output_folder, "temp", "FUSIONS"), exist_ok=True)
+   
+    os.system("cp " + tsv + " " + os.path.join(output_folder, "temp", "sample.tsv"))
+    if clin_pzt!="":
+        os.system("cp " + clin_pzt + " " + os.path.join(output_folder, "temp", "patient.tsv"))
+    if fusion_tsv!="":
+        os.system("cp " + fusion_tsv + " " + os.path.join(output_folder, "temp", "FUSIONS", "fusion.tsv"))
 
     if multiple:
         snv_path = config.get('Multiple', 'SNV')
@@ -868,30 +870,185 @@ def transform_input(tsv, output_folder, multiple):
                 
     return os.path.join(output_folder, "temp")
 
-def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters="", log=False):
+
+def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
+
+    nfusion=len(fusion_files)
+    logger.info(f"Found {nfusion} Fusion file(s) ")
+
+    fusion_input = os.path.join(input, "FUSIONS", fusion_files[0])
+    with open(fusion_input) as template:
+        header = template.readline()
+            
+    with open(fusion_table_file, "w") as fusion_table:
+
+        fusion_table.write(header)
+                
+        for fusion_file in fusion_files:
+            ff = pd.read_csv(fusion_input, sep="\t")
+                    
+            if not set(["Sample_Id","SV_Status","Site1_Hugo_Symbol","Site2_Hugo_Symbol"]).issubset(ff.columns):
+                logger.warning(f"{fusion_file} does not contain required columns")
+                continue
+                
+            if ff.shape[0]==0:
+                logger.info(f"No Fusions found in {fusion_file}")
+                continue
+            else:
+                logger.info(f"Fusions found in {fusion_file}")          
+
+            for fus in ff.itertuples(index=False):
+                if fus.Sample_Id in clin_file["SampleID"].values:
+                    if int(fus.Normal_Paired_End_Read_Count) >= 15:
+                        fusion_table.write('\t'.join(map(str, fus)) + '\n')
+
+            #TODO controllare possibili campi (FUSION, INVERSION, DELETION)
+
+def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
     
-    if not log:
-        logger.remove()
-        logfile="Walk_folder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}", colorize=True)
-        logger.add(os.path.join('Logs', logfile), format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")
+    if "ONCOTREE_CODE" in input_file.columns:
+        input_file["SampleID"] = input_file["SampleID"] + ".bam"
+        fusion_table_df = data_sv.merge(input_file, how="inner", left_on="Sample_Id", right_on="SampleID")
+        fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
+        fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")
+        os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
+                        -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")   
+
+    else:   
+        fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")       
+        os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
+                            -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
+                    
+    return fusion_table_file_out
+
+def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
+    logger.info(f"Creating data_sv.txt file...")
+ 
+    with open(fusion_table_file, "w") as fusion_table:
+        header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
+        fusion_table.write(header)
+
+        for k, v in combined_dict.items():
+            fusions=[]
+            logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+            try:
+                fusions = tsv.get_fusions(v)
+            except Exception as e:
+                logger.error(f"Something went wrong while reading Fusion section of file {v}")
+            if len(fusions) == 0:
+                logger.info(f"No Fusions found in {v}")
+                continue
+            else:
+                logger.info(f"Fusions found in {v}")
+
+            for fus in fusions:
+                if len(fusions) > 0:
+                    Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
+                    Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
+                    if Site2_Hugo_Symbol == 'CASC1':
+                        Site2_Hugo_Symbol = 'DNAI7'
+                    Site1_Chromosome = fus['Site1_Chromosome']
+                    Site2_Chromosome = fus['Site2_Chromosome']
+                    Site1_Position = fus['Site1_Position']
+                    Site2_Position = fus['Site2_Position']
+
+                    if eval("int(fus['Normal_Paired_End_Read_Count'])" + THR_FUS):
+                        fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
+            str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
+            '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
+
+def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
+
+    logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
+    for k, m, t in zip(fileinputclinical["SampleID"], fileinputclinical["MSI"], fileinputclinical["TMB"]):
+        table_dict_patient[k].append(m)
+        table_dict_patient[k].append(t)
+        
+        if np.isnan(float(m)):
+            table_dict_patient[k].append("NA")
+        else:
+            if eval("float(m)" + MSI_THR):
+                table_dict_patient[k].append("Stable")   
+            else:
+                table_dict_patient[k].append('Unstable')
+        
+        if not np.isnan(float(t)):
+            for _k, _v in TMB.items():
+                if eval("float(t)" + _v):
+                    table_dict_patient[k].append(_k)
+                    break
+        else:
+            table_dict_patient[k].append("NA")
+    return table_dict_patient
+
+def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB):
+    for k, v in combined_dict.items():
+        logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
+        try:
+            tmv_msi = tsv.get_msi_tmb(v)
+        except Exception as e:
+            logger.error(f"Something went wrong!")
+        logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
+
+        if not tmv_msi['MSI'][0][1]=="NA" and eval("float(tmv_msi['MSI'][0][1])" + MSI_SITES_THR):    
+            table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
+        else:
+            table_dict_patient[k].append('NA')
+        table_dict_patient[k].append(tmv_msi['TMB_Total'])
+        if not tmv_msi['MSI'][0][1]=="NA":
+            if not tmv_msi['MSI'][1][1] =="NA":
+                if eval("float(tmv_msi['MSI'][1][1])"+MSI_THR):
+                    table_dict_patient[k].append("Stable")   
+                else:
+                    table_dict_patient[k].append('Unstable')
+
+                found = False
+            else:
+                table_dict_patient[k].append('NA')
+        else:
+            table_dict_patient[k].append('NA')
+        found = False
+        for _k, _v in TMB.items():
+            if not tmv_msi["TMB_Total"]=="NA":
+                if eval(tmv_msi["TMB_Total"] + _v):
+                    table_dict_patient[k].append(_k)
+                    found = True
+                    break
+            else:
+                table_dict_patient[k].append("NA")
+        if found==False:
+            table_dict_patient[k].append(list(TMB.keys())[-1])
+    return table_dict_patient
+
+def input_extraction(input):
+    sample_tsv=input[0]
+    patient_tsv, fusion_tsv = "",""
+    
+    if len(input)>1:
+        patient_tsv=input[1].strip()
+        if len(input)>2:
+            fusion_tsv=input[2].strip()
+
+    return sample_tsv, patient_tsv, fusion_tsv
+
+def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
     
     logger.info("Starting walk_folder script:")
     logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, Overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filters:{filters}, multiple:{multiple}]")
  
     config.read("conf.ini")
-
+    
+    input, sample_pzt, fusion_tsv = input_extraction(input)
     assert os.path.exists(input), \
         f"No valid file/folder {input} found. Check your input path"   
     
     ###############################
     ###       OUTPUT FOLDER     ###
     ###############################
-
+    
     if not resume or not os.path.exists(os.path.join(output_folder, "temp")):
         output_folder = create_folder(output_folder, overwrite_output, resume)
-
+    
     global isinputfile 
     if os.path.isdir(input):
         isinputfile = False
@@ -901,7 +1058,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     elif os.path.isfile(input):
         isinputfile = True
         check_multiple_file(input, multiple)
-        input_folder = transform_input(input, output_folder, multiple)
+        input_folder = transform_input(input, sample_pzt, fusion_tsv, output_folder, multiple)
     #input=os.path.join(output_folder, "temp")
 
     else:
@@ -911,8 +1068,8 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     inputFolderSNV = os.path.abspath(os.path.join(input_folder, "SNV"))
     inputFolderCNV = os.path.abspath(os.path.join(input_folder, "CNV"))
     inputFolderCombOut = os.path.abspath(os.path.join(input_folder, "CombinedOutput"))
+    inputFolderFusion = os.path.abspath(os.path.join(input_folder, "FUSIONS"))
 
-    
     
     assert (len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
         "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
@@ -954,12 +1111,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             logger.info("Starting vcf2maf conversion...")
             if "d" in filters:
                 logger.info("filtering out vcfs with dots in ALT column")
-            #     temporary = create_random_name_folder()
                 sID_path_snv = vcf_filtering(sID_path_snv,output_folder)
-            #     for k, v in sID_path_filtered.items():
-            #         cl = vcf2maf_constructor(k, v, temporary,output_folder)
-            #         run_vcf2maf(cl)
-            # else:
             temporary = create_random_name_folder()
             for k, v in sID_path_snv.items():
                 cl = vcf2maf_constructor(k, v, temporary,output_folder)
@@ -967,191 +1119,104 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     
     logger.info("Clearing scratch folder...")
     clear_scratch()
-    
+
    
     ###############################
     ###       GET FUSION        ###
     ###############################
 
-    # if not COMBOUT == "":
+    clin_sample_path = os.path.join(input_folder, "sample.tsv")
+    fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
+    
     try:
-        tsvfiles = [file for file in os.listdir(input_folder) if file.endswith("tsv")][0]
-    except IndexError:
-        logger.critical(f"It seems that no tsv file is in your folder!")
-        raise(IndexError("Exiting from walk script!"))
-    except FileNotFoundError:
-        logger.critical(f"No input directory '{input_folder}' was found: try check your path")
-        raise(FileNotFoundError("Exiting from walk script!"))
+        clin_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
     except Exception as e:
-        logger.critical(f"Something went wrong! {print(traceback.format_exc())}")
-        raise(Exception("Error while reading clinical_info.tsv: exiting from walk script!"))
+        logger.critical(f"Something went wrong while reading {clin_sample_path}!")
+        raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
 
-    tsvpath = os.path.join(input_folder, tsvfiles)
-
-    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.path.join(input_folder, "CombinedOutput"))>0:
-        combined_dict = get_combinedVariantOutput_from_folder(input_folder, tsvpath, isinputfile)
+    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
+        THR_FUS = config.get('FUSION', 'THRESHOLD')
+        combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)       
+        fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
     
-        fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
-            
-    #     for k, v in combined_dict.items():
-    #         fusions=[]
-    #         logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
-    #         try:
-    #             fusions = tsv.get_fusions(v)
-    #         except Exception as e:
-    #             logger.error(f"Something went wrong while reading Fusion section of file {v}")
-    # except FileNotFoundError:
-    #     logger.critical(f"No input file '{input_folder}' was found: try check your path")
-    #     raise(FileNotFoundError("Exiting from walk script!"))
+    elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]:    
+        fusion_files=[file for file in os.listdir(os.path.join(input_folder,"FUSIONS")) if "tsv" in file]
+        fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)     
 
-        for k, v in combined_dict.items():
-            fusions=[]
-            logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
-            try:
-                fusions = tsv.get_fusions(v)
-            except Exception as e:
-                logger.error(f"Something went wrong while reading Fusion section of file {v}")
-            if len(fusions) == 0:
-                logger.info(f"No Fusions found in {v}")
-                continue
-            else:
-                logger.info(f"Fusions found in {v}")
-            if not os.path.exists(fusion_table_file):
-                logger.info(f"Creating data_sv.txt file...")
-                fusion_table = open(fusion_table_file, 'w')
-                #TODO far leggere l'header da template fusioni ################################################
-                header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
-                fusion_table.write(header)
-            else:
-                fusion_table = open(fusion_table_file, 'a')
-            for fus in fusions:
-                if len(fusions) > 0:
-                    Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
-                    Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
-                    if Site2_Hugo_Symbol == 'CASC1':
-                        Site2_Hugo_Symbol = 'DNAI7'
-                    Site1_Chromosome = fus['Site1_Chromosome']
-                    Site2_Chromosome = fus['Site2_Chromosome']
-                    Site1_Position = fus['Site1_Position']
-                    Site2_Position = fus['Site2_Position']
-
-                    if int(fus['Normal_Paired_End_Read_Count'])>=15 :
-                        fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
-        str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
-        '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
+    if oncokb and os.path.exists(fusion_table_file):
+        data_sv = pd.read_csv(fusion_table_file, sep="\t")
+        input_file = pd.read_csv(clin_sample_path, sep="\t")
+        fusion_table_file_out = annotate_fusion(cancer, fusion_table_file, data_sv, input_file)
         
-    
-        if oncokb and os.path.exists(fusion_table_file):
+        if "o" in filters:
+            fus_file = pd.read_csv(fusion_table_file_out, sep="\t")
+            fus_file = filter_OncoKB(fus_file)
+            fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
+        os.system(f"mv {fusion_table_file_out}  {fusion_table_file}") 
             
-            data_sv = pd.read_csv(fusion_table_file, sep="\t")
-            if not os.path.isfile(input_folder):
-                tsv_file = [file for file in os.listdir(input_folder) if file.endswith(".tsv")][0]
-                input_file = pd.read_csv(os.path.join(input_folder, tsv_file), sep="\t")
-            
-            else:
-                input_file = pd.read_csv(input_folder, sep="\t")
-
-            
-            if "ONCOTREE_CODE" in input_file.columns:
-            
-                input_file["SampleID"] = input_file["SampleID"] + ".bam"
-                fusion_table_df = data_sv.merge(input_file, how="inner", left_on="Sample_Id", right_on="SampleID")
-                fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
-                fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")
-                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
-                        -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
-                
-
-            else:   
-                    
-                fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")       
-                os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
-                            -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
-            
-            if "o" in filters:
-                fus_file = pd.read_csv(fusion_table_file_out, sep="\t")
-                fus_file = filter_OncoKB(fus_file)
-                fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
-            os.system(f"mv {fusion_table_file_out}  {fusion_table_file}") 
-            
-
-            
-            
-        #     fileonco=pd.read_csv(fusion_table_file_out,sep="\t")
-            
-        # # fileonco=fileonco[fileonco["ONCOGENIC"].isin(["Oncogenic","Likely Oncogenic"])]
-        #     fileonco.to_csv(fusion_table_file,sep="\t",index=False)           
-            
-    
-    # except FileNotFoundError:
-    #     logger.critical(f"No input file '{input_folder}' was found: try check your path")
-    #     raise(FileNotFoundError("Exiting from walk script!"))
-    
+      
     ##############################
     ##       MAKES TABLE       ###
-    ##############################
-    
-    tsv_file = [file for file in os.listdir(input_folder) if file.endswith("tsv")][0]
-    tsvpath = os.path.join(input_folder, tsv_file)    
+    ##############################    
 
-    table_dict_patient = get_table_from_folder(tsvpath)
+    table_dict_patient = get_table_from_folder(clin_sample_path)
 
     logger.info("Writing clinical files...")
-    write_clinical_patient(output_folder, table_dict_patient)
-    #fileinputclinical=pd.read_csv(tsvpath, sep="\t", index_col=False, dtype=str)
+    
+    if sample_pzt.strip()!="":
+        logger.info("Writing data_clinical_patient.txt file...")
+        
+        input_file_path = os.path.join(input_folder, os.path.basename(sample_pzt))
+        data_clin_pat = pd.read_csv(input_file_path, sep="\t", header=0, dtype=str)
+        
+        data_clin_pat.columns = data_clin_pat.columns.str.upper()
+        datapat_columns = list(data_clin_pat.columns)
+
+        # Get headers from conf.ini if they're present
+        conf_header_short = config.get('ClinicalPatient', 'HEADER_PATIENT_SHORT')
+        conf_header_long = config.get('ClinicalPatient', 'HEADER_PATIENT_LONG')
+        conf_header_type = config.get('ClinicalPatient', 'HEADER_PATIENT_TYPE')
+
+        # Add header's fifth row
+        default_row = pd.DataFrame([datapat_columns], columns=datapat_columns)
+        final_data_pat = pd.concat([default_row, data_clin_pat], ignore_index=True) 
+
+        # Add header's fourth row (1s)
+        header_numbers = pd.DataFrame([[1] * len(datapat_columns)], columns=datapat_columns)
+        final_data_pat = pd.concat([header_numbers, final_data_pat], ignore_index=True)
+
+        # Add header's third row (HEADER_PATIENT_TYPE)
+        final_data_pat = add_header_patient_type(sample_pzt, datapat_columns, conf_header_type, final_data_pat)
+
+        # Add header's second row (HEADER_PATIENT_LONG)
+        final_data_pat = add_header_patient_long(sample_pzt, datapat_columns, conf_header_long, default_row, final_data_pat)
+
+        # Add header's first row (HEADER_PATIENT_SHORT)
+        final_data_pat = add_header_patient_short(sample_pzt, datapat_columns, conf_header_short, default_row, final_data_pat)
+
+        final_data_pat.loc[0:3, 'PATIENTID'] = final_data_pat.loc[0:3, 'PATIENTID'].apply(lambda x: f'#{x}')
+
+        data_clin_txt = os.path.join(output_folder, 'data_clinical_patient.txt')
+        final_data_pat.to_csv(data_clin_txt, sep="\t", index=False, header=False)
+
+    else:
+        write_default_clinical_patient(output_folder, table_dict_patient)
+
+    fileinputclinical = pd.read_csv(os.path.join(input_folder, "sample.tsv"), sep="\t", index_col=False, dtype=str)
+    
+    MSI_THR = config.get('MSI', 'THRESHOLD')
+    TMB_THR = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
     
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and \
-    len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
-        combined_dict = get_combinedVariantOutput_from_folder(input_folder, tsvpath, isinputfile)
-        MSI_THR = config.get('MSI', 'THRESHOLD')
-        TMB = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
-        
-        for k, v in combined_dict.items():
-            logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
-            try:
-                tmv_msi = tsv.get_msi_tmb(v)
-            except Exception as e:
-                logger.error(f"Something went wrong!")
-            logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
-            
-            if not tmv_msi['MSI'][0][1]=="NA" and float(tmv_msi['MSI'][0][1]) >= 40:
-                table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
-            else:
-                table_dict_patient[k].append('NA')
-            table_dict_patient[k].append(tmv_msi['TMB_Total'])
-            if not tmv_msi['MSI'][0][1]=="NA":
-                if not tmv_msi['MSI'][1][1] =="NA":
-                    if eval("float(tmv_msi['MSI'][1][1])"+MSI_THR):
-                        table_dict_patient[k].append("Stable")   
-                    else:
-                        table_dict_patient[k].append('Unstable')
+        len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
+        MSI_SITES_THR = config.get('MSI', 'THRESHOLD_SITES')
 
-                    found = False
-                else:
-                    table_dict_patient[k].append('NA')
-            else:
-                table_dict_patient[k].append('NA')
-            found=False
-            for _k, _v in TMB.items():
-                if not tmv_msi["TMB_Total"]=="NA":
-                    if float(tmv_msi["TMB_Total"])<float(_v):
-                        table_dict_patient[k].append(_k)
-                        found=True
-                        break
-                else:
-                    table_dict_patient[k].append("NA")
-            if found==False:
-                table_dict_patient[k].append(list(TMB.keys())[-1])
-        
-        # run=str(fileinputclinical[fileinputclinical["SampleID"]==k]["RunID"].values[0])
-        # tc=str(fileinputclinical[fileinputclinical["SampleID"]==k]["TC"].values[0])
-        # oncotree=str(fileinputclinical[fileinputclinical["SampleID"]==k]["ONCOTREE_CODE"].values[0])
-        
-        # table_dict_patient[k].append(run) 
-        # table_dict_patient[k].append(oncotree)
-        # table_dict_patient[k].append(tc)
+        combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)        
+        table_dict_patient = fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB_THR)
+    else:
+        table_dict_patient = fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB_THR)
 
-    write_clinical_sample(input_folder, output_folder, table_dict_patient)
+    write_clinical_sample(clin_sample_path, output_folder, table_dict_patient)
 
     #DECOMMENTARE UNA VOLTA FINITI TEST
     # if isinputfile:
@@ -1167,52 +1232,4 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     
     logger.success("Walk script completed!\n")
 
-    return output_folder
-
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)
-
-if __name__ == '__main__':
-         
-    parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description='Argument of walk script')
-
-    parser.add_argument('-i', '--input', required=True,
-                                            help='input folder with data')
-    parser.add_argument('-t', '--vcf_type', required=False,
-                                            choices=['snv', 'cnv'],
-                                            help='Select the vcf file to parse')
-    parser.add_argument('-f', '--filters', required=False,
-                                            action='store_true',
-                                            help='Select filter for SNV [p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q > Consequence, y-> polyphens -> clin_sig, n -> novel]',default="")
-    parser.add_argument('-o', '--output_folder', required=True,
-                                            help='Output folder')
-    parser.add_argument('-k', '--oncoKB', required=False,action='store_true',help='OncoKB annotation')
-    parser.add_argument('-w', '--overWrite', required=False,action='store_true',
-                                                help='Overwrite output folder if it exists')
-    parser.add_argument('-c', '--Cancer', required=False,
-                        help='Cancer Name')
-    parser.add_argument('-m', '--multiple', required=False, action='store_true', help='Multiple sample VCF?')
-
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="walk_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
-    
-    
-    input = args.input
-    vcf_type = args.vcf_type
-    filters = args.filters
-    output_folder = args.output_folder
-    overwrite_output = args.overWrite
-    onco = args.oncoKB
-    cancer = args.Cancer
-    multiple = args.multiple
-    
-    walk_folder(input, multiple, output_folder, onco, cancer, overwrite_output, vcf_type, filters, log=False)
+    return output_folder, input, fusion_tsv
