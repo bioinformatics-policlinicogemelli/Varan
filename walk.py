@@ -496,23 +496,23 @@ def check_multiple_file(input_file, multiple):
     snv_file_path = file_paths['snv_path'].isnull().all() # True mancano tutti i valori
     cnv_file_path = file_paths['cnv_path'].isnull().all() # False se almeno uno è pieno
     
-    #TODO ridiscutere CASE 3
+    #TODO ridiscutere CASE 4
     #CASE 1: multiple = True; neither snv or cnv are filled in sample.tsv; multiple snv or cnv are filled in conf.ini
     if multiple and not (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was selected and Muliple section in conf.ini was filled but the file doesn't looks like a multiVCF")
+        logger.critical("-m was selected and Muliple section in conf.ini was filled but the file doesn't looks like a multiVCF.")
         raise Exception ("Input error")
     #CASE 2: multiple = True; neither snv or cnv are filled in sample.tsv; neither multiple snv or cnv are filled in conf.ini
     elif multiple and not (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was selected but Muliple section in conf.ini wasn't filled and the file doesn't looks like a multiVCF")
+        logger.critical("-m was selected but Muliple section in conf.ini wasn't filled and the file doesn't looks like a multiVCF.")
         raise Exception ("Input error")
-    #CASE 3: multiple = False; snv or cnv are filled in sample.tsv; neither multiple snv or cnv are filled in conf.ini
-    # elif not multiple and (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
-    #     logger.critical("-m was not selected and the Muliple section in conf.ini wasn't filled but the file looks like a multiVCF")
-    #     raise Exception ("Input error")
-    #CASE 4: multiple = False; snv or cnv are filled in sample.tsv; multiple snv or cnv are filled in conf.ini
+    #CASE 3: multiple = False; snv or cnv are filled in sample.tsv; multiple snv or cnv are filled in conf.ini
     elif not multiple and (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
-        logger.critical("-m was not selected but both sample.tsv and Muliple section in conf.ini were filled")
+        logger.critical("-m was not selected but both sample.tsv and Muliple section in conf.ini were filled.")
         raise Exception ("Input error")
+    #CASE 4: multiple = False; snv or cnv are filled in sample.tsv; neither multiple snv or cnv are filled in conf.ini
+    elif not multiple and (snv_file_path or cnv_file_path) and (conf_snv == "" or conf_cnv == ""):
+        logger.warning("SNV and/or CNV columns in sample.tsv were not filled.")
+        # raise Exception ("Input error")
 
 
 def check_multiple_folder(input_dir, multiple):
@@ -556,20 +556,18 @@ def check_multiple_folder(input_dir, multiple):
 
 
 def write_clinical_sample(clin_samp_path, output_folder, table_dict):
+
     logger.info("Writing data_clinical_sample.txt file...")
-    # Get headers from conf.ini if they're present
+
     conf_header_short = config.get('ClinicalSample', 'HEADER_SAMPLE_SHORT')
     conf_header_long = config.get('ClinicalSample', 'HEADER_SAMPLE_LONG')
     conf_header_type = config.get('ClinicalSample', 'HEADER_SAMPLE_TYPE')
 
-    # Read tsv file as dataframe
     data_clin_samp = pd.read_csv(clin_samp_path, sep="\t", header=0, dtype=str)
 
-    # Drop paths columns
-    if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no TODO decidere se mantenere così
-        data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
+    # if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no TODO decidere se mantenere così
+    data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
     
-    # Capitalize df columns
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
 
     combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
@@ -585,8 +583,6 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
             data_clin_samp.drop(columns=["MSI", "TMB"], inplace=True)
         final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
 
-
-    # Create list of default columns
     dataclin_columns = list(final_data_sample.columns)
 
     # Add header's fifth row
@@ -877,16 +873,19 @@ def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
 
 def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
 
-    nfusion=len(fusion_files) 
-    logger.info(f"Found {nfusion} Fusion files ")
+    nfusion=len(fusion_files)
+    logger.info(f"Found {nfusion} Fusion file(s) ")
+
+    fusion_input = os.path.join(input, "FUSIONS", fusion_files[0])
+    with open(fusion_input) as template:
+        header = template.readline()
             
     with open(fusion_table_file, "w") as fusion_table:
 
-        header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\n'
         fusion_table.write(header)
                 
-        for fusion_file in fusion_files :
-            ff = pd.read_csv(os.path.join(input,"FUSIONS",fusion_file),sep="\t")
+        for fusion_file in fusion_files:
+            ff = pd.read_csv(fusion_input, sep="\t")
                     
             if not set(["Sample_Id","SV_Status","Site1_Hugo_Symbol","Site2_Hugo_Symbol"]).issubset(ff.columns):
                 logger.warning(f"{fusion_file} does not contain required columns")
@@ -896,11 +895,14 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
                 logger.info(f"No Fusions found in {fusion_file}")
                 continue
             else:
-                logger.info(f"Fusions found in {fusion_file}")
+                logger.info(f"Fusions found in {fusion_file}")          
 
-            for _, fus in ff.iterrows():
-                if fus["Sample_Id"] in clin_file["SampleID"].values:
-                    fusion_table.write(str(fus["Sample_Id"])+'\t'+fus["SV_Status"]+'\tFUSION'+'\t'+str(fus['Site1_Hugo_Symbol'])+'\t'+str(fus['Site2_Hugo_Symbol'])+'\n')
+            for fus in ff.itertuples(index=False):
+                if fus.Sample_Id in clin_file["SampleID"].values:
+                    if int(fus.Normal_Paired_End_Read_Count) >= 15:
+                        fusion_table.write('\t'.join(map(str, fus)) + '\n')
+
+            #TODO controllare possibili campi (FUSION, INVERSION, DELETION)
 
 def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
     
@@ -920,44 +922,43 @@ def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
     return fusion_table_file_out
 
 def fill_fusion_from_combined(fusion_table_file, combined_dict):
-    for k, v in combined_dict.items():
-        fusions=[]
-        logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
-        try:
-            fusions = tsv.get_fusions(v)
-        except Exception as e:
-            logger.error(f"Something went wrong while reading Fusion section of file {v}")
-        if len(fusions) == 0:
-            logger.info(f"No Fusions found in {v}")
-            continue
-        else:
-            logger.info(f"Fusions found in {v}")
-        if not os.path.exists(fusion_table_file):
-            logger.info(f"Creating data_sv.txt file...")
-            fusion_table = open(fusion_table_file, 'w')
-                #TODO far leggere l'header da template fusioni ################################################
-            header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
-            fusion_table.write(header)
-        else:
-            fusion_table = open(fusion_table_file, 'a')
-        for fus in fusions:
-            if len(fusions) > 0:
-                Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
-                Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
-                if Site2_Hugo_Symbol == 'CASC1':
-                    Site2_Hugo_Symbol = 'DNAI7'
-                Site1_Chromosome = fus['Site1_Chromosome']
-                Site2_Chromosome = fus['Site2_Chromosome']
-                Site1_Position = fus['Site1_Position']
-                Site2_Position = fus['Site2_Position']
+    logger.info(f"Creating data_sv.txt file...")
+ 
+    with open(fusion_table_file, "w") as fusion_table:
+        header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
+        fusion_table.write(header)
 
-                if int(fus['Normal_Paired_End_Read_Count'])>=15 :
-                    fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
-        str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
-        '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
+        for k, v in combined_dict.items():
+            fusions=[]
+            logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+            try:
+                fusions = tsv.get_fusions(v)
+            except Exception as e:
+                logger.error(f"Something went wrong while reading Fusion section of file {v}")
+            if len(fusions) == 0:
+                logger.info(f"No Fusions found in {v}")
+                continue
+            else:
+                logger.info(f"Fusions found in {v}")
+
+            for fus in fusions:
+                if len(fusions) > 0:
+                    Site1_Hugo_Symbol = fus['Site1_Hugo_Symbol']
+                    Site2_Hugo_Symbol = fus['Site2_Hugo_Symbol']
+                    if Site2_Hugo_Symbol == 'CASC1':
+                        Site2_Hugo_Symbol = 'DNAI7'
+                    Site1_Chromosome = fus['Site1_Chromosome']
+                    Site2_Chromosome = fus['Site2_Chromosome']
+                    Site1_Position = fus['Site1_Position']
+                    Site2_Position = fus['Site2_Position']
+
+                    if int(fus['Normal_Paired_End_Read_Count'])>=15:
+                        fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
+            str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
+            '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
 
 def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
-    
+
     logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
     for k, m, t in zip(fileinputclinical["SampleID"], fileinputclinical["MSI"], fileinputclinical["TMB"]):
         table_dict_patient[k].append(m)
@@ -970,14 +971,14 @@ def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
                 table_dict_patient[k].append("Stable")   
             else:
                 table_dict_patient[k].append('Unstable')
-
-        for _k, _v in TMB.items():
-            if not np.isnan(float(t)):
+        
+        if not np.isnan(float(t)):
+            for _k, _v in TMB.items():
                 if eval("float(t)" + _v):
                     table_dict_patient[k].append(_k)
                     break
-            else:
-                table_dict_patient[k].append("NA")
+        else:
+            table_dict_patient[k].append("NA")
     return table_dict_patient
 
 def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB):
@@ -1203,16 +1204,16 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     fileinputclinical = pd.read_csv(os.path.join(input_folder, "sample.tsv"), sep="\t", index_col=False, dtype=str)
     
     MSI_THR = config.get('MSI', 'THRESHOLD')
-    TMB = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
+    TMB_THR = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
     
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and \
         len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
         MSI_SITES_THR = config.get('MSI', 'THRESHOLD_SITES')
 
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)        
-        table_dict_patient = fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB)
+        table_dict_patient = fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB_THR)
     else:
-        table_dict_patient = fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB)
+        table_dict_patient = fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB_THR)
 
     write_clinical_sample(clin_sample_path, output_folder, table_dict_patient)
 
