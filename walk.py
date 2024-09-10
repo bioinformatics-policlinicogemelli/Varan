@@ -921,7 +921,7 @@ def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
                     
     return fusion_table_file_out
 
-def fill_fusion_from_combined(fusion_table_file, combined_dict):
+def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
     logger.info(f"Creating data_sv.txt file...")
  
     with open(fusion_table_file, "w") as fusion_table:
@@ -952,7 +952,7 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict):
                     Site1_Position = fus['Site1_Position']
                     Site2_Position = fus['Site2_Position']
 
-                    if int(fus['Normal_Paired_End_Read_Count'])>=15:
+                    if eval("int(fus['Normal_Paired_End_Read_Count'])" + THR_FUS):
                         fusion_table.write(k+'\tSOMATIC\tFUSION\t'+\
             str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
             '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
@@ -1135,8 +1135,9 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
 
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
+        THR_FUS = config.get('FUSION', 'THRESHOLD')
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)       
-        fill_fusion_from_combined(fusion_table_file, combined_dict)
+        fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
     
     elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]:    
         fusion_files=[file for file in os.listdir(os.path.join(input_folder,"FUSIONS")) if "tsv" in file]
