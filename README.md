@@ -59,8 +59,7 @@ optional arguments:
 -R, --resume Resume an already started analysis
 -k, --oncoKB OncoKB annotation
 -m, --multiple Multiple sample VCF
--f FILTER,
---Filter FILTER Select filter for SNV [d → filter, p → filter==PASS, b → Benign, v → vaf, o → Oncokb, g → gnomAD, q → Consequence, y → polyphens, c → clin_sig, n → novel]
+-f FILTER, --Filter FILTER Select filter for SNV [d → filter, p → filter==PASS, b → Benign, v → vaf, o → Oncokb, g → gnomAD, q → Consequence, y → polyphens, c → clin_sig, n → novel]
 -u, --Update Add this argument if you want to concatenate two studies
 -n NEWPATH, --NewPath NEWPATH Path of new study to add
 -r, --Remove Add this argument if you want remove samples from a study
@@ -76,17 +75,17 @@ optional arguments:
 ## Usage
 
 <p align="justify">The first step to start using Varan is to correctly set the configuration file *conf.ini*. This file is divided in N subsessions:
-* <p align="justify">Paths: here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path.
-* <p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
-* <p align="justify">OncoKB: here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
-* <p align="justify">Project: here is possible to specify project info like name, description and profile.
-* <p align="justify">Filters: here are specified the filters applied in the filtering step. #####Aggiungere sezione sottoparagrafo filtri###
-* <p align="justify">Cna: here are specified the CNV genotypes and the ploidy.
-* <p align="justify">TMB: here are specified the TMB thresholds.
-* <p align="justify">MSI: here are specified the MSI thresholds.
-* <p align="justify">Fusion: here are specified the Fusion thresholds.
-* <p align="justify">Clinical Sample: here is possible to customize the name and type (example: string, number) of the columns in the Clinical Sample.
-* <p align="justify">Clinical Patient: here is possible to customize the name and type (example: string, number) of the columns in the Clinical Patient.
+<p align="justify">Paths: here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path.
+<p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs (SNV, CNV, Combined_Output) are stored.
+<p align="justify">OncoKB: here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
+<p align="justify">Project: here is possible to specify project info like name, description and profile.
+<p align="justify">Filters: here are specified the filters applied in the filtering step. #####Aggiungere sezione sottoparagrafo filtri###
+<p align="justify">Cna: here are specified the CNV genotypes and the ploidy.
+<p align="justify">TMB: here are specified the TMB thresholds.
+<p align="justify">MSI: here are specified the MSI thresholds.
+<p align="justify">Fusion: here are specified the Fusion thresholds.
+<p align="justify">Clinical Sample: here is possible to customize the name and type (example: string, number) of the columns in the data_clinical_sample.txt.
+ <p align="justify">Clinical Patient: here is possible to customize the name and type (example: string, number) of the columns in the data_clinical_patient.txt.
 
 
 
@@ -108,7 +107,7 @@ Template_n1:Sample.tsv
 ⚠️ <i>For the proper functioning of Varan, the existence of this template is required.</i>
 
 ```
-SampleID	PatientID	MSI	TMB	MSI_THR	TMB_THR	ONCOTREE_CODE	snv_path	cnv_path	comb_path
+SampleID	PatientID	MSI	TMB	MSI_THR TMB_THR	ONCOTREE_CODE	snv_path	cnv_path	comb_path
 0000000_DNA	00000000	1	12			BOWEL	/your_path/snv	/your_path/cnv	/your_path/combined_output
 0000001_DNA	00000001	8.0	8.0			UTERUS	/your_path/snv	/your_path/cnv	/your_path/combined_output
 0000002_DNA	00000002	0	33			BOWEL	/your_path/snv	/your_path/cnv	/your_path/combined_output
@@ -131,16 +130,16 @@ Tempalte_n3:Fusion.tsv
 
 ```
 Sample_Id	SV_Status	Site1_Hugo_Symbol	Site2_Hugo_Symbol
-0000000_DNA	SOMATIC	APC	BRCA1
-0000001_DNA	SOMATIC	TP53	BRAF
-0000002_DNA	SOMATIC	APC	BRCA1
-0000003_DNA	SOMATIC	ALK	BRCA2
+0000000_DNA	SOMATIC	    APC	BRCA1
+0000001_DNA	SOMATIC	    TP53	BRAF
+0000002_DNA	SOMATIC	    APC	BRCA1
+0000003_DNA	SOMATIC	    ALK	BRCA2
 
 ```
 ⚠️ <i>The formatting of these 3 templates must match those described above. (Adding new columns starting from the last existing one is allowed, but modifying or deleting the default columns is strictly forbidden.).If there is no data in the column, leave a tab.</i>
 
 
-This can be done in two different ways:
+<b>This can be done in two different ways:</b>
 
 
 <b>tsv file</b>: user must prepare a tsv file containing all of the vcf files' paths <b>Folder</b>: user must organize a folder containing all of the vcf files and a csv file where the patient IDs and samples IDs are listed. The structure of this folder have to follow the one reported below </li>
@@ -162,16 +161,16 @@ input_folder/
 ├── FUSIONS
 │   └── Fusions.tsv
 │    
-└── sample.tsv
+├──sample.tsv
 │    
 └── patient.tsv
 ```
 Where:
-* <p align="justify">*CombinedVariantOutput.tsv* is a tsv file that is necessary to TMB, MSI and Fusions evaluation and that has to contain [TMB], [MSI] and [Fusions] fields. It has to be named as *PatientID_CombinedVariantOutput.tsv*
+<p align="justify">*CombinedVariantOutput.tsv* is a tsv file that is necessary to TMB, MSI and Fusions evaluation and that has to contain [TMB], [MSI] and [Fusions] fields. It has to be named as *PatientID_CombinedVariantOutput.tsv*
 
 ⚠️ <i> If this file is not present, the information regarding [TMB] and [MSI] will be taken from the previously mentioned template (sample.tsv), while [Fusions] will be taken from the Fusions.tsv file<i>
 
-* <p align="justify">*patient.tsv* is a tsv file that is necessary to map the sample ID to the patient ID.
+ <p align="justify"> patient.tsv  is a tsv file that is necessary to map the sample ID to the patient ID.
 
 ⚠️ *An example of both input types can be found in the **input_templates** folder*
 
@@ -181,24 +180,39 @@ These are the options that can be set for this block:
 
 | Options | Description | Type | Required
 |-------------------------|----------------| :---:| :---:|
+|-i <br> --input| <p align="justify">Add this option to insert the path to the input tsv file/folder where the vcf files are listed|  | Yes
 |-o <br> --output_folder| <p align="justify">Add this option to insert the path where to save the output folder| string | Yes
-|-i <br> --input| <p align="justify">Add this option to insert the path to the input tsv file where the vcf files are listed|  | No
-|-c <br> --cancer| <p align="justify">Add this option to specify a cancer type| string | No
-|-f <br> --filter_snv| <p align="justify">Add this option to filter out from the vcf the variants with dot (.) and PASS in Alt and Filter column respectively |boolean| No
-|-t <br> --vcf_type|<p align="justify">Add this option to specify the type of vcf (snv/cnv) |string|Only if the -i option is selected
-|-w <br> --overWrite| <p align="justify">Add this option to overwrite output folder if already exists (⚠️ *if not set, the program will stop if it finds an existing output directory*)|boolean| No
-|-v <br> --vus| <p align="justify">Add this option to filter out VUS variants | boolean | No
+|-c <br> --cancer| <p align="justify">Add this option to specify a cancer type| string | Yes
+|-f <br> --filter_snv| <p align="justify">Add this option to filter out from the vcf the variants with dot (.) and PASS in Alt and Filter column respectively | string | No
+|-k <br> --onocoKB| <p align="justify">Add this option to annotate with oncoKB | boolean | No
+|-t <br> --vcf_type|<p align="justify">Add this option to specify the type of file (snv/cnv/fus/tab) |string|No
+|-w <br> --overWrite| <p align="justify">Add this option to overwrite output folder if already exists|boolean| No
+|-R <br> --resume| <p align="justify">Add this option to resume an already started analysis ⚠️ *This option must be used with caution, because at the moment of  use it restarts from the checkpoint of MAF creation.*| boolean | No
+|-m <br> --multiple| <p align="justify">Add this option to specify that it is a multi-sample file (a single VCF containing information from multiple patients) | boolean | No
+
 
 **Example:**
 
-<ins>vcf file input - SNV </ins>: Launch this command to perform a filtering on vcf files, a filter on VUS variants and save (or rewrite) a study folder starting from a file listing snv vcf files.
+<ins>input folder -i </ins>: Launch this command to processing the contents of the input folder and saving the results to the specified output folder and the cancer type.
 ```
-python varan.py -i <path_to_vfc_tsv_file> -c <cancer_name> -t snv -f -v -o <path_to_output_folder> -w
+python varan.py -i <path_input_folder> -o <path_output_folder> -c <type_of_cancer>
 ```
-<ins>vcf file input - CNV </ins>: Launch this command to perform a filtering on vcf files, a filter on VUS variants and save (or rewrite) a study folder starting from a file listing cnv vcf files.
+<ins>input file -i </ins>: Launch this command to.
 ```
-python varan.py -i <path_to_vfc_tsv_file> -c <cancer_name> -t cnv -f -v -o <path_to_output_folder> -w
+python varan.py -i <type_of_file> -o <path_output_folder> -c <type_of_cancer> 
 ```
+⚠️ *This command for file usage can take as input one or up to a maximum of three file types(in this order ssample,patient,fusion if we don't have the patient file we use "" ). Below, examples will be shown:
+```
+<ins>
+python varan.py -i sample.tsv patient.tsv -o output_folder -c mixed 
+
+python varan.py -i sample.tsv patient.tsv fusion.tsv -o output_folder -c mixed
+
+python varan.py -i sample.tsv "" fusion.tsv -o output_folder -c mixed
+<ins>
+```
+*
+
 <ins>vcf directory </ins>: Launch this command to perform a filtering on vcf files, a filter on VUS variants and save (or rewrite) a study folder starting from a directory containing all of the vcf files.
 ```
 python varan.py -d <path_to_vfc_folder> -c <cancer_name> -f -v -o <path_to_output_folder> -w
