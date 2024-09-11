@@ -76,7 +76,7 @@ optional arguments:
 
 <p align="justify">The first step to start using Varan is to correctly set the configuration file *conf.ini*. This file is divided in N subsessions:
 <p align="justify">Paths: here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path.
-<p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs (SNV, CNV, Combined_Output) are stored.
+<p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
 <p align="justify">OncoKB: here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
 <p align="justify">Project: here is possible to specify project info like name, description and profile.
 <p align="justify">Filters: here are specified the filters applied in the filtering step. #####Aggiungere sezione sottoparagrafo filtri###
@@ -108,6 +108,7 @@ Template_n1:Sample.tsv
 
 ```
 SampleID	PatientID	MSI	TMB	MSI_THR TMB_THR	ONCOTREE_CODE	snv_path	cnv_path	comb_path
+SampleID	PatientID	MSI	TMB	MSI_THR TMB_THR	ONCOTREE_CODE	snv_path	cnv_path	comb_path
 0000000_DNA	00000000	1	12			BOWEL	/your_path/snv	/your_path/cnv	/your_path/combined_output
 0000001_DNA	00000001	8.0	8.0			UTERUS	/your_path/snv	/your_path/cnv	/your_path/combined_output
 0000002_DNA	00000002	0	33			BOWEL	/your_path/snv	/your_path/cnv	/your_path/combined_output
@@ -134,11 +135,16 @@ Sample_Id	SV_Status	Site1_Hugo_Symbol	Site2_Hugo_Symbol
 0000001_DNA	SOMATIC	    TP53	BRAF
 0000002_DNA	SOMATIC	    APC	BRCA1
 0000003_DNA	SOMATIC	    ALK	BRCA2
+0000000_DNA	SOMATIC	    APC	BRCA1
+0000001_DNA	SOMATIC	    TP53	BRAF
+0000002_DNA	SOMATIC	    APC	BRCA1
+0000003_DNA	SOMATIC	    ALK	BRCA2
 
 ```
 ⚠️ <i>The formatting of these 3 templates must match those described above. (Adding new columns starting from the last existing one is allowed, but modifying or deleting the default columns is strictly forbidden.).If there is no data in the column, leave a tab.</i>
 
 
+<b>This can be done in two different ways:</b>
 <b>This can be done in two different ways:</b>
 
 
