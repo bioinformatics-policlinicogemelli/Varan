@@ -19,7 +19,7 @@ def extract_version_int(foldername):
 
 def get_version_list(output_folder):
     foldername = re.split(r'_v[0-9]+$',os.path.basename(output_folder))[0]
-    outputfolderpath = os.getcwd()
+    outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
         outputfolderpath = os.getcwd()
         

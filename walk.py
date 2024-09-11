@@ -376,12 +376,14 @@ def snv_type_from_folder(input, snv_vcf_files):
     return sID_path
 
 
-def vcf_filtering(sID_path, output_folder):
+def vcf_filtering(sID_path, output_folder, output_filtered):
     sID_path_filtered = dict()
+    if output_filtered.strip() == "":
+        output_filtered = "snv_filtered"
+    os.makedirs(os.path.join(output_folder, output_filtered), exist_ok=True)
     for k, v in sID_path.items():
         _, vcf_file = os.path.split(v)
-        
-        out_filt = os.path.join(output_folder, OUTPUT_FILTERED) #TEST
+        out_filt = os.path.join(output_folder, output_filtered) #TEST
         vcf_filtered = os.path.join(out_filt, vcf_file.replace('.vcf','') + '.FILTERED.vcf')
         logger.info(f'[FILTERING] {v}')
         vcf_filter.main(v, vcf_filtered)
@@ -392,6 +394,12 @@ def vcf_filtering(sID_path, output_folder):
 
 def vcf2maf_constructor(k, v, temporary, output_folder):
     
+    # cmd = "vcf-query -l "+v
+    # try:
+    #     tum_id = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
+    # except Exception:
+    #     tum_id = ""
+
     cmd = "grep $'\t'" + k.split(".")[0] + " " + v
     try:
         tum_id = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
@@ -399,15 +407,25 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     except Exception:
         tum_id = ""
     
+    if VCF2MAF == "" or REF_FASTA == "" or VEP_PATH == "" or VEP_DATA == "":
+        logger.critical("[Paths] section in conf.ini is not fully compiled. Please check again!")
+        raise Exception ("Input error")
+    
     cl = ['perl']
     cl.append(VCF2MAF)
     cl.append('--input-vcf')
     cl.append(v)
     _, file_vcf = os.path.split(v)
+
+    OUTPUT_MAF = config.get('Paths', 'OUTPUT_MAF')
+    if OUTPUT_MAF.strip() == "":
+        OUTPUT_MAF = "maf"
     out_file = os.path.join(output_folder, os.path.join(OUTPUT_MAF, file_vcf + '.maf'))
-    if not CLINV =="":
+    if not CLINV.strip() == "":
         cl.append('--vep-custom')
         cl.append(CLINV)
+    else:
+        logger.warning(f"CLINV section in [Paths] in conf.ini is not compiled. This step will be skipped")
     cl.append('--output-maf')
     cl.append(out_file)
     cl.append('--ref-fasta')
@@ -459,6 +477,7 @@ def create_folder(output_folder, overwrite_output, resume):
         output_folder_version,_ = get_newest_version(output_folder)
 
     logger.info(f"Creating the output folder '{output_folder_version}' in {os.getcwd()}...")
+    output_folder_version = os.path.join(os.path.dirname(output_folder), output_folder_version)
 
     os.mkdir(output_folder_version)
     maf_path = os.path.join(output_folder_version, 'maf')
@@ -1111,7 +1130,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             logger.info("Starting vcf2maf conversion...")
             if "d" in filters:
                 logger.info("filtering out vcfs with dots in ALT column")
-                sID_path_snv = vcf_filtering(sID_path_snv,output_folder)
+                sID_path_snv = vcf_filtering(sID_path_snv,output_folder, OUTPUT_FILTERED)
             temporary = create_random_name_folder()
             for k, v in sID_path_snv.items():
                 cl = vcf2maf_constructor(k, v, temporary,output_folder)
