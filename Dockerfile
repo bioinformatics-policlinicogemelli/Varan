@@ -1,4 +1,3 @@
-# Filename: PythonVaran
 FROM buschlab/vep:110-GRCh37
 USER root
 ARG DEBIAN_FRONTEND=noninteractive
@@ -28,11 +27,9 @@ RUN python3 -m pip install -r requirements.txt
 RUN python3 -m pip install -r oncokb-annotator/requirements/pip3.txt
 RUN python3 -m pip install -r oncokb-annotator/requirements/common.txt
 
-#RUN git clone https://github.com/mskcc/vcf2maf.git
-
-# ENV VCF2MAF_URL https://api.github.com/repos/mskcc/vcf2maf/tarball/v1.6.21
-# RUN curl -L -o mskcc-vcf2maf.tar.gz $VCF2MAF_URL; tar -zxf mskcc-vcf2maf.tar.gz;
-# RUN rm mskcc-vcf2maf.tar.gz
+ENV VCF2MAF_URL https://api.github.com/repos/mskcc/vcf2maf/tarball/v1.6.22
+RUN curl -L -o mskcc-vcf2maf.tar.gz $VCF2MAF_URL; tar -zxf mskcc-vcf2maf.tar.gz;
+RUN rm mskcc-vcf2maf.tar.gz
 
 COPY . /
 

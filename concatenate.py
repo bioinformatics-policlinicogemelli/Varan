@@ -6,6 +6,8 @@ def concatenate_files(file_list, output_file):
         for i, file_name in enumerate(file_list):
             with open(file_name) as in_file:
                 lines = in_file.readlines()
+                if "Hugo_Symbol" not in lines[0]:
+                    del lines[0]
                 lines=list(map(lambda x: x.replace(".bam",""),lines))
                 if i > 0:
                     lines = lines[1:]     
