@@ -391,9 +391,8 @@ def vcf_filtering(sID_path, output_folder):
 
 
 def vcf2maf_constructor(k, v, temporary, output_folder):
-    
-    SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
-    
+
+    CACHE=config.get('Paths', 'CACHE')
     #cmd = "grep $'\t'" + k.split(".")[0] + " " + v
     cmd = "vcf-query -l "+v
     try:
@@ -425,12 +424,10 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     cl.append(VEP_DATA)
     cl.append('--tumor-id') 
     cl.append(tum_id)
-    if SECRET_KEY:
-        cl.append(" --cache-version 110")
-    else:
-        cl.append(" --cache-version 111")
+    cl.append('--cache-version')
+    cl.append(CACHE)
+    
     return cl
-
 
 def run_vcf2maf(cl):
     logger.info('Starting vcf2maf conversion...')

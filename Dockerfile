@@ -33,7 +33,5 @@ RUN rm mskcc-vcf2maf.tar.gz
 
 COPY . /
 
-ENV AM_I_IN_A_DOCKER_CONTAINER=True
-
-ENTRYPOINT [ "python3", "/varan.py"]
-#CMD ["bash"]
+#ENTRYPOINT [ "python3", "/varan.py"]
+CMD ["bash"]
