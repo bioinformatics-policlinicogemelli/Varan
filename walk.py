@@ -392,10 +392,13 @@ def vcf_filtering(sID_path, output_folder):
 
 def vcf2maf_constructor(k, v, temporary, output_folder):
     
-    cmd = "grep $'\t'" + k.split(".")[0] + " " + v
+    SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
+    
+    #cmd = "grep $'\t'" + k.split(".")[0] + " " + v
+    cmd = "vcf-query -l "+v
     try:
         tum_id = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
-        tum_id = [i for i in tum_id.split("\t") if k.split(".")[0] in i][0]
+        #tum_id = [i for i in tum_id.split("\t") if k.split(".")[0] in i][0]
     except Exception:
         tum_id = ""
     
@@ -422,7 +425,10 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     cl.append(VEP_DATA)
     cl.append('--tumor-id') 
     cl.append(tum_id)
-    cl.append(" --cache-version 111")
+    if SECRET_KEY:
+        cl.append(" --cache-version 110")
+    else:
+        cl.append(" --cache-version 111")
     return cl
 
 
@@ -439,8 +445,9 @@ def run_vcf2maf(cl):
 
 
 def create_folder(output_folder, overwrite_output, resume):
+    
     output_list = get_version_list(output_folder)
-
+    
     if output_list != [] and os.path.exists(output_list[-1]):
         output = output_list[-1]
         logger.warning(f"It seems that a version of the folder '{output_folder}' already exists.")
@@ -453,16 +460,15 @@ def create_folder(output_folder, overwrite_output, resume):
 
     if output_list == []:
         version = "_v1"
-        output_folder_version = output_folder + version
-  
+        output_folder_version = output_folder + version  
     else:
         output_folder_version,_ = get_newest_version(output_folder)
 
-    logger.info(f"Creating the output folder '{output_folder_version}' in {os.getcwd()}...")
-
-    os.mkdir(output_folder_version)
+    logger.info(f"Creating the output folder '{output_folder_version}' in {os.path.dirname(output_folder)}...")
+    
+    os.makedirs(output_folder_version, exist_ok=True)
     maf_path = os.path.join(output_folder_version, 'maf')
-    os.mkdir(maf_path)
+    os.makedirs(maf_path, exist_ok=True)
     logger.info(f"The folder '{output_folder_version}' was correctly created!")
     
     return output_folder_version    
@@ -1043,7 +1049,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         f"No valid file/folder {input} found. Check your input path"   
     
     ###############################
-    ###       OUTPUT FOLDER     ###
+    ###      OUTPUT FOLDER      ###
     ###############################
     
     if not resume or not os.path.exists(os.path.join(output_folder, "temp")):

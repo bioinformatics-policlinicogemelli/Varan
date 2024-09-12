@@ -12,21 +12,31 @@ RUN apt-get update &&\
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /python && cd /python && \
-    wget https://www.python.org/ftp/python/3.11.1/Python-3.11.1.tgz && \
-    tar -zxvf Python-3.11.1.tgz && \
-    cd Python-3.11.1 && \
+    wget https://www.python.org/ftp/python/3.10.8/Python-3.10.8.tgz && \
+    tar -zxvf Python-3.10.8.tgz && \
+    cd Python-3.10.8 && \
     ls -lhR && \
     ./configure --enable-optimizations && \
     make install && \
     rm -rf /python
 
-COPY . /
+COPY requirements.txt /requirements.txt
+
 WORKDIR /
+RUN git clone https://github.com/oncokb/oncokb-annotator.git
 RUN python3 -m pip install -r requirements.txt
 RUN python3 -m pip install -r oncokb-annotator/requirements/pip3.txt
 RUN python3 -m pip install -r oncokb-annotator/requirements/common.txt
-#ENV VCF2MAF_URL https://api.github.com/repos/mskcc/vcf2maf/tarball/v1.6.21
+
+#RUN git clone https://github.com/mskcc/vcf2maf.git
+
+# ENV VCF2MAF_URL https://api.github.com/repos/mskcc/vcf2maf/tarball/v1.6.21
 # RUN curl -L -o mskcc-vcf2maf.tar.gz $VCF2MAF_URL; tar -zxf mskcc-vcf2maf.tar.gz;
 # RUN rm mskcc-vcf2maf.tar.gz
 
+COPY . /
+
+ENV AM_I_IN_A_DOCKER_CONTAINER=True
+
 ENTRYPOINT [ "python3", "/varan.py"]
+#CMD ["bash"]
