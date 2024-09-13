@@ -79,17 +79,17 @@ optional arguments:
 <p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
 <p align="justify">OncoKB: here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
 <p align="justify">Project: here is possible to specify project info like name, description and profile.
-<p align="justify">Filters: here are specified the filters applied in the filtering step. #####Aggiungere sezione sottoparagrafo filtri###
+<p align="justify">Filters: here are specified the filters applied in the filtering step.
 <p align="justify">Cna: here are specified the CNV genotypes and the ploidy.
 <p align="justify">TMB: here are specified the TMB thresholds.
 <p align="justify">MSI: here are specified the MSI thresholds.
 <p align="justify">Fusion: here are specified the Fusion thresholds.
-<p align="justify">Clinical Sample: here is possible to customize the name and type (example: string, number) of the columns in the data_clinical_sample.txt.
- <p align="justify">Clinical Patient: here is possible to customize the name and type (example: string, number) of the columns in the data_clinical_patient.txt.
+<p align="justify">Clinical Sample: here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_sample.txt.
+ <p align="justify">Clinical Patient: here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_patient.txt.
 
 
 
-<p align="justify">Varan application can be divided into two separate main blocks that require different inputs and ensure different operations to perform on them. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder. To keep track of all operations performed by Varan, a versioning system is provided.
+<p align="justify">Varan application can be divided into two separate main blocks that require different inputs and ensure different operations to perform on them. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder.To keep track of all operations performed by Varan,a versioning system is provided.
 
 Here below are reported the steps and the options to set to run each block.
 
@@ -98,7 +98,7 @@ Here below are reported the steps and the options to set to run each block.
 #### 1. Preparing Input
 
 <p align="justify">
-To create a new study folder, the user must give .vcf files as input to the program.
+To create a new study folder, the user must give .vcf files as input to the program.Varan can handle two types of input: it can either process the entire folder directly or specific files (which must necessarily be in the correct folder)
 Below, before specifically explaining how the tool works, are examples of standard templates that Varan takes as input.
 
 
@@ -132,20 +132,20 @@ Tempalte_n3:Fusion.tsv
 ```
 Sample_Id	SV_Status	Site1_Hugo_Symbol	Site2_Hugo_Symbol
 0000000_DNA	SOMATIC	    APC	BRCA1
-0000001_DNA	SOMATIC	    TP53	BRAF
+0000001_DNA	SOMATIC	    TP53 BRAF
 0000002_DNA	SOMATIC	    APC	BRCA1
 0000003_DNA	SOMATIC	    ALK	BRCA2
 0000000_DNA	SOMATIC	    APC	BRCA1
-0000001_DNA	SOMATIC	    TP53	BRAF
+0000001_DNA	SOMATIC	    TP53 BRAF
 0000002_DNA	SOMATIC	    APC	BRCA1
 0000003_DNA	SOMATIC	    ALK	BRCA2
 
 ```
-⚠️ <i>The formatting of these 3 templates must match those described above. (Adding new columns starting from the last existing one is allowed, but modifying or deleting the default columns is strictly forbidden.).If there is no data in the column, leave a tab.</i>
+⚠️ <i>The formatting of these 3 templates must match those described above.(Adding new columns starting from the last existing one is allowed, but modifying or deleting the default columns is strictly forbidden.).If there is no data in the column, leave a tab.</i>
 
 
 <b>This can be done in two different ways:</b>
-<b>This can be done in two different ways:</b>
+
 
 
 <b>tsv file</b>: user must prepare a tsv file containing all of the vcf files' paths <b>Folder</b>: user must organize a folder containing all of the vcf files and a csv file where the patient IDs and samples IDs are listed. The structure of this folder have to follow the one reported below </li>
@@ -172,9 +172,11 @@ input_folder/
 └── patient.tsv
 ```
 Where:
-<p align="justify">*CombinedVariantOutput.tsv* is a tsv file that is necessary to TMB, MSI and Fusions evaluation and that has to contain [TMB], [MSI] and [Fusions] fields. It has to be named as *PatientID_CombinedVariantOutput.tsv*
+<p align="justify"> 
+<b>CombinedVariantOutput.tsv</b> is a TSV file that is necessary for TMB, MSI, and Fusions evaluation and must contain the [TMB], [MSI], and [Fusions] fields. It must be named as <b>PatientID_CombinedVariantOutput.tsv</b>
 
-⚠️ <i> If this file is not present, the information regarding [TMB] and [MSI] will be taken from the previously mentioned template (sample.tsv), while [Fusions] will be taken from the Fusions.tsv file<i>
+
+⚠️ <i> If this file is not present, the information regarding [TMB] and [MSI] will be taken from the previously mentioned template (sample.tsv), while [Fusions] will be taken from the **Fusions.tsv** file<i>
 
  <p align="justify"> patient.tsv  is a tsv file that is necessary to map the sample ID to the patient ID.
 
@@ -185,7 +187,7 @@ Where:
 These are the options that can be set for this block:
 
 | Options | Description | Type | Required
-|-------------------------|----------------| :---:| :---:|
+|-----------------------------|----------------| :---:| :---:|
 |-i <br> --input| <p align="justify">Add this option to insert the path to the input tsv file/folder where the vcf files are listed|  | Yes
 |-o <br> --output_folder| <p align="justify">Add this option to insert the path where to save the output folder| string | Yes
 |-c <br> --cancer| <p align="justify">Add this option to specify a cancer type| string | Yes
@@ -203,26 +205,81 @@ These are the options that can be set for this block:
 ```
 python varan.py -i <path_input_folder> -o <path_output_folder> -c <type_of_cancer>
 ```
-<ins>input file -i </ins>: Launch this command to.
+<ins>input file -i </ins>: Use this command to process the sample, patient, and fusion files, which must necessarily exist in the folder.
+
 ```
-python varan.py -i <type_of_file> -o <path_output_folder> -c <type_of_cancer> 
+python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> 
 ```
-⚠️ *This command for file usage can take as input one or up to a maximum of three file types(in this order ssample,patient,fusion if we don't have the patient file we use "" ). Below, examples will be shown:
+⚠️ This command for file usage can take as input one or up to a maximum of three file types(a list of file in this order sample,patient,fusion if we don't have the patient file in the command use "" ). Below, examples will be shown:
+
 ```
-<ins>
 python varan.py -i sample.tsv patient.tsv -o output_folder -c mixed 
 
 python varan.py -i sample.tsv patient.tsv fusion.tsv -o output_folder -c mixed
 
 python varan.py -i sample.tsv "" fusion.tsv -o output_folder -c mixed
-<ins>
 ```
-*
+<ins>input file -i and resume </ins>: Launch this command to resume an already started analysis.
 
-<ins>vcf directory </ins>: Launch this command to perform a filtering on vcf files, a filter on VUS variants and save (or rewrite) a study folder starting from a directory containing all of the vcf files.
 ```
-python varan.py -d <path_to_vfc_folder> -c <cancer_name> -f -v -o <path_to_output_folder> -w
+python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -R
 ```
+<ins>input file -i and overwrite </ins>: Launch this command to overwritting the output.
+⚠️ It's not possible use the -w (overwrite) and -R options together.
+
+```
+python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -w
+```
+<ins>input file -i and multiple </ins>: Launch this command to specify that it is a multi-sample file.
+
+```
+python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -m
+```
+<ins>use and selct option filter -f </ins>: Launch this command to specify the type of filter that use.For filtering, depending on the options we select, there are various paths that will be followed, always starting with a VCF file. The VEP tool will create the MAF. At this point, we will have:
+
+After the creation of the MAF, there will be a folder containing the MAF annotated only by VEP, and the creation of an additional filtered folder called MAF_Filtered (create if use -f option).
+```
+python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -f 
+```
+
+If OncoKB comes into play, there will be a folder named and annotated maf.oncokb(use -k option) and another filtered called maf.oncokb_filtered (use -f option and -k option).
+
+```
+python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -f -k
+```
+
+These are other options that can be set:
+
+Select filter for SNV [d -> filter, p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q -> Consequence, y-> polyphens, c ->
+                        clin_sig, n -> novel]
+
+
+
+```
+python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -f pb
+
+NB:filter the PASS and Benign.
+```
+
+The thresholds and everything you want to include or exclude for filtering are present in the conf.ini file. Below is what our configuration includes and excludes.
+
+| Filters | Type | Include
+|-------------------------|----------------| :---:|
+|CLIN_SIG <br> | <p align="justify">"risk_factor","pathogenic","likely_pathogenic","drug_response"| Yes
+|CONSEQUENCES <br> | <p align="justify">"splice_region_variant","frameshift_variant","splice_donor_variant","stop_gained","splice_acceptor_variant","start_lost","inframe_insertion","inframe_deletion"| Yes
+|ONCOKB_FILTER <br> | <p align="justify">"Likely Oncogenic","Oncogenic"| Yes
+|BENIGN <br> | <p align="justify">benign\likely_benign| No
+|POLYPHEN <br> | <p align="justify">"benign" | No
+|IMPACT <br> |<p align="justify">   "LOW"| No
+|SIFT <br> | <p align="justify">"tolerated"| No
+ ⚠️ *There are other thresholds that involve a range of inclusion and exclusion, and they are:t_VAF_min=0.02;t_VAF_min_novel=0.05; t_VAF_max=0.98;gnomAD=<0.0003*
+
+```
+python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -m
+```
+
+Select filter for SNV [d -> filter, p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q -> Consequence, y-> polyphens, c ->
+                        clin_sig, n -> novel]
 
 #### 3. Output
 
@@ -257,52 +314,62 @@ When updating/removing/extracting samples, a new study folder will be created wi
 flowchart  TD
 
 U[STUDY_FOLDER]
+U -->UPDATE
 U -->EXTRACT 
-U -->DELETE
-U -->UPLOAD 
+U -->REMOVE
 
 ```
 #### 1. Preparing Input
 
-<p align="justify">The input for this block is a study folder correctly populated. It can be the output of the first block or an already existing folder. Its structure has to follow the one reported in the output paragraph. 
+<p align="justify">The input for this block is a study folder correctly populated. It can be the output of the first block or an existing folder. Its structure must follow the one reported in the output paragraph. 
 
 #### 2. Launch Varan main
 
-These are the options that can be set for this block:
+These are the options that can be set if you want to update/extract/remove:
 
 | Options | Input | Type | Required
 |----------------|----------------| :---:| :---:|
-|-o <br> --output_folder| <p align="justify">Add this option to insert the path where to save the output folder| string | Yes
-|-u <br> --Update| <p align="justify">Add this option if you want to update an existing study folder| boolean | No
-|-r <br> --Remove| <p align="justify">Add this option if you want to remove samples from an existing study folder| boolean | No
-|-e <br> --Extract| <p align="justify">Add this option if you want to extract samples from an existing study folder| boolean | No
-|-n <br> --NewPath| <p align="justify">Add this option to insert the path where to save the updated study folder | string | Only if the -u option is selected
-|-s <br> --SampleList| <p align="justify">Add this option to insert the path to the txt file containing the list of samples to remove/extract from an existing study folder| string | Only if the -r or -e option is selected
-|-p <br> --Path| <p align="justify">Add this option to insert the path to the already existing study folder to update or from where remove/extract samples | string | Only if the -u, -r or -e option is selected
+|-u <br> --Update| <p align="justify">Add this option if you want to update an existing study folder| boolean | One between -u, -e or -r is required
+|-e <br> --Extract| <p align="justify">Add this option if you want to extract samples from an existing study folder| boolean | One between -u, -e or -r is required
+|-r <br> --Remove| <p align="justify">Add this option if you want to remove samples from an existing study folder| boolean | One between -u, -e or -r is required
+|-p <br> --Path| <p align="justify">Add this option to specify the path of the existing study folder to update, or from which to remove/extract samples | string | Yes
+|-s <br> --SampleList| <p align="justify">Add this option to insert the path of the .txt file containing the list of samples to remove/extract from the study folder| string | Only if the -e or -r option is selected
+|-n <br> --NewPath| <p align="justify">Add this option to specify the path of the folder containing updated/new information to be loaded into the input folder| string | Only if the -u option is selected
+|-N <br> --Name| <p align="justify">Add this option if you want to customize the studyID| string | No
+|-o <br> --output_folder| <p align="justify">Add this option if you prefer to manually name the output folder, rather than automatically naming it as the new version of the input folder| string | Only if the -N option is selected
 
 
 
 **Example:**
 
 <p align="justify">
-<ins>sample update</ins>: Launch this command to update a study folder by inserting or updating clinical and samples info and to save a new updated one in the output path.
+<ins>sample update</ins>: Launch this command to update a study folder by inserting or updating sample and clinical informations, and save the updated study as a new version of the input folder.
 
 ```
-python varan.py -u -p <path_to_old_study_folder> -n <path_to_new_study_folder> -o <path_to_output_folder>
+python varan.py -u -p <path_to_old_study_folder> -n <path_to_new_study_folder>
 ```
 <p align="justify">
-<ins>sample removal</ins>: Launch this command to remove a list of samples from a study folder and to save a new one without the removed samples in the output path.
-
-```
-python varan.py -r -p <path_to_study_folder> -s <path_to_sample_list_file> -o <path_to_output_folder>
-```
-<p align="justify">
-<ins>sample extraction</ins>: Launch this command to extract a list of samples from a study folder and to save a new one containing the extracted samples only in the output path.
+<ins>sample extraction</ins>: Launch this command to extract a list of samples from a study folder and save the new study containing only the extracted samples in the output path.
 
 ```
 python varan.py -e -p <path_to_study_folder> -s <path_to_sample_list_file> -o <path_to_output_folder>
 ```
+<p align="justify">
+<ins>sample removal</ins>: Launch this command to remove a list of samples from a study folder and to save the new one without the removed samples in the output path, assigning a customized studyID.
+
+```
+python varan.py -r -p <path_to_study_folder> -s <path_to_sample_list_file> -o <path_to_output_folder> -N <new_studyID_in_meta>
+```
 #### 3. Output
 
 <p align="justify">
-After varan.py has run successfully, the resulted output folder <i>updated_data</i> will be created and will contain the modified files.  The folder organization will be the same as the one reported in the ouput paragraph of the block one.  
+After varan.py has run successfully, the resulting <i>output_folder</i> will be created and will contain the new files, following the same organization as described in the output paragraph of the Block One.
+Additionally, it will include a summary.txt file that contains a report of the operation, detailing the samples added/updated/extracted/removed, as well as the total number of samples and patients in the final output folder.   
+
+
+
+
+
+
+
+
