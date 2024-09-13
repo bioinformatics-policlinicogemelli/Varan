@@ -74,18 +74,18 @@ optional arguments:
 
 ## Usage
 
-<p align="justify">The first step to start using Varan is to correctly set the configuration file *conf.ini*. This file is divided in N subsessions:
-<p align="justify">Paths: here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path.
-<p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
-<p align="justify">OncoKB: here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
-<p align="justify">Project: here is possible to specify project info like name, description and profile.
-<p align="justify">Filters: here are specified the filters applied in the filtering step.
-<p align="justify">Cna: here are specified the CNV genotypes and the ploidy.
-<p align="justify">TMB: here are specified the TMB thresholds.
-<p align="justify">MSI: here are specified the MSI thresholds.
-<p align="justify">Fusion: here are specified the Fusion thresholds.
-<p align="justify">Clinical Sample: here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_sample.txt.
- <p align="justify">Clinical Patient: here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_patient.txt.
+<p align="justify">The first step to start using Varan is to correctly set the configuration file **conf.ini**. This file is divided in N subsessions:
+* <p align="justify">Paths: here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path.
+* <p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
+* <p align="justify">OncoKB: here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
+* <p align="justify">Project: here is possible to specify project info like name, description and profile.
+* <p align="justify">Filters: here are specified the filters applied in the filtering step.
+* <p align="justify">Cna: here are specified the CNV genotypes and the ploidy.
+* <p align="justify">TMB: here are specified the TMB thresholds.
+* <p align="justify">MSI: here are specified the MSI thresholds.
+* <p align="justify">Fusion: here are specified the Fusion thresholds.
+* <p align="justify">Clinical Sample: here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_sample.txt.
+* <p align="justify">Clinical Patient: here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_patient.txt.
 
 
 
@@ -173,12 +173,12 @@ input_folder/
 ```
 Where:
 <p align="justify"> 
-<b>CombinedVariantOutput.tsv</b> is a TSV file that is necessary for TMB, MSI, and Fusions evaluation and must contain the [TMB], [MSI], and [Fusions] fields. It must be named as <b>PatientID_CombinedVariantOutput.tsv</b>
+<b>CombinedVariantOutput.tsv</b> is a TSV file that is necessary for TMB, MSI, and Fusions evaluation and must contain the [TMB],[MSI] and [Fusions] fields. It must be named as <b>PatientID_CombinedVariantOutput.tsv</b>
 
 
-⚠️ <i> If this file is not present, the information regarding [TMB] and [MSI] will be taken from the previously mentioned template (sample.tsv), while [Fusions] will be taken from the **Fusions.tsv** file<i>
+⚠️ <i> If this file is not present, the information regarding [TMB] and [MSI] will be taken from the previously mentioned template (sample.tsv), while [Fusions] will be taken from the **Fusions.tsv** file</i>
 
- <p align="justify"> patient.tsv  is a tsv file that is necessary to map the sample ID to the patient ID.
+ <p align="justify"> <b>Patient.tsv</b>  is a tsv file that is necessary to map the sample ID to the patient ID.
 
 ⚠️ *An example of both input types can be found in the **input_templates** folder*
 
@@ -187,7 +187,7 @@ Where:
 These are the options that can be set for this block:
 
 | Options | Description | Type | Required
-|-----------------------------|----------------| :---:| :---:|
+|-----------------------------------|----------------| :---:| :---:|
 |-i <br> --input| <p align="justify">Add this option to insert the path to the input tsv file/folder where the vcf files are listed|  | Yes
 |-o <br> --output_folder| <p align="justify">Add this option to insert the path where to save the output folder| string | Yes
 |-c <br> --cancer| <p align="justify">Add this option to specify a cancer type| string | Yes
@@ -195,17 +195,17 @@ These are the options that can be set for this block:
 |-k <br> --onocoKB| <p align="justify">Add this option to annotate with oncoKB | boolean | No
 |-t <br> --vcf_type|<p align="justify">Add this option to specify the type of file (snv/cnv/fus/tab) |string|No
 |-w <br> --overWrite| <p align="justify">Add this option to overwrite output folder if already exists|boolean| No
-|-R <br> --resume| <p align="justify">Add this option to resume an already started analysis ⚠️ *This option must be used with caution, because at the moment of  use it restarts from the checkpoint of MAF creation.*| boolean | No
+|-R <br> --resume| <p align="justify">Add this option to resume an already started analysis <b>⚠️ *This option must be used with caution, because at the moment of  use it restarts from the checkpoint of MAF creation.</b>| boolean | No
 |-m <br> --multiple| <p align="justify">Add this option to specify that it is a multi-sample file (a single VCF containing information from multiple patients) | boolean | No
 
 
 **Example:**
 
-<ins>input folder -i </ins>: Launch this command to processing the contents of the input folder and saving the results to the specified output folder and the cancer type.
+* <ins>input folder -i </ins>: Launch this command to processing the contents of the input folder and saving the results to the specified output folder and the cancer type.
 ```
 python varan.py -i <path_input_folder> -o <path_output_folder> -c <type_of_cancer>
 ```
-<ins>input file -i </ins>: Use this command to process the sample, patient, and fusion files, which must necessarily exist in the folder.
+* <ins>input file -i </ins>: Use this command to process the sample, patient, and fusion files, which must necessarily exist in the folder.
 
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> 
@@ -219,30 +219,30 @@ python varan.py -i sample.tsv patient.tsv fusion.tsv -o output_folder -c mixed
 
 python varan.py -i sample.tsv "" fusion.tsv -o output_folder -c mixed
 ```
-<ins>input file -i and resume </ins>: Launch this command to resume an already started analysis.
+* <ins>input file -i and resume </ins>: Launch this command to resume an already started analysis.
 
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -R
 ```
-<ins>input file -i and overwrite </ins>: Launch this command to overwritting the output.
+* <ins>input file -i and overwrite </ins>: Launch this command to overwritting the output.
 ⚠️ It's not possible use the -w (overwrite) and -R options together.
 
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -w
 ```
-<ins>input file -i and multiple </ins>: Launch this command to specify that it is a multi-sample file.
+* <ins>input file -i and multiple </ins>: Launch this command to specify that it is a multi-sample file.
 
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -m
 ```
-<ins>use and selct option filter -f </ins>: Launch this command to specify the type of filter that use.For filtering, depending on the options we select, there are various paths that will be followed, always starting with a VCF file. The VEP tool will create the MAF. At this point, we will have:
+* <ins>use and selct option filter -f </ins>: Launch this command to specify the type of filter that use.For filtering, depending on the options we select, there are various paths that will be followed, always starting with a VCF file. The VEP tool will create the MAF. At this point, we will have:
 
-After the creation of the MAF, there will be a folder containing the MAF annotated only by VEP, and the creation of an additional filtered folder called MAF_Filtered (create if use -f option).
+<p align="justify"> After the creation of the MAF, there will be a folder containing the MAF annotated only by VEP, and the creation of an additional filtered folder called MAF_Filtered (create if use -f option).
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -f 
 ```
 
-If OncoKB comes into play, there will be a folder named and annotated maf.oncokb(use -k option) and another filtered called maf.oncokb_filtered (use -f option and -k option).
+<p align="justify">If OncoKB comes into play, there will be a folder named and annotated maf.oncokb(use -k option) and another filtered called maf.oncokb_filtered (use -f option and -k option).
 
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -f -k
@@ -261,7 +261,7 @@ python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_can
 NB:filter the PASS and Benign.
 ```
 
-The thresholds and everything you want to include or exclude for filtering are present in the conf.ini file. Below is what our configuration includes and excludes.
+<p align="justify"> The thresholds and everything you want to include or exclude for filtering are present in the conf.ini file. Below is what our configuration includes and excludes.
 
 | Filters | Type | Include
 |-------------------------|----------------| :---:|
@@ -272,19 +272,14 @@ The thresholds and everything you want to include or exclude for filtering are p
 |POLYPHEN <br> | <p align="justify">"benign" | No
 |IMPACT <br> |<p align="justify">   "LOW"| No
 |SIFT <br> | <p align="justify">"tolerated"| No
+ 
  ⚠️ *There are other thresholds that involve a range of inclusion and exclusion, and they are:t_VAF_min=0.02;t_VAF_min_novel=0.05; t_VAF_max=0.98;gnomAD=<0.0003*
 
-```
-python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -m
-```
-
-Select filter for SNV [d -> filter, p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q -> Consequence, y-> polyphens, c ->
-                        clin_sig, n -> novel]
 
 #### 3. Output
 
-After varan.py has run successfully, the resulted output folder should have the following organization and content:
-```
+<p align="justify"> After varan.py has run successfully, the resulted output folder should have the following organization and content:
+
 cancer_name
 ├── data_clinical_sample.xlsx
 ├── case_lists
