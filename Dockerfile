@@ -33,5 +33,4 @@ RUN rm mskcc-vcf2maf.tar.gz
 
 COPY . /
 
-#ENTRYPOINT [ "python3", "/varan.py"]
-CMD ["bash"]
+ENTRYPOINT [ "python3", "/varan.py"]
