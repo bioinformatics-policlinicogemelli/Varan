@@ -101,7 +101,7 @@ def reshape_cna(input, cna_df_path, cancer, output_dir):
 
 
 def annotate_cna(path_cna, output_folder):
-
+    
     out = path_cna.replace(".txt", "2.txt")
     os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {path_cna}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
@@ -194,6 +194,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         
         #df_table.rename(columns={"discrete":"Copy_Number_Alteration","ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},inplace=True)
         #df_table_filt=df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
+    
         if not os.path.isfile(input):
             input_file = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t")
         else:
@@ -222,7 +223,6 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         temppath = os.path.join(output_folder, "temp_cna_toannotate.txt")
         annotate.to_csv(temppath, index=False, sep="\t")
 
-        
         out=temppath.replace("toannotate.txt", "annotated.txt")
         os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {temppath}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
@@ -1043,7 +1043,17 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     
     input, sample_pzt, fusion_tsv = input_extraction(input)
     assert os.path.exists(input), \
-        f"No valid file/folder {input} found. Check your input path"   
+            f"No valid file/folder {input} found. Check your input path"
+
+    if oncokb:
+        assert config.get('OncoKB', 'ONCOKB')!="", \
+               f"oncokb option was set but ONCOKB field in conf.ini is empty!"
+    
+    if vcf_type==None or "snv" in vcf_type:
+        assert VEP_PATH !="" and VEP_DATA !="", \
+               f"vep_path and/or vep_data field in conf.ini is empty!"
+        assert REF_FASTA !="", \
+               f"re_fasta field in conf.ini is empty!"
     
     ###############################
     ###      OUTPUT FOLDER      ###
