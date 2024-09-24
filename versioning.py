@@ -18,6 +18,7 @@ def extract_version_int(foldername):
 
 
 def get_version_list(output_folder):
+    
     foldername = re.split(r'_v[0-9]+$',os.path.basename(output_folder))[0]
     outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
@@ -48,7 +49,7 @@ def get_newest_version(output_folder):
         v = max(old_versions_number)
         version = "_v" + str(v + 1)
     output_folder_version = foldername + version
-    return output_folder_version, "_v" + str(v)
+    return os.path.join(os.path.dirname(output_folder),output_folder_version), "_v" + str(v)
 
 def create_newest_version_folder(outputfolder):
     if len(get_version_list(outputfolder)) == 0:

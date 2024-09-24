@@ -7,7 +7,6 @@ from loguru import logger
 import sys
 from versioning import extract_version_str, get_newest_version, extract_version_str
 from datetime import datetime
-import re
 
 
 def create_meta_study(cancer, project_name, project_id, description, output_dir, version):
