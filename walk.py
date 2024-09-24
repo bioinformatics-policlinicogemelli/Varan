@@ -6,6 +6,7 @@ version = "1.0"
 
 from operator import index
 import os
+import sys
 import ast
 import subprocess
 import vcf2tab_cnv
@@ -1034,6 +1035,32 @@ def input_extraction(input):
 
     return sample_tsv, patient_tsv, fusion_tsv
 
+def validate_input(oncokb, vcf_type, filters, cancer):
+    
+    #check that oncokb key is filled in conf.ini when oncokb annotation is selected
+    if oncokb:
+        assert config.get('OncoKB', 'ONCOKB')!="", \
+               f"oncokb option was set but ONCOKB field in conf.ini is empty!"
+    
+    #check that vep info in conf.ini are set when snv analysisi is request
+    if vcf_type==None or "snv" in vcf_type:
+        assert VEP_PATH !="" and VEP_DATA !="", \
+               f"vep_path and/or vep_data field in conf.ini is empty!"
+        assert REF_FASTA !="", \
+               f"re_fasta field in conf.ini is empty!"
+    
+    #verify that oncokb filter function only when oncokb annotation is set 
+    if "o" in filters and oncokb==False:
+        logger.warning("OncoKB filter was selected in filters options but -k option was not set. This filtering will be ignored.")
+    
+    #check if cancer id is compatible with cbioportal
+    cancer_cbio=pd.read_csv("cancer_list.txt", sep="\t")
+    cancer_cbio=cancer_cbio["TYPE_OF_CANCER_ID"].values.tolist()
+    
+    if cancer not in cancer_cbio:
+        logger.critical(f"cancer_id '{cancer}' is not recognize by cbioportal. Check in cancer_list.txt to find the correct cancer id")
+        sys.exit()
+
 def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
     
     logger.info("Starting walk_folder script:")
@@ -1045,15 +1072,9 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     assert os.path.exists(input), \
             f"No valid file/folder {input} found. Check your input path"
 
-    if oncokb:
-        assert config.get('OncoKB', 'ONCOKB')!="", \
-               f"oncokb option was set but ONCOKB field in conf.ini is empty!"
+    validate_input(oncokb, vcf_type, filters, cancer)
     
-    if vcf_type==None or "snv" in vcf_type:
-        assert VEP_PATH !="" and VEP_DATA !="", \
-               f"vep_path and/or vep_data field in conf.ini is empty!"
-        assert REF_FASTA !="", \
-               f"re_fasta field in conf.ini is empty!"
+    
     
     ###############################
     ###      OUTPUT FOLDER      ###
@@ -1246,3 +1267,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     logger.success("Walk script completed!\n")
 
     return output_folder, input, fusion_tsv
+        
+    
+        
+    
