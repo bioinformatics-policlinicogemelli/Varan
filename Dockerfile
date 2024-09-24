@@ -1,4 +1,3 @@
-#FROM buschlab/vep:110-GRCh37
 FROM ensemblorg/ensembl-vep:release_111.0
 USER root
 ARG DEBIAN_FRONTEND=noninteractive
