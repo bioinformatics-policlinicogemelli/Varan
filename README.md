@@ -1,22 +1,65 @@
 [![DOI](https://zenodo.org/badge/788270006.svg)](https://zenodo.org/doi/10.5281/zenodo.12806060)
 
-# Varan-Release
+# VARAN
 
+<p align="center">
+<img src="logo_VARAN.png" alt="MarineGEO circle logo" style="height: 400px; width:400px;"/>
+</p>
 
-# VARAN 2.0
-
+## Index
+- [Introduction](#introduction)
+- [Features](#features)
+- [Installation Procedure](#installation-procedure)
+- [Quickstart](#quickstart)
+- [Options](#options)
+- [Workflow](#workflow)
+- [Usage](#usage)
+- [Troubleshooting](#troubleshooting)
 
 ## Introduction  
 
 <p align="justify">
-Varan is a Python-based application that provides a pipeline to automatically prepare cancer genomics data in the specific format supported by the <a href="https://www.cbioportal.org/">cBioPortal</a>.<br>
-Specifically, starting with a folder containing the vcf files, or with a single file containing a list of vcf file paths, this application can structure and validate a study folder ready to be uploaded to its local instance of cBioPortal.<br>
-This application also gives the possibility to work on existing study folder. In fact, it permits to update a study folder by adding new samples or extract/remove samples from it.<br>
-Click <a href="https://github.com/bioinformatics-policlinicogemelli/Varan-Release/blob/main/cBioPortal%20docker%20install.md")>here</a> for more information on the steps for cBioportal installation.
- 
-## Installation procedure
+Varan is a Python-based application that provides a pipeline to automatically prepare and manipulate cancer genomics data in the specific format supported by the <a href="https://www.cbioportal.org/">cBioPortal</a>.
 
-### Prerequisites
+## Features
+
+* <u>Study Creation</u>
+<br>This section provides, starting from row vcf files, a well-structured and validate study folder ready to be uploaded into the local instance of cBioPortal.
+
+* <u>Study Manipulation</u>
+<br> This section gives the user the possibility to work on already existing studies. In particular it is possible to merge studies or to update them by adding/extracting/removing samples.
+
+
+## Installation Procedure
+
+### Docker (recommended)
+
+#### Requirements:
+[Docker ](https://www.docker.com/)
+#### Procedure:
+
+1. Open a terminal
+2. Clone the repository folder:
+```
+git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git
+```
+3. Build docker file
+<br> ⚠️ This step can take about 30 minutes to 1 hour depending on the resources allocated to docker 
+```
+cd <Varan_folder_path>/Varan-Pub
+docker build -t varan .
+```
+4. Run Varan to test the installation
+```
+docker run --rm -it varan -h
+```
+
+⚠️ for Windows users: some problems with git bash (git for Windows) has been reported. It is recommended to launch the docker command through [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4):
+
+
+### Local
+
+#### Prerequisites
 * <b>Variant Effect Predictor (VEP)</b><p align="justify">The Variant Effect Predictor <a href="https://www.ensembl.org/info/docs/tools/vep/index.html">VEP</a> is a tool used to determine the effect of variants (SNPs, insertions, deletions, CNVs or structural variants) on genes, transcripts, and protein sequence, as well as regulatory regions. <br>The steps to install VEP can be found <a href="https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html"> here</a>, while DB and FASTA files can be downloaded <a href="http://www.ensembl.org/info/docs/tools/vep/script/vep_cache.html#cache)"> here</a>
 
 * <b>vcf2maf</b><br><p align="justify"><a href="https://github.com/mskcc/vcf2maf/tree/main">vcf2maf</a> is the tool required for the conversion of vcf files in maf format ones. 
@@ -250,7 +293,7 @@ python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_can
 
 These are other options that can be set:
 
-Select filter for SNV [d -> filter, p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> gnomAD, q -> Consequence, y-> polyphens, c ->
+Select filter for SNV [d -> filter, p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , g -> AF, q -> Consequence, y-> polyphens, c ->
                         clin_sig, n -> novel]
 
 
@@ -273,13 +316,14 @@ NB:filter the PASS and Benign.
 |IMPACT <br> |<p align="justify">   "LOW"| No
 |SIFT <br> | <p align="justify">"tolerated"| No
  
- ⚠️ *There are other thresholds that involve a range of inclusion and exclusion, and they are:t_VAF_min=0.02;t_VAF_min_novel=0.05; t_VAF_max=0.98;gnomAD=<0.0003*
+ ⚠️ *There are other thresholds that involve a range of inclusion and exclusion, and they are:t_VAF_min=0.02;t_VAF_min_novel=0.05; t_VAF_max=0.98;AF=<0.0003*
 
 
 #### 3. Output
 
 <p align="justify"> After varan.py has run successfully, the resulted output folder should have the following organization and content:
 
+```
 cancer_name
 ├── data_clinical_sample.xlsx
 ├── case_lists
@@ -300,10 +344,12 @@ cancer_name
 ├── meta_study.txt
 └── meta_sv.txt
 ```
+
 <p align="justify">
 When updating/removing/extracting samples, a new study folder will be created within the output_folder with the name <i>updated_data</i> in which the modified files will be stored. 
 
-### Block Two: Modify Existing Study Folder
+### Block Two: Modify Existing Study Folders
+
 #### Workflow
 ```mermaid
 flowchart  TD
@@ -312,8 +358,8 @@ U[STUDY_FOLDER]
 U -->UPDATE
 U -->EXTRACT 
 U -->REMOVE
-
 ```
+
 #### 1. Preparing Input
 
 <p align="justify">The input for this block is a study folder correctly populated. It can be the output of the first block or an existing folder. Its structure must follow the one reported in the output paragraph. 
