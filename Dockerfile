@@ -43,6 +43,12 @@ RUN mkdir clinvar
 RUN wget -P /clinvar $CLINV_URL/clinvar.vcf.gz
 RUN wget -P /clinvar $CLINV_URL/clinvar.vcf.gz.tbi
 
+#download importer for validator
+ENV CBIO_URL https://github.com/cBioPortal/cbioportal-core.git
+RUN git clone $CBIO_URL
+RUN mv cbioportal-core/scripts/importer .
+RUN rm -r cbioportal-core
+
 COPY . /
 
 #CMD ["bash"]
