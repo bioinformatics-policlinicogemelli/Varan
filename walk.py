@@ -452,9 +452,10 @@ def run_vcf2maf(cl):
 
 
 def create_folder(output_folder, overwrite_output, resume):
-
-    output_list = get_version_list(output_folder)
     
+    output_list = get_version_list(output_folder)
+    output_list=list(map(lambda x: os.path.join(os.path.dirname(output_folder),x),output_list))
+
     if output_list != [] and os.path.exists(output_list[-1]):
         output = output_list[-1]
         logger.warning(f"It seems that a version of the folder '{output_folder}' already exists.")
