@@ -6,46 +6,36 @@ from configparser import ConfigParser
 import subprocess
 
 
-# def cBio_validation(output_folder):
-#     logger.info("Starting Validation Folder")
-#     config = ConfigParser()
-#     config.read('conf.ini')
+def cBio_validation(output_folder):
+    logger.info("Starting Validation Folder")
+    config = ConfigParser()
+    config.read('conf.ini')
+    PORT = config.get('Validation', 'PORT')
     
-#     PORT = config.get('Validation', 'PORT')
-    
-#     try:
-#         import pdb; pdb.set_trace()
-#         process1 = subprocess.Popen(["python", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-#         stdout1, stderr1 = process1.communicate()
-#         if process1.returncode not in [0, 2, 3]:
-#             raise subprocess.CalledProcessError(process1.returncode, process1.args, output=stdout1, stderr=stderr1)
-#         logger.info(stdout1)
+    try:
+        process1 = subprocess.Popen(["python", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout1, stderr1 = process1.communicate()
+        warning = stderr1
+        if process1.returncode not in [0, 2, 3]:
+            raise subprocess.CalledProcessError(process1.returncode, process1.args, output=stdout1, stderr=stderr1)
+        logger.info(stdout1)
 
-#     except subprocess.CalledProcessError as e:
-#         logger.error("Something went wrong while trying to connect to localhost. It may be due to an error on port selection" +\
-#                      " or invalid docker settings")
-#         logger.error(e.stderr)
-#         logger.info("Starting offline validation...")
+    except subprocess.CalledProcessError as e:
+        logger.error("Something went wrong while trying to connect to localhost. It may be due to an error on port selection" +\
+                     " or invalid docker settings.")
+        logger.info("Starting offline validation...")
 
-#         process2 = subprocess.Popen(['python', 'importer/validateData.py', '-s', output_folder, '-n', '-v'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-#         stdout2, stderr2 = process2.communicate()
+        process2 = subprocess.Popen(['python', 'importer/validateData.py', '-s', output_folder, '-n', "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        _, stderr2 = process2.communicate()
+        warning = stderr2
+        if process2.returncode == 1:
+            logger.error(f"Error in process2: {stderr2}")
+    if process1.returncode in [2, 3] or process2.returncode in [2, 3]:
+        logger.warning(f"{warning.strip()} Check the report files in the study folder to see why.")
+    else:
+            logger.success("The validation proceeded without errors and warnings! The study is ready to be uploaded!")
+            
 
-#         if process2.stderr != None:
-#             if "ERROR" not in stderr2:
-        
-        
-        
-#         if process2.returncode in [0, 2, 3]:
-#             logger.info(stdout2)
-#         else:
-#             print(f"Error in process2: {stderr2}")
-
- 
-#         if sout.stderr != None:
-#             if 'ERROR' not in sout.stderr.decode('ascii'):
-#                 logger.warning(sout.stderr.decode('ascii').replace('ERROR: ',''))
-#             else:
-#                 logger.error(sout.stderr.decode('ascii').replace('ERROR: ',''))
 
 
 def validateFolderlog(folder):
