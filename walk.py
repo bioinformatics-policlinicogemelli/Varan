@@ -25,24 +25,24 @@ import pandas as pd
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
-OUTPUT_FILTERED = config.get('Paths', 'OUTPUT_FILTERED')
-OUTPUT_MAF = config.get('Paths', 'OUTPUT_MAF')
 VCF2MAF = config.get('Paths', 'VCF2MAF')
 REF_FASTA = config.get('Paths', 'REF_FASTA')
-TMP = config.get('Paths', 'TMP')
 VEP_PATH = config.get('Paths', 'VEP_PATH')
 VEP_DATA = config.get('Paths', 'VEP_DATA')
 CLINV = config.get('Paths', 'CLINV')
 CNA = ast.literal_eval(config.get('Cna', 'HEADER_CNV'))
-PLOIDY=config.get('Cna', 'PLOIDY')
+PLOIDY = config.get('Cna', 'PLOIDY')
+
+output_filtered = "snv_filtered"
+tmp = "scratch"
 
 def create_random_name_folder():
     nome_cartella = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
-    temporary = os.path.join(TMP, nome_cartella)
+    temporary = os.path.join(tmp, nome_cartella)
     try:
         os.mkdir(temporary)
     except FileNotFoundError:
-        logger.critical(f"Scratch folder '{TMP}' not found! Check TMP field in conf.ini")
+        logger.critical(f"Scratch folder '{tmp}' not found!")
         raise(FileNotFoundError("Error in create_random_name_folder: exiting from walk script!"))
     except Exception:
         logger.critical("Something went wrong while creating the vep tmp folder")
@@ -51,7 +51,7 @@ def create_random_name_folder():
 
 
 def clear_scratch():
-    for root, dirs, files in os.walk(TMP):
+    for root, dirs, files in os.walk(tmp):
         for dir in dirs:
             shutil.rmtree(os.path.join(root,dir))
         
@@ -408,7 +408,7 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
         tum_id = ""
     
     if VCF2MAF == "" or REF_FASTA == "" or VEP_PATH == "" or VEP_DATA == "":
-        logger.critical("[Paths] section in conf.ini is not fully compiled. Please check again!")
+        logger.critical("[Paths] section in conf.ini is not correctly compiled. Please check again!")
         raise Exception ("Input error")
     
     cl = ['perl']
@@ -417,10 +417,7 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     cl.append(v)
     _, file_vcf = os.path.split(v)
 
-    OUTPUT_MAF = config.get('Paths', 'OUTPUT_MAF')
-    if OUTPUT_MAF.strip() == "":
-        OUTPUT_MAF = "maf"
-    out_file = os.path.join(output_folder, os.path.join(OUTPUT_MAF, file_vcf + '.maf'))
+    out_file = os.path.join(output_folder, os.path.join("maf", file_vcf + '.maf'))
     if not CLINV.strip() == "":
         cl.append('--vep-custom')
         cl.append(CLINV)
@@ -441,6 +438,7 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     cl.append('--tumor-id') 
     cl.append(tum_id)
     cl.append(" --cache-version 111")
+
     return cl
 
 
@@ -457,6 +455,7 @@ def run_vcf2maf(cl):
 
 
 def create_folder(output_folder, overwrite_output, resume):
+
     output_list = get_version_list(output_folder)
 
     if output_list != [] and os.path.exists(output_list[-1]):
@@ -584,7 +583,6 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
 
     data_clin_samp = pd.read_csv(clin_samp_path, sep="\t", header=0, dtype=str)
 
-    # if isinputfile:     # Presuppone che se l'input è un file vengano messi, se è una cartella no TODO decidere se mantenere così
     data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
     
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
@@ -658,10 +656,9 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
             raise(NameError("Different number of columns: exiting from walk script!")) 
     final_data_sample = pd.concat([sample_header_short, final_data_sample], ignore_index=True)
 
-    # Add '#' where needed 
+    final_data_sample.loc[4].replace({'SAMPLEID': 'SAMPLE_ID', 'PATIENTID': 'PATIENT_ID'}, inplace=True)
     final_data_sample.loc[0:3, 'SAMPLEID'] = final_data_sample.loc[0:3, 'SAMPLEID'].apply(lambda x: f'#{x}')
 
-    # Write the final data_clinical_sample
     data_clin_txt = os.path.join(output_folder, 'data_clinical_sample.txt')
     final_data_sample.to_csv(data_clin_txt, sep="\t", index=False, header=False)
 
@@ -944,6 +941,7 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
     logger.info(f"Creating data_sv.txt file...")
  
     with open(fusion_table_file, "w") as fusion_table:
+
         header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
         fusion_table.write(header)
 
@@ -1016,7 +1014,7 @@ def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR
         table_dict_patient[k].append(tmv_msi['TMB_Total'])
         if not tmv_msi['MSI'][0][1]=="NA":
             if not tmv_msi['MSI'][1][1] =="NA":
-                if eval("float(tmv_msi['MSI'][1][1])"+MSI_THR):
+                if eval("float(tmv_msi['MSI'][1][1])" + MSI_THR):
                     table_dict_patient[k].append("Stable")   
                 else:
                     table_dict_patient[k].append('Unstable')
@@ -1027,16 +1025,18 @@ def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR
         else:
             table_dict_patient[k].append('NA')
         found = False
-        for _k, _v in TMB.items():
-            if not tmv_msi["TMB_Total"]=="NA":
+
+        if not tmv_msi["TMB_Total"]=="NA":
+            for _k, _v in TMB.items():
                 if eval(tmv_msi["TMB_Total"] + _v):
                     table_dict_patient[k].append(_k)
                     found = True
                     break
-            else:
-                table_dict_patient[k].append("NA")
-        if found==False:
-            table_dict_patient[k].append(list(TMB.keys())[-1])
+        else:
+            table_dict_patient[k].append("NA")
+        # if found==False:
+        #     table_dict_patient[k].append("NA")
+        #     table_dict_patient[k].append(list(TMB.keys())[-1])
     return table_dict_patient
 
 def input_extraction(input):
@@ -1103,7 +1103,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         logger.info("Everything ok!")
 
     if os.path.exists(inputFolderSNV) and not vcf_type in ["cnv", "fus", "tab"]:
-        os.makedirs(TMP, exist_ok=True)
+        os.makedirs(tmp, exist_ok=True)
         if multiple:
             multivcf = [i for i in os.listdir(inputFolderSNV) if i.endswith('.vcf')][0]
             extract_multiple_snv(os.path.join(inputFolderSNV, multivcf), inputFolderSNV)
@@ -1130,10 +1130,10 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             logger.info("Starting vcf2maf conversion...")
             if "d" in filters:
                 logger.info("filtering out vcfs with dots in ALT column")
-                sID_path_snv = vcf_filtering(sID_path_snv,output_folder, OUTPUT_FILTERED)
+                sID_path_snv = vcf_filtering(sID_path_snv, output_folder, output_filtered)
             temporary = create_random_name_folder()
             for k, v in sID_path_snv.items():
-                cl = vcf2maf_constructor(k, v, temporary,output_folder)
+                cl = vcf2maf_constructor(k, v, temporary, output_folder)
                 run_vcf2maf(cl)
     
     logger.info("Clearing scratch folder...")
@@ -1160,7 +1160,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     
     elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]:    
         fusion_files=[file for file in os.listdir(os.path.join(input_folder,"FUSIONS")) if "tsv" in file]
-        fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)     
+        fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)  
 
     if oncokb and os.path.exists(fusion_table_file):
         data_sv = pd.read_csv(fusion_table_file, sep="\t")

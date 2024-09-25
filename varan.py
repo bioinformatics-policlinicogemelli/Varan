@@ -9,7 +9,7 @@ from configparser import ConfigParser
 from walk import walk_folder 
 from filter_clinvar import filter_main
 from concatenate import concatenate_main
-from ValidateFolder import validateFolderlog
+#from ValidateFolder import validateFolderlog, cBio_validation
 from Make_meta_and_cases import meta_case_main
 from Update_script import update_main 
 from Delete_script import delete_main 
@@ -63,8 +63,8 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         #      5. VALIDATION       #
         ############################
 
-        logger.info("Starting Validation Folder")
-        validateFolderlog(output_folder)
+        # validateFolderlog(output_folder)
+        # cBio_validation(output_folder)
         
         logger.success("The end! The study is ready to be uploaded on cBioportal")
 
@@ -74,6 +74,17 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         # shutil.rmtree(os.path.join(output_folder,"snv_filtered"))
         # shutil.make_archive(os.path.join(output_folder,"maf"),"zip",os.path.join(output_folder,"maf"))
         # shutil.rmtree(os.path.join(output_folder,"maf"))
+        ##########################################################################################
+        ##########################################################################################
+
+        ##########################################################################################
+        ############ VERSIONE LORENZO ############################################################
+        # if os.path.exists(os.path.join(output_folder,"snv_filtered")):
+        #     shutil.make_archive(os.path.join(output_folder,"snv_filtered"),"zip",os.path.join(output_folder,"snv_filtered"))
+        #     shutil.rmtree(os.path.join(output_folder,"snv_filtered"))
+        # if os.path.exists(os.path.join(output_folder,"maf")):     
+        #     shutil.make_archive(os.path.join(output_folder,"maf"),"zip",os.path.join(output_folder,"maf"))
+        #     shutil.rmtree(os.path.join(output_folder,"maf"))
         ##########################################################################################
         ##########################################################################################
 

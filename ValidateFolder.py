@@ -2,6 +2,51 @@ import os
 import argparse
 from loguru import logger
 import sys
+from configparser import ConfigParser
+import subprocess
+
+
+# def cBio_validation(output_folder):
+#     logger.info("Starting Validation Folder")
+#     config = ConfigParser()
+#     config.read('conf.ini')
+    
+#     PORT = config.get('Validation', 'PORT')
+    
+#     try:
+#         import pdb; pdb.set_trace()
+#         process1 = subprocess.Popen(["python", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+#         stdout1, stderr1 = process1.communicate()
+#         if process1.returncode not in [0, 2, 3]:
+#             raise subprocess.CalledProcessError(process1.returncode, process1.args, output=stdout1, stderr=stderr1)
+#         logger.info(stdout1)
+
+#     except subprocess.CalledProcessError as e:
+#         logger.error("Something went wrong while trying to connect to localhost. It may be due to an error on port selection" +\
+#                      " or invalid docker settings")
+#         logger.error(e.stderr)
+#         logger.info("Starting offline validation...")
+
+#         process2 = subprocess.Popen(['python', 'importer/validateData.py', '-s', output_folder, '-n', '-v'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+#         stdout2, stderr2 = process2.communicate()
+
+#         if process2.stderr != None:
+#             if "ERROR" not in stderr2:
+        
+        
+        
+#         if process2.returncode in [0, 2, 3]:
+#             logger.info(stdout2)
+#         else:
+#             print(f"Error in process2: {stderr2}")
+
+ 
+#         if sout.stderr != None:
+#             if 'ERROR' not in sout.stderr.decode('ascii'):
+#                 logger.warning(sout.stderr.decode('ascii').replace('ERROR: ',''))
+#             else:
+#                 logger.error(sout.stderr.decode('ascii').replace('ERROR: ',''))
+
 
 def validateFolderlog(folder):
     """

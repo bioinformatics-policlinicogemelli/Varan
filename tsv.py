@@ -21,6 +21,11 @@ def get_msi_tmb(INPUT):
                 campi = riga.split(sep='\t')
                 Tot_MSI_unstable = campi[1]
                 MSI_dic['Tot_MSI_unstable'] = Tot_MSI_unstable
+            if('SUM_JSD' in riga):
+                MSI_dic['Usable_MSI'] = 50
+                campi = riga.split(sep='\t')
+                MSI_dic['Tot_MSI_unstable'] = campi[1]
+                Usable_MSI = campi[1]
         data['MSI'] = [(key, value) for key, value in MSI_dic.items()]
         return(data)
 
@@ -32,12 +37,11 @@ def split_hugo_symbols(hugo_symbol):
     return split_symbols
 
 def get_fusions(INPUT):
-   
     with open(INPUT, 'r') as file:
         fusioni = []
         lines = file.readlines()
         for i in range(len(lines)):
-            if '[Fusions]' in lines[i]:
+            if ('[Fusions]' or '[Data Fusions]') in lines[i]:
                 for j in range(i+2, len(lines)):
                     if lines[j].strip() == 'NA':
                         break

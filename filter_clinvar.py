@@ -92,7 +92,7 @@ def write_csv_with_info(df, file_path):
     df.to_csv(file_path, sep='\t', index=False, header=True, mode='w')
 
 
-def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, overwrite=False):
+def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, overwrite=False):
     
     logger.info("Starting filter_main script:")
     logger.info(f"filter_main args [maf_folder:{folder}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, overwrite:{overwrite}]")
@@ -114,12 +114,12 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
         raise(Exception("Exiting from filter_clinvar script!"))
     
     if oncokb:
-        
         output_onco=os.path.join(output_folder, 'MAF_OncoKB')
         os.makedirs(output_onco, exist_ok=True)
         extension="_OncoAnnotated.maf"
        
         if not os.path.isfile(input):
+            # TODO sistemare che prenda il nome corretto dell'input (sample.tsv)
             tsv_file=[file for file in os.listdir(input) if "tsv" in file][0]
             input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
             
@@ -137,7 +137,7 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
                 for _ ,row in input_file.iterrows():
                     if row["SampleID"] in file_No:
                         cancer_onco=row["ONCOTREE_CODE"]
-                        if np.isnan(cancer_onco) or cancer_onco == "":
+                        if cancer_onco == "":
                             cancer_onco = cancer
                         os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f}\
                                 -o {file_path} -t {cancer_onco.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
@@ -179,26 +179,31 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
                 t_VAF_min=float(config.get('Filters', 't_VAF_min'))
                 t_VAF_max=float(config.get('Filters', 't_VAF_max'))
                 
+                file_to_filter.dropna(subset=["t_AF"], inplace=True)
+
                 if "n" in filters:
                     t_VAF_min_novel=float(config.get('Filters', 't_VAF_min_novel'))
-                    
-                    if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel") | (file_to_filter["dbSNP_RS"].isnull())]:
-                        file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min_novel) | (file_to_filter['t_VF'].isnull()) | (file_to_filter['t_VF'] <= t_VAF_max)]
+                    file_to_filter.dropna(subset=["dbSNP_RS"], inplace=True)
+
+                    if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel")]:
+                        file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min_novel) & (file_to_filter['t_AF'] <= t_VAF_max)]
                     else:
-                        file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) | (file_to_filter['t_VF'].isnull()) | (file_to_filter['t_VF'] <= t_VAF_max)]
+                        file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
                     
                 else:
-                    file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) | (file_to_filter['t_VF'].isnull()) | (file_to_filter['t_VF'] <= t_VAF_max)]
-            
+                    file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
+            # usato per le varianti introniche
             if "g" in filters:    
                     gnomAD=config.get('Filters', 'gnomAD')
-                    file_to_filter =file_to_filter[(eval("file_to_filter['AF']" + gnomAD)) | (file_to_filter['AF'].isnull())]
+                    
+                    file_to_filter.dropna(subset=["AF"], inplace=True)
+                    file_to_filter = file_to_filter[(eval("file_to_filter['AF']" + gnomAD))]
                 
             if "c" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]
                 
             if "i" in filters:
-                file_to_filter= file_to_filter[file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
+                file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
                 
             if "q" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_consequences,axis=1)]
@@ -207,7 +212,7 @@ def filter_main(input,folder, output_folder ,oncokb, filters, cancer, resume, ov
                 file_to_filter = file_to_filter[file_to_filter.apply(check_polyphen,axis=1)]
             
             if "s" in filters:
-                file_to_filter=file_to_filter[file_to_filter.apply(check_sift,axis=1)]
+                file_to_filter = file_to_filter[file_to_filter.apply(check_sift,axis=1)]
                  
                 
             logger.info(f"Filtered file: {file}")             
