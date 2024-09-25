@@ -9,7 +9,7 @@ from configparser import ConfigParser
 from walk import walk_folder 
 from filter_clinvar import filter_main
 from concatenate import concatenate_main
-#from ValidateFolder import validateFolderlog, cBio_validation
+from ValidateFolder import validateFolderlog, cBio_validation
 from Make_meta_and_cases import meta_case_main
 from Update_script import update_main 
 from Delete_script import delete_main 
@@ -63,8 +63,8 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         #      5. VALIDATION       #
         ############################
 
-        # validateFolderlog(output_folder)
-        # cBio_validation(output_folder)
+        #validateFolderlog(output_folder)
+        cBio_validation(output_folder)
         
         logger.success("The end! The study is ready to be uploaded on cBioportal")
 

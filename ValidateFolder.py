@@ -13,7 +13,7 @@ def cBio_validation(output_folder):
     PORT = config.get('Validation', 'PORT')
     
     try:
-        process1 = subprocess.Popen(["python", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process1 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout1, stderr1 = process1.communicate()
         warning = stderr1
         if process1.returncode not in [0, 2, 3]:
@@ -25,7 +25,7 @@ def cBio_validation(output_folder):
                      " or invalid docker settings.")
         logger.info("Starting offline validation...")
 
-        process2 = subprocess.Popen(['python', 'importer/validateData.py', '-s', output_folder, '-n', "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process2 = subprocess.Popen(['python3', 'importer/validateData.py', '-s', output_folder, '-n', "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         _, stderr2 = process2.communicate()
         warning = stderr2
         if process2.returncode == 1:
