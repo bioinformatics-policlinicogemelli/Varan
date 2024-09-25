@@ -191,13 +191,13 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                         file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
                     
                 else:
-                    file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
+                    file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) & (file_to_filter['t_VF'] <= t_VAF_max)]
             # usato per le varianti introniche
-            if "g" in filters:    
-                    gnomAD=config.get('Filters', 'gnomAD')
+            if "a" in filters:    
+                    af=config.get('Filters', 'AF')
                     
                     file_to_filter.dropna(subset=["AF"], inplace=True)
-                    file_to_filter = file_to_filter[(eval("file_to_filter['AF']" + gnomAD))]
+                    file_to_filter = file_to_filter[(eval("file_to_filter['AF']" + af))]
                 
             if "c" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]

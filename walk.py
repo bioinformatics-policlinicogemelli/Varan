@@ -6,6 +6,7 @@ version = "1.0"
 
 from operator import index
 import os
+import sys
 import ast
 import subprocess
 import vcf2tab_cnv
@@ -101,7 +102,7 @@ def reshape_cna(input, cna_df_path, cancer, output_dir):
 
 
 def annotate_cna(path_cna, output_folder):
-
+    
     out = path_cna.replace(".txt", "2.txt")
     os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {path_cna}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
@@ -194,6 +195,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         
         #df_table.rename(columns={"discrete":"Copy_Number_Alteration","ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},inplace=True)
         #df_table_filt=df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
+    
         if not os.path.isfile(input):
             input_file = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t")
         else:
@@ -222,7 +224,6 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         temppath = os.path.join(output_folder, "temp_cna_toannotate.txt")
         annotate.to_csv(temppath, index=False, sep="\t")
 
-        
         out=temppath.replace("toannotate.txt", "annotated.txt")
         os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {temppath}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
@@ -393,17 +394,13 @@ def vcf_filtering(sID_path, output_folder, output_filtered):
 
 
 def vcf2maf_constructor(k, v, temporary, output_folder):
-    
-    # cmd = "vcf-query -l "+v
-    # try:
-    #     tum_id = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
-    # except Exception:
-    #     tum_id = ""
 
-    cmd = "grep $'\t'" + k.split(".")[0] + " " + v
+    CACHE=config.get('Paths', 'CACHE')
+    #cmd = "grep $'\t'" + k.split(".")[0] + " " + v
+    cmd = "vcf-query -l "+v
     try:
         tum_id = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
-        tum_id = [i for i in tum_id.split("\t") if k.split(".")[0] in i][0]
+        #tum_id = [i for i in tum_id.split("\t") if k.split(".")[0] in i][0]
     except Exception:
         tum_id = ""
     
@@ -437,10 +434,10 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     cl.append(VEP_DATA)
     cl.append('--tumor-id') 
     cl.append(tum_id)
-    cl.append(" --cache-version 111")
-
+    cl.append('--cache-version')
+    cl.append(CACHE)
+    
     return cl
-
 
 def run_vcf2maf(cl):
     logger.info('Starting vcf2maf conversion...')
@@ -457,7 +454,7 @@ def run_vcf2maf(cl):
 def create_folder(output_folder, overwrite_output, resume):
 
     output_list = get_version_list(output_folder)
-
+    
     if output_list != [] and os.path.exists(output_list[-1]):
         output = output_list[-1]
         logger.warning(f"It seems that a version of the folder '{output_folder}' already exists.")
@@ -470,17 +467,15 @@ def create_folder(output_folder, overwrite_output, resume):
 
     if output_list == []:
         version = "_v1"
-        output_folder_version = output_folder + version
-  
+        output_folder_version = output_folder + version  
     else:
         output_folder_version,_ = get_newest_version(output_folder)
 
-    logger.info(f"Creating the output folder '{output_folder_version}' in {os.getcwd()}...")
-    output_folder_version = os.path.join(os.path.dirname(output_folder), output_folder_version)
-
-    os.mkdir(output_folder_version)
+    logger.info(f"Creating the output folder '{output_folder_version}' in {os.path.dirname(output_folder)}...")
+    
+    os.makedirs(output_folder_version, exist_ok=True)
     maf_path = os.path.join(output_folder_version, 'maf')
-    os.mkdir(maf_path)
+    os.makedirs(maf_path, exist_ok=True)
     logger.info(f"The folder '{output_folder_version}' was correctly created!")
     
     return output_folder_version    
@@ -1050,6 +1045,32 @@ def input_extraction(input):
 
     return sample_tsv, patient_tsv, fusion_tsv
 
+def validate_input(oncokb, vcf_type, filters, cancer):
+    
+    #check that oncokb key is filled in conf.ini when oncokb annotation is selected
+    if oncokb:
+        assert config.get('OncoKB', 'ONCOKB')!="", \
+               f"oncokb option was set but ONCOKB field in conf.ini is empty!"
+    
+    #check that vep info in conf.ini are set when snv analysisi is request
+    if vcf_type==None or "snv" in vcf_type:
+        assert VEP_PATH !="" and VEP_DATA !="", \
+               f"vep_path and/or vep_data field in conf.ini is empty!"
+        assert REF_FASTA !="", \
+               f"re_fasta field in conf.ini is empty!"
+    
+    #verify that oncokb filter function only when oncokb annotation is set 
+    if "o" in filters and oncokb==False:
+        logger.warning("OncoKB filter was selected in filters options but -k option was not set. This filtering will be ignored.")
+    
+    #check if cancer id is compatible with cbioportal
+    cancer_cbio=pd.read_csv("cancer_list.txt", sep="\t")
+    cancer_cbio=cancer_cbio["TYPE_OF_CANCER_ID"].values.tolist()
+    
+    if cancer not in cancer_cbio:
+        logger.critical(f"cancer_id '{cancer}' is not recognize by cbioportal. Check in cancer_list.txt to find the correct cancer id")
+        sys.exit()
+
 def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
     
     logger.info("Starting walk_folder script:")
@@ -1059,10 +1080,14 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     
     input, sample_pzt, fusion_tsv = input_extraction(input)
     assert os.path.exists(input), \
-        f"No valid file/folder {input} found. Check your input path"   
+            f"No valid file/folder {input} found. Check your input path"
+
+    validate_input(oncokb, vcf_type, filters, cancer)
+    
+    
     
     ###############################
-    ###       OUTPUT FOLDER     ###
+    ###      OUTPUT FOLDER      ###
     ###############################
     
     if not resume or not os.path.exists(os.path.join(output_folder, "temp")):
@@ -1252,3 +1277,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     logger.success("Walk script completed!\n")
 
     return output_folder, input, fusion_tsv
+        
+    
+        
+    
