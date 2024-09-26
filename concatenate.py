@@ -27,7 +27,7 @@ def get_files_by_ext(folder, ext):
     if len(file_list)==0:
         logger.warning(f"No files found with .{ext} extension in {folder}")
     else:
-        logger.info(f"#{len(file_list)} {ext} file(s) found: {file_list}")
+        logger.info(f"#{len(file_list)} {ext} file(s) found")
     return file_list
 
 def extract_maf_folder(filters, oncoKB):

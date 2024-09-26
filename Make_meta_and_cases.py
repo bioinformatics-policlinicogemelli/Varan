@@ -44,7 +44,7 @@ def create_meta_study(cancer, project_name, project_id, description, output_dir,
     meta_file = open(os.path.join(output_dir, "meta_study.txt"), "w")
     logger.info("Writing meta_study.txt file...")
     for key, value in dictionary_file.items():
-        logger.info(f"{key}: {value}", file=meta_file)
+        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -72,7 +72,7 @@ def create_meta_clinical_patient(project_id, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_clinical_patient.txt"), "w")
     logger.info("Writing meta_clinical_patient.txt file...")
     for key, value in dictionary_file.items():
-        logger.info(f"{key}: {value}", file=meta_file)
+        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -98,7 +98,7 @@ def create_meta_clinical_sample(project_id, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_clinical_sample.txt"), "w")
     logger.info("Writing meta_clinical_sample.txt file...")
     for key, value in dictionary_file.items():
-        logger.info(f"{key}: {value}", file=meta_file)
+        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -137,7 +137,7 @@ def create_meta_mutations(cancer, project_id, profile, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_mutations_extended.txt"), "w")
     logger.info("Writing meta_mutations_extended.txt file...")
     for key, value in dictionary_file.items():
-        logger.info(f"{key}: {value}", file=meta_file)
+        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -176,7 +176,7 @@ def create_meta_sv(project_id, profile, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_sv.txt"), "w")
     logger.info("Writing meta_sv.txt file...")
     for key, value in dictionary_file.items():
-        logger.info(f"{key}: {value}", file=meta_file)
+        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -215,7 +215,7 @@ def create_meta_cna(cancer, project_id, profile, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_cna.txt"), "w")
     logger.info("Writing meta_cna.txt file...")
     for key, value in dictionary_file.items():
-        logger.info(f"{key}: {value}", file=meta_file)
+        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -248,7 +248,7 @@ def create_meta_cna_hg19(project_id, profile, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_cna_hg19_seg.txt"), "w")
     logger.info("Writing meta_cna_hg19_seg.txt file...")
     for key, value in dictionary_file.items():
-        logger.info(f"{key}: {value}", file=meta_file)
+        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
