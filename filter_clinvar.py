@@ -161,7 +161,10 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
         for file in file_list:
             file_to_filter=pd.read_csv(file,sep="\t")
             
-            if "f" in filters:
+            if "i" in filters:
+                file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
+            
+            if "p" in filters:
                 file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
             
             if "b" in filters:
@@ -186,12 +189,12 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                     file_to_filter.dropna(subset=["dbSNP_RS"], inplace=True)
 
                     if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel")]:
-                        file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min_novel) & (file_to_filter['t_AF'] <= t_VAF_max)]
+                        file_to_filter = file_to_filter[(file_to_filter['t_AF'] > t_VAF_min_novel) & (file_to_filter['t_AF'] <= t_VAF_max)]
                     else:
-                        file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
+                        file_to_filter = file_to_filter[(file_to_filter['t_AF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
                     
                 else:
-                    file_to_filter = file_to_filter[(file_to_filter['t_VF'] > t_VAF_min) & (file_to_filter['t_VF'] <= t_VAF_max)]
+                    file_to_filter = file_to_filter[(file_to_filter['t_AF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
             # usato per le varianti introniche
             if "a" in filters:    
                     af=config.get('Filters', 'AF')
@@ -201,10 +204,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                 
             if "c" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]
-                
-            if "i" in filters:
-                file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
-                
+                    
             if "q" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_consequences,axis=1)]
                 
@@ -215,7 +215,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                 file_to_filter = file_to_filter[file_to_filter.apply(check_sift,axis=1)]
                  
                 
-            logger.info(f"Filtered file: {file}")             
+            #logger.info(f"Filtered file: {file}")             
             
             file_to_filter.to_csv(os.path.join(out_filter, os.path.basename(file)),sep="\t",index=False)  
 

@@ -154,8 +154,10 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
     ### MANAGE DISCRETE TABLE ##
     ############################
     
+    logger.info("Starting cna evaluation (this step could take a while)...")
+
     df_table = pd.read_csv(os.path.join(output_folder, 'data_cna_hg19.seg.fc.txt'), sep="\t", header=0)
-    result = tabella_to_dict(df_table)
+    result = table_to_dict(df_table)
         
     df_table.rename(columns={"discrete":"Copy_Number_Alteration", "ID":"Tumor_Sample_Barcode", "gene":"Hugo_Symbol"}, inplace=True)
     df_table_filt = df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
@@ -233,7 +235,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         cna["ESCAT"]="Unmatched"
         df_table["ESCAT"]="Unmatched"
         
-        for index, row in cna.iterrows():
+        for _, row in cna.iterrows():
             
             logger.info("Analyzing cna sample " + row["Tumor_Sample_Barcode"])            
             try:
@@ -251,43 +253,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
             c = 2 ** (np.log2((1 - purity) + purity * (copy_nums + .5) / PLOIDY ))
             
             # ESCAT classification
-            oncocode = input_file[input_file["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"]]["ONCOTREE_CODE"].values
-            gene = df_table[(df_table["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"] == row["Hugo_Symbol"])]
-
-            if oncocode =="NSCLC":  
-                if (row["Hugo_Symbol"]=="MET" and row["seg.mean"]>1):
-                    row["ESCAT"]="IIB"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
-                elif (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
-                    row["ESCAT"]="IIB"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
-            
-            elif oncocode=="BREAST":
-                if (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
-                    row["ESCAT"]="IA"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
-                    
-            elif oncocode=="BOWEL":
-                if (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
-                    row["ESCAT"]="IIB"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
-                    
-            elif oncocode=="PROSTATE":
-                if (row["Hugo_Symbol"]=="BRCA1" and row["seg.mean"]<1):
-                    row["ESCAT"]="IA"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
-                elif (row["Hugo_Symbol"]=="BRCA2" and row["seg.mean"]<1):
-                    row["ESCAT"]="IA"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
-                elif (row["Hugo_Symbol"]=="PTEN" and row["seg.mean"]<1):
-                    row["ESCAT"]="IIA"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIA"
-                elif (row["Hugo_Symbol"]=="ATM" and row["seg.mean"]<1):
-                    row["ESCAT"]="IIB"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
-                elif (row["Hugo_Symbol"]=="PALB2" and row["seg.mean"]<1):
-                    row["ESCAT"]="IIB"
-                    df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+            escat_class(df_table, input_file, row)
                     
         #nuovi filtri (filtro cnvkit - conservativo)
         
@@ -330,8 +296,56 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
     
     return sID_path
 
+def escat_class(df_table, input_file, row):
+    oncocode = input_file[input_file["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"]]["ONCOTREE_CODE"].values
+    gene = df_table[(df_table["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"] == row["Hugo_Symbol"])]
 
-def tabella_to_dict(df):
+    if oncocode =="NSCLC":  
+        if (row["Hugo_Symbol"]=="MET" and row["seg.mean"]>1):
+            row["ESCAT"]="IIB"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+        elif (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
+            row["ESCAT"]="IIB"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+            
+    elif oncocode=="BREAST":
+        if (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
+            row["ESCAT"]="IA"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
+                    
+    elif oncocode=="BOWEL":
+        if (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
+            row["ESCAT"]="IIB"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+                    
+    elif oncocode=="PROSTATE":
+        if (row["Hugo_Symbol"]=="BRCA1" and row["seg.mean"]<1):
+            row["ESCAT"]="IA"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
+        elif (row["Hugo_Symbol"]=="BRCA2" and row["seg.mean"]<1):
+            row["ESCAT"]="IA"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IA"
+        elif (row["Hugo_Symbol"]=="PTEN" and row["seg.mean"]<1):
+            row["ESCAT"]="IIA"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIA"
+        elif (row["Hugo_Symbol"]=="ATM" and row["seg.mean"]<1):
+            row["ESCAT"]="IIB"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+        elif (row["Hugo_Symbol"]=="PALB2" and row["seg.mean"]<1):
+            row["ESCAT"]="IIB"
+            df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
+
+
+# def table_to_dict(df):
+#     result = {}
+#     for _, row in df.iterrows():
+#         row_values = (row['chrom'], row['loc.start'], row['loc.end'], row['num.mark'], row['seg.mean'], row['gene'], row['discrete'])
+#         if row['ID'] not in result:
+#             result[row['ID']] = []
+#         result[row['ID']].append(row_values)
+#     return result
+
+def table_to_dict(df):
     result = {}
     for row in df.itertuples(index=False):
         row_values = (row.chrom, row._2, row._3, row._4, row._5, row.gene, row.discrete)
@@ -339,7 +353,6 @@ def tabella_to_dict(df):
             result[row.ID] = []
         result[row.ID].append(row_values)
     return result
-
 
 def get_snv_from_folder(inputFolderSNV):
     files = os.listdir(inputFolderSNV)
@@ -386,9 +399,9 @@ def vcf_filtering(sID_path, output_folder, output_filtered):
         _, vcf_file = os.path.split(v)
         out_filt = os.path.join(output_folder, output_filtered) #TEST
         vcf_filtered = os.path.join(out_filt, vcf_file.replace('.vcf','') + '.FILTERED.vcf')
-        logger.info(f'[FILTERING] {v}')
+        #logger.info(f'[FILTERING] {v}')
         vcf_filter.main(v, vcf_filtered)
-        logger.info(f'filtered file {vcf_filtered} created!')
+        #logger.info(f'filtered file {vcf_filtered} created!')
         sID_path_filtered[k] = vcf_filtered
     return sID_path_filtered
 
@@ -455,7 +468,7 @@ def create_folder(output_folder, overwrite_output, resume):
     
     output_list = get_version_list(output_folder)
     output_list=list(map(lambda x: os.path.join(os.path.dirname(output_folder),x),output_list))
-
+    
     if output_list != [] and os.path.exists(output_list[-1]):
         output = output_list[-1]
         logger.warning(f"It seems that a version of the folder '{output_folder}' already exists.")
@@ -486,11 +499,11 @@ def get_table_from_folder(tsvpath):
     table_dict = dict()
     file = pd.read_csv(tsvpath, sep="\t", index_col=False, dtype=str)
     for _, row in file.iterrows():
-        sampleID = str(row["SampleID"])
+        sampleID = str(row["SAMPLE_ID"])
         if ".bam" in sampleID:
            sampleID = sampleID.replace(".bam", "")
         if sampleID not in table_dict.keys():
-            table_dict[sampleID] = [str(row["PatientID"])]  
+            table_dict[sampleID] = [str(row["PATIENT_ID"])]  
     return table_dict
 
 
@@ -584,7 +597,7 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
 
     combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
-    combout_df = combout_df.rename(columns={"index": "SAMPLEID", 0: "PATIENTID"})
+    combout_df = combout_df.rename(columns={"index": "SAMPLE_ID", 0: "PATIENT_ID"})
     
     final_data_sample = data_clin_samp
 
@@ -594,7 +607,8 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
         if any(data_clin_samp["MSI"] != combout_df["MSI"]) or any(data_clin_samp["TMB"] != combout_df["TMB"]):
             logger.warning("MSI and/or TMB values are reported in sample.tsv and CombinedOutput but they mismatch! CombinedOutput values were selected by default")
             data_clin_samp.drop(columns=["MSI", "TMB"], inplace=True)
-        final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENTID", "SAMPLEID"])
+      
+        final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENT_ID", "SAMPLE_ID"])
 
     dataclin_columns = list(final_data_sample.columns)
 
@@ -605,7 +619,7 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     # Add header's fourth row (SERIES OF 1s)
     header_numbers = pd.DataFrame([[1] * len(final_data_sample.columns)], columns=dataclin_columns)
     final_data_sample = pd.concat([header_numbers, final_data_sample], ignore_index=True)
-
+    
     # Add header's third row (HEADER_SAMPLE_TYPE)
     if not conf_header_type:
         header_row = ["STRING"] * len(dataclin_columns)
@@ -621,7 +635,8 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
                 raise(NameError("The type is not valid: exiting from walk script!"))
         try:
             types_list = list(map(lambda x: x.upper(), types_list))
-            types_list = types_list + ["NUMBER", "NUMBER", "STRING", "STRING"]
+            #types_list = types_list + ["NUMBER", "NUMBER", "STRING", "STRING"]
+            
             sample_header_type = pd.DataFrame([types_list], columns=dataclin_columns)
         except ValueError:
             logger.critical(f"The number of column names ({len(types_list)}) in HEADER_SAMPLE_TYPE is different from the effective number of columns ({len(final_data_sample.columns)}).") 
@@ -651,9 +666,10 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
             logger.critical(f"The number of column names ({len(combined_headers)}) in HEADER_SAMPLE_SHORT in conf.ini is different from the effective number of columns ({len(final_data_sample.columns)}).") 
             raise(NameError("Different number of columns: exiting from walk script!")) 
     final_data_sample = pd.concat([sample_header_short, final_data_sample], ignore_index=True)
-
-    final_data_sample.loc[4].replace({'SAMPLEID': 'SAMPLE_ID', 'PATIENTID': 'PATIENT_ID'}, inplace=True)
-    final_data_sample.loc[0:3, 'SAMPLEID'] = final_data_sample.loc[0:3, 'SAMPLEID'].apply(lambda x: f'#{x}')
+    
+    #final_data_sample.loc[4].replace({'SAMPLEID': 'SAMPLE_ID', 'PATIENTID': 'PATIENT_ID'}, inplace=True)
+    #final_data_sample.replace({'SAMPLEID': 'SAMPLE_ID', 'PATIENTID': 'PATIENT_ID'}, inplace=True)
+    final_data_sample.loc[0:3, 'SAMPLE_ID'] = final_data_sample.loc[0:3, 'SAMPLE_ID'].apply(lambda x: f'#{x}')
 
     data_clin_txt = os.path.join(output_folder, 'data_clinical_sample.txt')
     final_data_sample.to_csv(data_clin_txt, sep="\t", index=False, header=False)
@@ -802,7 +818,8 @@ def check_field_tsv(row, name):
         field=str(row[name])
     except KeyError as e: 
         logger.critical(f"KeyError: {e} not found! Check if column name is correctly spelled or if there are tabs/spaces before or after the coloumn key: \n{row.index}. \nThis error may also occur if the table columns have not been separated by tabs!")
-        raise(KeyError("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
+        sys.exit()
+        #raise(KeyError("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
     return field
 
 def get_combinedVariantOutput_from_folder(inputFolder, file, isinputfile):
@@ -813,8 +830,8 @@ def get_combinedVariantOutput_from_folder(inputFolder, file, isinputfile):
         #patientID = check_field_tsv(row, "PatientID")
         # combined_file = patientID+COMBOUT #da verificare
         # combined_path = os.path.join(inputFolder,"CombinedOutput",combined_file)
-        sampleID = check_field_tsv(row, "SampleID")
-        patientID = check_field_tsv(row, "PatientID")
+        sampleID = check_field_tsv(row, "SAMPLE_ID")
+        patientID = check_field_tsv(row, "PATIENT_ID")
         if isinputfile:
             combined_path = check_field_tsv(row, "comb_path")
         else: # TODO rivedere se mantenere così o meno
@@ -935,7 +952,7 @@ def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
 
 def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
     logger.info(f"Creating data_sv.txt file...")
- 
+    
     with open(fusion_table_file, "w") as fusion_table:
 
         header = 'Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\tNormal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n'
@@ -943,16 +960,16 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
 
         for k, v in combined_dict.items():
             fusions=[]
-            logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
+            #logger.info(f"Reading Fusion info in CombinedOutput file {v}...")
             try:
                 fusions = tsv.get_fusions(v)
             except Exception as e:
                 logger.error(f"Something went wrong while reading Fusion section of file {v}")
             if len(fusions) == 0:
-                logger.info(f"No Fusions found in {v}")
+                #logger.info(f"No Fusions found in {v}")
                 continue
-            else:
-                logger.info(f"Fusions found in {v}")
+            # else:
+            #     logger.info(f"Fusions found in {v}")
 
             for fus in fusions:
                 if len(fusions) > 0:
@@ -972,7 +989,7 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
 
 def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
 
-    logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
+    #logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
     for k, m, t in zip(fileinputclinical["SampleID"], fileinputclinical["MSI"], fileinputclinical["TMB"]):
         table_dict_patient[k].append(m)
         table_dict_patient[k].append(t)
@@ -996,12 +1013,12 @@ def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
 
 def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB):
     for k, v in combined_dict.items():
-        logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
+        #logger.info(f"Reading Tumor clinical parameters info in CombinedOutput file {v}...")
         try:
             tmv_msi = tsv.get_msi_tmb(v)
         except Exception as e:
             logger.error(f"Something went wrong!")
-        logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
+        #logger.info(f"Tumor clinical parameters Values found: {tmv_msi}")
 
         if not tmv_msi['MSI'][0][1]=="NA" and eval("float(tmv_msi['MSI'][0][1])" + MSI_SITES_THR):    
             table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
@@ -1141,9 +1158,12 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ###############################
     ###       SNV AND CNV       ###
     ###############################
+    
+    logger.info("Managing CNV files...")
     if os.path.exists(inputFolderCNV) and not vcf_type in ["snv", "fus", "tab"]:
         sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
     
+    logger.info("Managing SNV files...")
     if os.path.exists(inputFolderSNV) and not vcf_type in ["cnv", "fus", "tab"]:
         sID_path_snv = snv_type_from_folder(inputFolderSNV, case_folder_arr)
         
@@ -1205,18 +1225,18 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ##############################    
 
     table_dict_patient = get_table_from_folder(clin_sample_path)
-
+    
     logger.info("Writing clinical files...")
     
     if sample_pzt.strip()!="":
         logger.info("Writing data_clinical_patient.txt file...")
         
-        input_file_path = os.path.join(input_folder, os.path.basename(sample_pzt))
+        input_file_path = os.path.join(input_folder, "patient.tsv")#os.path.basename(sample_pzt))
         data_clin_pat = pd.read_csv(input_file_path, sep="\t", header=0, dtype=str)
         
         data_clin_pat.columns = data_clin_pat.columns.str.upper()
         datapat_columns = list(data_clin_pat.columns)
-
+        
         # Get headers from conf.ini if they're present
         conf_header_short = config.get('ClinicalPatient', 'HEADER_PATIENT_SHORT')
         conf_header_long = config.get('ClinicalPatient', 'HEADER_PATIENT_LONG')
@@ -1238,8 +1258,9 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
 
         # Add header's first row (HEADER_PATIENT_SHORT)
         final_data_pat = add_header_patient_short(sample_pzt, datapat_columns, conf_header_short, default_row, final_data_pat)
-
-        final_data_pat.loc[0:3, 'PATIENTID'] = final_data_pat.loc[0:3, 'PATIENTID'].apply(lambda x: f'#{x}')
+        
+        #final_data_pat.replace({'PATIENT ID': 'PATIENT_ID'}, inplace=True)
+        final_data_pat.loc[0:3, 'PATIENT_ID'] = final_data_pat.loc[0:3, 'PATIENT_ID'].apply(lambda x: f'#{x}')
 
         data_clin_txt = os.path.join(output_folder, 'data_clinical_patient.txt')
         final_data_pat.to_csv(data_clin_txt, sep="\t", index=False, header=False)

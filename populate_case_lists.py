@@ -75,7 +75,7 @@ def populate_cases_cna(project_id, folder, cases_list_dir, logger):
 
     case_cna_file = open(os.path.join(cases_list_dir, "cases_cna.txt"), "w")
     for key, value in dictionary_file.items():
-        logger.info(f"{key}: {value}", file=case_cna_file)
+        #logger.info(f"{key}: {value}", file=case_cna_file)
         print(f"{key}: {value}", file=case_cna_file)
     case_cna_file.close()
 
