@@ -6,7 +6,7 @@ import sys
 import argparse
 from loguru import logger 
 from configparser import ConfigParser
-from walk import walk_folder 
+from walk import walk_folder, write_filters_in_report 
 from filter_clinvar import filter_main
 from concatenate import concatenate_main
 from ValidateFolder import validateFolderlog, cBio_validation
@@ -62,10 +62,12 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ############################
         #      5. VALIDATION       #
         ############################
-
+ 
         validateFolderlog(output_folder)
         val1, val2 = cBio_validation(output_folder)
-        
+
+        write_filters_in_report(output_folder)
+
         if val1 != 1 or val2 != 1:
             logger.success("The end! The study is ready to be uploaded on cBioportal")
 

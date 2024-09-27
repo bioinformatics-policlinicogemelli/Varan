@@ -18,7 +18,6 @@ def parsing_vcf(file_input,file_output):
 
     #filtro per dati in cui FILTER == "PASS"
     data=data[data["FILTER"]=="PASS"]
-    # print(type(data))
     #per salvare il file così filtrato
     data.to_csv(file_output,sep="\t", mode="a", index=False)
 

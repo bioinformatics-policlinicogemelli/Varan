@@ -18,12 +18,12 @@ def create_meta_study(cancer, project_name, project_id, description, output_dir,
         description : optional description to overwrite default description
         output_dir : path of output dir
     """
-    data = datetime.today().strftime('%d-%m-%Y')
+    date = datetime.today().strftime('%d-%m-%Y')
     name = "project"
 
     if project_name == "":
         project_name = cancer.capitalize() + " Cancer " + name.upper() + " " + version.upper().replace("_", "")
-    project_name = project_name.upper() + " (" + data + ")"
+    project_name = project_name.upper() + " (" + date + ")"
 
     if project_id == "":
         project_id = cancer + "_" + name + version 

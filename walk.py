@@ -22,6 +22,7 @@ import numpy as np
 from filter_clinvar import filter_OncoKB
 from versioning import get_newest_version, get_version_list
 import pandas as pd
+from datetime import datetime
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
@@ -1088,6 +1089,43 @@ def validate_input(oncokb, vcf_type, filters, cancer):
     if cancer not in cancer_cbio:
         logger.critical(f"cancer_id '{cancer}' is not recognize by cbioportal. Check in cancer_list.txt to find the correct cancer id")
         sys.exit()
+
+def write_filters_in_report(output_folder):
+    now = datetime.now()
+    date = now.strftime("%d/%m/%Y, %H:%M:%S")
+    report_file_path = os.path.join(output_folder, "report.txt")  
+    sections_to_include = {
+            "Filters": ["BENIGN", "CLIN_SIG", "CONSEQUENCES", "ONCOKB_FILTER", 
+                        "t_VAF_min", "t_VAF_min_novel", "t_VAF_max", 
+                        "AF", "POLYPHEN", "IMPACT", "SIFT"],
+            "Cna": ["HEADER_CNV", "PLOIDY"],
+            "TMB": ["THRESHOLD"],
+            "MSI": ["THRESHOLD_SITES", "THRESHOLD"],
+            "FUSION": ["THRESHOLD"]
+        }
+
+    conf_content = []
+
+    for section, keys in sections_to_include.items():
+        if section in config:
+            conf_content.append(f"[{section}]")  
+            for key in keys:
+                if key in config[section]:  
+                    value = config[section][key]
+                    conf_content.append(f"{key.upper()} = {value}")  
+
+    conf_content = "\n".join(conf_content) + "\n\n"
+
+    with open(report_file_path, "r") as file:
+        val_report = file.readlines()
+
+    with open(report_file_path, "w") as file:
+        file.write(f"Varan run - {date}\n\nThe following configuration and filters have been used:\n")
+        file.write(conf_content)
+        file.write("This is the report from cBioPortal Validator:\n")
+        file.writelines(val_report)
+
+
 
 def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
     
