@@ -7,16 +7,16 @@ import subprocess
 
 
 def cBio_validation(output_folder):
-    logger.info("Starting Validation Folder")
     config = ConfigParser()
     config.read('conf.ini')
     PORT = config.get('Validation', 'PORT')
+    logger.info(f"Starting online validation. Connecting to {PORT}")
     
     try:
-        process1 = subprocess.Popen(["python", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process1 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout1, stderr1 = process1.communicate()
-        warning = stderr1
-        if process1.returncode not in [0, 2, 3]:
+        warn = stderr1
+        if process1.returncode == 1:
             raise subprocess.CalledProcessError(process1.returncode, process1.args, output=stdout1, stderr=stderr1)
         logger.info(stdout1)
 
@@ -25,17 +25,25 @@ def cBio_validation(output_folder):
                      " or invalid docker settings.")
         logger.info("Starting offline validation...")
 
-        process2 = subprocess.Popen(['python', 'importer/validateData.py', '-s', output_folder, '-n', "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process2 = subprocess.Popen(['python3', 'importer/validateData.py', '-s', output_folder, '-n', "-e", os.path.join(output_folder, "report_validate.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         _, stderr2 = process2.communicate()
-        warning = stderr2
+        warn = stderr2
         if process2.returncode == 1:
-            logger.error(f"Error in process2: {stderr2}")
-    if process1.returncode in [2, 3] or process2.returncode in [2, 3]:
-        logger.warning(f"{warning.strip()} Check the report files in the study folder to see why.")
-    else:
-            logger.success("The validation proceeded without errors and warnings! The study is ready to be uploaded!")
-            
+            logger.error(f"Error: {stderr2.strip()} Check the report files in the study folder for more info!")
+        
+        check_process_status(process1, warn)
 
+        if process1.returncode == 1 and 'process2' in locals():
+            check_process_status(process2, warn)
+
+    return process1.returncode, process2.returncode
+
+
+def check_process_status(process, warn_msg):
+    if process.returncode in [2, 3]:
+        logger.warning(f"{warn_msg.strip()} Check report files in the study folder for more info!")
+    elif process.returncode == 0:
+        logger.success("The validation proceeded without errors and warnings! The study is ready to be uploaded!")
 
 
 def validateFolderlog(folder):

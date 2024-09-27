@@ -333,11 +333,11 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
 
 def tabella_to_dict(df):
     result = {}
-    for index, row in df.iterrows():
-        row_values = (row['chrom'], row['loc.start'], row['loc.end'], row['num.mark'], row['seg.mean'], row['gene'], row['discrete'])
-        if row['ID'] not in result:
-            result[row['ID']] = []
-        result[row['ID']].append(row_values)
+    for row in df.itertuples(index=False):
+        row_values = (row.chrom, row._2, row._3, row._4, row._5, row.gene, row.discrete)
+        if row.ID not in result:
+            result[row.ID] = []
+        result[row.ID].append(row_values)
     return result
 
 
