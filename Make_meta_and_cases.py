@@ -286,8 +286,8 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
             project_id = rename + version
             project_name = rename + version.replace("_"," ")
         else:
-            project_id = output_folder
-            project_name = output_folder.replace("_"," ")      
+            project_id =  os.path.basename(output_folder)
+            project_name = os.path.basename(output_folder).replace("_"," ")      
             
     elif len(old_study_info)>0 and old_study_info[-1]:
         version = extract_version_str(output_folder)
