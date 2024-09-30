@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import re
+import numpy as np
 import loguru
 from loguru import logger 
 
@@ -17,9 +18,10 @@ def delete_clinical_samples(file_path, sample_ids, output_folder):
         sample_ids (list): List of sample IDs to be deleted.
         output_folder (str): Path to the folder where the output file will be saved.
         
-    """
+    """    
     file = pd.read_csv(file_path, sep="\t")
-    filtered = file[~file.iloc[:, 0].astype(str).isin(sample_ids)]
+    idx_sample=np.argwhere(file.values == "SAMPLE_ID")[0][1]
+    filtered = file[~file.iloc[:, idx_sample].astype(str).isin(sample_ids)]
     filtered.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=False, sep="\t")
 
 
@@ -39,14 +41,18 @@ def delete_clinical_patient(oldpath, sample_ids, output_folder):
     """
     file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t")
     sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t")
-    patient_ids = list(sample[sample.iloc[:, 0].astype(str).isin(sample_ids)].iloc[:, 1])
+    
+    idx_sample=np.argwhere(sample.values == "SAMPLE_ID")[0][1]
+    idx_patient=np.argwhere(sample.values == "PATIENT_ID")[0][1]
+    
+    patient_ids = list(sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)].iloc[:, idx_patient])
     
     # clean file from un-find samples
-    sample_ids=list(sample[sample.iloc[:, 0].astype(str).isin(sample_ids)].iloc[:, 0])
+    sample_ids=list(sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)].iloc[:, idx_sample])
     
-    if len(sample[sample.iloc[:, 1].astype(str).isin(patient_ids)]) > len(sample_ids):
-        pzt_list=sample[sample.iloc[:, 1].astype(str).isin(patient_ids)]
-        pzt_dup=[pzt_list[pzt_list.duplicated(subset=sample.iloc[0, 1])].iloc[0,1]]
+    if len(sample[sample.iloc[:, idx_sample].astype(str).isin(patient_ids)]) > len(sample_ids):
+        pzt_list=sample[sample.iloc[:, idx_patient].astype(str).isin(patient_ids)]
+        pzt_dup=[pzt_list[pzt_list.duplicated(subset=sample.iloc[0, idx_sample])].iloc[0,1]]
         
         for p_dup in pzt_dup:
             df_dup=pzt_list[pzt_list.iloc[:,1]==p_dup]
