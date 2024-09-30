@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import re
+import numpy as np
 from loguru import logger
 
 
@@ -23,9 +23,10 @@ def extract_clinical_samples(file_path, sample_ids, output_folder):
       >>>  extract_clinical_samples('input_data.csv', ['sample1', 'sample2'], 'output_folder/')
     """
     file = pd.read_csv(file_path, sep="\t")
+    idx_sample=np.argwhere(file.values == "SAMPLE_ID")[0][1]
     header = file.loc[0:3, :]
     file = pd.read_csv(file_path, sep="\t")
-    extracted = file[file.iloc[:, 0].astype(str).isin(sample_ids)]
+    extracted = file[file.iloc[:, idx_sample].astype(str).isin(sample_ids)]
 
     # if not set(sample_ids).issubset(set(file.iloc[4:, 0])):
     #     not_found = set(sample_ids) - set(file.iloc[4:, 0])
@@ -56,14 +57,18 @@ def extract_clinical_patient(oldpath, sample_ids, output_folder):
 
     file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t")
     sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t")
-    patient_ids = list(sample[sample.iloc[:, 0].astype(str).isin(sample_ids)][sample.iloc[0,1]])
+    
+    idx_sample=np.argwhere(sample.values == "SAMPLE_ID")[0][1]
+    idx_patient=np.argwhere(sample.values == "PATIENT_ID")[0][1]
+    
+    patient_ids = list(sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)][sample.iloc[0,idx_patient]])
 
-    if not set(sample_ids).issubset(set(sample.iloc[4:, 0])):
-        not_found = set(sample_ids) - set(sample.iloc[4:, 0])
+    if not set(sample_ids).issubset(set(sample.iloc[4:, idx_sample])):
+        not_found = set(sample_ids) - set(sample.iloc[4:, idx_sample])
         logger.warning(f"{not_found} sample(s) are not in data_clinical_sample.txt and won't be extraced.")
           
     header = file.loc[0:3,:]
-    extracted = file[file.iloc[:, 0].astype(str).isin(patient_ids)]
+    extracted = file[file.iloc[:, idx_sample].astype(str).isin(patient_ids)]
 
     extracted = pd.concat([header, extracted])    
     extracted.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t")
