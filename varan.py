@@ -64,11 +64,11 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ############################
  
         validateFolderlog(output_folder)
-        val1, val2 = cBio_validation(output_folder)
+        val = cBio_validation(output_folder)
 
         write_filters_in_report(output_folder)
 
-        if val1 != 1 or val2 != 1:
+        if val != 1:
             logger.success("The end! The study is ready to be uploaded on cBioportal")
 
         ##########################################################################################
