@@ -34,9 +34,14 @@ Varan is a Python-based application that provides a pipeline to automatically pr
 
 ### Docker (recommended)
 
-#### Requirements:
-[Docker ](https://www.docker.com/)
-#### Procedure:
+<details open>
+  <summary><b>Prerequisites</b></summary>
+  
+&ensp; [Docker ](https://www.docker.com/)
+</details>
+
+<details open>
+  <summary><b>Procedure</b></summary>
 
 1. Open a terminal
 2. Clone the repository folder:
@@ -54,12 +59,14 @@ docker build -t varan .
 docker run --rm -it varan -h
 ```
 
-⚠️ for Windows users: some problems with git bash (git for Windows) has been reported. It is recommended to launch the docker command through [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4):
-
+⚠️ for Windows users: some problems with git bash (git for Windows) has been reported. It is recommended to launch the docker command through [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)
+</details>
 
 ### Local
 
-#### Prerequisites
+<details open>
+  <summary><b>Prerequisites</b></summary>
+
 * <b>Variant Effect Predictor (VEP)</b><p align="justify">The Variant Effect Predictor <a href="https://www.ensembl.org/info/docs/tools/vep/index.html">VEP</a> is a tool used to determine the effect of variants (SNPs, insertions, deletions, CNVs or structural variants) on genes, transcripts, and protein sequence, as well as regulatory regions. <br>The steps to install VEP can be found <a href="https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html"> here</a>, while DB and FASTA files can be downloaded <a href="http://www.ensembl.org/info/docs/tools/vep/script/vep_cache.html#cache)"> here</a>
 
 * <b>vcf2maf</b><br><p align="justify"><a href="https://github.com/mskcc/vcf2maf/tree/main">vcf2maf</a> is the tool required for the conversion of vcf files in maf format ones. 
@@ -67,72 +74,194 @@ docker run --rm -it varan -h
 
 * <b>Samtools</b> <br><p align="justify"><a href="https://www.htslib.org/">Samtools</a> is a suite of programs for interacting with high-throughput sequencing data. 
 <br>All the installation info can be found <a href="https://www.htslib.org/download/">here</a>
+</details>
 
-### Varan 2.0
+<details open>
+  <summary><b>Procedure</b></summary>
 
-To correctly install and use Varan 2.0:
+To correctly install and use Varan:
 1. Open a terminal
 2. Digit the following command to clone the repository folder: 
 ```
-git clone https://github.com/bioinformatics-policlinicogemelli/varan-2.0.git
+git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git
 ```
-3.  Install all of the packages required
+3.  Install all the packages required (cbioimporter and oncokb-annotator)
 ```
-cd <varan_folder_path>/varan-2.0
-pip install -r requirements.txt
+cd <varan_folder_path>/varan-Pub
+bash installer.sh
 ```
+ 
 <p align="justify">
 ⚠️ <i>Depending on the python version it may be necessary to use pip3 instead of pip</i><br><br>
 To test the installation and check if everything works, launch the main script <b>varan.py</b>: 
 
 ```
-cd <varan_folder_path>/varan-2.0
+cd <varan_folder_path>/varan-Pub
 python varan.py -h
 ```
-If everything works, you will see a printed output like this:
-```
-1:04:09.32 | INFO | Welcome to VARAN usage: varan.py [-h] [-c CANCER] [-d] [-i INPUT] [-f] [-t {snv,cnv}] [-w] [-v] [-u] [-n NEWPATH] [-r] [-e] -o OUTPUT_FOLDER [-s SAMPLELIST] [-p PATH]
-Argument of Varan script
-optional arguments:
--h, --help show this help message and exit
--c CANCER, --Cancer CANCER Cancer Name
--i INPUT[INPUT ...], --input INPUT [INPUT ...]input folder/sample tsv (required) and patient tsv
--t {snv,cnv}, --analysis_type {snv,cnv,fus,tab} Select the analysis to follow [snv → snv analysis; cnv → cnv analysis; fus → fusions analysis; tab → table creation]
--w, --overWrite Overwrite output folder if it exists
--R, --resume Resume an already started analysis
--k, --oncoKB OncoKB annotation
--m, --multiple Multiple sample VCF
--f FILTER, --Filter FILTER Select filter for SNV [d → filter, p → filter==PASS, b → Benign, v → vaf, o → Oncokb, g → gnomAD, q → Consequence, y → polyphens, c → clin_sig, n → novel]
--u, --Update Add this argument if you want to concatenate two studies
--n NEWPATH, --NewPath NEWPATH Path of new study to add
--r, --Remove Add this argument if you want remove samples from a study
--e, --Extract Add this argument if you want to extract samples from a study
--o OUTPUT_FOLDER, --output_folder OUTPUT_FOLDER Output folder
--s SAMPLELIST, --SampleList SAMPLELIST Path of file with list of SampleIDs
--p PATH, --Path PATH Path of original study folder
--N NAME, --Name Name Add this argument if you want to give a custom name to the extract study
-```
+
 <p align="justify">
-⚠️ <i>If any error is printed while launching varan.py, check if the step 3 completed without errors</i>
+⚠️ <i>If any error is printed while launching varan.py, check if step 3 completed without errors</i>
+</details>
 
 ## Usage
 
-<p align="justify">The first step to start using Varan is to correctly set the configuration file **conf.ini**. This file is divided in N subsessions:
-* <p align="justify">Paths: here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path.
-* <p align="justify">Multiple: here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
-* <p align="justify">OncoKB: here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
-* <p align="justify">Project: here is possible to specify project info like name, description and profile.
-* <p align="justify">Filters: here are specified the filters applied in the filtering step.
-* <p align="justify">Cna: here are specified the CNV genotypes and the ploidy.
-* <p align="justify">TMB: here are specified the TMB thresholds.
-* <p align="justify">MSI: here are specified the MSI thresholds.
-* <p align="justify">Fusion: here are specified the Fusion thresholds.
-* <p align="justify">Clinical Sample: here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_sample.txt.
-* <p align="justify">Clinical Patient: here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_patient.txt.
+<details open>
+  <summary><b>Configuration file</b></summary>
+The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>. <br>
+This file is divided in 12 subsessions:
+<details>
+<summary><u>Paths</u></summary>
+
+```
+[Paths]
+VCF2MAF = 
+CLINV = 
+REF_FASTA = 
+VEP_PATH = 
+VEP_DATA= 
+CACHE = 
+```
+here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path
+</details>
+<details>
+<summary><u>Multiple</u></summary>
+
+```
+[Multiple]
+SNV=
+CNV=
+COMBOUT=
+```
+
+here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
+</details>
+<details>
+<summary><u>OncoKB</u></summary>
+
+```
+[OncoKB] ONCOKB
+ONCOKB=
+```
 
 
+here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
+</details>
+<details>
+<summary><u>Project</u></summary>
 
-<p align="justify">Varan application can be divided into two separate main blocks that require different inputs and ensure different operations to perform on them. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder.To keep track of all operations performed by Varan,a versioning system is provided.
+```
+[Project]
+PROJECT_ID =
+PROJECT_NAME =
+DESCRIPTION='Comprehensive profiling of cancer samples'
+PROFILE_MUT="Sequencing of tumor"
+PROFILE_CNA=
+PROFILE_CNA_HG19="Somatic CNA data"
+PROFILE_SV=
+```
+
+here is possible to specify project info like name, description and profile.
+</details>
+<details>
+<summary><u>Filters</u></summary>
+
+```
+[Filters]
+BENIGN=benign|likely_benign
+CLIN_SIG=["risk_factor","pathogenic","likely_pathogenic","drug_response"]
+CONSEQUENCES=["splice_region_variant","frameshift_variant","splice_donor_variant","stop_gained","splice_acceptor_variant","start_lost","inframe_insertion","inframe_deletion"]
+ONCOKB_FILTER=["Likely Oncogenic","Oncogenic"]
+t_VAF_min=0.002
+t_VAF_min_novel=0.05
+t_VAF_max=1
+AF=<0.0003
+POLYPHEN=["benign"]
+IMPACT=["LOW", "MODIFIER"]
+SIFT=["tolerated"]
+```
+
+here are specified the filters applied in the filtering step.
+</details>
+<details>
+<summary><u>Cna</u></summary>
+
+```
+[Cna]
+HEADER_CNV = ['MYCL','NRAS','MDM4','MYCN','ALK','RAF1','PIK3CB','PIK3CA','TFRC','FGFR3','PDGFRA','KIT','FGF5','FGF2','RICTOR','FGF10','FGF1','PDGFRB','FGFR4','CCND3','ESR1','EGFR','CDK6','MET','BRAF','NRG1','FGFR1','MYC','JAK2','RET','PTEN','FGF8','FGFR2','CCND1','FGF19','FGF4','FGF3','ATM','CHEK1','FGF23','FGF6','KRAS','ERBB3','CDK4','MDM2','FGF9','BRCA2','FGF14','LAMP1','FGF7','ERBB2','BRCA1','RPS6KB1','CCNE1','AKT2','ERCC2','ERCC1','CHEK2','AR']
+PLOIDY = 2
+```
+
+here are specified the CNV genotypes and the ploidy.
+</details>
+<details>
+<summary><u>TMB</u></summary>
+
+```
+[TMB]
+THRESHOLD= {'Low (<= 5)':'<=5','Medium (5< x <10)':'<10','High (>=10)':'>=10'}
+```
+
+here are specified the TMB thresholds.
+</details>
+<details>
+<summary><u>MSI</u></summary>
+
+```
+[MSI]
+THRESHOLD_SITES=>=40
+THRESHOLD=<20
+```
+
+here are specified the MSI thresholds.
+</details>
+<details>
+<summary><u>FUSION</u></summary>
+
+```
+[FUSION]
+THRESHOLD=>=15
+```
+
+here are specified the Fusion thresholds.
+</details>
+<details>
+<summary><u>ClinicalSample</u></summary>
+
+```
+[ClinicalSample]
+HEADER_SAMPLE_SHORT =
+HEADER_SAMPLE_LONG =
+HEADER_SAMPLE_TYPE =
+```
+
+here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_sample.txt.
+</details>
+<details>
+<summary><u>ClinicalPatient</u></summary>
+
+```
+[ClinicalPatient]
+HEADER_PATIENT_SHORT = 
+HEADER_PATIENT_LONG = 
+HEADER_PATIENT_TYPE = 
+```
+
+here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_patient.txt.
+</details>
+<details>
+<summary><u>Validation</u></summary>
+
+```
+[Validation]
+PORT = http://localhost:8080
+```
+
+</details>
+</details>
+
+
+<p align="justify"><br>Varan application can be divided into two separate main blocks that require different inputs and ensure different operations to perform on them. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder.To keep track of all operations performed by Varan,a versioning system is provided.
 
 Here below are reported the steps and the options to set to run each block.
 
