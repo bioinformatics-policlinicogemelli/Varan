@@ -19,6 +19,8 @@ def cBio_validation(output_folder):
         if process1.returncode == 1:
             raise subprocess.CalledProcessError(process1.returncode, process1.args, output=stdout1, stderr=stderr1)
         logger.info(stdout1)
+        
+        return process1.returncode
 
     except subprocess.CalledProcessError as e:
         logger.error("Something went wrong while trying to connect to localhost. It may be due to an error on port selection" +\
@@ -36,7 +38,7 @@ def cBio_validation(output_folder):
         if process1.returncode == 1 and 'process2' in locals():
             check_process_status(process2, warn)
 
-    return process1.returncode, process2.returncode
+        return process2.returncode
 
 
 def check_process_status(process, warn_msg):
