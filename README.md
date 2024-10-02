@@ -104,162 +104,191 @@ python varan.py -h
 ⚠️ <i>If any error is printed while launching varan.py, check if step 3 completed without errors</i>
 </details>
 
-## Usage
+## Quickstart
 
 <details open>
   <summary><b>Configuration file</b></summary>
 The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>. <br>
+
+⚠️ In next subparagraph, for each field the type of variable requested will be insert between angle brackets <>. For string two possible entry can be find: < 'string' > and < string >. In the first case it is request to insert text inside quotation marks (*i.e. DESCRIPTION='this is the description'*), while on the other one quotation marks are not requested (*i.e. PROJECT_NAME=study*).
+
 This file is divided in 12 subsessions:
-<details>
+<details close>
 <summary><u>Paths</u></summary>
+In this section it's possible to specify the paths for Vep (VEP_PATH) and its cache (VEP_DATA) and fasta (REF_FASTA), vcf2maf (VCF2MAF), and ClinVar (CLINV). In CACHE it is possible to set Ensembl version (i.e. 111) 
 
 ```
 [Paths]
-VCF2MAF = 
-CLINV = 
-REF_FASTA = 
-VEP_PATH = 
-VEP_DATA= 
-CACHE = 
+VCF2MAF = < string >
+CLINV = < string >
+REF_FASTA = < string >
+VEP_PATH = < string >
+VEP_DATA= < string >
+CACHE = < string >
 ```
-here is possible to specify Vep, vcf2maf and fasta paths,data and ClinVar path
+⚠️ clinvar database can be downloaded <a href="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/">here</a>
+
 </details>
-<details>
+<details close>
 <summary><u>Multiple</u></summary>
 
+In this section it's possible to specify the paths in case of multiple SNV, CNV and/or CombinedOutput files analysis.   
 ```
 [Multiple]
-SNV=
-CNV=
-COMBOUT=
+SNV= < string >
+CNV= < string >
+COMBOUT= < string >
 ```
+⚠️ This section has to be filled only in case of input by file.
 
-here is possible to specify the paths where the reference multi-VCFs(SNV,CNV,Combined_Output) are stored.
 </details>
-<details>
+<details close>
 <summary><u>OncoKB</u></summary>
+
+In this section is possible to insert the personal <a href="https://www.oncokb.org/">oncoKB</a> key. This key is mandatory to execute the oncoKB annotation.
 
 ```
 [OncoKB] ONCOKB
-ONCOKB=
+ONCOKB= < string >
 ```
+⚠️ The request for the oncoKB key can be done <a href="https://www.oncokb.org/account/register">here</a>
 
 
-here is possible to specify the personal key for annotation within the configuration settings of the annotation tool.
 </details>
-<details>
+<details close>
 <summary><u>Project</u></summary>
 
+In this section is possible to specify project info like study name, ID, description and profile. These info will be insert in meta files.
 ```
 [Project]
-PROJECT_ID =
-PROJECT_NAME =
-DESCRIPTION='Comprehensive profiling of cancer samples'
-PROFILE_MUT="Sequencing of tumor"
-PROFILE_CNA=
-PROFILE_CNA_HG19="Somatic CNA data"
-PROFILE_SV=
+PROJECT_ID = < string >
+PROJECT_NAME = < string >
+DESCRIPTION = < 'string' >
+PROFILE_MUT = < 'string' >
+PROFILE_CNA = < 'string' >
+PROFILE_CNA_HG19 = < 'string' >
+PROFILE_SV = < 'string' >
 ```
 
-here is possible to specify project info like name, description and profile.
 </details>
-<details>
+<details close>
 <summary><u>Filters</u></summary>
 
+Here it is possible to specify the filters' threshold to apply to SNV maf files (for more info about filters threshold setting see <a href="https://github.com/bioinformatics-policlinicogemelli/Varan-Pub/blob/readme/filters.md">here</a>).
 ```
 [Filters]
-BENIGN=benign|likely_benign
-CLIN_SIG=["risk_factor","pathogenic","likely_pathogenic","drug_response"]
-CONSEQUENCES=["splice_region_variant","frameshift_variant","splice_donor_variant","stop_gained","splice_acceptor_variant","start_lost","inframe_insertion","inframe_deletion"]
-ONCOKB_FILTER=["Likely Oncogenic","Oncogenic"]
-t_VAF_min=0.002
-t_VAF_min_novel=0.05
-t_VAF_max=1
-AF=<0.0003
-POLYPHEN=["benign"]
-IMPACT=["LOW", "MODIFIER"]
-SIFT=["tolerated"]
+BENIGN = < [string|string|...] > 
+CLIN_SIG = < ['string','string',...] >
+CONSEQUENCES = < ['string','string',...] >
+ONCOKB_FILTER = < ['string','string',...] >
+t_VAF_min = < int >
+t_VAF_min_novel = < int >
+t_VAF_max = < int >
+AF = < string > 
+POLYPHEN = < ['string','string',...] >
+IMPACT = < ['string','string',...] >
+SIFT = < ['string','string',...] >
 ```
+⚠️ For AF the field can be populate with </>/<=/>=val (i.e. AF = >0.003)
 
-here are specified the filters applied in the filtering step.
-</details>
+</details close>
 <details>
 <summary><u>Cna</u></summary>
 
+In this section user can insert CNV genotypes of interest and ploidy. The latter will be used to evaluate copy number discretization using <a href="https://cnvkit.readthedocs.io/en/stable/pipeline.html">cnvkit formula</a>.
 ```
 [Cna]
-HEADER_CNV = ['MYCL','NRAS','MDM4','MYCN','ALK','RAF1','PIK3CB','PIK3CA','TFRC','FGFR3','PDGFRA','KIT','FGF5','FGF2','RICTOR','FGF10','FGF1','PDGFRB','FGFR4','CCND3','ESR1','EGFR','CDK6','MET','BRAF','NRG1','FGFR1','MYC','JAK2','RET','PTEN','FGF8','FGFR2','CCND1','FGF19','FGF4','FGF3','ATM','CHEK1','FGF23','FGF6','KRAS','ERBB3','CDK4','MDM2','FGF9','BRCA2','FGF14','LAMP1','FGF7','ERBB2','BRCA1','RPS6KB1','CCNE1','AKT2','ERCC2','ERCC1','CHEK2','AR']
-PLOIDY = 2
+HEADER_CNV = < ['string','string',...] >
+PLOIDY = < int >
 ```
-
-here are specified the CNV genotypes and the ploidy.
-</details>
+</details close>
 <details>
 <summary><u>TMB</u></summary>
 
+Here TMB thresholds can be specified.
+
 ```
 [TMB]
-THRESHOLD= {'Low (<= 5)':'<=5','Medium (5< x <10)':'<10','High (>=10)':'>=10'}
+THRESHOLD = < {'string':'string', 'string':'string', ...} > 
 ```
+i.e. THRESHOLD = {'Low':'<=5','Medium':'<10','High':'>=10'} where the string before : is the label assign to TMB value, while the other is the specific threshold (i.e. for a sample with TMB=15 a label HIGH will reported in the data clinical sample).
 
-here are specified the TMB thresholds.
-</details>
+</details close>
 <details>
 <summary><u>MSI</u></summary>
 
+Here MSI thresholds for sites and values can be specified.
 ```
 [MSI]
-THRESHOLD_SITES=>=40
-THRESHOLD=<20
+THRESHOLD_SITES = < string >
+THRESHOLD = < string >
 ```
 
-here are specified the MSI thresholds.
-</details>
+⚠️ THRESHOLD_SITES value will be use only if MSI informations are extracted from combined variant output files. If MSI is directly reported as value inside the input tsv only THRESHOLD will be apply.
+
+⚠️ Both THRESHOLD_SITES and THRESHOLD can be populate with </>/<=/>=val (i.e. THRESHOLD = <20)
+
+</details close>
 <details>
 <summary><u>FUSION</u></summary>
 
+Here Fusions thresholds can be specified.
+
 ```
 [FUSION]
-THRESHOLD=>=15
+THRESHOLD = < string >
 ```
+⚠️ THRESHOLD can be populate with </>/<=/>=val (i.e. THRESHOLD = >=15)
 
 here are specified the Fusion thresholds.
 </details>
-<details>
+<details close>
 <summary><u>ClinicalSample</u></summary>
 
+Here user can customize column name and type to write in the data_clinical_sample.txt.
 ```
 [ClinicalSample]
-HEADER_SAMPLE_SHORT =
-HEADER_SAMPLE_LONG =
-HEADER_SAMPLE_TYPE =
+HEADER_SAMPLE_SHORT = < ['string','string',...] >
+HEADER_SAMPLE_LONG = < ['string','string',...] >
+HEADER_SAMPLE_TYPE = < ['string','string',...] >
 ```
+⚠️ HEADER_SAMPLE_TYPE accept only STRING, NUMBER, BOOLEAN. If different type is insert an error will be raised by Varan
 
-here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_sample.txt.
+⚠️ If these fields are left empty, a default Header will be produced.
+
+
 </details>
-<details>
+<details close>
 <summary><u>ClinicalPatient</u></summary>
 
+Here user can customize column name and type to write in the data_clinical_patient.txt.
 ```
 [ClinicalPatient]
-HEADER_PATIENT_SHORT = 
-HEADER_PATIENT_LONG = 
-HEADER_PATIENT_TYPE = 
+HEADER_PATIENT_SHORT = < ['string','string',...] >
+HEADER_PATIENT_LONG = < ['string','string',...] >
+HEADER_PATIENT_TYPE = < ['string','string',...] >
 ```
+⚠️ HEADER_PATIENT_TYPE accept only STRING, NUMBER, BOOLEAN. If different type is insert an error will be raised by Varan
 
-here is possible to customize the name and type (example:string,number) of the columns in the data_clinical_patient.txt.
+⚠️ If these fields are left empty, a default Header will be produced.
+
 </details>
 <details>
 <summary><u>Validation</u></summary>
 
+If the user has a working cbioportal instance active on his computer, the location (localhost:port) can be insert here. This value will be use for the validation of the output study and will produce a html report with the results.
 ```
 [Validation]
-PORT = http://localhost:8080
+PORT = < string >
 ```
-
+⚠️ If this field is left empty an offline validation will be conducted
 </details>
 </details>
 
+<br>
+<details open>
+  <summary><b>Workflow</b></summary>
+The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>. <br>
 
 <p align="justify"><br>Varan application can be divided into two separate main blocks that require different inputs and ensure different operations to perform on them. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder.To keep track of all operations performed by Varan,a versioning system is provided.
 
@@ -407,7 +436,7 @@ python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_can
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -m
 ```
-* <ins>use and selct option filter -f </ins>: Launch this command to specify the type of filter that use.For filtering, depending on the options we select, there are various paths that will be followed, always starting with a VCF file. The VEP tool will create the MAF. At this point, we will have:
+* <ins>use and select option filter -f </ins>: Launch this command to specify the type of filter that use.For filtering, depending on the options we select, there are various paths that will be followed, always starting with a VCF file. The VEP tool will create the MAF. At this point, we will have:
 
 <p align="justify"> After the creation of the MAF, there will be a folder containing the MAF annotated only by VEP, and the creation of an additional filtered folder called MAF_Filtered (create if use -f option).
 ```
