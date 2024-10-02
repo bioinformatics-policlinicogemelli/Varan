@@ -276,7 +276,7 @@ HEADER_PATIENT_TYPE = < ['string','string',...] >
 <details>
 <summary><u>Validation</u></summary>
 
-If the user has a working cbioportal instance active on his computer, the location (localhost:port) can be insert here. This value will be use for the validation of the output study and will produce a html report with the results.
+If the user has a working cbioportal instance active on his computer, the location (http://localhost:8080) can be insert here. This value will be use for the validation of the output study and will produce a html report with the results.
 ```
 [Validation]
 PORT = < string >
