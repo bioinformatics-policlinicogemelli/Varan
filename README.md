@@ -2,12 +2,6 @@
 
 [![DOI](https://zenodo.org/badge/788270006.svg)](https://zenodo.org/doi/10.5281/zenodo.12806060)
 
-<style>
-.table-wrapper {
-    overflow-x: scroll;
-  }
-</style>
-
 <p align="center">
 <img src="readme_content/img/logo_VARAN.png" alt="MarineGEO circle logo" style="height: 400px; width:400px;"/>
 </p>
