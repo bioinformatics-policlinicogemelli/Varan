@@ -2,6 +2,12 @@
 
 # VARAN
 
+<style>
+.table-wrapper {
+    overflow-x: scroll;
+  }
+</style>
+
 <p align="center">
 <img src="readme_content/img/logo_VARAN.png" alt="MarineGEO circle logo" style="height: 400px; width:400px;"/>
 </p>
@@ -174,7 +180,7 @@ PROFILE_SV = < 'string' >
 <details close>
 <summary><u>Filters</u></summary>
 
-Here it is possible to specify the filters' threshold to apply to SNV maf files (for more info about filters threshold setting see <a href="https://github.com/bioinformatics-policlinicogemelli/Varan-Pub/blob/readme/filters.md">here</a>).
+Here it is possible to specify the filters' threshold to apply to SNV maf files (for more info about filters threshold setting see <a href="https://github.com/bioinformatics-policlinicogemelli/Varan-Pub/blob/readme/readme_content/doc/filters.md">here</a>).
 ```
 [Filters]
 BENIGN = < [string|string|...] > 
@@ -308,7 +314,7 @@ To create a new study folder, .vcf files are requested as input. This can be don
 <details close>
   <summary><u>Folder</u></summary>
 
-User must organize an input folder containing all of the vcf and a tsv files requested following the structure reported below:
+User must organize an input folder containing all of the vcf and tsv files requested following the structure reported below:
 
 ```
 input_folder/
@@ -343,90 +349,108 @@ Where:
 <summary><u>File(s)</u></summary>
 User must compile several input file (by filling in specific templates):
 
+* <b>sample.tsv</b> file, a template to fill with sample clinical info
 * <b>fusions.tsv</b> file, a template to fill with fusion information
-* <b>sample.tsv</b> file, a template to fill with sample clinical info  
 * <b>patient.tsv</b> file, a template to fill with patient clinical info 
+
+⚠️ For this input at least <i>sample.tsv</i> file must be given to Varan
 </details>
+<br>
+<details open>
+  <summary><b>Template</b></summary>
 
-Template_n1:Sample.tsv
+For both input by folder and by file, template filling by user is requested.
+Below will be briefly explained the structure of these templates:
 
-⚠️ <i>For the proper functioning of Varan, the existence of this template is required.</i>
+<details close>
+  <summary><i>sample.tsv</i></summary>
 
-```
-SampleID	PatientID	MSI	TMB	MSI_THR TMB_THR	ONCOTREE_CODE	snv_path	cnv_path	comb_path
-SampleID	PatientID	MSI	TMB	MSI_THR TMB_THR	ONCOTREE_CODE	snv_path	cnv_path	comb_path
-0000000_DNA	00000000	1	12			BOWEL	/your_path/snv	/your_path/cnv	/your_path/combined_output
-0000001_DNA	00000001	8.0	8.0			UTERUS	/your_path/snv	/your_path/cnv	/your_path/combined_output
-0000002_DNA	00000002	0	33			BOWEL	/your_path/snv	/your_path/cnv	/your_path/combined_output
-0000003_DNA	00000003	222	127			UTERUS	/your_path/snv	/your_path/cnv	/your_path/combined_output			
-	
+This template must be filled by user with all disposable sample clinical info and will be used to create the <i>data_clinical_sample.txt</i>.
 
-```
-Template_n2:Patient.tsv
+⚠️ This file is mandatory for Varan analysis!
 
-```
-PATIENTID	AGE	GENDER	SMOKER
-00000000	45	M	YES
-00000001	65	F	YES
-00000002	76	F	NO
-00000003	45	F	YES
+<div class="table-wrapper" markdown="block">
 
-```
+|SAMPLE_ID | PATIENT_ID | MSI | TMB| MSI_THR | TMB_THR| ONCOTREE_CODE| snv_path| cnv_path| comb_path|... |
+|:---:|:---:|:---: |:---:   |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+|0000000_DNA| 00000000  | 1| 12| ||BOWEL |path_to_snv|path_to_cnv|path_to_combined_output|...|
+|0000001_DNA| 00000001  | 8.0| 8.0| ||UTERUS |path_to_snv|path_to_cnv|path_to_combined_output|...|
+|0000003_DNA| 00000003  | 222| 127| ||BOWEL |path_to_snv|path_to_cnv|path_to_combined_output|...|
+|...| ...  | ...| ...| ||... |...|...|...|...|
 
-Tempalte_n3:Fusion.tsv
+The obligatory fields to keep are:
 
-```
-Sample_Id	SV_Status	Site1_Hugo_Symbol	Site2_Hugo_Symbol
-0000000_DNA	SOMATIC	    APC	BRCA1
-0000001_DNA	SOMATIC	    TP53 BRAF
-0000002_DNA	SOMATIC	    APC	BRCA1
-0000003_DNA	SOMATIC	    ALK	BRCA2
-0000000_DNA	SOMATIC	    APC	BRCA1
-0000001_DNA	SOMATIC	    TP53 BRAF
-0000002_DNA	SOMATIC	    APC	BRCA1
-0000003_DNA	SOMATIC	    ALK	BRCA2
+* <u>SAMPLE_ID</u>: IDs of all samples of interest
+* <u>PATIENT_ID</u>: IDs of all patient of interest
+* <u>MSI</u>: MSI value for each of the samples
+* <u>TMB</u>: TMB value for each of the samples
+* <u>MSI_THR</u>: MSI categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan
+* <u>TMB_THR</u>: TMB categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan
+* <u>ONCOTREE_CODE</u>: code to associate for the oncokb annotation. Check <a href="https://oncotree.mskcc.org/#/home">here</a> for more info. 
+* <u>snv_path</u>: path to the SNV vcf file. This column has to be filled in case of input by file.
+* <u>cnv_path</u>: path to the CNV vcf file. This column has to be filled in case of input by file.
+* <u>comb_path</u>: path to the combined output file. This column has to be filled in case of input by file.
 
-```
-⚠️ <i>The formatting of these 3 templates must match those described above.(Adding new columns starting from the last existing one is allowed, but modifying or deleting the default columns is strictly forbidden.).If there is no data in the column, leave a tab.</i>
+⚠️ The user can add new columns starting from the last one. Modify or delete the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
+⚠️ SAMPLE_ID and PATIENT_ID must be filled.
+⚠️ MSI and TMB columns will be considered only if no combined output. Conversely, even if filled in, the MSI and TMB values extracted from the above files will be taken into account.<br>
+⚠️ ONCOTREECODE column is mandatory to fill for the oncoKB annotation <br>
 
+</div>
+</details>
+<br>
+<details close>
+  <summary><i>patient.tsv</i></summary>
 
-<b>This can be done in two different ways:</b>
+This template must be filled by user with all disposable patient clinical info and will be used to create the <i>data_clinical_patient.txt</i>.
 
+⚠️ This file is optional, if missing a default <i>data_clinical_patient.txt</i> will be create.
 
+<div class="table-wrapper" markdown="block">
 
-<b>tsv file</b>: user must prepare a tsv file containing all of the vcf files' paths <b>Folder</b>: user must organize a folder containing all of the vcf files and a csv file where the patient IDs and samples IDs are listed. The structure of this folder have to follow the one reported below </li>
+|PATIENT_ID | AGE | GENDER | ...|
+|:---:|:---:|:---:|:---:|
+|00000000| 45  | F| ...| 
+|00000001| 77  | F| ...| 
+|00000003| 23  | M| ...| 
+|...| ...  | ...|...| 
+</div>
 
-```
-input_folder/
-├── CNV
-│   ├── 001.vcf
-│   ├── 002.vcf
-│   └── 003.vcf
-├── SNV
-│   ├── 001.vcf
-│   ├── 002.vcf
-│   └── 003.vcf
-├── CombinedOutput
-│   ├── 001_CombinedVariantOutput.tsv
-│   ├── 002_CombinedVariantOutput.tsv
-│   └── 003_CombinedVariantOutput.tsv
-├── FUSIONS
-│   └── Fusions.tsv
-│    
-├──sample.tsv
-│    
-└── patient.tsv
-```
-Where:
-<p align="justify"> 
-<b>CombinedVariantOutput.tsv</b> is a TSV file that is necessary for TMB, MSI, and Fusions evaluation and must contain the [TMB],[MSI] and [Fusions] fields. It must be named as <b>PatientID_CombinedVariantOutput.tsv</b>
+The obligatory fields to keep are:
+* <u>PATIENT_ID</u>: IDs of all patient of interest
 
+⚠️ The user can add new columns starting from PATIENT_ID. Modify or delete the default one (even only by changing name) can lead to errors and is strongly not recommended.<br>
 
-⚠️ <i> If this file is not present, the information regarding [TMB] and [MSI] will be taken from the previously mentioned template (sample.tsv), while [Fusions] will be taken from the **Fusions.tsv** file</i>
+</details>
+<br>
 
- <p align="justify"> <b>Patient.tsv</b>  is a tsv file that is necessary to map the sample ID to the patient ID.
+<details close>
+  <summary><i>fusions.tsv</i></summary>
 
-⚠️ *An example of both input types can be found in the **input_templates** folder*
+This template must be filled by user with all disposable fusion info and will be used to create the <i>data_sv.txt</i>.
+
+⚠️ This file is optional, if missing an empty <i>data_sv.txt</i> will be create.
+
+<div class="table-wrapper" markdown="block">
+
+|Sample_Id | SV_Status | Site1_Hugo_Symbol |Site2_Hugo_Symbol|...|
+|:---:|:---:|:---:|:---:|:---:|
+|0000000_DNA| SOMATIC  | APC| BRCA1|...|
+|0000001_DNA| SOMATIC  | TP53| BRAF|...|
+|0000003_DNA| SOMATIC  | ALK| BRCA2|...|
+|...| ... | ...|...|...|
+</div>
+
+The obligatory fields to keep are:
+* <u>Sample_Id</u>: IDs of all sample of interest
+* <u>SV_Status</u>: fusion type
+* <u>Site1_Hugo_Symbol</u>: first gene involved in fusion 
+* <u>Site2_Hugo_Symbol</u>: second gene involved in fusion 
+
+⚠️ The user can add new columns starting from Site2_Hugo_Symbol. Modify or delete the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
+⚠️ All the obligatory fields must be filled and cannot be empty.<br>
+</details>
+</details>
 
 #### 2. Launch Varan main
 
