@@ -23,10 +23,10 @@ Varan is a Python-based application that provides a pipeline to automatically pr
 
 ## Features
 
-* <u>Study Creation</u>
+* <ins>Study Creation</ins>
 <br>This section provides, starting from row vcf files, a well-structured and validate study folder ready to be uploaded into the local instance of cBioPortal.
 
-* <u>Study Manipulation</u>
+* <ins>Study Manipulation</ins>
 <br> This section gives the user the possibility to work on already existing studies. In particular it is possible to merge studies or to update them by adding/extracting/removing samples.
 
 
@@ -114,7 +114,7 @@ The first step to start using Varan is to correctly set the configuration file <
 
 This file is divided in 12 subsessions:
 <details close>
-<summary><u>Paths</u></summary>
+<summary><ins>Paths</ins></summary>
 In this section it's possible to specify the paths for Vep (VEP_PATH) and its cache (VEP_DATA) and fasta (REF_FASTA), vcf2maf (VCF2MAF), and ClinVar (CLINV). In CACHE it is possible to set Ensembl version (i.e. 111)
 
 ```
@@ -130,7 +130,7 @@ CACHE = < string >
 
 </details>
 <details close>
-<summary><u>Multiple</u></summary>
+<summary><ins>Multiple</ins></summary>
 
 In this section it's possible to specify the paths in case of multiple SNV, CNV and/or CombinedOutput files analysis.   
 ```
@@ -143,7 +143,7 @@ COMBOUT= < string >
 
 </details>
 <details close>
-<summary><u>OncoKB</u></summary>
+<summary><ins>OncoKB</ins></summary>
 
 In this section is possible to insert the personal <a href="https://www.oncokb.org/">oncoKB</a> key. This key is mandatory to execute the oncoKB annotation.
 
@@ -156,7 +156,7 @@ ONCOKB= < string >
 
 </details>
 <details close>
-<summary><u>Project</u></summary>
+<summary><ins>Project</ins></summary>
 
 In this section is possible to specify project info like study name, ID, description and profile. These info will be insert in meta files.
 ```
@@ -172,7 +172,7 @@ PROFILE_SV = < 'string' >
 
 </details>
 <details close>
-<summary><u>Filters</u></summary>
+<summary><ins>Filters</ins></summary>
 
 Here it is possible to specify the filters' threshold to apply to SNV maf files (for more info about filters threshold setting see <a href="https://github.com/bioinformatics-policlinicogemelli/Varan-Pub/blob/readme/readme_content/doc/filters.md">here</a>).
 ```
@@ -193,7 +193,7 @@ SIFT = < ['string','string',...] >
 
 </details close>
 <details>
-<summary><u>Cna</u></summary>
+<summary><ins>Cna</ins></summary>
 
 In this section user can insert CNV genotypes of interest and ploidy. The latter will be used to evaluate copy number discretization using <a href="https://cnvkit.readthedocs.io/en/stable/pipeline.html">cnvkit formula</a>.
 ```
@@ -203,7 +203,7 @@ PLOIDY = < int >
 ```
 </details close>
 <details>
-<summary><u>TMB</u></summary>
+<summary><ins>TMB</ins></summary>
 
 Here TMB thresholds can be specified.
 
@@ -215,7 +215,7 @@ i.e. THRESHOLD = {'Low':'<=5','Medium':'<10','High':'>=10'} where the string bef
 
 </details close>
 <details>
-<summary><u>MSI</u></summary>
+<summary><ins>MSI</ins></summary>
 
 Here MSI thresholds for sites and values can be specified.
 ```
@@ -230,7 +230,7 @@ THRESHOLD = < string >
 
 </details close>
 <details>
-<summary><u>FUSION</u></summary>
+<summary><ins>FUSION</ins></summary>
 
 Here Fusions thresholds can be specified.
 
@@ -243,7 +243,7 @@ THRESHOLD = < string >
 here are specified the Fusion thresholds.
 </details>
 <details close>
-<summary><u>ClinicalSample</u></summary>
+<summary><ins>ClinicalSample</ins></summary>
 
 Here user can customize column name and type to write in the data_clinical_sample.txt.
 ```
@@ -259,7 +259,7 @@ HEADER_SAMPLE_TYPE = < ['string','string',...] >
 
 </details>
 <details close>
-<summary><u>ClinicalPatient</u></summary>
+<summary><ins>ClinicalPatient</ins></summary>
 
 Here user can customize column name and type to write in the data_clinical_patient.txt.
 ```
@@ -274,7 +274,7 @@ HEADER_PATIENT_TYPE = < ['string','string',...] >
 
 </details>
 <details>
-<summary><u>Validation</u></summary>
+<summary><ins>Validation</ins></summary>
 
 If the user has a working cbioportal instance active on his computer, the location (http://localhost:8080) can be insert here. This value will be use for the validation of the output study and will produce a html report with the results.
 ```
@@ -306,7 +306,7 @@ PORT = < string >
 To create a new study folder, .vcf files are requested as input. This can be done through two types of input: A) <b>Folder</b>; B) <b>File(s)</b>
 
 <details close>
-  <summary><u>Folder</u></summary>
+  <summary><ins>Folder</ins></summary>
 
 User must organize an input folder containing all of the vcf and tsv files requested following the structure reported below:
 
@@ -341,7 +341,7 @@ Where:
 </details>
 
 <details close>
-<summary><u>File(s)</u></summary>
+<summary><ins>File(s)</ins></summary>
 User must compile several input file (by filling in specific templates):
 
 * <b>sample.tsv</b> file, a template to fill with sample clinical info
@@ -372,16 +372,16 @@ This template must be filled by user with all disposable sample clinical info an
 
 The obligatory fields to keep are:
 
-* <u>SAMPLE_ID</u>: IDs of all samples of interest
-* <u>PATIENT_ID</u>: IDs of all patient of interest
-* <u>MSI</u>: MSI value for each of the samples
-* <u>TMB</u>: TMB value for each of the samples
-* <u>MSI_THR</u>: MSI categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan
-* <u>TMB_THR</u>: TMB categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan
-* <u>ONCOTREE_CODE</u>: code to associate for the oncokb annotation. Check <a href="https://oncotree.mskcc.org/#/home">here</a> for more info. 
-* <u>snv_path</u>: path to the SNV vcf file. This column has to be filled in case of input by file.
-* <u>cnv_path</u>: path to the CNV vcf file. This column has to be filled in case of input by file.
-* <u>comb_path</u>: path to the combined output file. This column has to be filled in case of input by file.
+* <ins>SAMPLE_ID</ins>: IDs of all samples of interest
+* <ins>PATIENT_ID</ins>: IDs of all patient of interest
+* <ins>MSI</ins>: MSI value for each of the samples
+* <ins>TMB</ins>: TMB value for each of the samples
+* <ins>MSI_THR</ins>: MSI categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan
+* <ins>TMB_THR</ins>: TMB categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan
+* <ins>ONCOTREE_CODE</ins>: code to associate for the oncokb annotation. Check <a href="https://oncotree.mskcc.org/#/home">here</a> for more info. 
+* <ins>snv_path</ins>: path to the SNV vcf file. This column has to be filled in case of input by file.
+* <ins>cnv_path</ins>: path to the CNV vcf file. This column has to be filled in case of input by file.
+* <ins>comb_path</ins>: path to the combined output file. This column has to be filled in case of input by file.
 
 ⚠️ The user can add new columns starting from the last one. Modify or delete the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
 ⚠️ SAMPLE_ID and PATIENT_ID must be filled.
@@ -405,7 +405,7 @@ This template must be filled by user with all disposable patient clinical info a
 |...| ...  | ...|...| 
 
 The obligatory fields to keep are:
-* <u>PATIENT_ID</u>: IDs of all patient of interest
+* <ins>PATIENT_ID</ins>: IDs of all patient of interest
 
 ⚠️ The user can add new columns starting from PATIENT_ID. Modify or delete the default one (even only by changing name) can lead to errors and is strongly not recommended.<br>
 
@@ -426,10 +426,10 @@ This template must be filled by user with all disposable fusion info and will be
 |...| ... | ...|...|...|
 
 The obligatory fields to keep are:
-* <u>Sample_Id</u>: IDs of all sample of interest
-* <u>SV_Status</u>: fusion type
-* <u>Site1_Hugo_Symbol</u>: first gene involved in fusion 
-* <u>Site2_Hugo_Symbol</u>: second gene involved in fusion 
+* <ins>Sample_Id</ins>: IDs of all sample of interest
+* <ins>SV_Status</ins>: fusion type
+* <ins>Site1_Hugo_Symbol</ins>: first gene involved in fusion 
+* <ins>Site2_Hugo_Symbol</ins>: second gene involved in fusion 
 
 ⚠️ The user can add new columns starting from Site2_Hugo_Symbol. Modify or delete the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
 ⚠️ All the obligatory fields must be filled and cannot be empty.<br>
@@ -457,14 +457,14 @@ The possible option to launch varan main for block 1 are:
 <details open>
   <summary><i>Examples</i></summary>
 
-Ex 1) <u>Launch Varan base analysis with input folder</u>:
+Ex 1) <ins>Launch Varan base analysis with input folder</ins>:
 
 Launch this command to process the contents of the input folder 
 
 ```
 python varan.py -i <path_input_folder> -o <path_output_folder> -c <type_of_cancer>
 ```
-Ex 2) <u>Launch Varan base analysis with input file</u>:
+Ex 2) <ins>Launch Varan base analysis with input file</ins>:
 
 Launch one of these commands to process the contents of the input file(s)
 
@@ -475,25 +475,25 @@ python varan.py -i sample.tsv patient.tsv fusion.tsv -o output_folder -c mixed
 
 python varan.py -i sample.tsv "" fusion.tsv -o output_folder -c mixed
 ```
-Ex 3) <u>Multiple vcf analysis</u>: 
+Ex 3) <ins>Multiple vcf analysis</ins>: 
 
 Launch this command to specify that it is a multi-sample file.
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -m
 ```
-Ex 4) <u>Overwrite analysis</u>:
+Ex 4) <ins>Overwrite analysis</ins>:
 
 Launch this command to overwrite the output folder
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -w
 ```
-Ex 5) <u>Resume analysis</u>:
+Ex 5) <ins>Resume analysis</ins>:
 
 Launch this command to resume an already started analysis
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -R
 ```
-Ex 6) <u>Specify analysis</u>:
+Ex 6) <ins>Specify analysis</ins>:
 
 Launch one of these commands to specify the analysis 
 
@@ -507,21 +507,21 @@ python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_can
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -t fus
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -t tab
 ```
-Ex 7) <u>Filter vcf/maf</u>:
+Ex 7) <ins>Filter vcf/maf</ins>:
 
 Launch this command to specify the type of filter that use
 
 * d -> filter out from snv mutations with ALT="." and FILTER="PASS" 
 * p -> filter out from MAF mutations with FILTER="PASS" 
-* b-> filter out from MAF mutations with CLIN_SIG values <u>equals</u> to the ones specified in <i>conf.ini</i> BENIGN field
-* i-> filter out from MAF mutations with IMPACT <u>equals</u> to to the ones specified in <i>conf.ini</i> IMPACT field 
-* v-> filter out from MAF mutations with vaf (t_VF column) values <u>not in</u> the ranges [t_VAF_min; t_VAF_max] specified in <i>conf.ini</i>
+* b-> filter out from MAF mutations with CLIN_SIG values <ins>equals</ins> to the ones specified in <i>conf.ini</i> BENIGN field
+* i-> filter out from MAF mutations with IMPACT <ins>equals</ins> to to the ones specified in <i>conf.ini</i> IMPACT field 
+* v-> filter out from MAF mutations with vaf (t_VF column) values <ins>not in</ins> the ranges [t_VAF_min; t_VAF_max] specified in <i>conf.ini</i>
 * n -> apply a specific VAF filter to novel mutations (dbSNP_RS = "novel") filtering out from MAF novel mutations with vaf inferior to <i>conf.ini</i> t_VAF_min_novel
-* o-> filter out from MAF mutations with ONCOGENIC values <u>not equals</u> to the ones specified in <i>conf.ini</i> ONCOKB_FILTER field
+* o-> filter out from MAF mutations with ONCOGENIC values <ins>not equals</ins> to the ones specified in <i>conf.ini</i> ONCOKB_FILTER field
 * a -> filter out from MAF mutations with AF values outside the range specified in <i>conf.ini</i>
-* q -> filter out from MAF mutations with Consequence values <u>different</u> to the ones specified in <i>conf.ini</i> CONSEQUENCES field
-* y-> filter out from MAF mutations with PolyPhen values <u>different</u> to the ones specified in <i>conf.ini</i> POLYPHEN field 
-* c -> filter out from MAF mutations with CLIN_SIG values <u>different</u> to the ones specified in <i>conf.ini</i> CLIN_SIG field 
+* q -> filter out from MAF mutations with Consequence values <ins>different</ins> to the ones specified in <i>conf.ini</i> CONSEQUENCES field
+* y-> filter out from MAF mutations with PolyPhen values <ins>different</ins> to the ones specified in <i>conf.ini</i> POLYPHEN field 
+* c -> filter out from MAF mutations with CLIN_SIG values <ins>different</ins> to the ones specified in <i>conf.ini</i> CLIN_SIG field 
 
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -f p
