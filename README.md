@@ -3,7 +3,7 @@
 # VARAN
 
 <p align="center">
-<img src="logo_VARAN.png" alt="MarineGEO circle logo" style="height: 400px; width:400px;"/>
+<img src="img_readme/logo_VARAN.png" alt="MarineGEO circle logo" style="height: 400px; width:400px;"/>
 </p>
 
 ## Index
@@ -288,13 +288,17 @@ PORT = < string >
 <br>
 <details open>
   <summary><b>Workflow</b></summary>
-The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>. <br>
+<br>
+<img src="img_readme/workflow.png" alt="MarineGEO circle logo" style="height: 200px; width:400px;background-color: white;display: block; margin: 0 auto;"/>
 
-<p align="justify"><br>Varan application can be divided into two separate main blocks that require different inputs and ensure different operations to perform on them. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder.To keep track of all operations performed by Varan,a versioning system is provided.
+<p align="justify"><br>Varan application can be divided into two separate main blocks that require different inputs and ensure different operations performed. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder. To keep track of all operations performed by Varan,a versioning system is provided.
 
 Here below are reported the steps and the options to set to run each block.
 
 ### Block One: Create Study ex-Novo
+
+<br>
+<img src="img_readme/block1.png" alt="MarineGEO circle logo" style="height: 300px; width:600px;background-color: white;display: block; margin: 0 auto;"/>
 
 #### 1. Preparing Input
 
@@ -507,6 +511,9 @@ cancer_name
 When updating/removing/extracting samples, a new study folder will be created within the output_folder with the name <i>updated_data</i> in which the modified files will be stored. 
 
 ### Block Two: Modify Existing Study Folders
+
+<br>
+<img src="img_readme/block2.png" alt="MarineGEO circle logo" style="height: 300px; width:450px;background-color: white;display: block; margin: 0 auto;"/>
 
 #### Workflow
 ```mermaid
