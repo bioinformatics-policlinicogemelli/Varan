@@ -3,7 +3,7 @@
 # VARAN
 
 <p align="center">
-<img src="img_readme/logo_VARAN.png" alt="MarineGEO circle logo" style="height: 400px; width:400px;"/>
+<img src="readme_content/img/logo_VARAN.png" alt="MarineGEO circle logo" style="height: 400px; width:400px;"/>
 </p>
 
 ## Index
@@ -289,7 +289,7 @@ PORT = < string >
 <details open>
   <summary><b>Workflow</b></summary>
 <br>
-<img src="img_readme/workflow.png" alt="MarineGEO circle logo" style="height: 200px; width:400px;background-color: white;display: block; margin: 0 auto;"/>
+<img src="readme_content/img/workflow.png" alt="MarineGEO circle logo" style="height: 200px; width:400px;background-color: white;display: block; margin: 0 auto;"/>
 
 <p align="justify"><br>Varan application can be divided in two distinct main blocks that require different inputs and provide different actions. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder. To keep track of all operations performed, a complete log file and a versioning system are provided.
 
@@ -298,7 +298,7 @@ PORT = < string >
   <summary><b>Block One: study creation</b></summary>
 
 <br>
-<img src="img_readme/block1.png" alt="MarineGEO circle logo" style="height: 300px; width:600px;background-color: white;display: block; margin: 0 auto;"/>
+<img src="readme_content/img/block1.png" alt="MarineGEO circle logo" style="height: 300px; width:600px;background-color: white;display: block; margin: 0 auto;"/>
 
 #### 1. Preparing Input
 
@@ -554,7 +554,7 @@ When updating/removing/extracting samples, a new study folder will be created wi
 ### Block Two: Modify Existing Study Folders
 
 <br>
-<img src="img_readme/block2.png" alt="MarineGEO circle logo" style="height: 300px; width:450px;background-color: white;display: block; margin: 0 auto;"/>
+<img src="readme_content/img/block2.png" alt="MarineGEO circle logo" style="height: 300px; width:450px;background-color: white;display: block; margin: 0 auto;"/>
 
 #### Workflow
 ```mermaid
