@@ -291,11 +291,11 @@ PORT = < string >
 <br>
 <img src="img_readme/workflow.png" alt="MarineGEO circle logo" style="height: 200px; width:400px;background-color: white;display: block; margin: 0 auto;"/>
 
-<p align="justify"><br>Varan application can be divided into two separate main blocks that require different inputs and ensure different operations performed. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder. To keep track of all operations performed by Varan,a versioning system is provided.
+<p align="justify"><br>Varan application can be divided in two distinct main blocks that require different inputs and provide different actions. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder. To keep track of all operations performed, a complete log file and a versioning system are provided.
 
-Here below are reported the steps and the options to set to run each block.
-
-### Block One: Create Study ex-Novo
+<br>
+<details open>
+  <summary><b>Block One: study creation</b></summary>
 
 <br>
 <img src="img_readme/block1.png" alt="MarineGEO circle logo" style="height: 300px; width:600px;background-color: white;display: block; margin: 0 auto;"/>
@@ -303,9 +303,50 @@ Here below are reported the steps and the options to set to run each block.
 #### 1. Preparing Input
 
 <p align="justify">
-To create a new study folder, the user must give .vcf files as input to the program.Varan can handle two types of input: it can either process the entire folder directly or specific files (which must necessarily be in the correct folder)
-Below, before specifically explaining how the tool works, are examples of standard templates that Varan takes as input.
+To create a new study folder, .vcf files are requested as input. This can be done through two types of input: A) <b>Folder</b>; B) <b>File(s)</b>
 
+<details close>
+  <summary><u>Folder</u></summary>
+
+User must organize an input folder containing all of the vcf and a tsv files requested following the structure reported below:
+
+```
+input_folder/
+├── CNV
+│   ├── 001.vcf
+│   ├── 002.vcf
+│   └── 003.vcf
+├── SNV
+│   ├── 001.vcf
+│   ├── 002.vcf
+│   └── 003.vcf
+├── CombinedOutput
+│   ├── 001_CombinedVariantOutput.tsv
+│   ├── 002_CombinedVariantOutput.tsv
+│   └── 003_CombinedVariantOutput.tsv
+├── FUSIONS
+│   └── Fusions.tsv
+├── sample.tsv   
+└── patient.tsv
+```
+Where:
+
+* <b>SNV</b> folder contains all the single nucleotide variants files in vcf format
+* <b>CNV</b> folder contains all the copy number variants files in vcf format
+* <b>CombinedVariantOutput</b> folder contains all the combined variant output file in tsv format (this kind of files contains info about TMB, MSI and Fusions) 
+* <b>FUSIONS</b> folder contains a template, fusion.tsv, to fill with fusion information in case combined variant output files are not available
+* <b>sample.tsv</b> file, a template to fill with sample clinical info  
+* <b>patient.tsv</b> file, a template to fill with patient clinical info 
+</details>
+
+<details close>
+<summary><u>File(s)</u></summary>
+User must compile several input file (by filling in specific templates):
+
+* <b>fusions.tsv</b> file, a template to fill with fusion information
+* <b>sample.tsv</b> file, a template to fill with sample clinical info  
+* <b>patient.tsv</b> file, a template to fill with patient clinical info 
+</details>
 
 Template_n1:Sample.tsv
 
