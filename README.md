@@ -7,14 +7,23 @@
 </p>
 
 ## Index
-- [Introduction](#introduction)
-- [Features](#features)
-- [Installation Procedure](#installation-procedure)
-- [Quickstart](#quickstart)
-- [Options](#options)
-- [Workflow](#workflow)
-- [Usage](#usage)
-- [Troubleshooting](#troubleshooting)
+- [VARAN](#varan)
+  - [Index](#index)
+  - [Introduction](#introduction)
+  - [Features](#features)
+  - [Installation Procedure](#installation-procedure)
+    - [Docker (recommended)](#docker-recommended)
+    - [Local](#local)
+  - [Quickstart](#quickstart)
+    - [Block One: study creation](#block-one-study-creation)
+      - [1. Preparing Input](#1-preparing-input)
+      - [2. Launch Varan](#2-launch-varan)
+        - [Ex 7) Filter vcf/maf:](#ex-7-filter-vcfmaf)
+      - [3. Output](#3-output)
+    - [Block Two: study manipolation](#block-two-study-manipolation)
+      - [1. Preparing Input](#1-preparing-input-1)
+      - [2. Launch Varan main](#2-launch-varan-main)
+      - [3. Output](#3-output-1)
 
 ## Introduction  
 
@@ -37,7 +46,7 @@ Varan is a Python-based application that provides a pipeline to automatically pr
 <details open>
   <summary><b>Prerequisites</b></summary>
   
-&ensp; [Docker ](https://www.docker.com/)
+&ensp; [Docker](https://www.docker.com/)
 </details>
 
 <details open>
@@ -60,6 +69,11 @@ docker run --rm -it varan -h
 ```
 
 ⚠️ for Windows users: some problems with git bash (git for Windows) has been reported. It is recommended to launch the docker command through [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)
+</details>
+
+<details open>
+  <summary><b>Usage</b></summary>
+  
 </details>
 
 ### Local
@@ -174,7 +188,7 @@ PROFILE_SV = < 'string' >
 <details close>
 <summary><ins>Filters</ins></summary>
 
-Here it is possible to specify the filters' threshold to apply to SNV maf files (for more info about filters threshold setting see <a href="https://github.com/bioinformatics-policlinicogemelli/Varan-Pub/blob/readme/readme_content/doc/filters.md">here</a>).
+Here it is possible to specify the filters' threshold to apply to SNV maf files (for more info about filters threshold setting see [Ex 7)](#ex-7-filter-vcfmaf).
 ```
 [Filters]
 BENIGN = < [string|string|...] > 
@@ -256,7 +270,6 @@ HEADER_SAMPLE_TYPE = < ['string','string',...] >
 
 ⚠️ If these fields are left empty, a default Header will be produced.
 
-
 </details>
 <details close>
 <summary><ins>ClinicalPatient</ins></summary>
@@ -283,22 +296,27 @@ PORT = < string >
 ```
 ⚠️ If this field is left empty an offline validation will be conducted
 </details>
+
+⚠️ For Docker a partially compiled configuration file (<i>docker.ini</i>) with vep and clinvar path set is available
 </details>
 
 <br>
 <details open>
   <summary><b>Workflow</b></summary>
 <br>
+<p align="justify">
 <img src="readme_content/img/workflow.png" alt="MarineGEO circle logo" style="height: 200px; width:400px;background-color: white;display: block; margin: 0 auto;"/>
+</p>
 
 <p align="justify"><br>Varan application can be divided in two distinct main blocks that require different inputs and provide different actions. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder. To keep track of all operations performed, a complete log file and a versioning system are provided.
+</details>
+
+### Block One: study creation
 
 <br>
-<details open>
-  <summary><b>Block One: study creation</b></summary>
-
-<br>
+<p align="justify">
 <img src="readme_content/img/block1.png" alt="MarineGEO circle logo" style="height: 300px; width:600px;background-color: white;display: block; margin: 0 auto;"/>
+</p>
 
 #### 1. Preparing Input
 
@@ -453,7 +471,6 @@ The possible option to launch varan main for block 1 are:
 |-m --multiple| <p align="justify">Add this option to specify that input is a multi-sample vcf file (a single VCF containing information from multiple patients) | boolean | No
 
 <br>
-
 <details open>
   <summary><i>Examples</i></summary>
 
@@ -507,21 +524,21 @@ python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_can
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -t fus
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -t tab
 ```
-Ex 7) <ins>Filter vcf/maf</ins>:
+##### Ex 7) <ins>Filter vcf/maf</ins>:
 
 Launch this command to specify the type of filter that use
 
-* d -> filter out from snv mutations with ALT="." and FILTER="PASS" 
-* p -> filter out from MAF mutations with FILTER="PASS" 
-* b-> filter out from MAF mutations with CLIN_SIG values <ins>equals</ins> to the ones specified in <i>conf.ini</i> BENIGN field
-* i-> filter out from MAF mutations with IMPACT <ins>equals</ins> to to the ones specified in <i>conf.ini</i> IMPACT field 
-* v-> filter out from MAF mutations with vaf (t_VF column) values <ins>not in</ins> the ranges [t_VAF_min; t_VAF_max] specified in <i>conf.ini</i>
-* n -> apply a specific VAF filter to novel mutations (dbSNP_RS = "novel") filtering out from MAF novel mutations with vaf inferior to <i>conf.ini</i> t_VAF_min_novel
-* o-> filter out from MAF mutations with ONCOGENIC values <ins>not equals</ins> to the ones specified in <i>conf.ini</i> ONCOKB_FILTER field
-* a -> filter out from MAF mutations with AF values outside the range specified in <i>conf.ini</i>
-* q -> filter out from MAF mutations with Consequence values <ins>different</ins> to the ones specified in <i>conf.ini</i> CONSEQUENCES field
-* y-> filter out from MAF mutations with PolyPhen values <ins>different</ins> to the ones specified in <i>conf.ini</i> POLYPHEN field 
-* c -> filter out from MAF mutations with CLIN_SIG values <ins>different</ins> to the ones specified in <i>conf.ini</i> CLIN_SIG field 
+* <code style="color : cyan">d</code> -> filter out from snv mutations with ALT="." and FILTER="PASS" 
+* <code style="color : cyan">p</code> -> filter out from MAF mutations with FILTER="PASS" 
+* <code style="color : cyan">b</code>-> filter out from MAF mutations with CLIN_SIG values <ins>equals</ins> to the ones specified in <i>conf.ini</i> BENIGN field
+* <code style="color : cyan">i</code>-> filter out from MAF mutations with IMPACT <ins>equals</ins> to to the ones specified in <i>conf.ini</i> IMPACT field 
+* <code style="color : cyan">v</code>-> filter out from MAF mutations with vaf (t_VF column) values <ins>not in</ins> the ranges [t_VAF_min; t_VAF_max] specified in <i>conf.ini</i>
+* <code style="color : cyan">n</code> -> apply a specific VAF filter to novel mutations (dbSNP_RS = "novel") filtering out from MAF novel mutations with vaf inferior to <i>conf.ini</i> t_VAF_min_novel
+* <code style="color : cyan">o</code>-> filter out from MAF mutations with ONCOGENIC values <ins>not equals</ins> to the ones specified in <i>conf.ini</i> ONCOKB_FILTER field
+* <code style="color : cyan">a</code> -> filter out from MAF mutations with AF values outside the range specified in <i>conf.ini</i>
+* <code style="color : cyan">q</code> -> filter out from MAF mutations with Consequence values <ins>different</ins> to the ones specified in <i>conf.ini</i> CONSEQUENCES field
+* <code style="color : cyan">y</code>-> filter out from MAF mutations with PolyPhen values <ins>different</ins> to the ones specified in <i>conf.ini</i> POLYPHEN field 
+* <code style="color : cyan">c</code> -> filter out from MAF mutations with CLIN_SIG values <ins>different</ins> to the ones specified in <i>conf.ini</i> CLIN_SIG field 
 
 ```
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -f p
@@ -529,9 +546,8 @@ python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_can
 python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_cancer> -k -f dpo
 ```
 
-⚠️ More than one filter can be applied simultaneously
-⚠️ Filtered maf will be stored inside a folder named MAF_Filtered or MAF_Onco_filtered (if -k and -f o options are set)
-⚠️ o filtering required -k option set
+⚠️ More than one filter can be applied simultaneously<br>
+⚠️ oncokb filter (o) required -k option
 
 </details>
 
@@ -540,7 +556,7 @@ python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_can
 <p align="justify"> After varan.py has run successfully, the resulted output folder will have the following organization and content:
 
 ```
-cancer_name
+study_name
 ├── data_clinical_sample.xlsx
 ├── case_lists
 │   ├── cases_cna.txt
@@ -559,24 +575,32 @@ cancer_name
 ├── meta_mutations_extended.txt
 ├── meta_study.txt
 ├── meta_sv.txt
+├── MAF_OncoKB (*)
+├── MAF_Filtered (**)
+├── MAF_Onco_filtered (**)
 └── maf.zip
 ```
+(*) MAF_OncoKB folder will be create only in -k option in set and will contain all the MAF annotated with oncoKB.<br>
+(**) Filtered MAF will be stored respectively inside MAF_Onco_filtered or MAF_Filtered if MAFs were annotated with oncokb or not.
 
 <br>
-<details open>
-  <summary><b>Block Two: study manipolation</b></summary>
+
+### Block Two: study manipolation
 
 <br>
+<p align="justify">
 <img src="readme_content/img/block2.png" alt="MarineGEO circle logo" style="height: 300px; width:450px;background-color: white;display: block; margin: 0 auto;"/>
-
+<p>
 
 #### 1. Preparing Input
 
-<p align="justify">The input for this block is a study folder correctly populated. It can be the output of the first block or an existing folder. Its structure must follow the one reported in the output paragraph. 
+<p align="justify">The input for this block is a study folder correctly populated. It can be the output of the first block or an existing study folder downloaded from cBioPortal. 
+
+Based on the requested type of action (Update, Extract, Remove), the other principle input can be another study folder or a sample list tsv file.
 
 #### 2. Launch Varan main
 
-These are the options that can be set if you want to update/extract/remove:
+The possible option to launch varan main for block 2 are:
 
 | Options | Input | Type | Required
 |----------------|----------------| :---:| :---:|
@@ -585,42 +609,36 @@ These are the options that can be set if you want to update/extract/remove:
 |-r <br> --Remove| <p align="justify">Add this option if you want to remove samples from an existing study folder| boolean | One between -u, -e or -r is required
 |-p <br> --Path| <p align="justify">Add this option to specify the path of the existing study folder to update, or from which to remove/extract samples | string | Yes
 |-s <br> --SampleList| <p align="justify">Add this option to insert the path of the .txt file containing the list of samples to remove/extract from the study folder| string | Only if the -e or -r option is selected
-|-n <br> --NewPath| <p align="justify">Add this option to specify the path of the folder containing updated/new information to be loaded into the input folder| string | Only if the -u option is selected
-|-N <br> --Name| <p align="justify">Add this option if you want to customize the studyID| string | No
-|-o <br> --output_folder| <p align="justify">Add this option if you prefer to manually name the output folder, rather than automatically naming it as the new version of the input folder| string | Only if the -N option is selected
+|-n <br> --NewPath| <p align="justify">Add this option to specify the path of the study folder containing updated/new information| string | Only if the -u option is selected
+|-N <br> --Name| <p align="justify">Add this option if you want to customize the study name (studyID)| string | No
+|-o <br> --output_folder| <p align="justify">Add this option to specify the path where to save the output folder| string | Only if the -N option is selected
 
+<br>
+<details open>
+  <summary><i>Examples</i></summary>
 
-
-**Example:**
-
-<p align="justify">
-<ins>sample update</ins>: Launch this command to update a study folder by inserting or updating sample and clinical informations, and save the updated study as a new version of the input folder.
+Ex 1) <ins>Update a study folder</ins>: 
+<p align="justify">Launch this command to update a study folder
 
 ```
 python varan.py -u -p <path_to_old_study_folder> -n <path_to_new_study_folder>
 ```
-<p align="justify">
-<ins>sample extraction</ins>: Launch this command to extract a list of samples from a study folder and save the new study containing only the extracted samples in the output path.
+Ex 2) <ins>Extract a study with a subset of samples</ins>: 
+<p align="justify">Launch this command to extract a list of samples from a study folder and create a new study containing only these samples in the output path.
 
 ```
 python varan.py -e -p <path_to_study_folder> -s <path_to_sample_list_file> -o <path_to_output_folder>
 ```
-<p align="justify">
-<ins>sample removal</ins>: Launch this command to remove a list of samples from a study folder and to save the new one without the removed samples in the output path, assigning a customized studyID.
+
+Ex 3) <ins>Remove samples from a study</ins>:
+<p align="justify">Launch this command to remove a list of samples from a study folder and save a new study without them in the output path, assigning a customized the study name.
 
 ```
 python varan.py -r -p <path_to_study_folder> -s <path_to_sample_list_file> -o <path_to_output_folder> -N <new_studyID_in_meta>
 ```
+
 #### 3. Output
 
-<p align="justify">
-After varan.py has run successfully, the resulting <i>output_folder</i> will be created and will contain the new files, following the same organization as described in the output paragraph of the Block One.
-Additionally, it will include a summary.txt file that contains a report of the operation, detailing the samples added/updated/extracted/removed, as well as the total number of samples and patients in the final output folder.   
+After varan.py has run successfully, the resulting <i>output_folder</i> will have the organization reported in [block 1](#3-output). 
 
-
-
-
-
-
-
-
+Additionally, it will include a summary.txt file that will contain a report of the operation done, detailing the samples added/updated/extracted/removed, as well as the total number of samples and patients in the final study folder.
