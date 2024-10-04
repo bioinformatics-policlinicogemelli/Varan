@@ -73,7 +73,7 @@ docker run --rm -it varan -h
 
 <details open>
   <summary><b>Usage</b></summary>
-  
+
 </details>
 
 ### Local
@@ -304,8 +304,9 @@ PORT = < string >
 <details open>
   <summary><b>Workflow</b></summary>
 <br>
-<p align="justify">
-<img src="readme_content/img/workflow.png" alt="MarineGEO circle logo" style="height: 200px; width:400px;background-color: white;display: block; margin: 0 auto;"/>
+
+<p align="center">
+  <img width="400" height="200" src="readme_content/img/workflow.png">
 </p>
 
 <p align="justify"><br>Varan application can be divided in two distinct main blocks that require different inputs and provide different actions. The first block contains the functions to create a new study folder ex-novo, while the second one contains the functions to modify (Update/Extract/Remove samples) an existing study folder. To keep track of all operations performed, a complete log file and a versioning system are provided.
@@ -314,8 +315,9 @@ PORT = < string >
 ### Block One: study creation
 
 <br>
-<p align="justify">
-<img src="readme_content/img/block1.png" alt="MarineGEO circle logo" style="height: 300px; width:600px;background-color: white;display: block; margin: 0 auto;"/>
+
+<p align="center">
+  <img width="600" height="300" src="readme_content/img/block1.png">
 </p>
 
 #### 1. Preparing Input
@@ -402,7 +404,7 @@ The obligatory fields to keep are:
 * <ins>comb_path</ins>: path to the combined output file. This column has to be filled in case of input by file.
 
 ⚠️ The user can add new columns starting from the last one. Modify or delete the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
-⚠️ SAMPLE_ID and PATIENT_ID must be filled.
+⚠️ SAMPLE_ID and PATIENT_ID must be filled.<br>
 ⚠️ MSI and TMB columns will be considered only if no combined output. Conversely, even if filled in, the MSI and TMB values extracted from the above files will be taken into account.<br>
 ⚠️ ONCOTREECODE column is mandatory to fill for the oncoKB annotation
 
@@ -588,9 +590,10 @@ study_name
 ### Block Two: study manipolation
 
 <br>
-<p align="justify">
-<img src="readme_content/img/block2.png" alt="MarineGEO circle logo" style="height: 300px; width:450px;background-color: white;display: block; margin: 0 auto;"/>
-<p>
+
+<p align="center">
+  <img width="500" height="330" src="readme_content/img/block2.png">
+</p>
 
 #### 1. Preparing Input
 
