@@ -19,6 +19,7 @@
       - [1. Preparing Input](#1-preparing-input)
       - [2. Launch Varan](#2-launch-varan)
         - [Ex 7) Filter vcf/maf:](#ex-7-filter-vcfmaf)
+        - [Ex 7) Filter vcf/maf:](#ex-7-filter-vcfmaf-1)
       - [3. Output](#3-output)
     - [Block Two: study manipolation](#block-two-study-manipolation)
       - [1. Preparing Input](#1-preparing-input-1)
@@ -69,11 +70,6 @@ docker run --rm -it varan -h
 ```
 
 ⚠️ for Windows users: some problems with git bash (git for Windows) has been reported. It is recommended to launch the docker command through [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)
-</details>
-
-<details open>
-  <summary><b>Usage</b></summary>
-
 </details>
 
 ### Local
@@ -476,6 +472,95 @@ The possible option to launch varan main for block 1 are:
 <details open>
   <summary><i>Examples</i></summary>
 
+<details close>
+  <summary><i>Docker version</i></summary>
+
+To launch Varan docker version is mandatory to mount sevaral volumes (-v) for granting a correct functioning.
+```
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan <commands>
+```
+⚠️ 
+
+
+Ex 1) <ins>Launch Varan base analysis with input folder</ins>:
+
+Launch this command to process the contents of the input folder 
+
+```
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan <commands> varan -i <path_input_folder> -o /output/<output_name> -c <type_of_cancer>
+```
+Ex 2) <ins>Launch Varan base analysis with input file</ins>:
+
+Launch one of these commands to process the contents of the input file(s)
+
+```
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i sample.tsv patient.tsv -o /output/<output_name> -c mixed 
+
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i sample.tsv patient.tsv fusion.tsv -o /output/<output_name> -c mixed
+
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i sample.tsv "" fusion.tsv -o /output/<output_name> -c mixed
+```
+Ex 3) <ins>Multiple vcf analysis</ins>: 
+
+Launch this command to specify that it is a multi-sample file.
+```
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -m
+```
+Ex 4) <ins>Overwrite analysis</ins>:
+
+Launch this command to overwrite the output folder
+```
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -w
+```
+Ex 5) <ins>Resume analysis</ins>:
+
+Launch this command to resume an already started analysis
+```
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -R
+```
+Ex 6) <ins>Specify analysis</ins>:
+
+Launch one of these commands to specify the analysis 
+
+* snv -> only snv analysis 
+* cnv -> only cnv analysis
+* fus -> only fusion analysis
+* tab -> only meta file creation
+```
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t snv
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t cnv
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t fus
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t tab
+```
+##### Ex 7) <ins>Filter vcf/maf</ins>:
+
+Launch this command to specify the type of filter that use
+
+* <code style="color : cyan">d</code> -> filter out from snv mutations with ALT="." and FILTER="PASS" 
+* <code style="color : cyan">p</code> -> filter out from MAF mutations with FILTER="PASS" 
+* <code style="color : cyan">b</code>-> filter out from MAF mutations with CLIN_SIG values <ins>equals</ins> to the ones specified in <i>conf.ini</i> BENIGN field
+* <code style="color : cyan">i</code>-> filter out from MAF mutations with IMPACT <ins>equals</ins> to to the ones specified in <i>conf.ini</i> IMPACT field 
+* <code style="color : cyan">v</code>-> filter out from MAF mutations with vaf (t_VF column) values <ins>not in</ins> the ranges [t_VAF_min; t_VAF_max] specified in <i>conf.ini</i>
+* <code style="color : cyan">n</code> -> apply a specific VAF filter to novel mutations (dbSNP_RS = "novel") filtering out from MAF novel mutations with vaf inferior to <i>conf.ini</i> t_VAF_min_novel
+* <code style="color : cyan">o</code>-> filter out from MAF mutations with ONCOGENIC values <ins>not equals</ins> to the ones specified in <i>conf.ini</i> ONCOKB_FILTER field
+* <code style="color : cyan">a</code> -> filter out from MAF mutations with AF values outside the range specified in <i>conf.ini</i>
+* <code style="color : cyan">q</code> -> filter out from MAF mutations with Consequence values <ins>different</ins> to the ones specified in <i>conf.ini</i> CONSEQUENCES field
+* <code style="color : cyan">y</code>-> filter out from MAF mutations with PolyPhen values <ins>different</ins> to the ones specified in <i>conf.ini</i> POLYPHEN field 
+* <code style="color : cyan">c</code> -> filter out from MAF mutations with CLIN_SIG values <ins>different</ins> to the ones specified in <i>conf.ini</i> CLIN_SIG field 
+
+```
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -f p
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -f dpb
+docker run -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -k -f dpo
+```
+
+⚠️ More than one filter can be applied simultaneously<br>
+⚠️ oncokb filter (o) required -k option
+</details>
+
+<details close>
+  <summary><i>Local version</i></summary>
+
 Ex 1) <ins>Launch Varan base analysis with input folder</ins>:
 
 Launch this command to process the contents of the input folder 
@@ -551,6 +636,7 @@ python varan.py -i <path_to_sample_file> -o <path_output_folder> -c <type_of_can
 ⚠️ More than one filter can be applied simultaneously<br>
 ⚠️ oncokb filter (o) required -k option
 
+</details>
 </details>
 
 #### 3. Output
