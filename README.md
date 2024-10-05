@@ -18,6 +18,8 @@
     - [Block One: study creation](#block-one-study-creation)
       - [1. Preparing Input](#1-preparing-input)
       - [2. Launch Varan](#2-launch-varan)
+        - [Ex 7) Filter vcf/maf:](#ex-7-filter-vcfmaf)
+        - [Ex 7) Filter vcf/maf:](#ex-7-filter-vcfmaf-1)
       - [3. Output](#3-output)
     - [Block Two: study manipolation](#block-two-study-manipolation)
       - [1. Preparing Input](#1-preparing-input-1)
@@ -470,7 +472,7 @@ The possible option to launch varan main for block 1 are:
 <details open>
   <summary><i>Examples</i></summary>
 
-<details close>
+<details open>
   <summary><i>Docker version</i></summary>
 
 To launch Varan docker version is mandatory to mount sevaral volumes (-v) for granting a correct functioning.
@@ -556,7 +558,7 @@ docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v
 ⚠️ oncokb filter (o) required -k option
 </details>
 
-<details close>
+<details open>
   <summary><i>Local version</i></summary>
 
 Ex 1) <ins>Launch Varan base analysis with input folder</ins>:
@@ -704,7 +706,7 @@ The possible option to launch varan main for block 2 are:
 <details open>
   <summary><i>Examples</i></summary>
 
-<details close>
+<details open>
   <summary><i>Docker version</i></summary>
 
 To launch Varan docker version is mandatory to mount at least output folder for granting a correct functioning.
@@ -733,7 +735,7 @@ docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v
 
 </details>
 
-<details close>
+<details open>
   <summary><i>Local version</i></summary>
 
 Ex 1) <ins>Update a study folder</ins>: 
