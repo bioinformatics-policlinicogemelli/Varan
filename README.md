@@ -18,8 +18,6 @@
     - [Block One: study creation](#block-one-study-creation)
       - [1. Preparing Input](#1-preparing-input)
       - [2. Launch Varan](#2-launch-varan)
-        - [Ex 7) Filter vcf/maf:](#ex-7-filter-vcfmaf)
-        - [Ex 7) Filter vcf/maf:](#ex-7-filter-vcfmaf-1)
       - [3. Output](#3-output)
     - [Block Two: study manipolation](#block-two-study-manipolation)
       - [1. Preparing Input](#1-preparing-input-1)
