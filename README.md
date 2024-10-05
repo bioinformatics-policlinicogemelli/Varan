@@ -477,7 +477,7 @@ The possible option to launch varan main for block 1 are:
 
 To launch Varan docker version is mandatory to mount sevaral volumes (-v) for granting a correct functioning.
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan <commands>
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan <commands>
 ```
 ⚠️ 
 
@@ -487,36 +487,36 @@ Ex 1) <ins>Launch Varan base analysis with input folder</ins>:
 Launch this command to process the contents of the input folder 
 
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan <commands> varan -i <path_input_folder> -o /output/<output_name> -c <type_of_cancer>
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta:/ref_fasta varan <commands> varan -i <path_input_folder> -o /output/<output_name> -c <type_of_cancer>
 ```
 Ex 2) <ins>Launch Varan base analysis with input file</ins>:
 
 Launch one of these commands to process the contents of the input file(s)
 
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i sample.tsv patient.tsv -o /output/<output_name> -c mixed 
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i sample.tsv patient.tsv -o /output/<output_name> -c mixed 
 
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i sample.tsv patient.tsv fusion.tsv -o /output/<output_name> -c mixed
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i sample.tsv patient.tsv fusion.tsv -o /output/<output_name> -c mixed
 
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i sample.tsv "" fusion.tsv -o /output/<output_name> -c mixed
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i sample.tsv "" fusion.tsv -o /output/<output_name> -c mixed
 ```
 Ex 3) <ins>Multiple vcf analysis</ins>: 
 
 Launch this command to specify that it is a multi-sample file.
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -m
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -m
 ```
 Ex 4) <ins>Overwrite analysis</ins>:
 
 Launch this command to overwrite the output folder
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -w
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -w
 ```
 Ex 5) <ins>Resume analysis</ins>:
 
 Launch this command to resume an already started analysis
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -R
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -R
 ```
 Ex 6) <ins>Specify analysis</ins>:
 
@@ -527,10 +527,10 @@ Launch one of these commands to specify the analysis
 * fus -> only fusion analysis
 * tab -> only meta file creation
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t snv
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t cnv
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t fus
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t tab
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t snv
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t cnv
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t fus
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -t tab
 ```
 ##### Ex 7) <ins>Filter vcf/maf</ins>:
 
@@ -549,9 +549,9 @@ Launch this command to specify the type of filter that use
 * <code style="color : cyan">c</code> -> filter out from MAF mutations with CLIN_SIG values <ins>different</ins> to the ones specified in <i>conf.ini</i> CLIN_SIG field 
 
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -f p
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -f dpb
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -k -f dpo
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -f p
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -f dpb
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -i <path_to_sample_file> -o /output/<output_name> -c <type_of_cancer> -k -f dpo
 ```
 
 ⚠️ More than one filter can be applied simultaneously<br>
@@ -730,7 +730,7 @@ Ex 3) <ins>Remove samples from a study</ins>:
 <p align="justify">Launch this command to remove a list of samples from a study folder and save a new study without them in the output path, assigning a customized the study name.
 
 ```
-docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path> varan -r -p <path_to_study_folder> -s <path_to_sample_list_file> -o /output/<path_to_output_folder> -N <new_studyID_in_meta>
+docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <ref_fasta_path>:/ref_fasta varan -r -p <path_to_study_folder> -s <path_to_sample_list_file> -o /output/<path_to_output_folder> -N <new_studyID_in_meta>
 ```
 
 </details>
