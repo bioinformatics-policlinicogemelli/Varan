@@ -291,7 +291,7 @@ PORT = < string >
 ⚠️ If this field is left empty an offline validation will be conducted
 </details>
 
-⚠️ For Docker a partially compiled configuration file (<i>docker.ini</i>) with vep and clinvar path set is available
+⚠️ For Docker a partially compiled configuration file (<i>docker.ini</i>) is available with vep and clinvar path already set 
 </details>
 
 <br>
