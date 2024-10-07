@@ -54,7 +54,6 @@ def extract_clinical_patient(oldpath, sample_ids, output_folder):
     Example:
       >>>  extract_clinical_patient('input_folder/', ['sample1', 'sample2'], 'output_folder/')
     """
-
     file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t")
     sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t")
     
@@ -68,7 +67,7 @@ def extract_clinical_patient(oldpath, sample_ids, output_folder):
         logger.warning(f"{not_found} sample(s) are not in data_clinical_sample.txt and won't be extraced.")
           
     header = file.loc[0:3,:]
-    extracted = file[file.iloc[:, idx_sample].astype(str).isin(patient_ids)]
+    extracted = file[file.iloc[:, idx_patient].astype(str).isin(patient_ids)]
 
     extracted = pd.concat([header, extracted])    
     extracted.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t")

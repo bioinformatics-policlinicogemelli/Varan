@@ -38,7 +38,7 @@ def extract_main(oldpath, removepath, output, study_id, overwrite):
     logger.info(f"Creating a new folder: {output}")     
     # os.mkdir(output)
     output_caseslists=os.path.join(output, "case_lists")
-    os.mkdir(output_caseslists)   
+    os.mkdir(output_caseslists)
 
     logger.info("Great! Everything is ready to start")
 
