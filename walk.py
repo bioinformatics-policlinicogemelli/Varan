@@ -237,6 +237,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         df_table["ESCAT"]="Unmatched"
         
         logger.info("Analyzing cna sample(s)")
+        
         for _, row in cna.iterrows():
             
             #logger.info("Analyzing cna sample " + row["Tumor_Sample_Barcode"])            
@@ -259,7 +260,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
                     
         #nuovi filtri (filtro cnvkit - conservativo)
         
-        if not cna.empty:
+        if not cna["TC"].isnull().all():
             cna["Copy_Number_Alteration"]=0
             cna.loc[(cna["seg.mean"]<c[0]), "Copy_Number_Alteration"]=-2
             cna.loc[(cna["seg.mean"]>=c[0])&(cna["seg.mean"]<c[1]), "Copy_Number_Alteration"]=-1
@@ -941,7 +942,8 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
 def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
     
     if "ONCOTREE_CODE" in input_file.columns:
-        input_file["SAMPLE_ID"] = input_file["SAMPLE_ID"] + ".bam"
+        import pdb;pdb.set_trace()
+        input_file["SAMPLE_ID"] = input_file["SAMPLE_ID"] #+ ".bam"
         fusion_table_df = data_sv.merge(input_file, how="inner", left_on="Sample_Id", right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
         fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")
