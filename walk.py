@@ -33,7 +33,7 @@ VEP_PATH = config.get('Paths', 'VEP_PATH')
 VEP_DATA = config.get('Paths', 'VEP_DATA')
 CLINV = config.get('Paths', 'CLINV')
 CNA = ast.literal_eval(config.get('Cna', 'HEADER_CNV'))
-PLOIDY = config.get('Cna', 'PLOIDY')
+PLOIDY = int(config.get('Cna', 'PLOIDY'))
 
 output_filtered = "snv_filtered"
 tmp = "scratch"
@@ -156,7 +156,6 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
     ############################
     
     logger.info("Starting cna evaluation (this step could take a while)...")
-
     df_table = pd.read_csv(os.path.join(output_folder, 'data_cna_hg19.seg.fc.txt'), sep="\t", header=0)
     result = table_to_dict(df_table)
         
@@ -214,13 +213,13 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         
         if len(input_file[input_file["TC"].isna()])>0:
             nan_sbj = input_file[input_file["TC"].isna()]
-            nan_sbj = list(nan_sbj["SampleID"])
+            nan_sbj = list(nan_sbj["SAMPLE_ID"])
             logger.warning(f"Some subject have Nan TC in tsv input file: {nan_sbj}!")
         
         if not "ONCOTREE_CODE" in input_file.columns:
             input_file["ONCOTREE_CODE"] = cancer
 
-        input_file["Tumor_Sample_Barcode"] = input_file["SampleID"] + ".cnv.bam"
+        input_file["Tumor_Sample_Barcode"] = input_file["SAMPLE_ID"] #+ ".cnv.bam"
         
         annotate = pd.merge(df_table_filt[["Tumor_Sample_Barcode","Hugo_Symbol", "seg.mean", "Copy_Number_Alteration"]], \
                            input_file[["Tumor_Sample_Barcode","ONCOTREE_CODE","TC"]], on="Tumor_Sample_Barcode")
@@ -230,15 +229,17 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         out=temppath.replace("toannotate.txt", "annotated.txt")
         os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {temppath}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
-              
+        
+           
         cna = pd.read_csv(out,sep="\t", dtype={"Copy_Number_Alteration":int})
         cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
         cna["ESCAT"]="Unmatched"
         df_table["ESCAT"]="Unmatched"
         
+        logger.info("Analyzing cna sample(s)")
         for _, row in cna.iterrows():
             
-            logger.info("Analyzing cna sample " + row["Tumor_Sample_Barcode"])            
+            #logger.info("Analyzing cna sample " + row["Tumor_Sample_Barcode"])            
             try:
                 tc = int(input_file[input_file["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"]]["TC"])
             except ValueError:
@@ -991,7 +992,7 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
 def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
 
     #logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
-    for k, m, t in zip(fileinputclinical["SampleID"], fileinputclinical["MSI"], fileinputclinical["TMB"]):
+    for k, m, t in zip(fileinputclinical["SAMPLE_ID"], fileinputclinical["MSI"], fileinputclinical["TMB"]):
         table_dict_patient[k].append(m)
         table_dict_patient[k].append(t)
         
