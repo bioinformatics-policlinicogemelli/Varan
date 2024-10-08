@@ -929,7 +929,7 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
                 logger.info(f"Fusions found in {fusion_file}")          
 
             for fus in ff.itertuples(index=False):
-                if fus.Sample_Id in clin_file["SampleID"].values:
+                if fus.Sample_Id in clin_file["SAMPLE_ID"].values:
                     if int(fus.Normal_Paired_End_Read_Count) >= 15:
                         fusion_table.write('\t'.join(map(str, fus)) + '\n')
 
@@ -938,8 +938,8 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
 def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
     
     if "ONCOTREE_CODE" in input_file.columns:
-        input_file["SampleID"] = input_file["SampleID"] + ".bam"
-        fusion_table_df = data_sv.merge(input_file, how="inner", left_on="Sample_Id", right_on="SampleID")
+        input_file["SAMPLE_ID"] = input_file["SAMPLE_ID"] + ".bam"
+        fusion_table_df = data_sv.merge(input_file, how="inner", left_on="Sample_Id", right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
         fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")
         os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
