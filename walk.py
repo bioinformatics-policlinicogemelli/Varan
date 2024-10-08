@@ -602,7 +602,7 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     combout_df = combout_df.rename(columns={"index": "SAMPLE_ID", 0: "PATIENT_ID"})
     
     final_data_sample = data_clin_samp
-
+    
     if len(combout_df.columns) > 2:
         data_clin_samp.drop(columns=["MSI_THR", "TMB_THR"], inplace=True)
         combout_df = combout_df.rename(columns={1: "MSI", 2: "TMB", 3: "MSI_THR", 4:"TMB_THR"})
@@ -612,6 +612,9 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
       
         final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENT_ID", "SAMPLE_ID"])
 
+    new_cols = ["SAMPLE_ID", "PATIENT_ID", "MSI", "TMB", "MSI_THR", "TMB_THR", "ONCOTREE_CODE"]+final_data_sample.columns[3:-4].to_list()
+    final_data_sample = final_data_sample[new_cols]
+    
     dataclin_columns = list(final_data_sample.columns)
 
     # Add header's fifth row
