@@ -135,7 +135,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             if "ONCOTREE_CODE" in input_file.columns:
                 
                 for _ ,row in input_file.iterrows():
-                    if row["SampleID"] in file_No:
+                    if row["SAMPLE_ID"] in file_No:
                         cancer_onco=row["ONCOTREE_CODE"]
                         if cancer_onco == "":
                             cancer_onco = cancer
