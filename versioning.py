@@ -18,7 +18,7 @@ def extract_version_int(foldername):
 
 
 def get_version_list(output_folder):
-    
+
     foldername = re.split(r'_v[0-9]+$',os.path.basename(output_folder))[0]
     outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
@@ -27,6 +27,7 @@ def get_version_list(output_folder):
     old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) \
                     if re.split(r'_v[0-9]+$',os.path.basename(output_folder))[0] in file]
     version_n = [extract_version_int(version) for version in old_versions]
+    version_n=[elem for elem in version_n if type(elem) == int]
     sorted_version = sorted(list(set(version_n)), key=int)
     version_name_ordered = list(map(lambda x: foldername + "_v" + str(x), sorted_version))
     return version_name_ordered
