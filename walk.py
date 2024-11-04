@@ -942,7 +942,6 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
 def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
     
     if "ONCOTREE_CODE" in input_file.columns:
-        import pdb;pdb.set_trace()
         input_file["SAMPLE_ID"] = input_file["SAMPLE_ID"] #+ ".bam"
         fusion_table_df = data_sv.merge(input_file, how="inner", left_on="Sample_Id", right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
@@ -1176,8 +1175,8 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     inputFolderCombOut = os.path.abspath(os.path.join(input_folder, "CombinedOutput"))
     inputFolderFusion = os.path.abspath(os.path.join(input_folder, "FUSIONS"))
 
-    
-    assert (len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
+
+    assert (len(os.listdir(inputFolderSNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
         "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
        
     if os.path.exists(inputFolderCNV) and not vcf_type in ["snv", "fus", "tab"]:
