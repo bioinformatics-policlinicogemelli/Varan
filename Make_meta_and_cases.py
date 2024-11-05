@@ -253,15 +253,6 @@ def create_meta_cna_hg19(project_id, profile, output_dir):
     meta_file.close()
 
 
-def check_cases(output_folder):
-    cases_path = os.path.join(output_folder,"case_lists")
-    for case_file in os.listdir(cases_path):
-        with open(os.path.join(cases_path, case_file), "r") as file:
-            lines = file.readlines()
-            if lines[-1].strip() == "case_list_ids:":
-                #os.remove(os.path.join(cases_path, case_file))
-                logger.info(f"There are no samples in {case_file}. This file will not be created")
-
 
 def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
 
@@ -348,12 +339,29 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     else: logger.warning("data_sv.txt file not found!")
     
     check_cases(output_folder)
+
+    # TODO funzione che elimina i meta corrispondenti se non esistono i cases
+    # oppure evitare direttamente di creare il data_...?
+
     logger.success("Make_meta_and_cases script completed!")
 
 class MyArgumentParser(argparse.ArgumentParser):
   """An argument parser that raises an error, instead of quits"""
   def error(self, message):
     raise ValueError(message)
+
+
+
+def check_cases(output_folder):
+    cases_path = os.path.join(output_folder,"case_lists")
+    for case_file in os.listdir(cases_path):
+        with open(os.path.join(cases_path, case_file), "r") as file:
+            lines = file.readlines()
+            if lines[-1].strip() == "case_list_ids:":
+                os.remove(os.path.join(cases_path, case_file))
+                logger.info(f"There are no samples in {case_file}. This file will not be created")
+
+
 
 if __name__=="__main__":
     

@@ -613,7 +613,7 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
       
         final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENT_ID", "SAMPLE_ID"])
 
-    new_cols = ["SAMPLE_ID", "PATIENT_ID", "MSI", "TMB", "MSI_THR", "TMB_THR", "ONCOTREE_CODE"]+final_data_sample.columns[3:-4].to_list()
+    new_cols = ["SAMPLE_ID", "PATIENT_ID", "MSI", "TMB", "MSI_THR", "TMB_THR"] + final_data_sample.columns[2:-4].to_list()
     final_data_sample = final_data_sample[new_cols]
     
     dataclin_columns = list(final_data_sample.columns)
@@ -885,21 +885,11 @@ def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
     
     else:   
         tsv_file = pd.read_csv(tsv, sep="\t", dtype="string", keep_default_na=False)
-            
+   
         for _,row in tsv_file.iterrows():
-
-            # Decommentare se si fornsicono path come colonne dell'input
             snv_path = row["snv_path"]
             cnv_path = row["cnv_path"]
             combout = row["comb_path"]
-
-            # Decommentare se deve costruire i path in base alle posizioni delle cartelle
-            # #res_folder = "/data/data_storage/novaseq_results"
-            # res_folder = INPUT_PATH
-            # snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+SNV)     #"_MergedSmallVariants.genome.vcf")
-            # #snv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+"_MergedSmallVariants.genome.vcf")
-            # cnv_path=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["SampleID"],row["SampleID"]+CNV) # "_CopyNumberVariants.vcf")
-            # combout=os.path.join(res_folder,row["RunID"],"Results",row["PatientID"],row["PatientID"]+COMBOUT)
 
             check_folders(output_folder, snv_path, cnv_path, combout)
                 
@@ -907,7 +897,6 @@ def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
 
 
 def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
-
     nfusion=len(fusion_files)
     logger.info(f"Found {nfusion} Fusion file(s) ")
 
@@ -1127,7 +1116,7 @@ def write_filters_in_report(output_folder):
     with open(report_file_path, "w") as file:
         file.write(f"Varan run - {date}\n\nThe following configuration and filters have been used:\n")
         file.write(conf_content)
-        file.write("This is the report from cBioPortal Validator:\n")
+        file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
         file.writelines(val_report)
 
 
@@ -1175,9 +1164,16 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     inputFolderCombOut = os.path.abspath(os.path.join(input_folder, "CombinedOutput"))
     inputFolderFusion = os.path.abspath(os.path.join(input_folder, "FUSIONS"))
 
-
     assert (len(os.listdir(inputFolderSNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
         "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
+
+    if len(os.listdir(inputFolderSNV))==0 and vcf_type == None:
+        vcf_type = "cnv"
+        logger.info("SNV path was empty, the analysis will exclude SNV")
+    if len(os.listdir(inputFolderCNV))==0 and vcf_type == None:
+        vcf_type = "snv"
+        logger.info("CNV path was empty, the analysis will exclude CNV")
+
        
     if os.path.exists(inputFolderCNV) and not vcf_type in ["snv", "fus", "tab"]:
         if multiple:
@@ -1247,9 +1243,11 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)       
         fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
     
-    elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]:    
+    elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]:   
+
         fusion_files=[file for file in os.listdir(os.path.join(input_folder,"FUSIONS")) if "tsv" in file]
-        fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)  
+        if fusion_files != []:
+            fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)  
 
     if oncokb and os.path.exists(fusion_table_file):
         data_sv = pd.read_csv(fusion_table_file, sep="\t")
