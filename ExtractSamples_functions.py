@@ -102,6 +102,33 @@ def extract_cna_hg19(file_path, sample_ids, output_folder):
     if len(sample_ids) > len(file["ID"].unique()):
         print("[Warning] Some samples names are not present in the DataFrame.")
     extracted.to_csv(os.path.join(output_folder, "data_cna_hg19.seg"), index=False, sep="\t")
+
+
+def extract_cna_hg19_fc(file_path, sample_ids, output_folder):
+    """
+    To rewrite.
+
+    Args:
+        file_path (str): Path to the input CNA data file in tab-separated format.
+        sample_ids (list): List of sample IDs (as strings) to be extracted from the input file.
+        output_folder (str): Path to the directory where the extracted data file will be saved.
+
+    Notes:
+        - The input file is expected to have a column named "ID" containing sample IDs.
+        - If any sample ID provided in 'sample_ids' is not found in the input file, a warning
+          will be printed indicating that some sample names are not present in the DataFrame.
+        - The extracted data is saved in the 'data_cna_hg19.seg.fc.txt' file in tab-separated format.
+
+    Example:
+        extract_cna_hg19_fc('input_data.tsv', ['sample1', 'sample2'], 'output_folder/')
+      >>>  Extracts data for 'sample1' and 'sample2' from 'input_data.tsv' and saves it in 'output_folder/data_cna_hg19.seg.fc.txt'.
+    """
+
+    file = pd.read_csv(file_path, sep="\t")
+    extracted = file[file["ID"].astype(str).isin(sample_ids)]
+    if len(sample_ids) > len(file["ID"].unique()):
+        print("[Warning] Some samples names are not present in the DataFrame.")
+    extracted.to_csv(os.path.join(output_folder, "data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
         
     
 def extract_cna(file_path, sample_ids, output_folder):

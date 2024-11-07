@@ -87,7 +87,26 @@ def update_cna_hg19(oldfile_path, newfile_path, output_folder):
     updated = updated.drop_duplicates(subset=["ID","chrom","loc.start","loc.end"], keep='last')
     updated.to_csv(os.path.join(output_folder, "data_cna_hg19.seg"), index=False, sep="\t")
         
+
+def update_cna_hg19_fc(oldfile_path, newfile_path, output_folder):
+    """
+    To rewrite
+
+    Args:
+        oldfile_path (str): Path to the original CNA data file.
+        newfile_path (str): Path to the new CNA data file.
+        output_folder (str): Path to the output folder where the updated file will be saved.
     
+    Example:
+      >>>  update_cna_hg19_fc('old_data_cna_hg19.seg.fc.txt', 'new_data_cna_hg19.seg.fc.txt', 'output_folder/')
+    """
+    old = pd.read_csv(oldfile_path, sep="\t")
+    new = pd.read_csv(newfile_path, sep="\t")
+
+    updated = pd.concat([old, new])
+    updated = updated.drop_duplicates(subset=["ID","chrom","loc.start","loc.end", "gene"], keep='last')
+    updated.to_csv(os.path.join(output_folder, "data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
+
 
 def update_cna(oldfile_path, newfile_path, output_folder):
     """
@@ -288,6 +307,8 @@ def check_files(oldpath, newpath, output, file_name):
             update_clinical_patient(o_data,n_data,output)
         elif file_name == "data_cna_hg19.seg":
             update_cna_hg19(o_data,n_data,output)
+        elif file_name == "data_cna_hg19.seg.fc.txt":
+            update_cna_hg19_fc(o_data,n_data,output)
         elif file_name == "data_cna.txt":
             update_cna(o_data,n_data,output)
         elif file_name == "data_mutations_extended.txt":

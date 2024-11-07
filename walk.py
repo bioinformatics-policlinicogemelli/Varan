@@ -110,7 +110,7 @@ def annotate_cna(path_cna, output_folder):
                 
     cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration":int})
     cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
-        
+    
     data_cna = cna.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0)
 
     data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
@@ -291,11 +291,10 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
         
     else:
-        
         df_table_filt["Tumor_Sample_Barcode"] = df_table_filt["Tumor_Sample_Barcode"].str.replace(".cnv.bam", "")
-        
         data_cna = df_table_filt.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0)
-        data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
+        if not data_cna.empty:
+            data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
     
     return sID_path
 

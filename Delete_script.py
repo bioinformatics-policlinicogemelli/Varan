@@ -63,12 +63,20 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
     else:
         logger.warning("data_clinical_sample.txt not found in current folder. Skipping")
     
+    #
     o_cna_hg19=os.path.join(oldpath,"data_cna_hg19.seg")
     if os.path.exists(o_cna_hg19):
         delete_cna_hg19(o_cna_hg19,sampleIds,output)
     else:
         logger.warning("data_cna_hg19.seg not found in current folder. Skipping")
-    
+
+    #
+    o_cna_hg19_fc=os.path.join(oldpath,"data_cna_hg19.seg.fc.txt")
+    if os.path.exists(o_cna_hg19_fc):
+        delete_cna_hg19_fc(o_cna_hg19_fc,sampleIds,output)
+    else:
+        logger.warning("data_cna_hg19.seg.fc.txt not found in current folder. Skipping")
+
     #
     o_cna=os.path.join(oldpath,"data_cna.txt")
     if os.path.exists(o_cna):

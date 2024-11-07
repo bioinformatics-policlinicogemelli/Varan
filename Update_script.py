@@ -46,11 +46,12 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
 
     logger.info("Great! Everything is ready to start")      
 
-    os.system("cp "+ oldpath+"/*meta* "+output)
+    os.system("cp " + oldpath + "/*meta* " + output)
     
     check_files(oldpath, newpath, output, "data_clinical_sample.txt")
     check_files(oldpath, newpath, output, "data_clinical_patient.txt")
     check_files(oldpath, newpath, output, "data_cna_hg19.seg")
+    check_files(oldpath, newpath, output, "data_cna_hg19.seg.fc.txt")
     check_files(oldpath, newpath, output, "data_cna.txt")
     check_files(oldpath, newpath, output, "data_mutations_extended.txt")
     check_files(oldpath, newpath, output, "data_sv.txt")
@@ -68,9 +69,6 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     meta_case_main(cancer, output, study_info, study_id)
  
     validateFolderlog(output)
-
-    # if len(old_versions)>=1:
-    #     compare_version(newpath, oldpath, "update", output)
 
     compare_version_update(oldpath, newpath, output, "update")
 

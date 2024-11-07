@@ -80,6 +80,25 @@ def delete_cna_hg19(file_path, sample_ids, output_folder):
     filtered.to_csv(os.path.join(output_folder, "data_cna_hg19.seg"), index=False, sep="\t")
 
 
+def delete_cna_hg19_fc(file_path, sample_ids, output_folder):
+    """
+    Delete specific copy number alteration data from a file in hg19 format.
+
+    This function reads a data file in tab-separated format, filters out the rows
+    with specified IDs, and saves the filtered data to a new file in the specified output folder.
+
+    Args:
+        file_path (str): Path to the input data file.
+        sample_ids (list): List of IDs to be deleted.
+        output_folder (str): Path to the folder where the output file will be saved.
+
+    """
+    file = pd.read_csv(file_path, sep="\t")
+    filtered = file[~file["ID"].astype(str).isin(sample_ids)]
+    filtered.to_csv(os.path.join(output_folder, "data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
+
+
+
 def delete_cna(file_path, sample_ids, output_folder):
     """
     Delete copy number alteration data associated with specific samples.
