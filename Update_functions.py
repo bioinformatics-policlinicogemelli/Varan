@@ -343,4 +343,49 @@ def check_files_cases(oldpath, newpath, output_caseslists, file_name):
         shutil.copy(n_data, output_caseslists)
     else:
         logger.warning(f"{file_name} not found in 'case_lists' folders. Skipping")
+
+
+def check_filters(oldpath, newpath, output):
+    o_report_path = os.path.join(oldpath,"report.txt")
+    n_report_path = os.path.join(newpath,"report.txt")
+
+    o_report = get_filters(o_report_path)
+    n_report = get_filters(n_report_path)
+
+    final_report = pd.concat([o_report, n_report], axis=1)
+    final_report.set_axis(['Value1', 'Value2'], axis=1, inplace=True)
+    final_report = final_report.reindex(o_report.index.union(n_report.index)).rename(index=str.strip)
+
+    same = (final_report["Value1"] == final_report["Value2"])
+    final_report.insert(loc=0, column='Filter changed?', value=(~ same))
+    changed_filters = [filter.strip() for filter in final_report.index[final_report['Filter changed?']]]
+
+    with open(os.path.join(output, "summary.txt"),'a') as su:
+        su.write(f"\nComparison of filters between the two studies:\n")
+        su.write(final_report[['Filter changed?']].to_string(index=True))
+
+        if not all(same):
+            logger.warning("The filters of the two studies may be different!")
+            su.write(f"\n\nThe following filters differ between the two studies: {', '.join(changed_filters)}.\n\n")
+            for filter in changed_filters:
+                su.write(f"{filter}\nStudy1: {final_report.loc[filter, 'Value1']}\nStudy2: {final_report.loc[filter, 'Value2']}\n\n")
+
+        else:
+            su.write(f"\n\nThe filters are the same in both studies.")
+
+
+def get_filters(file_path):
+    with open(file_path) as report:
+        txt = report.readlines()
+        substring = list(map(lambda x:re.findall(".* = .*\n", x), txt))
+
+        substring = [x for x in substring if x != []]
+
+        df = pd.DataFrame(substring, columns = ['Filter']) 
+        df[['Filter', 'Value']] = df['Filter'].str.split('=', 1, expand=True)
+        df["Value"] = df["Value"].str.strip()
+
+        df.set_index('Filter', inplace=True)
+        return df
+
     

@@ -184,7 +184,7 @@ def compare_version_update(folder1, folder2, output, action):
         np, ns = compare_sample_file_update(sv_1, sv_2, folder1, folder2, output, "cases_sv", summary_file)
         
         summary_file.write(f"\nTOTAL PATIENT(S): {ns}\n")
-        summary_file.write(f"TOTAL SAMPLE(S): {np}")
+        summary_file.write(f"TOTAL SAMPLE(S): {np}\n\n")
 
 
 def compare_sample_file_update(file1, file2, input_folder1, input_folder2, outputfolder, filename, summary_file):

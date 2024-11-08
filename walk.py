@@ -58,10 +58,6 @@ def clear_scratch():
             shutil.rmtree(os.path.join(root,dir))
         
 
-def clear_temp(folder):
-    shutil.rmtree(os.path.join(folder, "temp"))
-
-
 def get_cnv_from_folder(inputFolderCNV):
     files = os.listdir(inputFolderCNV)
     cnv_vcf_files = [file for file in files if file.endswith("vcf")]
@@ -525,7 +521,6 @@ def check_multiple_file(input_file, multiple):
     snv_file_path = file_paths['snv_path'].isnull().all() # True mancano tutti i valori
     cnv_file_path = file_paths['cnv_path'].isnull().all() # False se almeno uno è pieno
     
-    #TODO ridiscutere CASE 4
     #CASE 1: multiple = True; neither snv or cnv are filled in sample.tsv; multiple snv or cnv are filled in conf.ini
     if multiple and not (snv_file_path or cnv_file_path) and not (conf_snv == "" or conf_cnv == ""):
         logger.critical("-m was selected and Muliple section in conf.ini was filled but the file doesn't looks like a multiVCF.")
@@ -1092,9 +1087,9 @@ def write_filters_in_report(output_folder):
                         "t_VAF_min", "t_VAF_min_novel", "t_VAF_max", 
                         "AF", "POLYPHEN", "IMPACT", "SIFT"],
             "Cna": ["HEADER_CNV", "PLOIDY"],
-            "TMB": ["THRESHOLD"],
-            "MSI": ["THRESHOLD_SITES", "THRESHOLD"],
-            "FUSION": ["THRESHOLD"]
+            "TMB": ["THRESHOLD_TMB"],
+            "MSI": ["THRESHOLD_SITES", "THRESHOLD_MSI"],
+            "FUSION": ["THRESHOLD_FUSION"]
         }
 
     conf_content = []
@@ -1238,7 +1233,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
 
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
-        THR_FUS = config.get('FUSION', 'THRESHOLD')
+        THR_FUS = config.get('FUSION', 'THRESHOLD_FUSION')
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)       
         fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
     
@@ -1310,8 +1305,8 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
 
     fileinputclinical = pd.read_csv(os.path.join(input_folder, "sample.tsv"), sep="\t", index_col=False, dtype=str)
     
-    MSI_THR = config.get('MSI', 'THRESHOLD')
-    TMB_THR = ast.literal_eval(config.get('TMB', 'THRESHOLD'))
+    MSI_THR = config.get('MSI', 'THRESHOLD_MSI')
+    TMB_THR = ast.literal_eval(config.get('TMB', 'THRESHOLD_TMB'))
     
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and \
         len(os.listdir(os.path.join(input_folder, "CombinedOutput"))) > 0:
@@ -1323,18 +1318,6 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         table_dict_patient = fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB_THR)
 
     write_clinical_sample(clin_sample_path, output_folder, table_dict_patient)
-
-    #DECOMMENTARE UNA VOLTA FINITI TEST
-    # if isinputfile:
-    #     try:
-    #         logger.info("Deleting temp folder")
-    #         shutil.rmtree(os.path.join(output_folder,"temp"))
-    #     except Exception as e:
-    #         print("No combined output found")
-    #         write_clinical_sample_empty(output_folder, table_dict_patient)
- 
-    # logger.info("Deleting temp folder")
-    # clear_temp(output_folder)
     
     logger.success("Walk script completed!\n")
 
