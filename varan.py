@@ -4,13 +4,11 @@ version = "1.0"
 import os 
 import sys
 import argparse
-import shutil
-from loguru import logger 
-from configparser import ConfigParser
-from walk import walk_folder, write_filters_in_report 
+from loguru import logger
+from walk import walk_folder
 from filter_clinvar import filter_main
 from concatenate import concatenate_main
-from ValidateFolder import validateFolderlog, cBio_validation
+from ValidateFolder import validateOutput
 from Make_meta_and_cases import meta_case_main
 from Update_script import update_main 
 from Delete_script import delete_main 
@@ -38,7 +36,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         #       2. FILTER         #
         ###########################
     
-        logger.info("Starting filter")  
+        logger.info("Starting MAF filtering")  
         if not analysis_type in ["cnv", "fus", "tab"]:
             filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
 
@@ -63,46 +61,9 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ############################
         #      5. VALIDATION       #
         ############################
- 
-        validateFolderlog(output_folder)
-        val = cBio_validation(output_folder)
 
-        write_filters_in_report(output_folder)
-
-        #DECOMMENTARE UNA VOLTA FINITI TEST
-        # if isinputfile:
-        #     try:
-        #         logger.info("Deleting temp folder")
-        #         shutil.rmtree(os.path.join(output_folder,"temp"))
-        #     except Exception as e:
-        #         print("No combined output found")
-        #         write_clinical_sample_empty(output_folder, table_dict_patient)
-    
-        # logger.info("Deleting temp folder")
-        # clear_temp(output_folder)
-
-        config = ConfigParser()
-        configFile = config.read("conf.ini")
-
-        ZIP_MAF = config.get('Zip', 'ZIP_MAF')
-        ZIP_SNV_FILTERED = config.get('Zip', 'ZIP_SNV_FILTERED')
-
-        if os.path.exists(os.path.join(output_folder, "maf")) and ZIP_MAF:
-            logger.info("Zipping maf folder...")    
-            shutil.make_archive(os.path.join(output_folder, "maf"), "zip", os.path.join(output_folder, "maf"))
-            logger.info("Deleting unzipped maf folder...")
-            shutil.rmtree(os.path.join(output_folder, "maf"))
-
-        if os.path.exists(os.path.join(output_folder, "snv_filtered")) and ZIP_SNV_FILTERED:
-            logger.info("Zipping snv_filtered folder...") 
-            shutil.make_archive(os.path.join(output_folder, "snv_filtered"), "zip", os.path.join(output_folder, "snv_filtered"))
-            logger.info("Deleting unzipped snv_filtered folder...")
-            shutil.rmtree(os.path.join(output_folder,"snv_filtered"))
-
-        if val != 1:
-            logger.info("Deleting temp folder")
-            shutil.rmtree(os.path.join(output_folder, "temp"))
-            logger.success("The end! The study is ready to be uploaded on cBioportal")
+        logger.info("Starting validation")
+        validateOutput(output_folder)
 
     
     ############################

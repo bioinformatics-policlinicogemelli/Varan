@@ -4,8 +4,15 @@ from loguru import logger
 import sys
 from configparser import ConfigParser
 import subprocess
+import shutil
+from walk import write_filters_in_report
 
+config = ConfigParser()
+configFile = config.read("conf.ini")
 
+ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+ZIP_SNV_FILTERED = config.get('Zip', 'ZIP_SNV_FILTERED')
+        
 def cBio_validation(output_folder):
     config = ConfigParser()
     config.read('conf.ini')
@@ -126,8 +133,6 @@ def validateFolderlog(folder):
     if all(result_all.values()):
         logger.success("Folder contains all required files for cBioportal")
 
-
-
 def validateFolder(folder,log=False):
     """
     Validates the contents of a folder against required files for cBioPortal data upload.
@@ -214,33 +219,28 @@ def validateFolder(folder,log=False):
             print("Missing files:")
             for missing in missing_files:
                 print("* ", missing)
-        
-            
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)  
-
-if __name__ == '__main__':
-
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='Parser of Update script for cBioportal')
-
-    parser.add_argument('-f', '--Folder', required=True,
-						help='Folder path to check')
-
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile="validate_folder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True,catch=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
+                
+def validateOutput(folder):
     
-    folder=args.Folder
+    validateFolderlog(folder)
+    val = cBio_validation(folder)
+
+    write_filters_in_report(folder)
     
-    if not os.path.exists(folder):
-        print(["[WARNING] Folder not found"])
-    else:
-        validateFolder(folder,log=False)   
+    if os.path.exists(os.path.join(folder, "maf")) and ZIP_MAF:
+        logger.info("Zipping maf folder...")    
+        shutil.make_archive(os.path.join(folder, "maf"), "zip", os.path.join(output_folder, "maf"))
+        logger.info("Deleting unzipped maf folder...")
+        shutil.rmtree(os.path.join(folder, "maf"))
+
+    if os.path.exists(os.path.join(folder, "snv_filtered")) and ZIP_SNV_FILTERED:
+        logger.info("Zipping snv_filtered folder...") 
+        shutil.make_archive(os.path.join(folder, "snv_filtered"), "zip", os.path.join(output_folder, "snv_filtered"))
+        logger.info("Deleting unzipped snv_filtered folder...")
+        shutil.rmtree(os.path.join(folder,"snv_filtered"))
+
+    if val != 1:
+        logger.info("Deleting temp folder")
+        shutil.rmtree(os.path.join(folder, "temp"))
+        logger.success("The end! The study is ready to be uploaded on cBioportal")
+    
