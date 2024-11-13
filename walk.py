@@ -1059,12 +1059,12 @@ def validate_input(oncokb, vcf_type, filters, cancer):
         assert config.get('OncoKB', 'ONCOKB')!="", \
                f"oncokb option was set but ONCOKB field in conf.ini is empty!"
     
-    #check that vep info in conf.ini are set when snv analysisi is request
+    #check that vep info in conf.ini are set when snv analysis is request
     if vcf_type==None or "snv" in vcf_type:
         assert VEP_PATH !="" and VEP_DATA !="", \
-               f"vep_path and/or vep_data field in conf.ini is empty!"
+               f"VEP_PATH and/or VEP_DATA field in conf.ini is empty!"
         assert REF_FASTA !="", \
-               f"re_fasta field in conf.ini is empty!"
+               f"REF_FASTA field in conf.ini is empty!"
     
     #verify that oncokb filter function only when oncokb annotation is set 
     if "o" in filters and oncokb==False:
@@ -1075,7 +1075,7 @@ def validate_input(oncokb, vcf_type, filters, cancer):
     cancer_cbio=cancer_cbio["TYPE_OF_CANCER_ID"].values.tolist()
     
     if cancer not in cancer_cbio:
-        logger.critical(f"cancer_id '{cancer}' is not recognize by cbioportal. Check in cancer_list.txt to find the correct cancer id")
+        logger.critical(f"cancer_id '{cancer}' is not recognize by cbioportal. Check the cancer_list.txt to find the correct cancer id")
         sys.exit()
 
 def write_filters_in_report(output_folder):
@@ -1174,7 +1174,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             multivcf = [i for i in os.listdir(inputFolderCNV) if i.endswith('.vcf')][0]
             extract_multiple_cnv(os.path.join(inputFolderCNV, multivcf), inputFolderCNV)
             inputFolderCNV= os.path.join(inputFolderCNV, "single_sample_vcf")
-        logger.info("Check CNV files...")
+        logger.info("Checking CNV files...")
         case_folder_arr_cnv = get_cnv_from_folder(inputFolderCNV)
         logger.info("Everything ok!")
 
@@ -1184,7 +1184,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             multivcf = [i for i in os.listdir(inputFolderSNV) if i.endswith('.vcf')][0]
             extract_multiple_snv(os.path.join(inputFolderSNV, multivcf), inputFolderSNV)
             inputFolderSNV = os.path.join(inputFolderSNV, "single_sample_vcf")
-        logger.info("Check SNV files...")
+        logger.info("Checking SNV files...")
     case_folder_arr = get_snv_from_folder(inputFolderSNV)
     logger.info("Everything ok!")
 
@@ -1200,7 +1200,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     if os.path.exists(inputFolderSNV) and not vcf_type in ["cnv", "fus", "tab"]:
         sID_path_snv = snv_type_from_folder(inputFolderSNV, case_folder_arr)
         
-        logger.info("Check maf folder...")
+        logger.info("Checking maf folder...")
         maf_path = os.path.join(output_folder, "maf")
         if os.path.isdir(maf_path) and len([i for i in os.listdir(maf_path) if i.endswith('.maf')])>0:
             logger.info("a non empty maf folder already exists!")

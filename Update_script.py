@@ -1,7 +1,7 @@
 import os
 from Update_functions import *
 from loguru import logger
-from ValidateFolder import validateFolderlog
+from ValidateFolder import validateOutput
 from versioning import *
 from Make_meta_and_cases import meta_case_main
 import shutil
@@ -44,31 +44,31 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     output_caseslists = os.path.join(output,"case_lists")
     os.mkdir(output_caseslists)   
 
-    logger.info("Great! Everything is ready to start")      
-
+    logger.info("Great! Everything is ready to start")
     os.system("cp " + oldpath + "/*meta* " + output)
- 
-    check_files(oldpath, newpath, output, "data_clinical_sample.txt")
-    check_files(oldpath, newpath, output, "data_clinical_patient.txt")
-    check_files(oldpath, newpath, output, "data_cna_hg19.seg")
-    check_files(oldpath, newpath, output, "data_cna_hg19.seg.fc.txt")
-    check_files(oldpath, newpath, output, "data_cna.txt")
-    check_files(oldpath, newpath, output, "data_mutations_extended.txt")
-    check_files(oldpath, newpath, output, "data_sv.txt")
+    
+    file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt", "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt", "data_mutations_extended.txt", "data_sv.txt"]
+    for file in file_names:
+        try:
+            check_files(oldpath, newpath, output, file)
+        except pd.errors.ParserError as e:
+            line_number = int(re.search(r'line (\d+)', str(e)).group(1))
+            logger.critical(f"error: Wrong column number in line {line_number} of {file} file")
+            raise(IndexError("Exiting from Update script!"))
+
 
     check_files_cases(oldpath, newpath, output_caseslists,"cases_cna.txt")
     check_files_cases(oldpath, newpath, output_caseslists,"cases_sequenced.txt")
     check_files_cases(oldpath, newpath, output_caseslists,"cases_sv.txt")
-
-    logger.info("Starting Validation Folder...")
     
     cancer, study_info = extract_info_from_meta(oldpath)
     study_info.append(oldpath)
     study_info.append(no_out)
 
     meta_case_main(cancer, output, study_info, study_id)
- 
-    validateFolderlog(output)
+    
+    logger.info("Starting Validation Folder...")
+    validateOutput(output, True)
 
     logger.info("Starting writing Summary.txt...")
     compare_version_update(oldpath, newpath, output, "update")

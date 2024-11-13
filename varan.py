@@ -63,7 +63,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ############################
 
         logger.info("Starting validation")
-        validateOutput(output_folder)
+        validateOutput(output_folder, False)
 
     
     ############################

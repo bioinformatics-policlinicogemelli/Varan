@@ -122,16 +122,16 @@ def validateFolderlog(folder):
         missing_files = [elem for elem in required_files_list if elem not in list_files]
         result_all[category] = len(missing_files) == 0
     
-        
         if not result_all[category]:
-            logger.warning("Missing required files for "+ category)
-            logger.warning("Missing files:")
+            logger.warning(f"Missing required file(s) for {category} from {folder}")
+            logger.warning(f"Missing file(s) from {folder}:")
             for missing in missing_files:
-                logger.warning("* "+missing)
+                logger.warning("- " + missing)
         
             
     if all(result_all.values()):
         logger.success("Folder contains all required files for cBioportal")
+
 
 def validateFolder(folder,log=False):
     """
@@ -215,32 +215,35 @@ def validateFolder(folder,log=False):
     
         
         if not result_all[category]:
-            print("[WARNING] Missing required files for",category)
-            print("Missing files:")
+            logger.warning(f"Missing required files for {category} from {folder}")
+            print(f"Missing files from {folder}:")
             for missing in missing_files:
-                print("* ", missing)
+                print("- ", missing)
                 
-def validateOutput(folder):
+def validateOutput(folder, block2=False):
     
     validateFolderlog(folder)
     val = cBio_validation(folder)
 
-    write_filters_in_report(folder)
-    
-    if os.path.exists(os.path.join(folder, "maf")) and ZIP_MAF:
-        logger.info("Zipping maf folder...")    
-        shutil.make_archive(os.path.join(folder, "maf"), "zip", os.path.join(output_folder, "maf"))
-        logger.info("Deleting unzipped maf folder...")
-        shutil.rmtree(os.path.join(folder, "maf"))
+    if not block2:
+        write_filters_in_report(folder)    
+        
+        if os.path.exists(os.path.join(folder, "maf")) and ZIP_MAF:
+            import pdb; pdb.set_trace()
+            logger.info("Zipping maf folder...")    
+            shutil.make_archive(os.path.join(folder, "maf"), "zip", os.path.join(folder, "maf"))
+            logger.info("Deleting unzipped maf folder...")
+            shutil.rmtree(os.path.join(folder, "maf"))
 
-    if os.path.exists(os.path.join(folder, "snv_filtered")) and ZIP_SNV_FILTERED:
-        logger.info("Zipping snv_filtered folder...") 
-        shutil.make_archive(os.path.join(folder, "snv_filtered"), "zip", os.path.join(output_folder, "snv_filtered"))
-        logger.info("Deleting unzipped snv_filtered folder...")
-        shutil.rmtree(os.path.join(folder,"snv_filtered"))
+        if os.path.exists(os.path.join(folder, "snv_filtered")) and ZIP_SNV_FILTERED:
+            logger.info("Zipping snv_filtered folder...") 
+            shutil.make_archive(os.path.join(folder, "snv_filtered"), "zip", os.path.join(folder, "snv_filtered"))
+            logger.info("Deleting unzipped snv_filtered folder...")
+            shutil.rmtree(os.path.join(folder,"snv_filtered"))
 
-    if val != 1:
-        logger.info("Deleting temp folder")
-        shutil.rmtree(os.path.join(folder, "temp"))
-        logger.success("The end! The study is ready to be uploaded on cBioportal")
+        if val != 1 and os.path.exists(os.path.join(folder, "temp")):
+            logger.info("Deleting temp folder")
+            shutil.rmtree(os.path.join(folder, "temp"))
+
+    logger.success("The end! The study is ready to be uploaded on cBioportal")
     

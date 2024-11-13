@@ -33,6 +33,7 @@ def update_clinical_samples(oldfile_path, newfile_path, output_folder):
     old_updated = old.drop(index=common_samples)
     updated = pd.concat([new, old_updated], axis=0)
     updated.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=True, sep="\t", index_label=old.index.name)
+    logger.info("data_clinical_sample.txt updated!")
 
 
 def update_clinical_patient(oldfile_path, newfile_path, output_folder):
@@ -60,9 +61,9 @@ def update_clinical_patient(oldfile_path, newfile_path, output_folder):
 
     old_updated = old.drop(list(only_old_col), axis=1)
     old_updated = old_updated.drop(index=common_patients)
-
     updated = pd.concat([new, old_updated], axis=0).fillna(value=np.nan)
-    updated.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=True, sep="\t", index_label=old.index.name)
+    updated.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=True, sep="\t", index_label=old.index.name, na_rep="NaN")
+    logger.info("data_clinical_patient.txt updated!")
     
 
 def update_cna_hg19(oldfile_path, newfile_path, output_folder):
@@ -86,6 +87,7 @@ def update_cna_hg19(oldfile_path, newfile_path, output_folder):
     updated = pd.concat([old, new])
     updated = updated.drop_duplicates(subset=["ID","chrom","loc.start","loc.end"], keep='last')
     updated.to_csv(os.path.join(output_folder, "data_cna_hg19.seg"), index=False, sep="\t")
+    logger.info("data_cna_hg19.seg updated!")
         
 
 def update_cna_hg19_fc(oldfile_path, newfile_path, output_folder):
@@ -106,6 +108,7 @@ def update_cna_hg19_fc(oldfile_path, newfile_path, output_folder):
     updated = pd.concat([old, new])
     updated = updated.drop_duplicates(subset=["ID","chrom","loc.start","loc.end", "gene"], keep='last')
     updated.to_csv(os.path.join(output_folder, "data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
+    logger.info("data_cna_hg19.seg.fc.txt updated!")
 
 
 def update_cna(oldfile_path, newfile_path, output_folder):
@@ -133,6 +136,7 @@ def update_cna(oldfile_path, newfile_path, output_folder):
 
     updated = pd.concat([old.drop(columns=to_remove), new], axis=1).replace(np.nan, 0).astype(int)
     updated.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
+    logger.info("data_cna.txt updated!")
         
     
 def update_mutations(oldfile_path, newfile_path, output_folder):
@@ -156,6 +160,7 @@ def update_mutations(oldfile_path, newfile_path, output_folder):
     updated = pd.concat([old, new])
     updated.drop_duplicates(keep='last', inplace=True)
     updated.to_csv(os.path.join(output_folder, "data_mutations_extended.txt"), index=False, sep="\t")
+    logger.info("data_mutation_extended.txt updated!")
     
 def update_sv(oldfile_path, newfile_path, output_folder):
     """
@@ -194,6 +199,7 @@ def update_sv(oldfile_path, newfile_path, output_folder):
     data_sv = pd.read_csv(os.path.join(output_folder, "data_sv.txt"), sep="\t")
     data_sv = data_sv.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "SV_Status", "Class"], keep='last')
     data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"), sep="\t", index=False)
+    logger.info("data_sv.txt updated!")
     
 
 def update_caselist_cna(oldfile_path, newfile_path, output_folder):
@@ -353,7 +359,8 @@ def check_filters(oldpath, newpath, output):
     n_report = get_filters(n_report_path)
 
     final_report = pd.concat([o_report, n_report], axis=1)
-    final_report.set_axis(['Value1', 'Value2'], axis=1, inplace=True)
+    final_report = final_report.set_axis(['Value1', 'Value2'], axis=1, copy=False)
+
     final_report = final_report.reindex(o_report.index.union(n_report.index)).rename(index=str.strip)
 
     same = (final_report["Value1"] == final_report["Value2"])
@@ -365,7 +372,7 @@ def check_filters(oldpath, newpath, output):
         su.write(final_report[['Filter changed?']].to_string(index=True))
 
         if not all(same):
-            logger.warning("The filters of the two studies may be different!")
+            logger.warning("The filters of the two studies may be different! Check summary.txt for more infos.")
             su.write(f"\n\nThe following filters differ between the two studies: {', '.join(changed_filters)}.\n\n")
             for filter in changed_filters:
                 su.write(f"{filter}\nStudy1: {final_report.loc[filter, 'Value1']}\nStudy2: {final_report.loc[filter, 'Value2']}\n\n")
@@ -382,7 +389,7 @@ def get_filters(file_path):
         substring = [x for x in substring if x != []]
 
         df = pd.DataFrame(substring, columns = ['Filter']) 
-        df[['Filter', 'Value']] = df['Filter'].str.split('=', 1, expand=True)
+        df[['Filter', 'Value']] = df['Filter'].str.split('=', n=1, expand=True)
         df["Value"] = df["Value"].str.strip()
 
         df.set_index('Filter', inplace=True)
