@@ -47,6 +47,7 @@ def create_meta_study(cancer, project_name, project_id, description, output_dir,
         #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
+    logger.info("meta_study.txt created!")
 
     return project_id
 
@@ -339,10 +340,6 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     else: logger.warning("data_sv.txt file not found!")
     
     check_cases(output_folder)
-
-    # TODO funzione che elimina i meta corrispondenti se non esistono i cases
-    # oppure evitare direttamente di creare il data_...?
-
     logger.success("Make_meta_and_cases script completed!")
 
 class MyArgumentParser(argparse.ArgumentParser):
@@ -359,7 +356,7 @@ def check_cases(output_folder):
             lines = file.readlines()
             if lines[-1].strip() == "case_list_ids:":
                 os.remove(os.path.join(cases_path, case_file))
-                logger.info(f"There are no samples in {case_file}. This file will not be created")
+                logger.info(f"No samples found in {case_file}. This file will not be created")
 
 
 

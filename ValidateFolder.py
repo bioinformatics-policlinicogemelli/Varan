@@ -13,6 +13,7 @@ configFile = config.read("conf.ini")
 ZIP_MAF = config.get('Zip', 'ZIP_MAF')
 ZIP_SNV_FILTERED = config.get('Zip', 'ZIP_SNV_FILTERED')
         
+        
 def cBio_validation(output_folder):
     config = ConfigParser()
     config.read('conf.ini')
@@ -30,8 +31,8 @@ def cBio_validation(output_folder):
         return process1.returncode
 
     except subprocess.CalledProcessError as e:
-        logger.error("Something went wrong while trying to connect to localhost. It may be due to an error on port selection" +\
-                     " or invalid docker settings.")
+        logger.error("Connection to localhost failed. This may be due to an incorrect port selection" +\
+                     " or invalid Docker settings.")
         logger.info("Starting offline validation...")
 
         process2 = subprocess.Popen(['python3', 'importer/validateData.py', '-s', output_folder, '-n', "-e", os.path.join(output_folder, "report.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -50,7 +51,7 @@ def cBio_validation(output_folder):
 
 def check_process_status(process, warn_msg):
     if process.returncode in [2, 3]:
-        logger.warning(f"{warn_msg.strip()} Check report files in the study folder for more info!")
+        logger.warning(f"{warn_msg.strip()} Check report files in the study folder for details!")
     elif process.returncode == 0:
         logger.success("The validation proceeded without errors and warnings! The study is ready to be uploaded!")
 
@@ -124,7 +125,7 @@ def validateFolderlog(folder):
     
         if not result_all[category]:
             logger.warning(f"Missing required file(s) for {category} from {folder}")
-            logger.warning(f"Missing file(s) from {folder}:")
+            logger.warning(f"Missing file(s):")
             for missing in missing_files:
                 logger.warning("- " + missing)
         
@@ -216,34 +217,47 @@ def validateFolder(folder,log=False):
         
         if not result_all[category]:
             logger.warning(f"Missing required files for {category} from {folder}")
-            print(f"Missing files from {folder}:")
+            print(f"Missing file(s):")
             for missing in missing_files:
                 print("- ", missing)
                 
-def validateOutput(folder, block2=False):
+def validateOutput(folder, input, multi, block2=False):
     
     validateFolderlog(folder)
     val = cBio_validation(folder)
 
-    if not block2:
-        write_filters_in_report(folder)    
+    if val != 1:
+        if not block2:
+            write_filters_in_report(folder)    
+            
+            if os.path.exists(os.path.join(folder, "maf")) and ZIP_MAF:
+                logger.info("Zipping maf folder...")    
+                shutil.make_archive(os.path.join(folder, "maf"), "zip", os.path.join(folder, "maf"))
+                logger.info("Deleting unzipped maf folder...")
+                shutil.rmtree(os.path.join(folder, "maf"))
+
+            if os.path.exists(os.path.join(folder, "snv_filtered")) and ZIP_SNV_FILTERED:
+                logger.info("Zipping snv_filtered folder...") 
+                shutil.make_archive(os.path.join(folder, "snv_filtered"), "zip", os.path.join(folder, "snv_filtered"))
+                logger.info("Deleting unzipped snv_filtered folder...")
+                shutil.rmtree(os.path.join(folder,"snv_filtered"))
+
+            if os.path.exists(os.path.join(folder, "temp")):
+                logger.info("Deleting temp folder")
+                shutil.rmtree(os.path.join(folder, "temp"))
+
+            if multi:
+                if os.path.exists(os.path.join(input[0], "CNV", "single_sample_vcf")):
+                    shutil.rmtree(os.path.join(input[0], "CNV", "single_sample_vcf"))
+                if os.path.exists(os.path.join(input[0], "CNV", "sample_id.txt")):
+                    os.remove(os.path.join(input[0], "CNV", "sample_id.txt"))
+                if os.path.exists(os.path.join(input[0], "SNV", "single_sample_vcf")):
+                    shutil.rmtree(os.path.join(input[0], "SNV", "single_sample_vcf"))
+                if os.path.exists(os.path.join(input[0], "SNV", "sample_id.txt")):
+                    os.remove(os.path.join(input[0], "SNV", "sample_id.txt"))
+
         
-        if os.path.exists(os.path.join(folder, "maf")) and ZIP_MAF:
-            import pdb; pdb.set_trace()
-            logger.info("Zipping maf folder...")    
-            shutil.make_archive(os.path.join(folder, "maf"), "zip", os.path.join(folder, "maf"))
-            logger.info("Deleting unzipped maf folder...")
-            shutil.rmtree(os.path.join(folder, "maf"))
-
-        if os.path.exists(os.path.join(folder, "snv_filtered")) and ZIP_SNV_FILTERED:
-            logger.info("Zipping snv_filtered folder...") 
-            shutil.make_archive(os.path.join(folder, "snv_filtered"), "zip", os.path.join(folder, "snv_filtered"))
-            logger.info("Deleting unzipped snv_filtered folder...")
-            shutil.rmtree(os.path.join(folder,"snv_filtered"))
-
-        if val != 1 and os.path.exists(os.path.join(folder, "temp")):
-            logger.info("Deleting temp folder")
-            shutil.rmtree(os.path.join(folder, "temp"))
-
-    logger.success("The end! The study is ready to be uploaded on cBioportal")
+        logger.success("The study is ready to be uploaded on cBioportal")
     
+    else:
+        raise Exception("Validation Failed!")

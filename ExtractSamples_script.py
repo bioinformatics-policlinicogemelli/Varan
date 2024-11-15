@@ -1,6 +1,6 @@
 import os
 from ExtractSamples_functions import *
-from ValidateFolder import validateFolderlog
+from ValidateFolder import validateOutput
 from Make_meta_and_cases import meta_case_main
 from versioning import *
 from loguru import logger
@@ -106,7 +106,17 @@ def extract_main(oldpath, removepath, output, study_id, overwrite):
     compare_version(oldpath, output, "extract")
     
     logger.info("Starting Validation Folder...")
-    validateFolderlog(output)
+    validateOutput(output, True)
+
+    report_file_path = os.path.join(output, "report.txt")  
+
+    with open(report_file_path, "r") as file:
+        val_report = file.readlines()
+
+    with open(report_file_path, "w") as file:
+        file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
+        file.writelines(val_report)
+    
     logger.success("The process ended without errors")
     logger.success("Successfully extracted sample(s)!")
     

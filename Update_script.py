@@ -70,6 +70,15 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     logger.info("Starting Validation Folder...")
     validateOutput(output, True)
 
+    report_file_path = os.path.join(output, "report.txt")  
+
+    with open(report_file_path, "r") as file:
+        val_report = file.readlines()
+
+    with open(report_file_path, "w") as file:
+        file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
+        file.writelines(val_report)
+
     logger.info("Starting writing Summary.txt...")
     compare_version_update(oldpath, newpath, output, "update")
 

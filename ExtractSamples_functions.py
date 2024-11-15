@@ -54,9 +54,10 @@ def extract_clinical_patient(oldpath, sample_ids, output_folder):
     Example:
       >>>  extract_clinical_patient('input_folder/', ['sample1', 'sample2'], 'output_folder/')
     """
-    file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t")
+
+    file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t", header=None)
     sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t")
-    
+
     idx_sample=np.argwhere(sample.values == "SAMPLE_ID")[0][1]
     idx_patient=np.argwhere(sample.values == "PATIENT_ID")[0][1]
     
@@ -66,11 +67,14 @@ def extract_clinical_patient(oldpath, sample_ids, output_folder):
         not_found = set(sample_ids) - set(sample.iloc[4:, idx_sample])
         logger.warning(f"{not_found} sample(s) are not in data_clinical_sample.txt and won't be extraced.")
           
-    header = file.loc[0:3,:]
-    extracted = file[file.iloc[:, idx_patient].astype(str).isin(patient_ids)]
+    header = file.loc[0:4,:]
+    data = file.loc[4:,:]
+
+    idx_patient=np.argwhere(file.values == "PATIENT_ID")[0][1]
+    extracted = data[data.iloc[:, idx_patient].astype(str).isin(patient_ids)]
 
     extracted = pd.concat([header, extracted])    
-    extracted.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t")
+    extracted.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t", header=False)
    
 
 def extract_cna_hg19(file_path, sample_ids, output_folder):

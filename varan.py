@@ -46,7 +46,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ############################
 
         if  os.path.exists(os.path.join(output_folder,"maf")) and not analysis_type in ["cnv", "fus", "tab"]:
-            logger.info("Concatenate mutation file")
+            logger.info("Concatenating mutation file")
             concatenate_main(filters, output_folder,"maf", oncoKB)
                 
                 
@@ -63,7 +63,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ############################
 
         logger.info("Starting validation")
-        validateOutput(output_folder, False)
+        validateOutput(output_folder, input, multiple, False)
 
     
     ############################

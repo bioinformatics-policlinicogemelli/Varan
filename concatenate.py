@@ -33,7 +33,7 @@ def get_files_by_ext(folder, ext):
 def extract_maf_folder(filters, oncoKB):
     if oncoKB and "o" in filters:
         folder="MAF_Onco_filtered"
-    elif "o" not in filters and (filters!="d" and filters!=""):
+    elif filters!="d" and filters!="":
         folder="MAF_filtered"
     elif oncoKB:
         folder="MAF_OncoKB"    
@@ -59,8 +59,18 @@ def concatenate_main(filters, output_folder, ext, oncoKB):
         
     file_list = get_files_by_ext(input_folder, ext)
     concatenate_files(file_list, output_file)
-    
-    logger.info(f"Extracting data_mutations_extended from {input_folder} folder") 
-    os.system("mv "+os.path.join(input_folder,"data_mutations_extended.txt")+" "+ output_folder )
+
+    logger.info(f"Checking data_mutations_extended...")
+    with open(output_file) as data_mut:
+        all_data_mut = data_mut.readlines()
+        if (len(all_data_mut) == 1):
+            os.remove(output_file)
+            logger.warning("data_mutations_extended is empty. File removed.")
+
+
+
+    if os.path.exists(output_file):
+        logger.info(f"Extracting data_mutations_extended from {input_folder} folder")
+        os.system("mv "+os.path.join(input_folder,"data_mutations_extended.txt")+" "+ output_folder )
     
     logger.success("Concatenate script completed!\n")
