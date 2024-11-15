@@ -1,0 +1,29 @@
+TEST VARAN
+
+* Installazione (generale):
+    - requirements (vedere se tutti pacchetti vengono installati)
+
+* Docker:
+    - installazione (MAC, Windows, Linux)
+    - funzionamento (caricare volumi, mandare analisi, verificare output, validazione)
+
+* Installazione locale
+
+* controllo gestione errori
+
+* pulizia codice 
+    - togliere parti commentate/inutilizzate
+    - controllare commenti alle funzioni/documentazione
+
+* aggiornamento readme
+    - zip
+    - validazione con funzione cbioportal
+    - aggiornamento parte descrizione conf.ini
+    - prioritizzazione info in combined anche se popolate in sample o in fusion.tsv
+
+* aggiornamento cartelle di prova: 
+    - input da cartella
+    - input da file (da discutere)
+    - multiple (forse no)
+
+
