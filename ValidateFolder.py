@@ -56,6 +56,14 @@ def check_process_status(process, warn_msg):
         logger.success("The validation proceeded without errors and warnings! The study is ready to be uploaded!")
 
 
+def clean_multi(input_folder, folder, file):
+    mypath = os.path.join(input_folder, folder, file)
+    if os.path.exists(mypath) and os.path.isdir(mypath):
+        shutil.rmtree(mypath)
+    if os.path.exists(mypath) and os.path.isfile(mypath):
+        os.remove(mypath)
+
+
 def validateFolderlog(folder):
     """
     Validates the contents of the folder against required files for cBioPortal data upload.
@@ -247,16 +255,11 @@ def validateOutput(folder, input, multi, block2=False):
                 shutil.rmtree(os.path.join(folder, "temp"))
 
             if multi:
-                if os.path.exists(os.path.join(input[0], "CNV", "single_sample_vcf")):
-                    shutil.rmtree(os.path.join(input[0], "CNV", "single_sample_vcf"))
-                if os.path.exists(os.path.join(input[0], "CNV", "sample_id.txt")):
-                    os.remove(os.path.join(input[0], "CNV", "sample_id.txt"))
-                if os.path.exists(os.path.join(input[0], "SNV", "single_sample_vcf")):
-                    shutil.rmtree(os.path.join(input[0], "SNV", "single_sample_vcf"))
-                if os.path.exists(os.path.join(input[0], "SNV", "sample_id.txt")):
-                    os.remove(os.path.join(input[0], "SNV", "sample_id.txt"))
+                clean_multi(input[0], "CNV", "single_sample_vcf")
+                clean_multi(input[0], "CNV", "sample_id.txt")
+                clean_multi(input[0], "SNV", "single_sample_vcf")
+                clean_multi(input[0], "SNV", "sample_id.txt")
 
-        
         logger.success("The study is ready to be uploaded on cBioportal")
     
     else:

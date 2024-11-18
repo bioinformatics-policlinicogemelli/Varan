@@ -135,8 +135,8 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
                 else:
                     sID_path[sampleID] = os.path.join(os.path.join(input, "CNV"), cnv_vcf)
 
-                check_data_cna("data_cna_hg19.seg")
-                check_data_cna("data_cna_hg19.seg.fc.txt")
+                vcf2tab_cnv.vcf_to_table(sID_path[sampleID], os.path.join(output_folder, 'data_cna_hg19.seg'), sampleID, MODE)
+                vcf2tab_cnv.vcf_to_table_fc(sID_path[sampleID], os.path.join(output_folder, 'data_cna_hg19.seg.fc.txt'), sampleID, MODE)
                
         except Exception:
             log_noparsed = open('noParsed_cnv.log', 'a')
@@ -144,7 +144,10 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
             log_noparsed.close()
         
         c = c + 1
-    
+
+    check_data_cna("data_cna_hg19.seg", output_folder)
+    check_data_cna("data_cna_hg19.seg.fc.txt", output_folder)
+
     if os.path.exists('data_cna_hg19.seg'):
         logger.info("Writing data_cna_hg19.seg succefully completed!")
 
@@ -556,10 +559,10 @@ def check_multiple_folder(input_dir, multiple):
         lines = file.readlines()
         if len(lines) >= 2 and not multiple:
             snv_mulitple = True
-            logger.error("-m option was not selected but the SNV.vcf file is multiple!")
+            logger.error("-m option was not selected but the SNV file is multiple!")
         elif len(lines) < 2 and multiple:
             snv_single = True
-            logger.error("-m option was selected but the SNV.vcf file is not multiple!")        
+            logger.error("-m option was selected but the SNV file is not multiple!")        
     os.remove(snv_file)
 
     cnv_folder = os.path.join(input_dir, "CNV")
@@ -571,10 +574,10 @@ def check_multiple_folder(input_dir, multiple):
         lines = file.readlines()
         if len(lines) >= 2 and not multiple:
             cnv_mulitple = True
-            logger.error("-m option was not selected but the CNV.vcf file is multiple!")
+            logger.error("-m option was not selected but the CNV file is multiple!")
         elif len(lines) < 2 and multiple:
             cnv_single = True
-            logger.error("-m option was selected but the CNV.vcf file is not multiple!")   
+            logger.error("-m option was selected but the CNV file is not multiple!")   
     os.remove(cnv_file)
 
     if cnv_mulitple or snv_mulitple:
@@ -916,8 +919,7 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
                 logger.info(f"No Fusions found in {fusion_file}")
                 continue
             else:
-                logger.info(f"Fusions found in {fusion_file}")          
-
+                logger.info(f"Fusions found in {fusion_file}")       
             for fus in ff.itertuples(index=False):
                 if fus.Sample_Id in clin_file["SAMPLE_ID"].values:
                     if int(fus.Normal_Paired_End_Read_Count) >= 15:
@@ -979,19 +981,17 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
             str(Site1_Hugo_Symbol)+'\t'+str(Site2_Hugo_Symbol)+'\t'+fus['Normal_Paired_End_Read_Count']+\
             '\t'+fus['Event_Info']+' Fusion\t'+'Yes\n')
 
-    
 
 
-def check_data_cna(input_file):
+def check_data_cna(input_file, output_folder):
     data_cna_path = os.path.join(output_folder, input_file)
-    vcf2tab_cnv.vcf_to_table(sID_path[sampleID], os.path.join(output_folder, input_file), sampleID, MODE)
     logger.info(f"Checking {input_file} file...")
     with open(data_cna_path) as data_cna:
         all_data_cna = data_cna.readlines()
         if (len(all_data_cna) == 1):
             os.remove(data_cna_path)
             logger.warning(f"{input_file} is empty. File removed.")
-            
+
 
 def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
 
@@ -1016,6 +1016,7 @@ def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
         else:
             table_dict_patient[k].append("NA")
     return table_dict_patient
+
 
 def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB):
     for k, v in combined_dict.items():
@@ -1075,8 +1076,8 @@ def input_extraction_folder(input):
     patient_tsv, fusion_tsv = "",""
     if os.path.exists(os.path.join(input, "patient.tsv")):
         patient_tsv = os.path.join(input, "patient.tsv")
-    if os.path.exists(os.path.join(input, "FUSIONS", "Fusion.tsv")):
-        fusion_tsv = os.path.join(input, "FUSIONS", "Fusion.tsv")
+    if os.path.exists(os.path.join(input, "FUSIONS", "Fusions.tsv")):
+        fusion_tsv = os.path.join(input, "FUSIONS", "Fusions.tsv")
     return patient_tsv, fusion_tsv
 
 
@@ -1233,7 +1234,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         logger.info("Checking maf folder...")
         maf_path = os.path.join(output_folder, "maf")
         if os.path.isdir(maf_path) and len([i for i in os.listdir(maf_path) if i.endswith('.maf')])>0:
-            logger.info("a non empty maf folder already exists!")
+            logger.info("A non empty maf folder already exists!")
         
         if not resume:
             logger.info("Starting vcf2maf conversion...")
@@ -1263,11 +1264,13 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
 
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
+        logger.info("Getting Fusions infos from CombinedOutput...")
         THR_FUS = config.get('FUSION', 'THRESHOLD_FUSION')
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)  
         fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
     
-    elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]:   
+    elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]: 
+        logger.info("Getting Fusions infos from Fusions.tsv file...")  
         fusion_files=[file for file in os.listdir(os.path.join(input_folder,"FUSIONS")) if "tsv" in file]
         if fusion_files != []:
             fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)  
@@ -1288,7 +1291,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             fus_file = pd.read_csv(fusion_table_file_out, sep="\t")
             fus_file = filter_OncoKB(fus_file)
             fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
-        os.system(f"mv {fusion_table_file_out}  {fusion_table_file}") 
+        os.system(f"mv {fusion_table_file_out} {fusion_table_file}") 
             
       
     ##############################
