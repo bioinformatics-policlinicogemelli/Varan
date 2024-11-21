@@ -26,8 +26,7 @@ def cBio_validation(output_folder):
         warn = stderr1
         if process1.returncode == 1:
             raise subprocess.CalledProcessError(process1.returncode, process1.args, output=stdout1, stderr=stderr1)
-        logger.info(stdout1)
-        
+        check_process_status(process1, warn)
         return process1.returncode
 
     except subprocess.CalledProcessError as e:
@@ -36,16 +35,13 @@ def cBio_validation(output_folder):
         logger.info("Starting offline validation...")
 
         process2 = subprocess.Popen(['python3', 'importer/validateData.py', '-s', output_folder, '-n', "-e", os.path.join(output_folder, "report.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        _, stderr2 = process2.communicate()
+        stdout2, stderr2 = process2.communicate()
         warn = stderr2
         if process2.returncode == 1:
             logger.error(f"Error: {stderr2.strip()} Check the report files in the study folder for more info!")
         
-        check_process_status(process1, warn)
-
         if process1.returncode == 1 and 'process2' in locals():
             check_process_status(process2, warn)
-
         return process2.returncode
 
 
@@ -91,7 +87,7 @@ def validateFolderlog(folder):
             subdir=file
             sudbirfiles=os.listdir(os.path.join(folder,subdir))
             for subdirfile in sudbirfiles:
-                list_files.append(os.path.join(subdir,subdirfile))
+                list_files.append(os.path.join(subdir, subdirfile))
         else:
             list_files.append(file)
 
@@ -132,8 +128,7 @@ def validateFolderlog(folder):
         result_all[category] = len(missing_files) == 0
     
         if not result_all[category]:
-            logger.warning(f"Missing required file(s) for {category} from {folder}")
-            logger.warning(f"Missing file(s):")
+            logger.warning(f"Missing file(s) for {category} from {folder}:")
             for missing in missing_files:
                 logger.warning("- " + missing)
         
@@ -224,13 +219,11 @@ def validateFolder(folder,log=False):
     
         
         if not result_all[category]:
-            logger.warning(f"Missing required files for {category} from {folder}")
-            print(f"Missing file(s):")
+            logger.warning(f"Missing file(s) for {category} from {folder}:")
             for missing in missing_files:
                 print("- ", missing)
                 
 def validateOutput(folder, input, multi, block2=False):
-    
     validateFolderlog(folder)
     val = cBio_validation(folder)
 

@@ -489,8 +489,7 @@ def create_folder(output_folder, overwrite_output, resume):
         output_folder_version = output_folder + version  
     else:
         output_folder_version,_ = get_newest_version(output_folder)
-
-    logger.info(f"Creating the output folder '{output_folder_version}' in {os.path.dirname(output_folder)}...")
+    logger.info(f"Creating the output folder '{output_folder_version}'...")
     
     os.makedirs(output_folder_version, exist_ok=True)
     maf_path = os.path.join(output_folder_version, 'maf')
@@ -607,9 +606,9 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     
     if len(combout_df.columns) > 2:
         combout_df = combout_df.rename(columns={1: "MSI", 2: "TMB", 3: "MSI_THR", 4:"TMB_THR"})
-
-        if (any(data_clin_samp["MSI"] != combout_df["MSI"]) or any(data_clin_samp["TMB"] != combout_df["TMB"])):
-            logger.warning("MSI and/or TMB values are reported in sample.tsv and CombinedOutput but they do not match! CombinedOutput values were selected by default")
+        if data_clin_samp['MSI'].notna().any() or data_clin_samp['TMB'].notna().any():
+            if (any(data_clin_samp["MSI"] != combout_df["MSI"]) or any(data_clin_samp["TMB"] != combout_df["TMB"])):
+                logger.warning("MSI and/or TMB values are reported in sample.tsv and CombinedOutput but they do not match! CombinedOutput values were selected by default")
         data_clin_samp.drop(columns=["MSI", "TMB", "MSI_THR", "TMB_THR"], inplace=True)
 
         final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENT_ID", "SAMPLE_ID"])
@@ -830,9 +829,7 @@ def check_field_tsv(row, name):
 
 def get_combinedVariantOutput_from_folder(inputFolder, file, isinputfile):
     combined_dict = dict()
-
     for _,row in file.iterrows():
-        
         #patientID = check_field_tsv(row, "PatientID")
         # combined_file = patientID+COMBOUT #da verificare
         # combined_path = os.path.join(inputFolder,"CombinedOutput",combined_file)
@@ -842,26 +839,27 @@ def get_combinedVariantOutput_from_folder(inputFolder, file, isinputfile):
             combined_path = check_field_tsv(row, "comb_path")
         else: # TODO rivedere se mantenere così o meno
             combined_path = os.path.join(inputFolder, "CombinedOutput", patientID + "_CombinedVariantOutput.tsv")
-        
+
         if os.path.exists(combined_path):
             pass 
         else:
-            logger.warning(f"{combined_path} not exists")
+            logger.warning(f"comb_path in conf.ini does not exists")
         combined_dict[sampleID] = combined_path
     return combined_dict
 
-def check_input_file(output_folder, file, copy_to):
+def check_input_file(output_folder, file, copy_to, sample_id):
     if os.path.exists(file):
         os.system("cp " + file + " " + os.path.join(output_folder, "temp", copy_to))
     elif not file:
-        logger.warning(f"No final_path set in conf.ini!")
+        logger.warning(f"No final_path set in conf.ini for sample {sample_id}'s {copy_to}!")
     else:
         logger.warning(f"{file} not found")
         
-def check_folders(output_folder, snv_path, cnv_path, combout):
-    check_input_file(output_folder, snv_path, "SNV")
-    check_input_file(output_folder, cnv_path, "CNV")
-    check_input_file(output_folder, combout, "CombinedOutput")
+def check_folders(output_folder, snv_path, cnv_path, combout, sample_id):
+    logger.info("Verifying the compilation of the conf.ini file")
+    check_input_file(output_folder, snv_path, "SNV", sample_id)
+    check_input_file(output_folder, cnv_path, "CNV", sample_id)
+    check_input_file(output_folder, combout, "CombinedOutput", sample_id)
         
 def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
     os.makedirs(os.path.join(output_folder, "temp"), exist_ok=True)
@@ -887,11 +885,12 @@ def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
         tsv_file = pd.read_csv(tsv, sep="\t", dtype="string", keep_default_na=False)
    
         for _,row in tsv_file.iterrows():
+            sample_id = row["SAMPLE_ID"]
             snv_path = row["snv_path"]
             cnv_path = row["cnv_path"]
             combout = row["comb_path"]
 
-            check_folders(output_folder, snv_path, cnv_path, combout)
+            check_folders(output_folder, snv_path, cnv_path, combout, sample_id)
                 
     return os.path.join(output_folder, "temp")
 
@@ -958,7 +957,7 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
             try:
                 fusions = tsv.get_fusions(v)
             except Exception as e:
-                logger.error(f"Something went wrong while reading Fusion section of file {v}")
+                logger.error(f"Something went wrong while reading Fusion section for sample {k}")
             if len(fusions) == 0:
                 #logger.info(f"No Fusions found in {v}")
                 continue
@@ -994,7 +993,6 @@ def check_data_cna(input_file, output_folder):
 
 
 def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
-
     #logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
     for k, m, t in zip(fileinputclinical["SAMPLE_ID"], fileinputclinical["MSI"], fileinputclinical["TMB"]):
         table_dict_patient[k].append(m)
@@ -1133,10 +1131,10 @@ def write_filters_in_report(output_folder):
                     conf_content.append(f"{key.upper()} = {value}")  
 
     conf_content = "\n".join(conf_content) + "\n\n"
-
+    
     with open(report_file_path, "r") as file:
         val_report = file.readlines()
-
+    
     with open(report_file_path, "w") as file:
         file.write(f"Varan run - {date}\n\nThe following configuration and filters have been used:\n")
         file.write(conf_content)
@@ -1187,7 +1185,6 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     inputFolderSNV = os.path.abspath(os.path.join(input_folder, "SNV"))
     inputFolderCNV = os.path.abspath(os.path.join(input_folder, "CNV"))
     inputFolderCombOut = os.path.abspath(os.path.join(input_folder, "CombinedOutput"))
-    inputFolderFusion = os.path.abspath(os.path.join(input_folder, "FUSIONS"))
 
     assert (len(os.listdir(inputFolderSNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
         "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
@@ -1256,30 +1253,31 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
 
     clin_sample_path = os.path.join(input_folder, "sample.tsv")
     fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
-    
     try:
         clin_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
     except Exception as e:
         logger.critical(f"Something went wrong while reading {clin_sample_path}!")
         raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
 
+    fusion_folder = os.path.join(input_folder, "FUSIONS")
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
         logger.info("Getting Fusions infos from CombinedOutput...")
         THR_FUS = config.get('FUSION', 'THRESHOLD_FUSION')
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)  
         fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
     
-    elif os.path.exists(os.path.abspath(os.path.join(input_folder,"FUSIONS"))) and not type in ["cnv","snv","tab"]: 
+    elif os.path.exists(os.path.abspath(fusion_folder)) and os.listdir(fusion_folder) and not type in ["cnv","snv","tab"]:
         logger.info("Getting Fusions infos from Fusions.tsv file...")  
-        fusion_files=[file for file in os.listdir(os.path.join(input_folder,"FUSIONS")) if "tsv" in file]
+        fusion_files=[file for file in os.listdir(fusion_folder) if "tsv" in file]
         if fusion_files != []:
             fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)  
     
-    with open(fusion_table_file) as data_sv:
-        all_data_sv = data_sv.readlines()
-        if (len(all_data_sv) == 1):
-            os.remove(fusion_table_file)
-            logger.warning("data.sv is empty. File removed.")
+    if os.path.exists(fusion_table_file):
+        with open(fusion_table_file) as data_sv:
+            all_data_sv = data_sv.readlines()
+            if (len(all_data_sv) == 1):
+                os.remove(fusion_table_file)
+                logger.warning("data.sv is empty. File removed.")
 
 
     if oncokb and os.path.exists(fusion_table_file):
@@ -1351,11 +1349,11 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         MSI_SITES_THR = config.get('MSI', 'THRESHOLD_SITES')
 
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)        
-        table_dict_patient = fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB_THR)
+        new_table_dict_patient = fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB_THR)
     else:
-        table_dict_patient = fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB_THR)
+        new_table_dict_patient = fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB_THR)
 
-    write_clinical_sample(clin_sample_path, output_folder, table_dict_patient)
+    write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient)
     
     logger.success("Walk script completed!\n")
 

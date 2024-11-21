@@ -329,18 +329,18 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
 
     if os.path.exists(os.path.join(output_folder,"data_mutations_extended.txt")):
         populate_cases_sequenced(project_id, output_folder, cases_list_dir, logger)
-    else: logger.warning("data_mutations_extended.txt file not found!")
+    else: logger.warning("data_mutations_extended.txt file not found, not writing cases_sequenced.txt!")
     
     if os.path.exists(os.path.join(output_folder,"data_cna.txt")):
         populate_cases_cna(project_id, output_folder, cases_list_dir, logger)
-    else: logger.warning("data_cna.txt file not found!")
+    else: logger.warning("data_cna.txt file not found, not writing cases_cna.txt!")
     
     if os.path.exists(os.path.join(output_folder,"data_sv.txt")):
         populate_cases_sv(project_id, output_folder, cases_list_dir, logger)
-    else: logger.warning("data_sv.txt file not found!")
+    else: logger.warning("data_sv.txt file not found, not writing cases_sv.txt!")
     
     check_cases(output_folder)
-    logger.success("Make_meta_and_cases script completed!")
+    logger.success("Make_meta_and_cases script completed!\n")
 
 class MyArgumentParser(argparse.ArgumentParser):
   """An argument parser that raises an error, instead of quits"""
