@@ -68,7 +68,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     meta_case_main(cancer, output, study_info, study_id)
     
     logger.info("Starting Validation Folder...")
-    validateOutput(output, True)
+    validateOutput(output, None, False, True)
 
     report_file_path = os.path.join(output, "report.txt")  
 

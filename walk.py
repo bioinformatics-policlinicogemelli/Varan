@@ -457,8 +457,8 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     
     return cl
 
-def run_vcf2maf(cl):
-    logger.info('Starting vcf2maf conversion... This may take several minutes (approx 5 minutes per sample).')
+def run_vcf2maf(cl, sample):
+    logger.info(f'Starting vcf2maf conversion of {sample}... This may take several minutes (approx 5 minutes per sample).')
     logger.info(f'args={cl}')
     sout = subprocess.run(cl, capture_output=True)
  
@@ -1134,10 +1134,9 @@ def write_filters_in_report(output_folder):
     
     with open(report_file_path, "r") as file:
         val_report = file.readlines()
-    
-    os.remove(report_file_path)
 
-    with open(os.path.join(output_folder, "report_Varan.txt"), "w") as file:
+
+    with open(report_file_path, "w") as file:
         file.write(f"Varan run - {date}\n\nThe following configuration and filters have been used:\n")
         file.write(conf_content)
         file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
@@ -1256,14 +1255,13 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             logger.info("A non empty maf folder already exists!")
         
         if not resume:
-            logger.info("Starting vcf2maf conversion...")
             if "d" in filters:
                 logger.info("filtering out vcfs with dots in ALT column")
                 sID_path_snv = vcf_filtering(sID_path_snv, output_folder, output_filtered)
             temporary = create_random_name_folder()
             for k, v in sID_path_snv.items():
                 cl = vcf2maf_constructor(k, v, temporary, output_folder)
-                run_vcf2maf(cl)
+                run_vcf2maf(cl, k)
     
     logger.info("Clearing scratch folder...")
     clear_scratch()

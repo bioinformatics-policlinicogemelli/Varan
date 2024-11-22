@@ -106,7 +106,7 @@ def extract_main(oldpath, removepath, output, study_id, overwrite):
     compare_version(oldpath, output, "extract")
     
     logger.info("Starting Validation Folder...")
-    validateOutput(output, True)
+    validateOutput(output, None, False, True)
 
     report_file_path = os.path.join(output, "report.txt")  
 

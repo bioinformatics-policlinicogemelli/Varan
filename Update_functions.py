@@ -154,8 +154,9 @@ def update_mutations(oldfile_path, newfile_path, output_folder):
     Example:
       >>>  update_mutations('old_data_mutations_extended.txt', 'new_data_mutations_extended.txt', 'output_folder/')
     """
-    old = pd.read_csv(oldfile_path, sep="\t")
-    new = pd.read_csv(newfile_path, sep="\t")
+    old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
+    new = pd.read_csv(newfile_path, sep="\t", dtype=str)
+
 
     updated = pd.concat([old, new])
     updated.drop_duplicates(keep='last', inplace=True)

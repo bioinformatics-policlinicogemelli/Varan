@@ -247,7 +247,7 @@ def validateOutput(folder, input, multi, block2=False):
                 logger.info("Deleting temp folder")
                 shutil.rmtree(os.path.join(folder, "temp"))
 
-            if multi:
+            if multi and input != None:
                 clean_multi(input[0], "CNV", "single_sample_vcf")
                 clean_multi(input[0], "CNV", "sample_id.txt")
                 clean_multi(input[0], "SNV", "single_sample_vcf")
