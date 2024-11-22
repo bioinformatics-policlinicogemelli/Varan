@@ -1135,12 +1135,13 @@ def write_filters_in_report(output_folder):
     with open(report_file_path, "r") as file:
         val_report = file.readlines()
     
-    with open(report_file_path, "w") as file:
+    os.remove(report_file_path)
+
+    with open(os.path.join(output_folder, "report_Varan.txt"), "w") as file:
         file.write(f"Varan run - {date}\n\nThe following configuration and filters have been used:\n")
         file.write(conf_content)
         file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
         file.writelines(val_report)
-
 
 
 def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
@@ -1188,6 +1189,27 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
 
     assert (len(os.listdir(inputFolderSNV))>0 or len(os.listdir(inputFolderCNV))>0 or len(os.listdir(inputFolderCombOut))>0), \
         "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
+
+    maf_path = os.path.join(output_folder, 'maf')
+    clin_sample_path = os.path.join(input_folder, "sample.tsv")
+    try:
+        clin_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
+    except Exception as e:
+        logger.critical(f"Something went wrong while reading {clin_sample_path}!")
+        raise(Exception("Error in reading the input file! Please check again."))
+    
+    if resume:
+        try:
+            list_maf = os.listdir(maf_path)
+        except:
+            logger.critical(f"maf folder not found. It may be compressed as 'maf.zip'. Please unzip this folder and restart the analysis.")
+            raise(Exception("maf folder not found!"))
+        
+        for maf_file in list_maf:
+            maf_list = [maf_file.strip(".vcf.maf") for maf_file in os.listdir(maf_path)]
+            if set(maf_list) != set(clin_file["SAMPLE_ID"]):
+                logger.critical("It seems you are resuming an existing study with a different set of input samples. Please verify the sample consistency!")
+                raise(FileNotFoundError("Sample mismatch detected."))
 
     if len(os.listdir(inputFolderSNV))==0 and vcf_type == None:
         vcf_type = "cnv"
@@ -1250,16 +1272,10 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ###############################
     ###       GET FUSION        ###
     ###############################
-
-    clin_sample_path = os.path.join(input_folder, "sample.tsv")
+    
     fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
-    try:
-        clin_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
-    except Exception as e:
-        logger.critical(f"Something went wrong while reading {clin_sample_path}!")
-        raise(Exception("Error in get_combinedVariantOutput_from_folder script: exiting from walk script!"))
-
     fusion_folder = os.path.join(input_folder, "FUSIONS")
+
     if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
         logger.info("Getting Fusions infos from CombinedOutput...")
         THR_FUS = config.get('FUSION', 'THRESHOLD_FUSION')
@@ -1339,7 +1355,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     else:
         write_default_clinical_patient(output_folder, table_dict_patient)
 
-    fileinputclinical = pd.read_csv(os.path.join(input_folder, "sample.tsv"), sep="\t", index_col=False, dtype=str)
+    fileinputclinical = pd.read_csv(clin_sample_path, sep="\t", index_col=False, dtype=str)
     
     MSI_THR = config.get('MSI', 'THRESHOLD_MSI')
     TMB_THR = ast.literal_eval(config.get('TMB', 'THRESHOLD_TMB'))
