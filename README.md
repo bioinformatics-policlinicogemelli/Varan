@@ -45,7 +45,11 @@ Varan is a Python-based application that provides a pipeline to automatically pr
 <details open>
   <summary><b>Prerequisites</b></summary>
   
-&ensp; [Docker](https://www.docker.com/)
+* [Docker](https://www.docker.com/)
+* <a href="https://ftp.ensembl.org/pub/release-111/variation/indexed_vep_cache"> Vep Cache</a> 
+</br> ⚠️ For test data download <a href="https://ftp.ensembl.org/pub/release-111/variation/indexed_vep_cache/homo_sapiens_vep_111_GRCh37.tar.gz">homo_sapiens_vep_111_GRCh37.tar.gz</a> 
+
+* FASTA and Index files <a href="http://www.ensembl.org/info/docs/tools/vep/script/vep_cache.html#cache)"> here</a>
 </details>
 
 <details open>
@@ -534,8 +538,8 @@ docker run --rm -it -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v
 
 Launch this command to specify the type of filter that use
 
-* <code style="color : cyan">d</code> -> filter out from snv mutations with ALT="." and FILTER="PASS" 
-* <code style="color : cyan">p</code> -> filter out from MAF mutations with FILTER="PASS" 
+* <code style="color : cyan">d</code> -> filter out from snv mutations with ALT="." and FILTER ≠"PASS" 
+* <code style="color : cyan">p</code> -> filter out from MAF mutations with FILTER ≠"PASS" 
 * <code style="color : cyan">b</code>-> filter out from MAF mutations with CLIN_SIG values <ins>equals</ins> to the ones specified in <i>conf.ini</i> BENIGN field
 * <code style="color : cyan">i</code>-> filter out from MAF mutations with IMPACT <ins>equals</ins> to to the ones specified in <i>conf.ini</i> IMPACT field 
 * <code style="color : cyan">v</code>-> filter out from MAF mutations with vaf (t_VF column) values <ins>not in</ins> the ranges [t_VAF_min; t_VAF_max] specified in <i>conf.ini</i>
