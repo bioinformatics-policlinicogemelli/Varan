@@ -296,7 +296,7 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     logger.info("Creating case list folder...")
     cases_list_dir = os.path.join(output_folder, "case_lists")
     if os.path.exists(cases_list_dir):
-        logger.info("It seemps that this folder already exists")
+        # logger.info("It seemps that this folder already exists")
         pass
     else:
         os.mkdir(cases_list_dir)

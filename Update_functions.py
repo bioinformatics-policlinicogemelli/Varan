@@ -51,18 +51,38 @@ def update_clinical_patient(oldfile_path, newfile_path, output_folder):
     Example:
       >>>  update_clinical_patient('data_clinical_patient.txt', 'new_data_clinical_patient.txt', 'output_folder/')
     """
-    old = pd.read_csv(oldfile_path, sep="\t", dtype = str)
-    old.set_index(old.columns[0], inplace=True)
-    new = pd.read_csv(newfile_path, sep="\t", dtype = str) #, skiprows=4)
-    new.set_index(new.columns[0], inplace=True)
 
-    only_old_col = set(old.columns) - set(new.columns)
-    common_patients = old.index.intersection(new.index)
+    #header
+    old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
+    old_head.columns = old_head.iloc[4].tolist()
+    old_head.set_index(old_head.columns[0], inplace=True)
 
-    old_updated = old.drop(list(only_old_col), axis=1)
-    old_updated = old_updated.drop(index=common_patients)
-    updated = pd.concat([new, old_updated], axis=0).fillna(value=np.nan)
-    updated.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=True, sep="\t", index_label=old.index.name, na_rep="NaN")
+    new_head = pd.read_csv(newfile_path, sep="\t", dtype = str, header=None, nrows=5)
+    new_head.columns = new_head.iloc[4].tolist()
+    new_head.set_index(new_head.columns[0], inplace=True)
+
+    only_common_head = np.intersect1d(new_head.columns, old_head.columns)
+
+    old_updated_head = old_head.drop(list(only_common_head), axis=1)
+    old_updated_head.index = new_head.index
+    new_head = pd.concat([new_head, old_updated_head], axis=1).fillna(value=np.nan)
+    final_head = new_head.reset_index(drop=False)
+
+    #body
+    old_body = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=4)
+    old_body.set_index(old_body.columns[0], inplace=True)
+
+    new_body = pd.read_csv(newfile_path, sep="\t", dtype = str, header=4)
+    new_body.set_index(new_body.columns[0], inplace=True)
+
+    old_updated_body = old_body.drop(list(only_common_head), axis=1)
+    final_body = pd.concat([new_body, old_updated_body], axis=1).fillna(value=np.nan)
+    final_body = final_body.reset_index(drop=False)
+
+    #coincat all
+    final_patient = pd.concat([final_head, final_body], axis=0)
+
+    final_patient.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), header=False, index=False, sep="\t", na_rep="NaN")
     logger.info("data_clinical_patient.txt updated!")
     
 

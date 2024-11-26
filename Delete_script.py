@@ -10,8 +10,7 @@ from loguru import logger
 
 def delete_main(oldpath, removepath, output, study_id, overwrite):
     
-    logger.info("Starting delete_main script:")
-    logger.info(f"delete_main args [oldpath:{oldpath}, removepath:{removepath}, destinationfolder:{output}]")
+    logger.info(f"delete_main args [old_path:{oldpath}, remove_path:{removepath}, destination_folder:{output}]")
 
     logger.info("Checking input...")
     if not os.path.isdir(oldpath):
@@ -27,8 +26,10 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
     else:
         no_out=True
         output=re.split(r'_v[0-9]$',oldpath)[0]
-    
+
+    check_sample_list(removepath, oldpath)
     old_versions = get_version_list(output)
+
     if len(old_versions)>0 and os.path.exists(old_versions[-1]):
         if overwrite:
             logger.info(f"Overwrite option set. Start removing folder")

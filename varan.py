@@ -17,12 +17,12 @@ from ExtractSamples_script import extract_main
 
 def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, overwrite_output=False, resume=False, multiple=False, update=False, extract=False, remove=False):
     
-    logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, analysis_type:{analysis_type},",
-                f"overwrite_output:{overwrite_output}, resume:{resume}, multiple:{multiple}],",
-                            f"update:{update}, extract:{extract}, remove:{remove}")
+    if not any([update, extract, remove]): 
 
-    if not any([update, extract, remove]) :       
-   
+        logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, analysis_type:{analysis_type},",
+                    f"overwrite_output:{overwrite_output}, resume:{resume}, multiple:{multiple}],",
+                                f"update:{update}, extract:{extract}, remove:{remove}")
+  
        
         ###########################
         #        1.  WALK         #

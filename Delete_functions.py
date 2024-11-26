@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 import re
 import numpy as np
@@ -259,3 +260,29 @@ def delete_caselist_sv(file_path, sample_ids, output_folder):
                 if line.startswith("case_list_ids"):
                     line = "case_list_ids:" + "\t".join(updated)
                 filtered.write(line)
+
+def check_sample_list(remove_path, oldpath):
+    with open(remove_path) as sample_list:
+        first_line = sample_list.readline()
+        if len(first_line.split("\t")) > 1:
+            logger.critical(f"The file {remove_path} contains more than a column. It may not be in the correct format!")
+            sys.exit()
+
+    with open(remove_path) as sample_list:
+        all_samples_to_remove = set(sample.strip() for sample in sample_list.readlines())
+
+        sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t", skiprows=4)
+        old_samples = set(sample["SAMPLE_ID"])
+
+        if not any(sample in old_samples for sample in all_samples_to_remove):
+            logger.critical("The sample(s) you are trying to remove are not present in data_clinical_sample.txt file! Please check again!")
+            sys.exit()
+
+        missing_samples = set(all_samples_to_remove) - set(old_samples)
+        if missing_samples:
+            logger.warning(f"Some of the samples you are trying to remove may not be present in data_clinical_sample.txt file!")
+            logger.warning(f"Missing sample(s): {', '.join(missing_samples)}")
+
+        if len(set(old_samples) - set(all_samples_to_remove)) == 0:
+            logger.critical("It looks like you are removing all the samples from original study! Cannot create an empty study!")
+            sys.exit()

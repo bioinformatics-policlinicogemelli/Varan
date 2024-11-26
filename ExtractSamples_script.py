@@ -7,26 +7,26 @@ from loguru import logger
 import shutil
 import sys
 
-def extract_main(oldpath, removepath, output, study_id, overwrite):
+def extract_main(oldpath, extract_path, output, study_id, overwrite):
     
-    logger.info("Starting extract_main script:")
-    logger.info(f"extract_main args [oldpath:{oldpath}, removepath:{removepath}, outputfolder:{output}]")	
+    logger.info(f"extract_main args [old_path:{oldpath}, extract_path:{extract_path}, output_folder:{output}]")	
     
     logger.info("Checking input...")
     if not os.path.isdir(oldpath):
         logger.critical(f"{oldpath} is not a valid folder!")
-        sys.exit()	
-
+        sys.exit()
+     
     if output!="":
         no_out=False
         if os.path.exists(oldpath):
             logger.info("Original folder found")
-        if os.path.exists(removepath):
+        if os.path.exists(extract_path):
             logger.info("Sample list to extract found")
     else:
         no_out=True
         output=re.split(r'_v[0-9]$',oldpath)[0]
-   
+    
+    check_sample_list(extract_path, oldpath)
     old_versions=get_version_list(output)
 
     if len(old_versions)>0 and os.path.exists(old_versions[-1]):
@@ -41,15 +41,9 @@ def extract_main(oldpath, removepath, output, study_id, overwrite):
     os.mkdir(output_caseslists)
 
     logger.info("Great! Everything is ready to start")
-
     os.system("cp " + oldpath + "/*meta* " + output)
 
-    with open(removepath) as sample_list:
-        first_line = sample_list.readline()
-        if len(first_line.split("\t")) > 1:
-            logger.warning(f"The file {removepath} contains more than a column. It may not be in the correct format!")
-
-    sampleIds = open(removepath, "r").readlines()
+    sampleIds = open(extract_path, "r").readlines()
     sampleIds = [sample.strip() for sample in sampleIds]
 
     o_clinical_patient = os.path.join(oldpath,"data_clinical_patient.txt")
