@@ -20,38 +20,6 @@ def update_clinical_samples(oldfile_path, newfile_path, output_folder):
     Example:
       >>>  update_clinical_samples('old_data_clinical_sample.txt', 'new_data_clinical_sample.txt', 'output_folder/')
     """
-    old = pd.read_csv(oldfile_path, sep="\t", dtype = str, index_col=0)
-    new = pd.read_csv(newfile_path, sep="\t", dtype = str, index_col=0) #, skiprows=4) #, names=old.columns, skiprows=5)
-
-    only_old_col = list(set(old.columns) - set(new.columns))
-    # TODO scrivere queste colonne nel summary indicando che sono state rimosse perche presenti nell'old e assenti nel new
-
-    common_samples = old.index.intersection(new.index)
-
-    old_updated = old.drop(only_old_col, axis=1)
-
-    old_updated = old.drop(index=common_samples)
-    updated = pd.concat([new, old_updated], axis=0)
-    updated.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=True, sep="\t", index_label=old.index.name)
-    logger.info("data_clinical_sample.txt updated!")
-
-
-def update_clinical_patient(oldfile_path, newfile_path, output_folder):
-    """
-    Update clinical patient informations inside data_clinical_patient.txt file.
-    This function reads the original tab separated version txt file from the given 'oldfile_path',
-    insert new rows with the patients info founded inside the new txt file from the given 'newfile_path' 
-    and save the updated file named 'data_clinical_patient.txt' in the specified 'output_folder'.
-
-    Args:
-        oldfile_path (str): Path to the original data_clinical_patient.
-        newfile_path (str): Path to the new data_clinical_patient.
-        output_folder (str): Path to the output folder where the updated file will be saved.
-
-    Example:
-      >>>  update_clinical_patient('data_clinical_patient.txt', 'new_data_clinical_patient.txt', 'output_folder/')
-    """
-
     #header
     old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
     old_head.columns = old_head.iloc[4].tolist()
@@ -70,21 +38,77 @@ def update_clinical_patient(oldfile_path, newfile_path, output_folder):
 
     #body
     old_body = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=4)
-    old_body.set_index(old_body.columns[0], inplace=True)
-
     new_body = pd.read_csv(newfile_path, sep="\t", dtype = str, header=4)
-    new_body.set_index(new_body.columns[0], inplace=True)
 
-    old_updated_body = old_body.drop(list(only_common_head), axis=1)
-    final_body = pd.concat([new_body, old_updated_body], axis=1).fillna(value=np.nan)
+    old_body_unique = old_body.drop(list(only_common_head), axis=1)
+    final_body = old_body_unique.merge(new_body, how='outer', on="SAMPLE_ID")
+
+    old_body.set_index(old_body.columns[0], inplace=True)
+    new_body.set_index(new_body.columns[0], inplace=True)
+    common_samples = old_body.index.intersection(new_body.index)
+    old_body = old_body.drop(index=common_samples)
+    final_body.set_index(final_body.columns[0], inplace=True)
+    final_body.update(old_body, overwrite=True, filter_func=None, errors='ignore')
     final_body = final_body.reset_index(drop=False)
 
-    #coincat all
+    #final
     final_patient = pd.concat([final_head, final_body], axis=0)
+    final_patient.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), header=False, index=False, sep="\t", na_rep="NaN")
+    logger.info("data_clinical_sample.txt updated!")
 
+
+def update_clinical_patient(oldfile_path, newfile_path, output_folder):
+    """
+    Update clinical patient informations inside data_clinical_patient.txt file.
+    This function reads the original tab separated version txt file from the given 'oldfile_path',
+    insert new rows with the patients info founded inside the new txt file from the given 'newfile_path' 
+    and save the updated file named 'data_clinical_patient.txt' in the specified 'output_folder'.
+
+    Args:
+        oldfile_path (str): Path to the original data_clinical_patient.
+        newfile_path (str): Path to the new data_clinical_patient.
+        output_folder (str): Path to the output folder where the updated file will be saved.
+
+    Example:
+      >>>  update_clinical_patient('data_clinical_patient.txt', 'new_data_clinical_patient.txt', 'output_folder/')
+    """
+    
+    #header
+    old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
+    old_head.columns = old_head.iloc[4].tolist()
+    old_head.set_index(old_head.columns[0], inplace=True)
+
+    new_head = pd.read_csv(newfile_path, sep="\t", dtype = str, header=None, nrows=5)
+    new_head.columns = new_head.iloc[4].tolist()
+    new_head.set_index(new_head.columns[0], inplace=True)
+
+    only_common_head = np.intersect1d(new_head.columns, old_head.columns)
+
+    old_updated_head = old_head.drop(list(only_common_head), axis=1)
+    old_updated_head.index = new_head.index
+    new_head = pd.concat([new_head, old_updated_head], axis=1).fillna(value=np.nan)
+    final_head = new_head.reset_index(drop=False)
+
+    #body
+    old_body = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=4)
+    new_body = pd.read_csv(newfile_path, sep="\t", dtype = str, header=4)
+
+    old_body_unique = old_body.drop(list(only_common_head), axis=1)
+    final_body = old_body_unique.merge(new_body, how='outer', on="PATIENT_ID")
+
+    old_body.set_index(old_body.columns[0], inplace=True)
+    new_body.set_index(new_body.columns[0], inplace=True)
+    common_samples = old_body.index.intersection(new_body.index)
+    old_body = old_body.drop(index=common_samples)
+    final_body.set_index(final_body.columns[0], inplace=True)
+    final_body.update(old_body, overwrite=True, filter_func=None, errors='ignore')
+    final_body = final_body.reset_index(drop=False)
+
+    #final
+    final_patient = pd.concat([final_head, final_body], axis=0)
     final_patient.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), header=False, index=False, sep="\t", na_rep="NaN")
     logger.info("data_clinical_patient.txt updated!")
-    
+
 
 def update_cna_hg19(oldfile_path, newfile_path, output_folder):
     """
