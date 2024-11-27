@@ -93,7 +93,7 @@ def compare_version(folder1, folder2, action):
     with open(os.path.join(folder2, "summary.txt"), "a") as summary_file:
         summary_file.write(f"Summary for {action.upper()} action\n\n")
         summary_file.write(f"ORIGINAL STUDY: {folder1}\n")
-        summary_file.write(f"NEW STUDY: {folder2}\n\n")
+        summary_file.write(f"NEW STUDY: {folder2}\n")
 
         case_list1 = os.path.join(folder1, "case_lists")
         case_list2 = os.path.join(folder2, "case_lists")
@@ -107,13 +107,13 @@ def compare_version(folder1, folder2, action):
         sequenced_1 = os.path.join(case_list1, "cases_sequenced.txt")
         sequenced_2 = os.path.join(case_list2, "cases_sequenced.txt")
         compare_sample_file(sequenced_1, sequenced_2, folder1, folder2, "cases_sequenced", action, summary_file)
-        
+
         # Compare case_list_sv
         sv_1 = os.path.join(case_list1, "cases_sv.txt")
         sv_2 = os.path.join(case_list2, "cases_sv.txt")
         np, ns = compare_sample_file(sv_1, sv_2, folder1, folder2, "cases_sv", action, summary_file)
         
-        summary_file.write(f"\nTOTAL PATIENT(S): {ns}\n")
+        summary_file.write(f"\n\nTOTAL PATIENT(S): {ns}\n")
         summary_file.write(f"TOTAL SAMPLE(S): {np}")
 
 
@@ -123,35 +123,43 @@ def compare_sample_file(file1, file2, input_folder, outputfolder, filename, acti
     clin_sam_old_df = pd.read_csv(os.path.join(input_folder, "data_clinical_sample.txt"), sep="\t")
     clin_sam_new_df = pd.read_csv(os.path.join(outputfolder, "data_clinical_sample.txt"), sep="\t")
     
+    if action == "delete":
+        clin_pat = set(clin_sam_old_df.iloc[4:, 1]).difference(clin_sam_new_df.iloc[4:, 1])
+        clin_sample = set(clin_sam_old_df.iloc[4:, 0]).difference(clin_sam_new_df.iloc[4:, 0])
+        if filename == "cases_cna":
+            summary_file.write(f"\nPatients: {list(clin_pat)} was/were removed\n")
+            summary_file.write(f"Samples: {list(clin_sample)} was/were removed\n")
+            
+    elif action == "extract":
+        clin_pat = set(clin_sam_old_df.iloc[4:, 1]) & set(clin_sam_new_df.iloc[4:, 1])
+        clin_sample = set(clin_sam_old_df.iloc[4:, 0]) & set(clin_sam_new_df.iloc[4:, 0])
+        if filename == "cases_cna":
+            summary_file.write(f"\nPatients: {list(clin_pat)} was/were extracted\n")
+            summary_file.write(f"Samples: {list(clin_sample)} was/were extracted\n")     
+    
+    summary_file.write(f"\n{filename}:\n")
+    
     if os.path.exists(file1) and os.path.exists(file2):
         samples_file1 = extract_sample_list(file1)  
         samples_file2 = extract_sample_list(file2)
-         
+
         if action == "delete":
-            clin_pat = set(clin_sam_old_df.iloc[4:, 1]).difference(clin_sam_new_df.iloc[4:, 1])
-            clin_sample = set(clin_sam_old_df.iloc[4:, 0]).difference(clin_sam_new_df.iloc[4:, 0])
-            if filename == "cases_cna":
-                summary_file.write(f"Patients: {list(clin_pat)} was/were removed\n")
-                summary_file.write(f"Samples: {list(clin_sample)} was/were removed\n\n")
 
             removed_samples = [sample for sample in samples_file1 if not sample in samples_file2 and sample != ""]
             summary_file.write(f"{len(removed_samples)} sample(s) removed from {filename}: {removed_samples}\n")
             summary_file.write(f"There is/are now {len(set(samples_file1)-set(removed_samples))} sample(s) in {filename}\n")
-            
+        
         elif action == "extract":
-            clin_pat = set(clin_sam_old_df.iloc[4:, 1]) & set(clin_sam_new_df.iloc[4:, 1])
-            clin_sample = set(clin_sam_old_df.iloc[4:, 0]) & set(clin_sam_new_df.iloc[4:, 0])
-            if filename == "cases_cna":
-                summary_file.write(f"Patients: {list(clin_pat)} was/were extracted\n")
-                summary_file.write(f"Samples: {list(clin_sample)} was/were extracted\n\n")     
-
             extracted_samples = [sample for sample in samples_file2 if sample in samples_file1 and sample != ""]
             if len(extracted_samples) > 0:
                 summary_file.write(f"{len(extracted_samples)} sample(s) extracted from {filename}: {extracted_samples}\n")
+         
     
-    else:
-        if not os.path.exists(file1):
-            summary_file.write(f"{file1} does not exist\n")
+    elif not os.path.exists(file1):
+        summary_file.write(f"{file1} does not exist\n")
+
+    elif not os.path.exists(file2):
+        summary_file.write(f"None of the extracted samples was in {file1}\n")
 
     if filename == "cases_sv":
         return len(set(clin_sam_new_df.iloc[4:, 1])), len(set(clin_sam_new_df.iloc[4:, 0]))

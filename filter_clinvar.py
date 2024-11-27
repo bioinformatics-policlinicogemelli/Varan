@@ -106,7 +106,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             logger.critical(f"Exit without completing the task!")
             sys.exit()
 
-    file_list = concatenate.get_files_by_ext(os.path.join(folder,"maf"), 'maf')
+    file_list = concatenate.get_files_by_ext(os.path.join(folder, "maf"), 'maf')
 
     if len(file_list)==0:
         logger.warning(f"The maf folder {os.path.join(folder, 'maf')} seems to be empty! Filtering cannot be done.")
@@ -117,11 +117,8 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
         output_onco=os.path.join(output_folder, 'MAF_OncoKB')
         os.makedirs(output_onco, exist_ok=True)
         extension="_OncoAnnotated.maf"
-       
-        if not os.path.isfile(input):
-            # TODO sistemare che prenda il nome corretto dell'input (sample.tsv)
-            tsv_file=[file for file in os.listdir(input) if "tsv" in file][0]
-            input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
+        if not os.path.isfile(input[0]):
+            input_file=pd.read_csv(os.path.join(input[0], "sample.tsv"), sep="\t")
             
         else:
             input_file=pd.read_csv(input,sep="\t")

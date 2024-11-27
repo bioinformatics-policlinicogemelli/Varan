@@ -1199,16 +1199,18 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     
     if resume:
         try:
-            list_maf = os.listdir(maf_path)
+            maf_samples = set(os.listdir(maf_path))
         except:
             logger.critical(f"maf folder not found. It may be compressed as 'maf.zip'. Please unzip this folder and restart the analysis.")
             raise(Exception("maf folder not found!"))
-        
-        for maf_file in list_maf:
-            maf_list = [maf_file.strip(".vcf.maf") for maf_file in os.listdir(maf_path)]
-            if set(maf_list) != set(clin_file["SAMPLE_ID"]):
-                logger.critical("It seems you are resuming an existing study with a different set of input samples. Please verify the sample consistency!")
-                raise(FileNotFoundError("Sample mismatch detected."))
+
+        clin_samples = set(clin_file["SAMPLE_ID"])
+        clin_in_maf = all(any(clin_sample in maf_sample for maf_sample in maf_samples) for clin_sample in clin_samples)
+        maf_in_clin = all(any(clin_sample in maf_sample for clin_sample in clin_samples) for maf_sample in maf_samples)
+
+        if not (clin_in_maf and maf_in_clin) and len(maf_samples) != 0:
+            logger.critical("It seems you are resuming an existing study with a different set of input samples. Please verify the sample consistency!")
+            raise FileNotFoundError("Sample mismatch detected.")
 
     if len(os.listdir(inputFolderSNV))==0 and vcf_type == None:
         vcf_type = "cnv"
