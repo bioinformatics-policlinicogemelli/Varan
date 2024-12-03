@@ -588,15 +588,19 @@ def check_multiple_folder(input_dir, multiple):
 def write_clinical_sample(clin_samp_path, output_folder, table_dict):
 
     logger.info("Writing data_clinical_sample.txt file...")
-
     conf_header_short = config.get('ClinicalSample', 'HEADER_SAMPLE_SHORT')
     conf_header_long = config.get('ClinicalSample', 'HEADER_SAMPLE_LONG')
     conf_header_type = config.get('ClinicalSample', 'HEADER_SAMPLE_TYPE')
 
     data_clin_samp = pd.read_csv(clin_samp_path, sep="\t", header=0, dtype=str)
 
-    data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
-    
+    try:
+        data_clin_samp.drop(['snv_path', 'cnv_path', 'comb_path'], axis=1, inplace=True)
+    except KeyError:
+        logger.critical("snv_path, cnv_path or comb_path columns were removed or modified from template. Please use the correct template!")
+        raise NameError("Exiting from script!")
+
+
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
 
     combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
@@ -606,10 +610,20 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     
     if len(combout_df.columns) > 2:
         combout_df = combout_df.rename(columns={1: "MSI", 2: "TMB", 3: "MSI_THR", 4:"TMB_THR"})
-        if data_clin_samp['MSI'].notna().any() or data_clin_samp['TMB'].notna().any():
-            if (any(data_clin_samp["MSI"] != combout_df["MSI"]) or any(data_clin_samp["TMB"] != combout_df["TMB"])):
-                logger.warning("MSI and/or TMB values are reported in sample.tsv and CombinedOutput but they do not match! CombinedOutput values were selected by default")
-        data_clin_samp.drop(columns=["MSI", "TMB", "MSI_THR", "TMB_THR"], inplace=True)
+        try:
+            if data_clin_samp['MSI'].notna().any() or data_clin_samp['TMB'].notna().any():
+                if (any(data_clin_samp["MSI"] != combout_df["MSI"]) or any(data_clin_samp["TMB"] != combout_df["TMB"])):
+                    logger.warning("MSI and/or TMB values are reported in sample.tsv and CombinedOutput but they do not match! CombinedOutput values were selected by default")
+            try:
+                data_clin_samp.drop(columns=["MSI", "TMB", "MSI_THR", "TMB_THR"], inplace=True)
+            except KeyError:
+                logger.critical(f"MSI_THR or TMB_THR columns were removed or modified from template. Please use the correct template!")
+                raise(NameError("Exiting from script!"))
+        except KeyError:
+            logger.critical(f"MSI or TMB columns were removed or modified from template. Please use the correct template!")
+            raise(KeyError("Exiting from script!"))
+            
+
 
         final_data_sample = pd.merge(data_clin_samp, combout_df, on=["PATIENT_ID", "SAMPLE_ID"])
 
@@ -635,9 +649,9 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     else:
         types_list = conf_header_type.split(',')
         types_list = list(map(lambda x: x.strip(), types_list))
-        for type in types_list:
-            if type.upper() not in ["STRING", "BOOLEAN", "NUMBER"]:
-                logger.critical(f"{type} is not a valid type. Please check the given input in conf.ini. Valid types: STRING, NUMBER, BOOLEAN")
+        for types in types_list:
+            if types.upper() not in ["STRING", "BOOLEAN", "NUMBER"]:
+                logger.critical(f"{types} is not a valid type. Please check the given input in conf.ini. Valid types: STRING, NUMBER, BOOLEAN")
                 raise(NameError("The type is not valid: exiting from walk script!"))
         try:
             types_list = list(map(lambda x: x.upper(), types_list))
@@ -706,9 +720,9 @@ def add_header_patient_type(sample_pzt, datapat_columns, conf_header_type, final
     else:
         types_list = conf_header_type.split(',')
         types_list = list(map(lambda x: x.strip().upper(), types_list))
-        for type in types_list:
-            if type not in ["STRING", "BOOLEAN", "NUMBER"]:
-                logger.critical(f"{type} is not a valid type. Please check the given input in conf.ini. " +
+        for types in types_list:
+            if types not in ["STRING", "BOOLEAN", "NUMBER"]:
+                logger.critical(f"{types} is not a valid type. Please check the given input in conf.ini. " +
                                     "Valid types: STRING, NUMBER, BOOLEAN")
                 raise(NameError("The type is not valid: exiting from walk script!"))
         try:
@@ -1103,7 +1117,7 @@ def validate_input(oncokb, vcf_type, filters, cancer):
     cancer_cbio=cancer_cbio["TYPE_OF_CANCER_ID"].values.tolist()
     
     if cancer not in cancer_cbio:
-        logger.critical(f"cancer_id '{cancer}' is not recognize by cbioportal. Check the cancer_list.txt to find the correct cancer id")
+        logger.critical(f"cancer_id '{cancer}' is not recognize by cBioPortal. Check the cancer_list.txt to find the correct cancer id")
         sys.exit()
 
 def write_filters_in_report(output_folder):
@@ -1135,12 +1149,12 @@ def write_filters_in_report(output_folder):
     with open(report_file_path, "r") as file:
         val_report = file.readlines()
 
-
     with open(report_file_path, "w") as file:
         file.write(f"Varan run - {date}\n\nThe following configuration and filters have been used:\n")
         file.write(conf_content)
-        file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
-        file.writelines(val_report)
+        if val_report !=[]:
+            file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
+            file.writelines(val_report)
 
 
 def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
@@ -1276,13 +1290,13 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
     fusion_folder = os.path.join(input_folder, "FUSIONS")
 
-    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not type in ["cnv","snv","tab"]:
+    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not vcf_type in ["cnv","snv","tab"]:
         logger.info("Getting Fusions infos from CombinedOutput...")
         THR_FUS = config.get('FUSION', 'THRESHOLD_FUSION')
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)  
         fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
     
-    elif os.path.exists(os.path.abspath(fusion_folder)) and os.listdir(fusion_folder) and not type in ["cnv","snv","tab"]:
+    elif os.path.exists(os.path.abspath(fusion_folder)) and os.listdir(fusion_folder) and not vcf_type in ["cnv","snv","tab"]:
         logger.info("Getting Fusions infos from Fusions.tsv file...")  
         fusion_files=[file for file in os.listdir(fusion_folder) if "tsv" in file]
         if fusion_files != []:

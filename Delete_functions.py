@@ -130,7 +130,7 @@ def delete_mutations(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output file will be saved.
 
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", dtype=str)
     filtered = file[~file["Tumor_Sample_Barcode"].astype(str).isin(sample_ids)]
     filtered.to_csv(os.path.join(output_folder, "data_mutations_extended.txt"), index=False, sep="\t")
 

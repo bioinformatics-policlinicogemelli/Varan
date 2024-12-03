@@ -186,7 +186,7 @@ def extract_mutations(file_path, sample_ids, output_folder):
        >>> extract_mutations('input_mutations.tsv', ['sample1', 'sample2'], 'output_folder/')
     """
     
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", dtype=str)
     extracted = file[file["Tumor_Sample_Barcode"].astype(str).isin(sample_ids)]
     # if len(sample_ids) > len(file["Tumor_Sample_Barcode"].unique()):
     #     print("[Warning] Some samples names are not present in the DataFrame.")

@@ -18,10 +18,10 @@ def cBio_validation(output_folder):
     config = ConfigParser()
     config.read('conf.ini')
     PORT = config.get('Validation', 'PORT')
-    logger.info(f"Starting online validation. Connecting to {PORT}")
+    logger.info(f"Starting online validation. Connecting to {PORT}...")
     
     try:
-        process1 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-e", os.path.join(output_folder, "report.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process1 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-e", os.path.join(output_folder, "report.txt"), "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout1, stderr1 = process1.communicate()
         warn = stderr1
         if process1.returncode == 1:
@@ -32,9 +32,9 @@ def cBio_validation(output_folder):
     except subprocess.CalledProcessError as e:
         logger.error("Connection to localhost failed. This may be due to an incorrect port selection" +\
                      " or invalid Docker settings.")
-        logger.info("Starting offline validation...")
+        logger.info("Starting offline validation... Be warned that files succeeding this validation may still fail to load (correctly).")
 
-        process2 = subprocess.Popen(['python3', 'importer/validateData.py', '-s', output_folder, '-n', "-e", os.path.join(output_folder, "report.txt"), "--html_table", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process2 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-n", "-e", os.path.join(output_folder, "report.txt"), "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout2, stderr2 = process2.communicate()
         warn = stderr2
         if process2.returncode == 1:
@@ -227,25 +227,36 @@ def validateOutput(folder, input, multi, block2=False):
     validateFolderlog(folder)
     val = cBio_validation(folder)
 
+    cases_path = os.path.join(folder, "case_lists")
+    if os.path.exists(cases_path) and not os.listdir(cases_path):
+        shutil.rmtree(cases_path)
+
     if val != 1:
         if not block2:
             write_filters_in_report(folder)    
+            maf_path = os.path.join(folder, "maf")
+            snv_path = os.path.join(folder, "snv_filtered")
+            temp_path = os.path.join(folder, "temp")
             
-            if os.path.exists(os.path.join(folder, "maf")) and ZIP_MAF:
-                logger.info("Zipping maf folder...")    
-                shutil.make_archive(os.path.join(folder, "maf"), "zip", os.path.join(folder, "maf"))
-                logger.info("Deleting unzipped maf folder...")
-                shutil.rmtree(os.path.join(folder, "maf"))
+            if os.path.exists(maf_path):
+                if not os.listdir(maf_path):
+                    shutil.rmtree(maf_path)
 
-            if os.path.exists(os.path.join(folder, "snv_filtered")) and ZIP_SNV_FILTERED:
+                elif ZIP_MAF:
+                    logger.info("Zipping maf folder...")    
+                    shutil.make_archive(maf_path, "zip", maf_path)
+                    logger.info("Deleting unzipped maf folder...")
+                    shutil.rmtree(maf_path)
+
+            if os.path.exists(snv_path) and ZIP_SNV_FILTERED:
                 logger.info("Zipping snv_filtered folder...") 
-                shutil.make_archive(os.path.join(folder, "snv_filtered"), "zip", os.path.join(folder, "snv_filtered"))
+                shutil.make_archive(snv_path, "zip", snv_path)
                 logger.info("Deleting unzipped snv_filtered folder...")
-                shutil.rmtree(os.path.join(folder,"snv_filtered"))
+                shutil.rmtree(snv_path)
 
-            if os.path.exists(os.path.join(folder, "temp")):
+            if os.path.exists(temp_path):
                 logger.info("Deleting temp folder")
-                shutil.rmtree(os.path.join(folder, "temp"))
+                shutil.rmtree(temp_path)
 
             if multi and input != None:
                 clean_multi(input[0], "CNV", "single_sample_vcf")
