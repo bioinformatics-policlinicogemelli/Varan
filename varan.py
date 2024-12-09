@@ -19,10 +19,11 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
     
     if not any([update, extract, remove]): 
 
-        logger.info(f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, analysis_type:{analysis_type},",
-                    f"overwrite_output:{overwrite_output}, resume:{resume}, multiple:{multiple}],",
-                                f"update:{update}, extract:{extract}, remove:{remove}")
-  
+        logger.info(
+            f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, "
+            f"analysis_type:{analysis_type}, overwrite_output:{overwrite_output}, resume:{resume}, "
+            f"multiple:{multiple}, update:{update}, extract:{extract}, remove:{remove}]")
+
        
         ###########################
         #        1.  WALK         #
@@ -211,6 +212,18 @@ if __name__ == '__main__':
             
         if (args.output_folder=="" and args.Name!=""):
             logger.critical("To use -N option it's required to set also -o")
+            sys.exit()
+
+        if "n" in filters and "v" not in filters:
+            logger.critical("To use the \"n\" option in filters it's required to set also the \"v\"")
+            sys.exit()
+
+        if "o" in filters and not oncoKB:
+            logger.critical("To use the \"o\" option in filters it's required to set also -k")
+            sys.exit()
+
+        if "b" in filters and "c" in filters:
+            logger.critical("You used both \"b\" and \"c\" option in filters, please select only one!")
             sys.exit()
         
         if resume:

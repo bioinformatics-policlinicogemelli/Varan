@@ -16,7 +16,7 @@ def concatenate_files(file_list, output_file):
     if not os.path.exists(output_file):
         logger.critical(f"Something went wrong while writing {output_file}.")
     
-    logger.info(f"#{len(file_list)} maf file(s) concatenated")
+    logger.info(f"{len(file_list)} maf file(s) concatenated")
     
 def get_files_by_ext(folder, ext):
     file_list = []
@@ -27,7 +27,7 @@ def get_files_by_ext(folder, ext):
     if len(file_list)==0:
         logger.warning(f"No files found with .{ext} extension in {folder}")
     else:
-        logger.info(f"#{len(file_list)} {ext} file(s) found")
+        logger.info(f"{len(file_list)} {ext} file(s) found")
     return file_list
 
 def extract_maf_folder(filters, oncoKB):
@@ -66,8 +66,6 @@ def concatenate_main(filters, output_folder, ext, oncoKB):
         if (len(all_data_mut) == 1):
             os.remove(output_file)
             logger.warning("data_mutations_extended is empty. File removed.")
-
-
 
     if os.path.exists(output_file):
         logger.info(f"Extracting data_mutations_extended from {input_folder} folder")

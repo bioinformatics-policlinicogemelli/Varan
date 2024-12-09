@@ -7,6 +7,7 @@ version = "1.0"
 
 import argparse
 import math
+import sys
 import pandas as pd
 import os
 from loguru import logger
@@ -98,8 +99,9 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 				sample_info = info.split(":")
 				fc = sample_info[fc_position]
 			else:
-				logger.critical(f"The {version} version of VCF is not currently supported")
-
+				version_number = version.split("v")[-1]
+				logger.critical(f"The VCF file for sample {SAMPLE} is in an unsupported version (v{version_number}). Supported versions: [4.1, 4.2]")
+				sys.exit()
 
 			if fc != ".":
 				fc = float(fc)

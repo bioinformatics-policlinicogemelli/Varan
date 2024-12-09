@@ -58,31 +58,31 @@ def check_consequences(row):
 def check_polyphen(row):
     consequences=ast.literal_eval(config.get('Filters', 'POLYPHEN'))
     output=[]
-    for _e in str(row['PolyPhen']).split(","):
-        if any(_e in s for s in consequences):
-            output.append(True)
-        else:
-            output.append(False)
+    if str(row['PolyPhen']).split("(")[0] in consequences:
+        output.append(True)
+    else:
+        output.append(False)
     return any(output)
 
 def check_sift(row):
     consequences=ast.literal_eval(config.get('Filters', 'SIFT'))
     output=[]
-    for _e in str(row['SIFT']).split(","):
-        if any(_e in s for s in consequences):
-            output.append(True)
-        else:
-            output.append(False)
+    if str(row['SIFT']).split("(")[0] in consequences:
+        output.append(True)
+    else:
+        output.append(False)
     return any(output)
 
-def keep_risk_factors(df):
-    benign_filter = ~df['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
-        , case=False
-        , na=False
-        , regex=True)
-    df=df[benign_filter]
-    df = df[df.apply(check_CLIN_SIG,axis=1)|df.apply(check_consequences,axis=1)]
-    return df
+
+# NON VIENE USATA??????????????????
+# def keep_risk_factors(df):
+#     benign_filter = ~df['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
+#         , case=False
+#         , na=False
+#         , regex=True)
+#     df=df[benign_filter]
+#     df = df[df.apply(check_CLIN_SIG,axis=1)|df.apply(check_consequences,axis=1)]
+#     return df
 
 
 def write_csv_with_info(df, file_path):
@@ -117,11 +117,8 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
         output_onco=os.path.join(output_folder, 'MAF_OncoKB')
         os.makedirs(output_onco, exist_ok=True)
         extension="_OncoAnnotated.maf"
-        if not os.path.isfile(input[0]):
-            input_file=pd.read_csv(os.path.join(input[0], "sample.tsv"), sep="\t")
-            
-        else:
-            input_file=pd.read_csv(input,sep="\t")
+        # TODO controllare se funziona anche dando 2 o 3 file come input
+        input_file=pd.read_csv(input, sep="\t")
     
         for f in file_list:
             if extension in f:
@@ -156,7 +153,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
         os.makedirs(out_filter, exist_ok=True)
         
         for file in file_list:
-            file_to_filter=pd.read_csv(file,sep="\t")
+            file_to_filter=pd.read_csv(file, sep="\t", dtype=object)
             
             if "i" in filters:
                 file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
@@ -165,10 +162,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                 file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
             
             if "b" in filters:
-                benign_filter = ~file_to_filter['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
-                    , case=False
-                    , na=False
-                    , regex=True)   
+                benign_filter = ~file_to_filter['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN'), case=False, na=False, regex=True)
                 file_to_filter=file_to_filter[benign_filter]
             
             if oncokb and "o" in filters:
@@ -179,26 +173,35 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                 t_VAF_min=float(config.get('Filters', 't_VAF_min'))
                 t_VAF_max=float(config.get('Filters', 't_VAF_max'))
                 
-                file_to_filter.dropna(subset=["t_AF"], inplace=True)
+                temp = file_to_filter.dropna(subset=["t_AF"])
+
+                if len(temp) == 0:
+                    vaf_colname = "t_VF"
+                    file_to_filter.dropna(subset=[vaf_colname], inplace=True)
+
+                else:
+                    vaf_colname = "t_AF"
+                    file_to_filter.dropna(subset=[vaf_colname], inplace=True)
+
 
                 if "n" in filters:
                     t_VAF_min_novel=float(config.get('Filters', 't_VAF_min_novel'))
                     file_to_filter.dropna(subset=["dbSNP_RS"], inplace=True)
 
-                    if file_to_filter[(file_to_filter["dbSNP_RS"]=="novel")]:
-                        file_to_filter = file_to_filter[(file_to_filter['t_AF'] > t_VAF_min_novel) & (file_to_filter['t_AF'] <= t_VAF_max)]
-                    else:
-                        file_to_filter = file_to_filter[(file_to_filter['t_AF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
+                    file_to_filter[vaf_colname] = pd.to_numeric(file_to_filter[vaf_colname])
+                    file_to_filter_nov = file_to_filter[(file_to_filter[vaf_colname] > t_VAF_min_novel) & (file_to_filter[vaf_colname] <= t_VAF_max) & (file_to_filter["dbSNP_RS"]=="novel")]
+                    file_to_filter_notnov = file_to_filter[(file_to_filter[vaf_colname] > t_VAF_min) & (file_to_filter[vaf_colname] <= t_VAF_max) & (file_to_filter["dbSNP_RS"]!="novel")]
+                    file_to_filter = pd.concat([file_to_filter_nov, file_to_filter_notnov], axis=0)
                     
                 else:
-                    file_to_filter = file_to_filter[(file_to_filter['t_AF'] > t_VAF_min) & (file_to_filter['t_AF'] <= t_VAF_max)]
-            # usato per le varianti introniche
-            if "a" in filters:    
-                    af=config.get('Filters', 'AF')
-                    
-                    file_to_filter.dropna(subset=["AF"], inplace=True)
-                    file_to_filter = file_to_filter[(eval("file_to_filter['AF']" + af))]
-                
+                    file_to_filter = file_to_filter[(file_to_filter[vaf_colname] > t_VAF_min) & (file_to_filter[vaf_colname] <= t_VAF_max)]
+            
+            if "a" in filters: # for intronic variants   
+                af=config.get('Filters', 'AF')
+                file_to_filter['AF'] = pd.to_numeric(file_to_filter['AF'], errors='coerce')
+                file_to_filter.dropna(subset=["AF"], inplace=True)
+                file_to_filter = file_to_filter[eval(f"file_to_filter['AF'] {af}")]
+
             if "c" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]
                     
@@ -210,10 +213,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             
             if "s" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_sift,axis=1)]
-                 
                 
-            #logger.info(f"Filtered file: {file}")             
-            
             file_to_filter.to_csv(os.path.join(out_filter, os.path.basename(file)),sep="\t",index=False)  
 
     logger.success("Filter script completed!\n")
