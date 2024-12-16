@@ -5,7 +5,7 @@ import sys
 from configparser import ConfigParser
 import subprocess
 import shutil
-from walk import write_filters_in_report
+from write_report import *
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
@@ -21,7 +21,7 @@ def cBio_validation(output_folder):
     logger.info(f"Starting online validation. Connecting to {PORT}...")
     
     try:
-        process1 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-e", os.path.join(output_folder, "report.txt"), "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process1 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout1, stderr1 = process1.communicate()
         warn = stderr1
         if process1.returncode == 1:
@@ -34,11 +34,11 @@ def cBio_validation(output_folder):
                      " or invalid Docker settings.")
         logger.info("Starting offline validation... Be warned that files succeeding this validation may still fail to load (correctly).")
 
-        process2 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-n", "-e", os.path.join(output_folder, "report.txt"), "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process2 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-n", "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout2, stderr2 = process2.communicate()
         warn = stderr2
         if process2.returncode == 1:
-            logger.error(f"Error: {stderr2.strip()} Check the report files in the study folder for more info!")
+            logger.error(f"Error: {stderr2.strip()} Check the report file in the study folder for more info!")
         
         if process1.returncode == 1 and 'process2' in locals():
             check_process_status(process2, warn)
@@ -47,7 +47,7 @@ def cBio_validation(output_folder):
 
 def check_process_status(process, warn_msg):
     if process.returncode in [2, 3]:
-        logger.warning(f"{warn_msg.strip()} Check report files in the study folder for details!")
+        logger.warning(f"{warn_msg.strip()} Check the report file in the study folder for details!")
     elif process.returncode == 0:
         logger.success("The validation proceeded without errors and warnings! The study is ready to be uploaded!")
 
@@ -233,7 +233,10 @@ def validateOutput(folder, input, multi, block2=False):
 
     if val != 1:
         if not block2:
-            write_filters_in_report(folder)    
+            write_infos_report(folder)
+            write_filters_report(folder)
+            convert_txt_to_html(os.path.join(folder, "report_VARAN.txt"), os.path.join(folder, "report_VARAN.html"))
+
             maf_path = os.path.join(folder, "maf")
             snv_path = os.path.join(folder, "snv_filtered")
             temp_path = os.path.join(folder, "temp")

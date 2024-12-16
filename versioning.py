@@ -40,6 +40,12 @@ def get_newest_version(output_folder):
         outputfolderpath = os.getcwd()
     old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if foldername == re.split(r'_v[0-9]+$', file)[0]]
 
+    global old_version_exists
+    if len(old_versions) != 0:
+        old_version_exists = True
+    else:
+        old_version_exists = False
+
     logger.info(f"{len(old_versions)} version of the selected output folder found: {old_versions}")
  
     old_versions_number = list(map(extract_version_int, old_versions))

@@ -117,7 +117,6 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
         output_onco=os.path.join(output_folder, 'MAF_OncoKB')
         os.makedirs(output_onco, exist_ok=True)
         extension="_OncoAnnotated.maf"
-        # TODO controllare se funziona anche dando 2 o 3 file come input
         input_file=pd.read_csv(input, sep="\t")
     
         for f in file_list:
