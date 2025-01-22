@@ -6,6 +6,7 @@ from versioning import *
 from loguru import logger
 import shutil
 import sys
+from write_report import *
 
 def extract_main(oldpath, extract_path, output, study_id, overwrite):
     
@@ -96,24 +97,12 @@ def extract_main(oldpath, extract_path, output, study_id, overwrite):
     # if len(old_versions)>=1:
     #     old_version=old_versions[-1]
     #     compare_version(output, old_version, "extract", output)
-
-    compare_version(oldpath, output, "extract")
     
     logger.info("Starting Validation Folder...")
-    validateOutput(output, None, False, True)
+    validateOutput(output, None, False, True, None, None, None)
 
-    report_file_path = os.path.join(output, "report.txt")  
-
-    with open(report_file_path, "r") as file:
-        val_report = file.readlines()
-
-    with open(report_file_path, "w") as file:
-        file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
-        file.writelines(val_report)
+    logger.info("Starting writing report_VARAN.html...")
+    write_report_extract(oldpath, output)
     
     logger.success("The process ended without errors")
     logger.success("Successfully extracted sample(s)!")
-    
-
-    
-    

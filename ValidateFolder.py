@@ -6,6 +6,7 @@ from configparser import ConfigParser
 import subprocess
 import shutil
 from write_report import *
+from Create_graphs import *
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
@@ -182,7 +183,6 @@ def validateFolder(folder,log=False):
             list_files.append(file)
 
  
-    # Define required files for each category
     required_files = {
         "Patient": [
             "data_clinical_patient.txt",
@@ -222,8 +222,9 @@ def validateFolder(folder,log=False):
             logger.warning(f"Missing file(s) for {category} from {folder}:")
             for missing in missing_files:
                 print("- ", missing)
-                
-def validateOutput(folder, input, multi, block2=False):
+
+
+def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None, filters=None):
     validateFolderlog(folder)
     val = cBio_validation(folder)
 
@@ -233,9 +234,8 @@ def validateOutput(folder, input, multi, block2=False):
 
     if val != 1:
         if not block2:
-            write_infos_report(folder)
-            write_filters_report(folder)
-            convert_txt_to_html(os.path.join(folder, "report_VARAN.txt"), os.path.join(folder, "report_VARAN.html"))
+            create_barplots(folder)     
+            write_report_main(folder, cancer, oncoKB, filters)
 
             maf_path = os.path.join(folder, "maf")
             snv_path = os.path.join(folder, "snv_filtered")
@@ -258,7 +258,6 @@ def validateOutput(folder, input, multi, block2=False):
                 shutil.rmtree(snv_path)
 
             if os.path.exists(temp_path):
-                logger.info("Deleting temp folder")
                 shutil.rmtree(temp_path)
 
             if multi and input != None:

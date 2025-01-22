@@ -2,6 +2,7 @@ TEST VARAN
 
 * Installazione (generale):
     - requirements (vedere se tutti pacchetti vengono installati)
+    - sicuramente va aggiunto matplotlib
 
 * Docker:
     - installazione (MAC, Windows, Linux)
@@ -17,6 +18,7 @@ TEST VARAN
 
 * aggiornamento readme
     - zip
+    - report
     - validazione con funzione cbioportal
     - aggiornamento parte descrizione conf.ini
     - prioritizzazione info in combined anche se popolate in sample o in fusion.tsv

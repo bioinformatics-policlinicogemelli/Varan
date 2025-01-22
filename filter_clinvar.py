@@ -109,8 +109,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
     file_list = concatenate.get_files_by_ext(os.path.join(folder, "maf"), 'maf')
 
     if len(file_list)==0:
-        logger.warning(f"The maf folder {os.path.join(folder, 'maf')} seems to be empty! Filtering cannot be done.")
-        logger.critical("Empty maf folder: Filter script exited before completing!")
+        logger.critical(f"The maf folder {os.path.join(folder, 'maf')} seems to be empty: check if SNV folder exists and contains the VCF files. If you don't have SNV vcf, use -t option to select specific analysis.")
         raise(Exception("Exiting from filter_clinvar script!"))
     
     if oncokb:
@@ -159,10 +158,6 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             
             if "p" in filters:
                 file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
-            
-            if "b" in filters:
-                benign_filter = ~file_to_filter['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN'), case=False, na=False, regex=True)
-                file_to_filter=file_to_filter[benign_filter]
             
             if oncokb and "o" in filters:
                 oncokb_filter=ast.literal_eval(config.get('Filters', 'ONCOKB_FILTER'))

@@ -20,7 +20,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
     if not any([update, extract, remove]): 
 
         logger.info(
-            f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, "
+            f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, oncoKB:{oncoKB}"
             f"analysis_type:{analysis_type}, overwrite_output:{overwrite_output}, resume:{resume}, "
             f"multiple:{multiple}, update:{update}, extract:{extract}, remove:{remove}]")
 
@@ -64,7 +64,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ############################
 
         logger.info("Starting validation...")
-        validateOutput(output_folder, input, multiple, False)
+        validateOutput(output_folder, input, multiple, False, cancer, oncoKB, filters)
 
     
     ############################
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     
     # FILTER BLOCK
     parser.add_argument('-f', '--Filter', required=False, default="",
-                        help='Select filter for SNV [d -> filter, p -> filter==PASS , b-> Benign , v-> vaf, o-> Oncokb , a -> AF, q -> Consequence, y-> polyphens, c -> clin_sig, n -> novel]')
+                        help='Select filter for SNV [d -> filter, p -> filter==PASS, v-> vaf, o-> Oncokb , a -> AF, q -> Consequence, y-> polyphens, c -> clin_sig, n -> novel]')
     
     # UPDATE BLOCK
     parser.add_argument('-u', '--Update', required=False,action='store_true',
@@ -220,10 +220,6 @@ if __name__ == '__main__':
 
         if "o" in filters and not oncoKB:
             logger.critical("To use the \"o\" option in filters it's required to set also -k")
-            sys.exit()
-
-        if "b" in filters and "c" in filters:
-            logger.critical("You used both \"b\" and \"c\" option in filters, please select only one!")
             sys.exit()
         
         if resume:

@@ -7,6 +7,7 @@ from Delete_functions import *
 from ValidateFolder import validateOutput
 from versioning import *
 from loguru import logger
+from write_report import *
 
 def delete_main(oldpath, removepath, output, study_id, overwrite):
     
@@ -108,19 +109,12 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
     #     old_version=old_versions[-1]
     #     compare_version(output, old_version, "delete", output)
 
-    compare_version(oldpath, output, "delete")
 
     logger.info("Starting Validation Folder...")
-    validateOutput(output, None, False, True)
+    validateOutput(output, None, False, True, None, None, None)
 
-    report_file_path = os.path.join(output, "report.txt")  
-
-    with open(report_file_path, "r") as file:
-        val_report = file.readlines()
-
-    with open(report_file_path, "w") as file:
-        file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
-        file.writelines(val_report)
+    logger.info("Starting writing report_VARAN.html...")
+    write_report_remove(oldpath, output)
 
     logger.success("The process ended without errors")
     logger.success("Successfully removed sample(s)!")

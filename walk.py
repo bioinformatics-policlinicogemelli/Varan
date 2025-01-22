@@ -270,7 +270,6 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
                 escat_class(df_table, input_file, row)
                         
             #nuovi filtri (filtro cnvkit - conservativo)
-            import pdb; pdb.set_trace()
             if not cna["TC"].isnull().all():
                 cna["Copy_Number_Alteration"]=0
                 cna.loc[(cna["seg.mean"]<c[0]), "Copy_Number_Alteration"]=-2
@@ -280,8 +279,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
                 cna.loc[cna["seg.mean"]>=c[5], "Copy_Number_Alteration"]=2
             
             else:
-                logger.warning("TC column is empty or does not exist in sample.tsv! This column is required when CNVkit = True!\
-                If TC values are not available the setting of CNVkit = False is recommended")
+                logger.warning("TC column is empty or does not exist in sample.tsv! This column is required when CNVkit = True! If TC values are not available the setting of CNVkit = False is recommended")
                 return sID_path
             #vecchi filtri (decomm se filtro copy number discreto)
             
@@ -306,7 +304,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
             #df_table_filt["Tumor_Sample_Barcode"] = df_table_filt["Tumor_Sample_Barcode"].str.replace(".cnv.bam", "")
             df_table_filt.loc[:, "Tumor_Sample_Barcode"] = df_table_filt["Tumor_Sample_Barcode"].str.replace(".cnv.bam", "", regex=True)
 
-            data_cna = df_table_filt.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0)
+            data_cna = df_table_filt.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0).astype(int)
             if not data_cna.empty:
                 data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
         
@@ -484,7 +482,7 @@ def create_folder(output_folder, overwrite_output, resume):
     
     output_list = get_version_list(output_folder)
     output_list=list(map(lambda x: os.path.join(os.path.dirname(output_folder),x),output_list))
-    
+
     if output_list != [] and os.path.exists(output_list[-1]):
         output = output_list[-1]
         logger.warning(f"It seems that a version of the folder '{output_folder}' already exists.")
@@ -561,7 +559,13 @@ def check_multiple_folder(input_dir, multiple):
     snv_mulitple, snv_single, cnv_mulitple, cnv_single = False, False, False, False
 
     snv_folder = os.path.join(input_dir, "SNV")
-    multiple_vcf_snv = [file for file in os.listdir(snv_folder) if file.endswith(".vcf")][0]
+    try:
+        multiple_vcf_snv = [file for file in os.listdir(snv_folder) if file.endswith(".vcf")][0]
+    except Exception:
+        multiple_vcf_snv = ""
+        os.makedirs(snv_folder, exist_ok=True)
+        pass
+    
     snv_file = os.path.join(input_dir, "sample_id_snv.txt")
     cmd_snv = "vcf-query -l " + os.path.join(snv_folder, multiple_vcf_snv) + " > " + snv_file
     os.system(cmd_snv)
@@ -576,7 +580,12 @@ def check_multiple_folder(input_dir, multiple):
     os.remove(snv_file)
 
     cnv_folder = os.path.join(input_dir, "CNV")
-    multiple_vcf_cnv = [file for file in os.listdir(cnv_folder) if file.endswith(".vcf")][0]
+    try:
+        multiple_vcf_cnv = [file for file in os.listdir(cnv_folder) if file.endswith(".vcf")][0]
+    except Exception:
+        os.makedirs(cnv_folder, exist_ok=True)
+        return
+    
     cnv_file = os.path.join(input_dir, "sample_id_cnv.txt")
     cmd_cnv = "vcf-query -l " +  os.path.join(cnv_folder, multiple_vcf_cnv) + " > " + cnv_file
     os.system(cmd_cnv)
@@ -953,11 +962,12 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
             #TODO controllare possibili campi (FUSION, INVERSION, DELETION)
 
 def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
+
     
     if "ONCOTREE_CODE" in input_file.columns:
-        input_file["SAMPLE_ID"] = input_file["SAMPLE_ID"] #+ ".bam"
-        fusion_table_df = data_sv.merge(input_file, how="inner", left_on="Sample_Id", right_on="SAMPLE_ID")
+        fusion_table_df = data_sv.merge(input_file[["SAMPLE_ID", "ONCOTREE_CODE"]], how="inner", left_on="Sample_Id", right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
+        
         fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")
         os.system(f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file}\
                         -o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")   
@@ -968,6 +978,7 @@ def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
                             -o {fusion_table_file_out} -t {cancer.upper()}  -b {config.get('OncoKB', 'ONCOKB')}")
                     
     return fusion_table_file_out
+
 
 def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
     logger.info(f"Writing data_sv.txt file...")
@@ -1008,7 +1019,7 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
 
 
 def check_data_cna(data_cna_path):
-    input_file = data_cna_path.split("/")[-1]
+    input_file = os.path.basename(data_cna_path)
     logger.info(f"Checking {input_file} file...")
     try:
         with open(data_cna_path) as data_cna:
@@ -1175,6 +1186,12 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         logger.critical(f"The input {input} isn't a file nor a folder")
         raise(FileNotFoundError("Exiting from walk script!"))
 
+    img_path = os.path.join("readme_content", "img", "logo_VARAN.png")
+    if os.path.exists(img_path):
+        img_output_dir = os.path.join(output_folder, "img")
+        os.makedirs(img_output_dir, exist_ok=True)
+        shutil.copy(img_path, os.path.join(img_output_dir, "logo_VARAN.png"))    
+
     inputFolderSNV = os.path.abspath(os.path.join(input_folder, "SNV"))
     inputFolderCNV = os.path.abspath(os.path.join(input_folder, "CNV"))
     inputFolderCombOut = os.path.abspath(os.path.join(input_folder, "CombinedOutput"))
@@ -1274,6 +1291,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         THR_FUS = config.get('FUSION', 'THRESHOLD_FUSION')
         combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)  
         fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
+
     
     elif os.path.exists(os.path.abspath(fusion_folder)) and os.listdir(fusion_folder) and not vcf_type in ["cnv","snv","tab"]:
         fusion_files=[file for file in os.listdir(fusion_folder) if "tsv" in file]
@@ -1294,10 +1312,17 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         input_file = pd.read_csv(clin_sample_path, sep="\t")
         fusion_table_file_out = annotate_fusion(cancer, fusion_table_file, data_sv, input_file)
         
+
         if "o" in filters:
             fus_file = pd.read_csv(fusion_table_file_out, sep="\t")
             fus_file = filter_OncoKB(fus_file)
             fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
+
+        data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t")
+        data_sv_tmp.drop(["SAMPLE_ID", "ONCOTREE_CODE"], inplace=True, axis=1)
+
+        data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
+
         os.system(f"mv {fusion_table_file_out} {fusion_table_file}") 
             
       

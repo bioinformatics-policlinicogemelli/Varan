@@ -6,6 +6,7 @@ from versioning import *
 from Make_meta_and_cases import meta_case_main
 import shutil
 import sys
+from write_report import *
 
 
 def update_main(oldpath, newpath, output, study_id, overwrite):
@@ -30,7 +31,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     else:
         no_out=True
         output=re.split(r'_v[0-9]$',oldpath)[0]
-    
+
     old_versions = get_version_list(output)
 
     if len(old_versions) > 0 and os.path.exists(old_versions[-1]):
@@ -40,6 +41,12 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
 
     output = create_newest_version_folder(output)
     logger.info(f"Creating a new folder: {output}")
+
+    img_path = os.path.join(oldpath, "img", "logo_VARAN.png")
+    if os.path.exists(img_path):
+        img_output_dir = os.path.join(output, "img")
+        os.makedirs(img_output_dir, exist_ok=True)
+        shutil.copy(img_path, os.path.join(img_output_dir, "logo_VARAN.png"))  
 
     output_caseslists = os.path.join(output,"case_lists")
     os.mkdir(output_caseslists)   
@@ -68,21 +75,13 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     meta_case_main(cancer, output, study_info, study_id)
     
     logger.info("Starting Validation Folder...")
-    validateOutput(output, None, False, True)
+    validateOutput(output, None, False, True, None, None, None)
 
-    report_file_path = os.path.join(output, "report.txt")  
-
-    with open(report_file_path, "r") as file:
-        val_report = file.readlines()
-
-    with open(report_file_path, "w") as file:
-        file.write("This is the report from cBioPortal Validator. The numbers indicated are the rows where the error occurred.\n")
-        file.writelines(val_report)
-
-    logger.info("Starting writing Summary.txt...")
-    compare_version_update(oldpath, newpath, output, "update")
-
-    check_filters(oldpath, newpath, output)
+    logger.info("Starting writing report_VARAN.html...")
+    write_report_update(oldpath, newpath, output)
 
     logger.success("The process ended without errors")
     logger.success("Successfully updated study!")
+
+
+
