@@ -20,7 +20,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
     if not any([update, extract, remove]): 
 
         logger.info(
-            f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, oncoKB:{oncoKB}"
+            f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, oncoKB:{oncoKB}, "
             f"analysis_type:{analysis_type}, overwrite_output:{overwrite_output}, resume:{resume}, "
             f"multiple:{multiple}, update:{update}, extract:{extract}, remove:{remove}]")
 

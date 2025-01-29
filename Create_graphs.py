@@ -124,63 +124,6 @@ def create_barplots(output_folder):
 
     plt.savefig(os.path.join(output_folder, "img", 'genes.png'))
 
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-    # # Organizza i dati per categorie (SNV, CNV, SV)
-    # categories = ['SNV', 'CNV', 'SV']
-    # category_values = [snv, cnv, sv]
-
-    # # Imposta il colore per ciascun studio (basato su un colormap)
-    # colors = plt.cm.tab10(np.linspace(0, 1, len(studies)))
-
-    # # Crea il grafico
-    # fig, ax = plt.subplots(figsize=(10, 6))
-
-    # # Larghezza delle barre
-    # barWidth = 0.25
-
-    # # Posizioni delle barre lungo l'asse delle x per ciascuna categoria
-    # r = np.arange(len(studies))
-
-    # # Creazione delle barre per ciascuna categoria
-    # for i, (category, values) in enumerate(zip(categories, category_values)):
-    #     ax.barh(r + i * barWidth, values, color=colors[i], edgecolor='grey', height=barWidth, label=category)
-
-    # # Imposta le etichette dell'asse y (le categorie)
-    # ax.set_yticks(r + barWidth)
-    # ax.set_yticklabels(studies)
-
-    # # Etichette e titolo
-    # ax.set_xlabel('Total Count')
-    # ax.set_title('Comparison of SNV, CNV, and SV Across Studies')
-
-    # # Aggiungi la legenda
-    # ax.legend()
-
-    # # Aggiungi le etichette sui valori delle barre
-    # for i, category in enumerate(categories):
-    #     for j in range(len(studies)):
-    #         ax.text(category_values[i][j] + 10, r[j] + i * barWidth, str(category_values[i][j]), va='center')
-
-    # # Mostra il grafico
-    # plt.tight_layout()    
-    # plt.savefig(os.path.join(output_folder, "img", 'genes.png'))
-
 def autolabel_ver(ax, rects):
     for rect in rects:
         height = rect.get_height()

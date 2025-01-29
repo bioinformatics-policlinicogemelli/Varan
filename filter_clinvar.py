@@ -39,7 +39,7 @@ def check_CLIN_SIG(row):
     clin_sig=ast.literal_eval(config.get('Filters', 'CLIN_SIG'))
     output=[]
     for _e in str(row["CLIN_SIG"]).split(","):
-        if _e in clin_sig:
+        if _e not in clin_sig:
             output.append(True)
         else:
             output.append(False)
@@ -147,7 +147,6 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
     if filters!="" and filters!="d":
         
         logger.info("Start filtering vcf...")
-        
         os.makedirs(out_filter, exist_ok=True)
         
         for file in file_list:
@@ -168,7 +167,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                 t_VAF_max=float(config.get('Filters', 't_VAF_max'))
                 
                 temp = file_to_filter.dropna(subset=["t_AF"])
-
+        
                 if len(temp) == 0:
                     vaf_colname = "t_VF"
                     file_to_filter.dropna(subset=[vaf_colname], inplace=True)
@@ -177,7 +176,8 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                     vaf_colname = "t_AF"
                     file_to_filter.dropna(subset=[vaf_colname], inplace=True)
 
-
+                file_to_filter[vaf_colname] = pd.to_numeric(file_to_filter[vaf_colname])
+                
                 if "n" in filters:
                     t_VAF_min_novel=float(config.get('Filters', 't_VAF_min_novel'))
                     file_to_filter.dropna(subset=["dbSNP_RS"], inplace=True)
@@ -192,12 +192,20 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             
             if "a" in filters: # for intronic variants   
                 af=config.get('Filters', 'AF')
+                drop_NA = ast.literal_eval(config.get('Filters', 'drop_NA_AF'))
                 file_to_filter['AF'] = pd.to_numeric(file_to_filter['AF'], errors='coerce')
+                na_file_to_filter = file_to_filter[~file_to_filter.index.isin(file_to_filter["AF"].dropna().index)]
+                
                 file_to_filter.dropna(subset=["AF"], inplace=True)
                 file_to_filter = file_to_filter[eval(f"file_to_filter['AF'] {af}")]
+                 
+                if not drop_NA:
+                        file_to_filter = pd.concat([file_to_filter, na_file_to_filter], ignore_index=True)
 
             if "c" in filters:
+                import pdb;pdb.set_trace()
                 file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]
+                #file_to_filter = file_to_filter[file_to_filter.apply(filter_benign,axis=1)]
                     
             if "q" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_consequences,axis=1)]
