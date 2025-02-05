@@ -1283,47 +1283,50 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ###       GET FUSION        ###
     ###############################
     
-    fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
-    fusion_folder = os.path.join(input_folder, "FUSIONS")
-
-    if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0 and not vcf_type in ["cnv","snv","tab"]:
-        logger.info("Getting Fusions infos from CombinedOutput...")
-        THR_FUS = config.get('FUSION', 'THRESHOLD_FUSION')
-        combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)  
-        fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
-
-    
-    elif os.path.exists(os.path.abspath(fusion_folder)) and os.listdir(fusion_folder) and not vcf_type in ["cnv","snv","tab"]:
-        fusion_files=[file for file in os.listdir(fusion_folder) if "tsv" in file]
-        logger.info(f"Getting Fusions infos from {fusion_files[0]} file...")  
-        if fusion_files != []:
-            fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)
-    
-    if os.path.exists(fusion_table_file):
-        with open(fusion_table_file) as data_sv:
-            all_data_sv = data_sv.readlines()
-            if (len(all_data_sv) == 1):
-                os.remove(fusion_table_file)
-                logger.warning("data.sv is empty. File removed.")
-
-
-    if oncokb and os.path.exists(fusion_table_file):
-        data_sv = pd.read_csv(fusion_table_file, sep="\t")
-        input_file = pd.read_csv(clin_sample_path, sep="\t")
-        fusion_table_file_out = annotate_fusion(cancer, fusion_table_file, data_sv, input_file)
+    if not vcf_type in ["cnv","snv","tab"]:
         
+        fusion_table_file = os.path.join(output_folder, 'data_sv.txt')
+        fusion_folder = os.path.join(input_folder, "FUSIONS")
 
-        if "o" in filters:
-            fus_file = pd.read_csv(fusion_table_file_out, sep="\t")
-            fus_file = filter_OncoKB(fus_file)
-            fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
+        if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0:
+            logger.info("Getting Fusions infos from CombinedOutput...")
+            THR_FUS = config.get('FUSION', 'THRESHOLD_FUSION')
+            combined_dict = get_combinedVariantOutput_from_folder(input_folder, clin_file, isinputfile)  
+            fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS)
 
-        data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t")
-        data_sv_tmp.drop(["SAMPLE_ID", "ONCOTREE_CODE"], inplace=True, axis=1)
+        
+        elif os.path.exists(os.path.abspath(fusion_folder)) and os.listdir(fusion_folder):
+            fusion_files=[file for file in os.listdir(fusion_folder) if "tsv" in file]
+            logger.info(f"Getting Fusions infos from {fusion_files[0]} file...")  
+            if fusion_files != []:
+                fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)
+        
+        if os.path.exists(fusion_table_file):
+            with open(fusion_table_file) as data_sv:
+                all_data_sv = data_sv.readlines()
+                if (len(all_data_sv) == 1):
+                    os.remove(fusion_table_file)
+                    logger.warning("data.sv is empty. File removed.")
 
-        data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
+        if oncokb and os.path.exists(fusion_table_file):
+            data_sv = pd.read_csv(fusion_table_file, sep="\t")
+            input_file = pd.read_csv(clin_sample_path, sep="\t")
+            fusion_table_file_out = annotate_fusion(cancer, fusion_table_file, data_sv, input_file)
+            
+            if "o" in filters:
+                fus_file = pd.read_csv(fusion_table_file_out, sep="\t")
+                fus_file = filter_OncoKB(fus_file)
+                fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
 
-        os.system(f"mv {fusion_table_file_out} {fusion_table_file}") 
+            data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t")
+            try:
+                data_sv_tmp.drop(["SAMPLE_ID", "ONCOTREE_CODE"], inplace=True, axis=1)
+            except KeyError:
+                pass
+                
+            data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
+
+            os.system(f"mv {fusion_table_file_out} {fusion_table_file}") 
             
       
     ##############################
