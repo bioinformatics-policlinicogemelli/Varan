@@ -1253,19 +1253,19 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ###       SNV AND CNV       ###
     ###############################
     
-    logger.info("Managing CNV files...")
     if os.path.exists(inputFolderCNV) and not vcf_type in ["snv", "fus", "tab"]:
+        logger.info("Managing CNV files...")
         sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
     
-    logger.info("Managing SNV files...")
     if os.path.exists(inputFolderSNV) and not vcf_type in ["cnv", "fus", "tab"]:
+        logger.info("Managing SNV files...")
         sID_path_snv = snv_type_from_folder(inputFolderSNV, case_folder_arr)
         
         logger.info("Checking maf folder...")
         maf_path = os.path.join(output_folder, "maf")
         if os.path.isdir(maf_path) and len([i for i in os.listdir(maf_path) if i.endswith('.maf')])>0:
             logger.info("A non empty maf folder already exists!")
-        
+
         if not resume:
             if "d" in filters:
                 logger.info("Filtering out VCFs with dots in ALT column")
@@ -1274,7 +1274,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             for k, v in sID_path_snv.items():
                 cl = vcf2maf_constructor(k, v, temporary, output_folder)
                 run_vcf2maf(cl, k)
-    
+
     logger.info("Clearing scratch folder...")
     clear_scratch()
 
@@ -1324,8 +1324,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
 
         os.system(f"mv {fusion_table_file_out} {fusion_table_file}") 
-            
-      
+
     ##############################
     ##       MAKES TABLE       ###
     ##############################    
