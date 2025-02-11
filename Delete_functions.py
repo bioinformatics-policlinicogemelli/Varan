@@ -61,7 +61,7 @@ def delete_clinical_patient(oldpath, sample_ids, output_folder):
                 patient_ids.remove(p_dup)
         
     filtered = file[~file.iloc[:, 0].astype(str).isin(patient_ids)]
-    filtered.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t")
+    filtered.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t", na_rep="NaN")
    
 def delete_cna_hg19(file_path, sample_ids, output_folder):
     """
@@ -113,8 +113,9 @@ def delete_cna(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output file will be saved.
 
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", index_col=0)
     filtered = file.drop(columns=sample_ids, axis=1, errors="ignore")
+    filtered = filtered.loc[(filtered != 0).any(axis=1)]
     filtered.to_csv(os.path.join(output_folder, "data_cna.txt"), index=False, sep="\t")
         
 def delete_mutations(file_path, sample_ids, output_folder):

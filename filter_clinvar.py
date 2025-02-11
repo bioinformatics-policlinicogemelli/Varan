@@ -142,7 +142,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
     
     if oncokb and "o" in filters:   
         file_list = concatenate.get_files_by_ext(output_onco, 'maf')
-        out_filter=os.path.join(output_folder, 'MAF_Onco_filtered')   
+        out_filter=os.path.join(output_folder, 'MAF_Onco_filtered')
     
     if filters!="" and filters!="d":
         
@@ -203,7 +203,6 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                         file_to_filter = pd.concat([file_to_filter, na_file_to_filter], ignore_index=True)
 
             if "c" in filters:
-                import pdb;pdb.set_trace()
                 file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]
                 #file_to_filter = file_to_filter[file_to_filter.apply(filter_benign,axis=1)]
                     

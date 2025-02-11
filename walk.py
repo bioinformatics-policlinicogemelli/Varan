@@ -1282,7 +1282,6 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     ###############################
     ###       GET FUSION        ###
     ###############################
-    
     if not vcf_type in ["cnv","snv","tab"]:
         
         fusion_table_file = os.path.join(output_folder, 'data_sv.txt')

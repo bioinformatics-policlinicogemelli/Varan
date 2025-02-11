@@ -89,10 +89,6 @@ table {
     border-radius: 10px;
 }
 
-p.smallText {
-    font-size: 0.8em;
-}
-
 th, td {
     border: 1px solid #003366;
     padding: 10px;

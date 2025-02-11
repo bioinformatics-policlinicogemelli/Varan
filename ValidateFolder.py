@@ -233,9 +233,9 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
         shutil.rmtree(cases_path)
 
     if val != 1:
-        if not block2:
-            create_barplots(folder)     
-            write_report_main(folder, cancer, oncoKB, filters)
+        number_for_graph = int(create_barplots(folder))
+        if not block2:  
+            write_report_main(folder, cancer, oncoKB, filters, number_for_graph)
 
             maf_path = os.path.join(folder, "maf")
             snv_path = os.path.join(folder, "snv_filtered")
@@ -267,6 +267,7 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
                 clean_multi(input[0], "SNV", "sample_id.txt")
 
         logger.success("The study is ready to be uploaded on cBioportal")
+        return number_for_graph
     
     else:
         raise Exception("Validation Failed!")

@@ -12,8 +12,10 @@ from write_report import *
 def delete_main(oldpath, removepath, output, study_id, overwrite):
     
     logger.info(f"delete_main args [old_path:{oldpath}, remove_path:{removepath}, destination_folder:{output}]")
-
     logger.info("Checking input...")
+
+    oldpath = oldpath.rstrip("/")
+
     if not os.path.isdir(oldpath):
         logger.critical(f"{oldpath} is not a valid folder!")
         sys.exit()	
@@ -111,10 +113,10 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
 
 
     logger.info("Starting Validation Folder...")
-    validateOutput(output, None, False, True, None, None, None)
+    number_for_graph = validateOutput(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
-    write_report_remove(oldpath, output)
+    write_report_remove(oldpath, output, number_for_graph)
 
     logger.success("The process ended without errors")
     logger.success("Successfully removed sample(s)!")

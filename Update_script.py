@@ -13,7 +13,8 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     
     logger.info("Starting update_main script:")
     logger.info(f"update_main args [oldpath:{oldpath}, newpath:{newpath}, output_folder:{output}]")	
-
+    oldpath = oldpath.rstrip("/")
+    
     logger.info("Checking inputs...")
     if not os.path.isdir(oldpath):
         logger.critical(f"{oldpath} is not a valid folder!")
@@ -75,10 +76,10 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     meta_case_main(cancer, output, study_info, study_id)
     
     logger.info("Starting Validation Folder...")
-    validateOutput(output, None, False, True, None, None, None)
+    number_for_graph = validateOutput(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
-    write_report_update(oldpath, newpath, output)
+    write_report_update(oldpath, newpath, output, number_for_graph)
 
     logger.success("The process ended without errors")
     logger.success("Successfully updated study!")

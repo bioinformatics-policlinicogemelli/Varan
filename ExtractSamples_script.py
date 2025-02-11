@@ -11,8 +11,10 @@ from write_report import *
 def extract_main(oldpath, extract_path, output, study_id, overwrite):
     
     logger.info(f"extract_main args [old_path:{oldpath}, extract_path:{extract_path}, output_folder:{output}]")	
-    
     logger.info("Checking input...")
+
+    oldpath = oldpath.rstrip("/")
+
     if not os.path.isdir(oldpath):
         logger.critical(f"{oldpath} is not a valid folder!")
         sys.exit()
@@ -99,10 +101,10 @@ def extract_main(oldpath, extract_path, output, study_id, overwrite):
     #     compare_version(output, old_version, "extract", output)
     
     logger.info("Starting Validation Folder...")
-    validateOutput(output, None, False, True, None, None, None)
+    number_for_graph = validateOutput(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
-    write_report_extract(oldpath, output)
+    write_report_extract(oldpath, output, number_for_graph)
     
     logger.success("The process ended without errors")
     logger.success("Successfully extracted sample(s)!")

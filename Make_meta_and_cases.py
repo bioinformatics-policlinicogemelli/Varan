@@ -10,6 +10,7 @@ from datetime import datetime
 
 
 def create_meta_study(cancer, project_name, project_id, description, output_dir, version):
+
     """
         Function to create meta_study_file
     Args:
@@ -22,7 +23,7 @@ def create_meta_study(cancer, project_name, project_id, description, output_dir,
     name = "project"
 
     if project_name == "":
-        project_name = cancer.capitalize() + " Cancer " + name.upper() + " " + version.upper().replace("_", "")
+        project_name = os.path.basename(os.path.normpath(output_dir))
     project_name = project_name.upper() + " (" + date + ")"
 
     if project_id == "":

@@ -20,12 +20,10 @@ def extract_version_int(foldername):
 
 
 def get_version_list(output_folder):
-
     foldername = re.split(r'_v[0-9]+$',os.path.basename(output_folder))[0]
     outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
         outputfolderpath = os.getcwd()
-        
     old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.split(fr'{output_folder}_v[0-9]+$', os.path.basename(output_folder))[0] + "_v" in file]
 
     global old_version_exists
@@ -41,12 +39,12 @@ def get_version_list(output_folder):
     return version_name_ordered
 
 def get_newest_version(output_folder):
-
     foldername = re.split(r'_v[0-9]+$',os.path.basename(output_folder))[0]
     outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
         outputfolderpath = os.getcwd()
-    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if foldername + "_v" in file]
+
+    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.match(rf"^{re.escape(foldername)}_v[0-9]+$", file)]
 
     logger.info(f"{len(old_versions)} version of the selected output folder found: {old_versions}")
     old_versions_number = list(map(extract_version_int, old_versions))

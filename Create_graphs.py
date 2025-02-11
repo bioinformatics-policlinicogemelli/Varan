@@ -12,13 +12,11 @@ import numpy as np
 
 
 def create_barplots(output_folder):
+    os.makedirs(os.path.join(output_folder, "img"), exist_ok=True)
     outputfolderpath = os.path.dirname(output_folder)
     output_folder_base = re.sub(r'_v\d+$', '', output_folder)
-    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.split(fr'{output_folder_base}_v[0-9]+$', os.path.basename(output_folder_base))[0] + "_v" in file]
-    
-    old_versions.append(output_folder)
-    old_versions = set(old_versions)
-    
+    old_versions = {file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.match(rf"^{re.escape(output_folder_base)}_v[0-9]+$", os.path.join(outputfolderpath, file))} 
+
     total_dic = {}
 
     for folder in old_versions:
@@ -35,7 +33,7 @@ def create_barplots(output_folder):
 
     n = 5
     sorted_total = dict(sorted(total_dic.items(), key=lambda item: int(re.search(r'_v(\d+)$', item[0]).group(1))))
-    limited_dic = dict(list(sorted_total.items())[:n])
+    limited_dic = dict(list(sorted_total.items())[-n:])
 
     values = list(limited_dic.values())
     keys = [*limited_dic]
@@ -73,14 +71,14 @@ def create_barplots(output_folder):
         data_sv_path = os.path.join(os.path.realpath(outputfolderpath), folder, "data_sv.txt")
 
         if os.path.exists(data_snv_path):
-            data_snv_df = pd.read_csv(data_snv_path, sep="\t", header=0)
+            data_snv_df = pd.read_csv(data_snv_path, sep="\t", header=0, low_memory=False)
             snv_number = len(data_snv_df)
         else:
             snv_number = 0
 
         if os.path.exists(data_cnv_path):
-            data_cnv_df = pd.read_csv(data_cnv_path, sep="\t", header=0)
-            cnv_number = len(data_cnv_df)
+            data_cnv_df = pd.read_csv(data_cnv_path, sep="\t", header=0, index_col=0)
+            cnv_number = (data_cnv_df != 0).sum().sum()
         else:
             cnv_number = 0
 
@@ -94,7 +92,7 @@ def create_barplots(output_folder):
 
 
     sorted_total = dict(sorted(total_genes.items(), key=lambda item: int(re.search(r'_v(\d+)$', item[0]).group(1))))
-    limited_dic = dict(list(sorted_total.items())[:n])
+    limited_dic = dict(list(sorted_total.items())[-n:])
 
     studies = list(limited_dic.keys())
     values = list(limited_dic.values())
@@ -116,13 +114,23 @@ def create_barplots(output_folder):
     )
 
     for i, (cat, values) in enumerate(categories.items()):
-        axes[i].barh(studies, values, color=colors[cat])
+        bars = axes[i].barh(studies, values, color=colors[cat])
         axes[i].set_title(cat, fontsize=10)
         axes[i].set_xlabel("Counts", fontsize=9)
         if i == 0:  
             axes[i].invert_yaxis()
 
+        max_value = max(values) if values else 0
+        axes[i].set_xlim([0, max_value * 1.15])
+
+        for bar in bars:
+            width = bar.get_width()
+            axes[i].text(width + max_value * 0.02, bar.get_y() + bar.get_height()/2, 
+                         f'{width}', va='center', ha='left', fontsize=8)
+
     plt.savefig(os.path.join(output_folder, "img", 'genes.png'))
+
+    return len(old_versions)
 
 def autolabel_ver(ax, rects):
     for rect in rects:

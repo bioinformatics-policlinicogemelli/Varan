@@ -75,7 +75,8 @@ def extract_clinical_patient(oldpath, sample_ids, output_folder):
     extracted = data[data.iloc[:, idx_patient].astype(str).isin(patient_ids)]
 
     extracted = pd.concat([header, extracted])    
-    extracted.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t", header=False)
+    extracted.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t", header=False, na_rep="NaN")
+
    
 
 def extract_cna_hg19(file_path, sample_ids, output_folder):
