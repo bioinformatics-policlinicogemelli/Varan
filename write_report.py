@@ -142,7 +142,7 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
             <h1>VARAN</h1>
         </header>
 
-        <h2>Run on {date}</h2>
+        <h2>{date} - {' '.join(sys.argv)} </h2>
 
         <div class=\"container\">
             <section class=\"general-info\">
@@ -638,8 +638,6 @@ def extract_filters_from_html(report):
 
     for filter_name, filter_value in filter_items:
         filters[filter_name.strip()] = filter_value.strip()
-
-    import pdb; pdb.set_trace()
 
     return filters
 

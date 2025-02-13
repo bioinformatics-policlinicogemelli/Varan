@@ -404,7 +404,7 @@ def snv_type_from_folder(input, snv_vcf_files):
     return sID_path
 
 
-def vcf_filtering(sID_path, output_folder, output_filtered):
+def vcf_filtering(sID_path, output_folder, output_filtered, filters):
     sID_path_filtered = dict()
     if output_filtered.strip() == "":
         output_filtered = "snv_filtered"
@@ -414,7 +414,7 @@ def vcf_filtering(sID_path, output_folder, output_filtered):
         out_filt = os.path.join(output_folder, output_filtered) #TEST
         vcf_filtered = os.path.join(out_filt, vcf_file.replace('.vcf','') + '.FILTERED.vcf')
         #logger.info(f'[FILTERING] {v}')
-        vcf_filter.main(v, vcf_filtered)
+        vcf_filter.main(v, vcf_filtered, filters)
         #logger.info(f'filtered file {vcf_filtered} created!')
         sID_path_filtered[k] = vcf_filtered
     return sID_path_filtered
@@ -1267,9 +1267,9 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
             logger.info("A non empty maf folder already exists!")
 
         if not resume:
-            if "d" in filters:
-                logger.info("Filtering out VCFs with dots in ALT column")
-                sID_path_snv = vcf_filtering(sID_path_snv, output_folder, output_filtered)
+            if ("d" in filters) or ("z" in filters) or ("f" in filters):
+                logger.info("Filtering out VCFs")
+                sID_path_snv = vcf_filtering(sID_path_snv, output_folder, output_filtered, filters)
             temporary = create_random_name_folder()
             for k, v in sID_path_snv.items():
                 cl = vcf2maf_constructor(k, v, temporary, output_folder)
