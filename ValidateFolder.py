@@ -7,12 +7,14 @@ import subprocess
 import shutil
 from write_report import *
 from Create_graphs import *
+import zipfile
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
-ZIP_MAF = config.get('Zip', 'ZIP_MAF')
-ZIP_SNV_FILTERED = config.get('Zip', 'ZIP_SNV_FILTERED')
+ZIP_MAF = config.getboolean('Zip', 'ZIP_MAF')
+ZIP_SNV_FILTERED = config.getboolean('Zip', 'ZIP_SNV_FILTERED')
+COPY_MAF = config.getboolean('Zip', 'COPY_MAF')
         
         
 def cBio_validation(output_folder):
@@ -271,3 +273,38 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
     
     else:
         raise Exception("Validation Failed!")
+
+
+def copy_maf(oldpath, output, COPY_MAF, ZIP_MAF):
+    if COPY_MAF:
+        clin_sample = pd.read_csv(os.path.join(output, "data_clinical_sample.txt"), sep="\t", header=4)
+        sample_IDs = clin_sample["SAMPLE_ID"]
+
+        maf_dir = os.path.join(oldpath, 'maf')
+        maf_zip_path = os.path.join(oldpath, "maf.zip")
+        output_maf_dir = os.path.join(output, 'maf')
+
+        if os.path.exists(maf_zip_path):
+            with zipfile.ZipFile(maf_zip_path, 'r') as zip_maf:
+                zip_maf.extractall(maf_dir)
+
+        if os.path.exists(maf_dir):
+            os.makedirs(output_maf_dir, exist_ok=True)
+
+            for sample in sample_IDs:
+                for file_type in ["_MergedSmallVariants.genome.FILTERED.vcf.maf", "_MergedSmallVariants.genome.vcf.maf"]:
+                    old_file = os.path.join(maf_dir, f"{sample}{file_type}")
+                    new_file = os.path.join(output_maf_dir, f"{sample}{file_type}")
+                    
+                    if os.path.exists(old_file):
+                        shutil.copy2(old_file, new_file)
+
+            if ZIP_MAF:
+                maf_zip_path = os.path.join(output, "maf.zip")
+                with zipfile.ZipFile(maf_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
+                    for root, _, files in os.walk(output_maf_dir):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            zip_ref.write(file_path, os.path.relpath(file_path, output_maf_dir))
+                shutil.rmtree(output_maf_dir)
+

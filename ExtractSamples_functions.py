@@ -157,13 +157,11 @@ def extract_cna(file_path, sample_ids, output_folder):
     Example:
       >>> extract_cna('input_data.tsv', ['sample1', 'sample2'], 'output_folder/')
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", index_col=0)
     columns_to_keep = [sample for sample in sample_ids if sample in file.columns]
-    # if len(sample_ids) > len(sample_ids):
-    #     print("[Warning] Some samples names are not present in the DataFrame.")
-    columns_to_keep.insert(0, file.columns[0])
     extracted = file.loc[:, columns_to_keep]
-    extracted.to_csv(os.path.join(output_folder, "data_cna.txt"), index=False, sep="\t")
+    extracted = extracted.loc[(extracted != 0).any(axis=1)]
+    extracted.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
         
 def extract_mutations(file_path, sample_ids, output_folder):
     """

@@ -1,12 +1,18 @@
 import os
 from Update_functions import *
 from loguru import logger
-from ValidateFolder import validateOutput
+from ValidateFolder import validateOutput, copy_maf
 from versioning import *
 from Make_meta_and_cases import meta_case_main
 import shutil
 import sys
 from write_report import *
+
+config = ConfigParser()
+configFile = config.read("conf.ini")
+
+ZIP_MAF = config.getboolean('Zip', 'ZIP_MAF')
+COPY_MAF = config.getboolean('Zip', 'COPY_MAF')
 
 
 def update_main(oldpath, newpath, output, study_id, overwrite):
@@ -31,7 +37,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
             logger.info("New folder found")
     else:
         no_out=True
-        output=re.split(r'_v[0-9]$',oldpath)[0]
+        output=re.split(r'_v[0-9]+$', oldpath)[0]
 
     old_versions = get_version_list(output)
 
@@ -74,6 +80,9 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     study_info.append(no_out)
 
     meta_case_main(cancer, output, study_info, study_id)
+
+    copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
+    copy_maf(newpath, output, COPY_MAF, ZIP_MAF)
     
     logger.info("Starting Validation Folder...")
     number_for_graph = validateOutput(output, None, False, True, None, None, None)

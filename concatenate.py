@@ -1,5 +1,6 @@
 import os
 from loguru import logger
+import pandas as pd
 
 def concatenate_files(file_list, output_file):
     with open(output_file, 'w') as out_file:
@@ -66,6 +67,10 @@ def concatenate_main(filters, output_folder, ext, oncoKB):
         if (len(all_data_mut) == 1):
             os.remove(output_file)
             logger.warning("data_mutations_extended is empty. File removed.")
+
+    if os.path.exists(output_file):
+        data_mut = pd.read_csv(output_file, sep="\t", dtype=str)
+        data_mut.drop_duplicates(keep='last', inplace=True)
 
     if os.path.exists(output_file):
         logger.info(f"Extracting data_mutations_extended from {input_folder} folder")

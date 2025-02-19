@@ -98,6 +98,7 @@ th, td {
 th {
     background-color: #003366;
     color: white;
+    text-align: center;
 }
 
 td {
@@ -106,8 +107,10 @@ td {
 
 td.filter-same {
     background-color: #d4edda;
+    text-align: center;
 }
 
 td.filter-changed {
     background-color: #f8d7da;
+    text-align: center;
 }

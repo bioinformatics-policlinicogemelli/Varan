@@ -116,7 +116,7 @@ def delete_cna(file_path, sample_ids, output_folder):
     file = pd.read_csv(file_path, sep="\t", index_col=0)
     filtered = file.drop(columns=sample_ids, axis=1, errors="ignore")
     filtered = filtered.loc[(filtered != 0).any(axis=1)]
-    filtered.to_csv(os.path.join(output_folder, "data_cna.txt"), index=False, sep="\t")
+    filtered.to_csv(os.path.join(output_folder, "data_cna.txt"), sep="\t")
         
 def delete_mutations(file_path, sample_ids, output_folder):
     """
