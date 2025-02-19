@@ -1,6 +1,6 @@
 import os
 from ExtractSamples_functions import *
-from ValidateFolder import validateOutput
+from ValidateFolder import validateOutput, copy_maf
 from Make_meta_and_cases import meta_case_main
 from versioning import *
 from loguru import logger
@@ -8,11 +8,18 @@ import shutil
 import sys
 from write_report import *
 
+
+config = ConfigParser()
+configFile = config.read("conf.ini")
+
+ZIP_MAF = config.getboolean('Zip', 'ZIP_MAF')
+COPY_MAF = config.getboolean('Zip', 'COPY_MAF')
+
+
 def extract_main(oldpath, extract_path, output, study_id, overwrite):
     
     logger.info(f"extract_main args [old_path:{oldpath}, extract_path:{extract_path}, output_folder:{output}]")	
     logger.info("Checking input...")
-
     oldpath = oldpath.rstrip("/")
 
     if not os.path.isdir(oldpath):
@@ -27,7 +34,7 @@ def extract_main(oldpath, extract_path, output, study_id, overwrite):
             logger.info("Sample list to extract found")
     else:
         no_out=True
-        output=re.split(r'_v[0-9]$',oldpath)[0]
+        output=re.split(r'_v[0-9]+$',oldpath)[0]
     
     check_sample_list(extract_path, oldpath)
     old_versions=get_version_list(output)
@@ -99,6 +106,8 @@ def extract_main(oldpath, extract_path, output, study_id, overwrite):
     # if len(old_versions)>=1:
     #     old_version=old_versions[-1]
     #     compare_version(output, old_version, "extract", output)
+
+    copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
     
     logger.info("Starting Validation Folder...")
     number_for_graph = validateOutput(output, None, False, True, None, None, None)

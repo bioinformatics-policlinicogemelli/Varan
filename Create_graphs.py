@@ -121,7 +121,11 @@ def create_barplots(output_folder):
             axes[i].invert_yaxis()
 
         max_value = max(values) if values else 0
-        axes[i].set_xlim([0, max_value * 1.15])
+        if max_value > 0:
+            axes[i].set_xlim([0, max_value * 1.15])
+        else:
+            axes[i].set_xlim([0, 10])
+
 
         for bar in bars:
             width = bar.get_width()

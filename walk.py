@@ -302,6 +302,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
             
         else:
             #df_table_filt["Tumor_Sample_Barcode"] = df_table_filt["Tumor_Sample_Barcode"].str.replace(".cnv.bam", "")
+            df_table_filt = df_table_filt.copy()
             df_table_filt.loc[:, "Tumor_Sample_Barcode"] = df_table_filt["Tumor_Sample_Barcode"].str.replace(".cnv.bam", "", regex=True)
 
             data_cna = df_table_filt.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0).astype(int)
@@ -1031,9 +1032,9 @@ def check_data_cna(data_cna_path):
         logger.warning(f"{input_file} does not exist!")
 
 
-def fill_from_file(table_dict_patient, fileinputclinical, MSI_THR, TMB):
+def fill_from_file(table_dict_patient, file_input_clinical, MSI_THR, TMB):
     #logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
-    for k, m, t in zip(fileinputclinical["SAMPLE_ID"], fileinputclinical["MSI"], fileinputclinical["TMB"]):
+    for k, m, t in zip(file_input_clinical["SAMPLE_ID"], file_input_clinical["MSI"], file_input_clinical["TMB"]):
         table_dict_patient[k].append(m)
         table_dict_patient[k].append(t)
         
@@ -1068,6 +1069,7 @@ def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR
             table_dict_patient[k].append(tmv_msi['MSI'][1][1])   
         else:
             table_dict_patient[k].append('NA')
+        
         table_dict_patient[k].append(tmv_msi['TMB_Total'])
         if not tmv_msi['MSI'][0][1]=="NA":
             if not tmv_msi['MSI'][1][1] =="NA":
@@ -1120,7 +1122,16 @@ def input_extraction_folder(input):
 
 
 
-def validate_input(oncokb, vcf_type, filters, cancer):
+def validate_input(oncokb, vcf_type, filters, cancer, input):
+    #check that the input file is correctly made
+    if not isinputfile:
+        file_tsv = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t", dtype=str)
+    elif isinputfile:
+        file_tsv = pd.read_csv(input, sep="\t", dtype=str)
+    column_list = ["SAMPLE_ID", "PATIENT_ID", "ONCOTREE_CODE", "snv_path", "cnv_path", "comb_path", "MSI", "TMB", "MSI_THR", "TMB_THR"]
+    if not all(name in file_tsv.columns for name in column_list):
+        logger.critical(f"Necessary columns: \"SAMPLE_ID\", \"PATIENT_ID\", \"ONCOTREE_CODE\", \"snv_path\", \"cnv_path\", \"comb_path\", \"MSI\", \"TMB\", \"MSI_THR\", \"TMB_THR\"")
+        raise(Exception("The input file is missing some important columns!"))
     
     #check that oncokb key is filled in conf.ini when oncokb annotation is selected
     if oncokb:
@@ -1157,7 +1168,13 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     assert os.path.exists(input[0]), \
             f"No valid file/folder {input} found. Check your input path"
 
-    validate_input(oncokb, vcf_type, filters, cancer)
+    global isinputfile
+    
+    if os.path.isdir(input[0]):
+        isinputfile = False
+    elif os.path.isfile(input[0]):
+        isinputfile = True
+    validate_input(oncokb, vcf_type, filters, cancer, input[0])
     
     
     
@@ -1168,15 +1185,12 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
     if not resume or not os.path.exists(os.path.join(output_folder, "temp")):
         output_folder = create_folder(output_folder, overwrite_output, resume)
     
-    global isinputfile
-    if os.path.isdir(input[0]):
+    if not isinputfile:
         input_folder = input[0]
-        isinputfile = False
-        input, patient_tsv, fusion_tsv = input_extraction_folder(input[0])
+        input, patient_tsv, fusion_tsv = input_extraction_folder(input_folder)
         check_multiple_folder(input_folder, multiple)
    
-    elif os.path.isfile(input[0]):
-        isinputfile = True
+    elif isinputfile:
         input, patient_tsv, fusion_tsv = input_extraction_file(input)
         check_multiple_file(input, multiple)
         input_folder = transform_input(input, patient_tsv, fusion_tsv, output_folder, multiple)

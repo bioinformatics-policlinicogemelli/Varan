@@ -4,10 +4,18 @@ import argparse
 import shutil
 from Make_meta_and_cases import meta_case_main
 from Delete_functions import *
-from ValidateFolder import validateOutput
+from ValidateFolder import validateOutput, copy_maf
 from versioning import *
 from loguru import logger
 from write_report import *
+
+
+config = ConfigParser()
+configFile = config.read("conf.ini")
+
+ZIP_MAF = config.getboolean('Zip', 'ZIP_MAF')
+COPY_MAF = config.getboolean('Zip', 'COPY_MAF')
+
 
 def delete_main(oldpath, removepath, output, study_id, overwrite):
     
@@ -28,7 +36,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
             logger.info("Sample list to remove found")
     else:
         no_out=True
-        output=re.split(r'_v[0-9]$',oldpath)[0]
+        output=re.split(r'_v[0-9]+$',oldpath)[0]
 
     check_sample_list(removepath, oldpath)
     old_versions = get_version_list(output)
@@ -111,6 +119,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
     #     old_version=old_versions[-1]
     #     compare_version(output, old_version, "delete", output)
 
+    copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
 
     logger.info("Starting Validation Folder...")
     number_for_graph = validateOutput(output, None, False, True, None, None, None)

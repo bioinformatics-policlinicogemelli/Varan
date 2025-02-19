@@ -14,6 +14,7 @@ from configparser import ConfigParser
 import walk
 import shutil
 import versioning
+import ast
 
 
 config = ConfigParser()
@@ -129,11 +130,11 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
 
     html_content = f"""
     <!DOCTYPE html>
-    <html lang=\"it\">
+    <html lang="it">
     <head>
         <link rel="stylesheet" type="text/css" href="{os.path.join("img", "styles.css")}">
-        <meta charset=\"UTF-8\">
-        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Varan Report</title>
     </head>
     <body>
@@ -142,12 +143,13 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
             <h1>VARAN</h1>
         </header>
 
-        <h2>Run on {date}</h2>
+        <h2>Report generate on {date}</h2>
 
-        <div class=\"container\">
-            <section class=\"general-info\">
-                <div class=\"section-title\">General Information</div>
-                <div class=\"content\">
+        <div class="container">
+            <section class="general-info">
+                <div class="section-title">General Information</div>
+                <div class="content">
+                    <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
                     <p><strong>STUDY NAME:</strong> {os.path.basename(os.path.normpath(output_folder))}</p>
                     <p><strong>CANCER TYPE:</strong> {cancer}</p>
                     <hr width="100%" size="2" color="#003366" noshade>
@@ -158,7 +160,7 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
 
     if ghosts:
         html_content += f"""
-        <div class=\"content\">
+        <div class="content">
             <p><strong><span>&#9888;</span></strong> The following samples are not present in cnv, snv and fusions after filtering: {ghosts}
         </div>"""
 
@@ -168,9 +170,9 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
     if versioning.old_version_exists:
         if actual_version != 1:
             html_content += f"""
-            <section class=\"comparison\">
-                <div class=\"section-title\">Comparison with Previous Version (v_{actual_version - 1})</div>
-                <div class=\"content\">
+            <section class="comparison">
+                <div class="section-title">Comparison with Previous Version (v_{actual_version - 1})</div>
+                <div class="content">
                     <p><strong>ADDED PATIENT(S):</strong> {len(only_new_pat)}</p>
                     <p><strong>ADDED SAMPLE(S):</strong> {len(only_new_sam)}</p>
                     <p><strong>REMOVED PATIENT(S):</strong> {len(only_old_pat)}</p>
@@ -180,21 +182,32 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
             """
 
     html_content += f"""
-        <section class=\"filters\">
-            <div class=\"section-title\">Filters & Configuration</div>"""
+        <section class="filters">
+            <div class="section-title">Filters & Configuration</div>"""
+
+    if any(letter in filters for letter in "d"):
+        html_content += f"""
+            <div class="subtitle">VCF Filters</div>"""
+
+    if "d" in filters:
+        html_content += f"""
+                <div class="content">
+                <p>Keep only rows where <strong>ALT</strong> is different from "."</p>
+                <p>Keep only rows where <strong>FILTER</strong> = "PASS"</p>
+            </div>"""
 
     if any(letter in filters for letter in "va"):
         html_content += f"""
-            <div class=\"subtitle\">VAF Filters</div>"""
+            <div class="subtitle">VAF Filters</div>"""
     if "v" in filters:
         html_content += f"""
-            <div class=\"content\">
+            <div class="content">
             <p><strong>T_VAF_MIN:</strong> {extract_key_value(my_filters, "T_VAF_MIN")}</p>
             <p><strong>T_VAF_MAX:</strong> {extract_key_value(my_filters, "T_VAF_MAX")}</p>
         </div>"""
         if "n" in filters:
             html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <p><strong>T_VAF_MIN_NOVEL:</strong> {extract_key_value(my_filters, "T_VAF_MIN_NOVEL")}</p>
             </div>"""
 
@@ -204,106 +217,96 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
         else:
             excl_or_incl = "include"
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <p><strong>AF:</strong> {extract_key_value(my_filters, "AF")} & {excl_or_incl} NA</p>
             </div>"""
     
     if any(letter in filters for letter in "oqycbi"):
         html_content += f"""
-            <div class=\"subtitle\">Annotations Filters</div>"""
+            <div class="subtitle">MAF Filters</div>"""
 
     if oncoKB and "o" in filters:
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <p><strong>ONCOKB:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "ONCOKB_FILTER").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "q" in filters:
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <p><strong>CONSEQUENCES:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "CONSEQUENCES").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "y" in filters:
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <p><strong>POLYPHEN:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "POLYPHEN").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "c" in filters:
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <p><strong>CLIN_SIG:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "CLIN_SIG").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "i" in filters:
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <p><strong>IMPACT:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "IMPACT").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "s" in filters:
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <p><strong>SIFT:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "SIFT").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
-    # if any(letter in filters for letter in "pd"):
-    #     html_content += f"""
-    #         <div class=\"subtitle\">Other Filters</div>""" # TODO DECIDERE NOME
-
-    # if "p" in filters:
-    #     html_content += f"""
-    #             <div class=\"content\">
-    #             {extract_section(content, "Filters")} # filter out from MAF mutations with FILTER="PASS"
-    #         </div>"""
-
-    # if "d" in filters:
-    #     html_content += f"""
-    #             <div class=\"content\">
-    #             {extract_key_value(my_filters, "BENIGN")} # filter out from snv mutations with ALT="." and FILTER="PASS"
-    #         </div>"""
+    if "p" in filters:
+        html_content += f"""
+                <div class="content">
+                 <p><strong>FILTER:</strong> = PASS
+            </div>"""
 
     TMB_section = re.sub(r"[{}']", "", extract_section(my_filters, "TMB"))
     TMB_section = re.sub(r"([,:])(?=\S)", r"\1 ", TMB_section)
 
     html_content += f"""
-            <div class=\"subtitle\">Copy Number Alterations (CNA)</div>
-            <div class=\"content\">
+            <div class="subtitle">Copy Number Alterations (CNA)</div>
+            <div class="content">
                 {extract_section(my_filters, "Cna")}
             </div>
 
-            <div class=\"subtitle\">Tumor Mutational Burden (TMB)</div>
-            <div class=\"content\">
+            <div class="subtitle">Tumor Mutational Burden (TMB)</div>
+            <div class="content">
                 {TMB_section}
             </div>
 
-            <div class=\"subtitle\">Microsatellite Instability (MSI)</div>
-            <div class=\"content\">
+            <div class="subtitle">Microsatellite Instability (MSI)</div>
+            <div class="content">
                 {extract_section(my_filters, "MSI")}
             </div>
 
-            <div class=\"subtitle\">Fusions</div>
-            <div class=\"content\">
+            <div class="subtitle">Fusions</div>
+            <div class="content">
                 {extract_section(my_filters, "FUSION")}
             </div>
         </section>"""
 
     if os.path.exists(os.path.join(output_folder, general_graph_path)) or os.path.exists(os.path.join(output_folder, genes_graph_path)):
         html_content += f"""
-            <section class=\"graphs\">
-                <div class=\"section-title\">Graphical Overview {graph_expression}</div>"""
+            <section class="graphs">
+                <div class="section-title">Graphical Overview {graph_expression}</div>"""
     
     if os.path.exists(os.path.join(output_folder, general_graph_path)):
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <img src="{general_graph_path}" alt="Samples and Patients barchart">
             </div>"""
 
 
     if os.path.exists(os.path.join(output_folder, genes_graph_path)):
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
 
@@ -417,6 +420,24 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
     filters1 = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
     filters2 = extract_filters_from_html(os.path.join(updating_with, "report_VARAN.html"))
 
+
+    order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT", "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", \
+    "HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
+
+    changed_filters = []
+    
+    for filter_name in order:
+        if filter_name not in (filters1.keys() | filters2.keys()):
+            continue 
+        value1 = filters1.get(filter_name, "Not Present")
+        value2 = filters2.get(filter_name, "Not Present")
+        if value1 != value2:
+            changed_filters.append(filter_name)
+
+    common_filters = list(set(order) - set(changed_filters))
+    common_filters = list(set(common_filters) & set(filters1.keys()))
+
+
     html_content = f"""
     <!DOCTYPE html>
     <html lang="it">
@@ -432,13 +453,14 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
             <h1>VARAN - Update</h1>
         </header>
 
-        <h2>Run on {date}</h2>
+        <h2>Report generate on {date}</h2>
         <div class="container">
-            <div class="section-title">General Info</div>
+            <div class="section-title">General Information</div>
                 <div class="content">
-                    <p><strong>Original Study:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
-                    <p><strong>Updating With:</strong> {os.path.basename(os.path.normpath(updating_with))}</p>
-                    <p><strong>New Study:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
+                    <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
+                    <p><strong>ORIGINAL STUDY:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
+                    <p><strong>UPDATING WITH:</strong> {os.path.basename(os.path.normpath(updating_with))}</p>
+                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
                     <p><strong>Total Samples:</strong> {total_samples}</p>
@@ -448,7 +470,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
 
     if ghosts:
         html_content += f"""
-        <div class=\"content\">
+        <div class="content">
             <p><strong><span>&#9888;</span></strong> The following samples are not present in cnv, snv and fusions after filtering: {ghosts}
         </div>"""
 
@@ -499,52 +521,173 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         </div>
         """
 
-    html_content += f"""
-        <div class="section-title">Filters & Configurations Comparison</div>
-        <div class="content">
-        <br />
-        <table>
-            <thead>
-                <tr>
-                    <th>Filter/Configuration</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>"""
 
-    changed_filters = []
-    
-    order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT", "BENIGN", "CLING_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", \
-    "HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
-    for filter_name in order:
-        if filter_name not in (filters1.keys() | filters2.keys()):
-            continue 
-        value1 = filters1.get(filter_name, "Not Present")
-        value2 = filters2.get(filter_name, "Not Present")
-        if value1 != value2:
-            changed = True
-            changed_filters.append(filter_name)
-        else:
-            changed = False
-        
-        status = "Changed" if changed else "Same"
+    if common_filters != []:
         html_content += f"""
-                        <tr>
-                            <td>{filter_name}</td>
-                            <td class="{'filter-changed' if changed else 'filter-same'}">{status}</td>
-                        </tr>"""
+            <section class="filters">
+                <div class="section-title">Filters & Configuration</div>"""
 
-    html_content += """
-                    </tbody>
-                </table>
-            </div>
-            <br />
-    """
+
+    if any(filter in common_filters for filter in ["ALT"]):
+        html_content += f"""
+            <div class="subtitle">VCF Filters</div>"""
+
+    if "ALT" in common_filters:
+        html_content += f"""
+                <div class="content">
+                <p>Keep only rows where <strong>ALT</strong> is different from "."</p>
+                <p>Keep only rows where <strong>FILTER</strong> = "PASS"</p>
+            </div>"""
+
+    if any(filter in common_filters for filter in ["T_VAF_MIN", "T_VAF_MAX", "AF"]):
+        html_content += f"""
+            <div class="subtitle">VAF Filters</div>"""
+    if any(filter in common_filters for filter in ["T_VAF_MIN", "T_VAF_MAX"]):
+        html_content += f"""
+            <div class="content">
+            <p><strong>T_VAF_MIN</strong>: {filters1["T_VAF_MIN"]}</p>
+            <p><strong>T_VAF_MAX</strong>: {filters1["T_VAF_MAX"]}</p>
+        </div>"""
+
+        if "T_VAF_MIN_NOVEL" in common_filters:
+            html_content += f"""
+                <div class="content">
+                <p><strong>T_VAF_MIN_NOVEL</strong>: {filters1["T_VAF_MIN_NOVEL"]}</p>
+            </div>"""
+
+    if "AF" in common_filters:
+        html_content += f"""
+                <div class="content">
+                <p><strong>AF</strong>: {filters1["AF"]}</p>
+            </div>"""
+
+    if any(filter in common_filters for filter in ["ONCOKB_FILTER", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
+        html_content += f"""
+            <div class="subtitle">MAF Filters</div>"""
+
+    if "ONCOKB_FILTER" in common_filters:
+        html_content += f"""
+                <div class="content">
+                <p><strong>ONCOKB</strong>: {filters1["ONCOKB"]}</p>
+            </div>"""
+
+    if "CONSEQUENCES" in common_filters:
+        html_content += f"""
+                <div class="content">
+                <p><strong>CONSEQUENCES</strong>: {filters1["CONSEQUENCES"]}</p>
+            </div>"""
+
+    if "POLYPHEN" in common_filters:
+        html_content += f"""
+                <div class="content">
+                <p><strong>POLYPHEN</strong>: {filters1["POLYPHEN"]}</p>
+            </div>"""
+
+    if "CLIN_SIG" in common_filters:
+        html_content += f"""
+                <div class="content">
+                <p><strong>CLIN_SIG</strong>: {filters1["CLIN_SIG"]}</p>
+            </div>"""
+
+    if "IMPACT" in common_filters:
+        html_content += f"""
+                <div class="content">
+                <p><strong>IMPACT</strong>: {filters1["IMPACT"]}</p>
+            </div>"""
+
+    if "SIFT" in common_filters:
+        html_content += f"""
+                <div class="content">
+                <p><strong>SIFT</strong>: {filters1["SIFT"]}</p>
+            </div>"""
+
+    
+    if "FILTER" in common_filters:
+        html_content += f"""
+                <div class="content">
+                 <p><strong>FILTER</strong>: {filters1["FILTER"]}</p>
+            </div>"""
+
+
+    keys_to_check = {"HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
+    if common_filters != {}:
+        if all(key in filters1 for key in keys_to_check):
+            html_content += f"""
+                    <div class="subtitle">Copy Number Alterations (CNA)</div>
+                    <div class="content">
+                        <p><strong>HEADER_CNV</strong> = {ast.literal_eval(filters1["HEADER_CNV"])}</p>
+                        <p><strong>PLOIDY</strong> = {filters1["PLOIDY"]}</p>
+                        <p><strong>CNVKIT</strong> = {filters1["CNVKIT"]}</p>
+                    </div>
+
+                    <div class="subtitle">Tumor Mutational Burden (TMB)</div>
+                    <div class="content">
+                        <p><strong>THRESHOLD_TMB</strong>: {filters1["THRESHOLD_TMB"]}</p>
+                    </div>
+
+                    <div class="subtitle">Microsatellite Instability (MSI)</div>
+                    <div class="content">
+                        <p><strong>THRESHOLD_SITES</strong>: {filters1["THRESHOLD_SITES"]}</p>
+                        <p><strong>THRESHOLD_MSI</strong>: {filters1["THRESHOLD_MSI"]}</p>
+                    </div>
+
+                    <div class="subtitle">Fusions</div>
+                    <div class="content">
+                        <p><strong>THRESHOLD_FUSION</strong>: {filters1["THRESHOLD_FUSION"]}</p>
+                    </div>
+                </section>
+            </section>"""
+
+
+    # html_content += f"""
+    #     <div class="section-title">Filters & Configurations Comparison</div>
+    #     <div class="content">
+    #     <br />
+    #     <table>
+    #         <thead>
+    #             <tr>
+    #                 <th>Filter/Configuration</th>
+    #                 <th>Status</th>
+    #             </tr>
+    #         </thead>
+    #         <tbody>"""
+
+
+    
+    # order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT", "CLING_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", \
+    # "HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
+
+    # changed_filters = []
+    
+    # for filter_name in order:
+    #     if filter_name not in (filters1.keys() | filters2.keys()):
+    #         continue 
+    #     value1 = filters1.get(filter_name, "Not Present")
+    #     value2 = filters2.get(filter_name, "Not Present")
+    #     if value1 != value2:
+    #         # changed = True
+    #         changed_filters.append(filter_name)
+    #     # else:
+    #     #     changed = False
+        
+    # #     status = "Changed" if changed else "Same"
+    # #     html_content += f"""
+    # #                     <tr>
+    # #                         <td>{filter_name}</td>
+    # #                         <td class="{'filter-changed' if changed else 'filter-same'}">{status}</td>
+    # #                     </tr>"""
+
+    # # html_content += """
+    # #                 </tbody>
+    # #             </table>
+    # #         </div>
+    # #         <br />
+    # # """
 
 
     if any(filters1.get(f) != filters2.get(f) for f in filters1.keys() | filters2.keys()):
         html_content += f"""
-            <div class="section-title">Filters & Configurations That Differ</div>
+            <div class="section-title">DIfferences in Filters & Configurations</div>
             <div class="content">
             <br />
             <table>
@@ -577,19 +720,19 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
 
     if os.path.exists(os.path.join(new_study, general_graph_path)) or os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
-            <section class=\"graphs\">
-                <div class=\"section-title\">Graphical Overview {graph_expression}</div>"""
+            <section class="graphs">
+                <div class="section-title">Graphical Overview {graph_expression}</div>"""
     
     if os.path.exists(os.path.join(new_study, general_graph_path)):
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <img src="{general_graph_path}" alt="Samples and Patients barchart">
             </div>"""
 
 
     if os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
 
@@ -620,30 +763,6 @@ def compare_sample_file_update(file1, file2, outputfolder):
         new_samples = None
 
     return updated_samples, new_samples, len(set(clin_sam_output_df.iloc[4:, 1])), len(set(clin_sam_output_df.iloc[4:, 0]))
-
-
-
-def extract_filters_from_html(report):
-    filters = {}
-
-    with open(report, "r", encoding="utf-8") as file:
-        html_content = file.read()
-
-    filters_section = re.search(r'<section class="filters">.*?</section>', html_content, re.DOTALL)
-    if not filters_section:
-        return filters
-
-    filter_items = re.findall(r'<strong>([^<]+)</strong>\s*[:=]?\s*(.*?)(?=<|</p>|<br>)', filters_section.group(), re.DOTALL)
-    filter_items = [(key.strip().strip(":"), value.strip()) for key, value in filter_items]
-
-    for filter_name, filter_value in filter_items:
-        filters[filter_name.strip()] = filter_value.strip()
-
-    import pdb; pdb.set_trace()
-
-    return filters
-
-
 
 
 ###########################
@@ -706,13 +825,14 @@ def write_report_extract(original_study, new_study, number_for_graph):
             <h1>VARAN - Extract</h1>
         </header>
 
-        <h2>Run on {date}</h2>
+        <h2>Generate on {date}</h2>
 
         <div class="container">
-            <div class="section-title">General Summary</div>
+            <div class="section-title">General Information</div>
                 <div class="content">
-                    <p><strong>Original Study:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
-                    <p><strong>New Study:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
+                    <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
+                    <p><strong>ORIGINAL STUDY:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
+                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
                     <p><strong>Total Samples:</strong> {total_samples}</p>
@@ -720,7 +840,7 @@ def write_report_extract(original_study, new_study, number_for_graph):
 
     if ghosts:
         html_content += f"""
-        <div class=\"content\">
+        <div class="content">
             <p><strong><span>&#9888;</span></strong> The following samples are not present in cnv, snv and fusions after filtering: {ghosts}
         </div>"""
 
@@ -766,34 +886,137 @@ def write_report_extract(original_study, new_study, number_for_graph):
             <p>&emsp;None of the extracted samples was in the original study ({os.path.basename(os.path.normpath(original_study))})</p>
         """
 
+    if filters != {}:
+        html_content += f"""
+            <section class="filters">
+                <div class="section-title">Filters & Configuration</div>"""
 
-    # if filters != {}:
-    #     html_content += f"""
-    #         <section class=\"filters\">
-    #             <div class=\"section-title\">Filters & Configuration</div>"""
+
+    if any(filter in filters.keys() for filter in ["ALT"]):
+        html_content += f"""
+            <div class="subtitle">VCF Filters</div>"""
+
+    if "ALT" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p>Keep only rows where <strong>ALT</strong> is different from "."</p>
+                <p>Keep only rows where <strong>FILTER</strong> = "PASS"</p>
+            </div>"""
+
+    if any(filter in filters.keys() for filter in ["T_VAF_MIN", "T_VAF_MAX", "AF"]):
+        html_content += f"""
+            <div class="subtitle">VAF Filters</div>"""
+    if any(filter in filters.keys() for filter in ["T_VAF_MIN", "T_VAF_MAX"]):
+        html_content += f"""
+            <div class="content">
+            <p><strong>T_VAF_MIN</strong>: {filters["T_VAF_MIN"]}</p>
+            <p><strong>T_VAF_MAX</strong>: {filters["T_VAF_MAX"]}</p>
+        </div>"""
+        if "T_VAF_MIN_NOVEL" in filters.keys():
+            html_content += f"""
+                <div class="content">
+                <p><strong>T_VAF_MIN_NOVEL</strong>: {filters["T_VAF_MIN_NOVEL"]}</p>
+            </div>"""
+
+    if "AF" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>AF</strong>: {filters["AF"]}</p>
+            </div>"""
     
-    # inserire qui e nel remove alla stessa altezza i filtri presi dallo studio originale 
+    if any(filter in filters.keys() for filter in ["ONCOKB_FILTER", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
+        html_content += f"""
+            <div class="subtitle">MAF Filters</div>"""
 
-    # if filters != {}:
-    #     html_content += f"""
-    #     </section>
+    if "ONCOKB_FILTER" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>ONCOKB</strong>: {filters["ONCOKB"]}</p>
+            </div>"""
+
+    if "CONSEQUENCES" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>CONSEQUENCES</strong>: {filters["CONSEQUENCES"]}</p>
+            </div>"""
+
+    if "POLYPHEN" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>POLYPHEN</strong>: {filters["POLYPHEN"]}</p>
+            </div>"""
+
+    if "CLIN_SIG" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>CLIN_SIG</strong>: {filters["CLIN_SIG"]}</p>
+            </div>"""
+
+    if "IMPACT" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>IMPACT</strong>: {filters["IMPACT"]}</p>
+            </div>"""
+
+    if "SIFT" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>SIFT</strong>: {filters["SIFT"]}</p>
+            </div>"""
+
+    
+    if "FILTER" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                 <p><strong>FILTER</strong>: {filters["FILTER"]}</p>
+            </div>"""
+
+    if filters != {}:
+        html_content += f"""
+                <div class="subtitle">Copy Number Alterations (CNA)</div>
+                <div class="content">
+                    <p><strong>HEADER_CNV</strong> = {ast.literal_eval(filters["HEADER_CNV"])}</p>
+                    <p><strong>PLOIDY</strong> = {filters["PLOIDY"]}</p>
+                    <p><strong>CNVKIT</strong> = {filters["CNVKIT"]}</p>
+                </div>
+
+                <div class="subtitle">Tumor Mutational Burden (TMB)</div>
+                <div class="content">
+                    <p><strong>THRESHOLD_TMB</strong>: {filters["THRESHOLD_TMB"]}</p>
+                </div>
+
+                <div class="subtitle">Microsatellite Instability (MSI)</div>
+                <div class="content">
+                    <p><strong>THRESHOLD_SITES</strong>: {filters["THRESHOLD_SITES"]}</p>
+                    <p><strong>THRESHOLD_MSI</strong>: {filters["THRESHOLD_MSI"]}</p>
+                </div>
+
+                <div class="subtitle">Fusions</div>
+                <div class="content">
+                    <p><strong>THRESHOLD_FUSION</strong>: {filters["THRESHOLD_FUSION"]}</p>
+                </div>
+            </section>"""
+        
+        if filters != {}:
+            html_content += f"""
+            </section>"""
 
 
     if os.path.exists(os.path.join(new_study, general_graph_path)) or os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
-            <section class=\"graphs\">
-                <div class=\"section-title\">Graphical Overview {graph_expression}</div>"""
+            <section class="graphs">
+                <div class="section-title">Graphical Overview {graph_expression}</div>"""
     
     if os.path.exists(os.path.join(new_study, general_graph_path)):
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <img src="{general_graph_path}" alt="Samples and Patients barchart">
             </div>"""
 
 
     if os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
 
@@ -857,6 +1080,8 @@ def write_report_remove(original_study, new_study, number_for_graph):
 
     ghosts = ghost_sample(new_study)
 
+    filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+
     case_list1 = os.path.join(original_study, "case_lists")
     case_list2 = os.path.join(new_study, "case_lists")
     cna_1 = os.path.join(case_list1, "cases_cna.txt")
@@ -885,13 +1110,14 @@ def write_report_remove(original_study, new_study, number_for_graph):
             <h1>VARAN - Remove</h1>
         </header>
 
-        <h2>Run on {date}</h2>
+        <h2>Generate on {date}</h2>
 
         <div class="container">
-            <div class="section-title">General Summary</div>
+            <div class="section-title">General Information</div>
                 <div class="content">
-                    <p><strong>Original Study:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
-                    <p><strong>New Study:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
+                    <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
+                    <p><strong>ORIGINAL STUDY:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
+                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
                     <p><strong>Total Samples:</strong> {total_samples}</p>
@@ -899,7 +1125,7 @@ def write_report_remove(original_study, new_study, number_for_graph):
 
     if ghosts:
         html_content += f"""
-        <div class=\"content\">
+        <div class="content">
             <p><strong><span>&#9888;</span></strong> The following samples are not present in cnv, snv and fusions after filtering: {ghosts}
         </div>"""
 
@@ -940,22 +1166,131 @@ def write_report_remove(original_study, new_study, number_for_graph):
             <p>&emsp;<strong>Removed:</strong> {len(removed_samples_sv)} samples ({", ".join(removed_samples_sv)})</p>
             <p>&emsp;There are now {left_samples_sv} samples in cases_sv.</p>"""
 
+    if filters != {}:
+        html_content += f"""
+            <section class="filters">
+                <div class="section-title">Filters & Configuration</div>"""
+
+    if any(filter in filters.keys() for filter in ["ALT"]):
+        html_content += f"""
+            <div class="subtitle">VCF Filters</div>"""
+
+    if "ALT" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p>Keep only rows where <strong>ALT</strong> is different from "."</p>
+                <p>Keep only rows where <strong>FILTER</strong> = "PASS"</p>
+            </div>"""
+
+    if any(filter in filters.keys() for filter in ["T_VAF_MIN", "T_VAF_MAX", "AF"]):
+        html_content += f"""
+            <div class="subtitle">VAF Filters</div>"""
+    if any(filter in filters.keys() for filter in ["T_VAF_MIN", "T_VAF_MAX"]):
+        html_content += f"""
+            <div class="content">
+            <p><strong>T_VAF_MIN</strong>: {filters["T_VAF_MIN"]}</p>
+            <p><strong>T_VAF_MAX</strong>: {filters["T_VAF_MAX"]}</p>
+        </div>"""
+        if "T_VAF_MIN_NOVEL" in filters.keys():
+            html_content += f"""
+                <div class="content">
+                <p><strong>T_VAF_MIN_NOVEL</strong>: {filters["T_VAF_MIN_NOVEL"]}</p>
+            </div>"""
+
+    if "AF" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>AF</strong>: {filters["AF"]}</p>
+            </div>"""
+    
+    if any(filter in filters.keys() for filter in ["ONCOKB_FILTER", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
+        html_content += f"""
+            <div class="subtitle">MAF Filters</div>"""
+
+    if "ONCOKB_FILTER" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>ONCOKB</strong>: {filters["ONCOKB"]}</p>
+            </div>"""
+
+    if "CONSEQUENCES" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>CONSEQUENCES</strong>: {filters["CONSEQUENCES"]}</p>
+            </div>"""
+
+    if "POLYPHEN" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>POLYPHEN</strong>: {filters["POLYPHEN"]}</p>
+            </div>"""
+
+    if "CLIN_SIG" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>CLIN_SIG</strong>: {filters["CLIN_SIG"]}</p>
+            </div>"""
+
+    if "IMPACT" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>IMPACT</strong>: {filters["IMPACT"]}</p>
+            </div>"""
+
+    if "SIFT" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                <p><strong>SIFT</strong>: {filters["SIFT"]}</p>
+            </div>"""
+
+    
+    if "FILTER" in filters.keys():
+        html_content += f"""
+                <div class="content">
+                 <p><strong>FILTER</strong>: {filters["FILTER"]}</p>
+            </div>"""
+
+    if filters != {}:
+        html_content += f"""
+                <div class="subtitle">Copy Number Alterations (CNA)</div>
+                <div class="content">
+                    <p><strong>HEADER_CNV</strong> = {ast.literal_eval(filters["HEADER_CNV"])}</p>
+                    <p><strong>PLOIDY</strong> = {filters["PLOIDY"]}</p>
+                    <p><strong>CNVKIT</strong> = {filters["CNVKIT"]}</p>
+                </div>
+
+                <div class="subtitle">Tumor Mutational Burden (TMB)</div>
+                <div class="content">
+                    <p><strong>THRESHOLD_TMB</strong>: {filters["THRESHOLD_TMB"]}</p>
+                </div>
+
+                <div class="subtitle">Microsatellite Instability (MSI)</div>
+                <div class="content">
+                    <p><strong>THRESHOLD_SITES</strong>: {filters["THRESHOLD_SITES"]}</p>
+                    <p><strong>THRESHOLD_MSI</strong>: {filters["THRESHOLD_MSI"]}</p>
+                </div>
+
+                <div class="subtitle">Fusions</div>
+                <div class="content">
+                    <p><strong>THRESHOLD_FUSION</strong>: {filters["THRESHOLD_FUSION"]}</p>
+                </div>
+            </section>"""
 
     if os.path.exists(os.path.join(new_study, general_graph_path)) or os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
-            <section class=\"graphs\">
-                <div class=\"section-title\">Graphical Overview {graph_expression}</div>"""
+            <section class="graphs">
+                <div class="section-title">Graphical Overview {graph_expression}</div>"""
     
     if os.path.exists(os.path.join(new_study, general_graph_path)):
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <img src="{general_graph_path}" alt="Samples and Patients barchart">
             </div>"""
 
 
     if os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
-                <div class=\"content\">
+                <div class="content">
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
 
@@ -991,3 +1326,31 @@ def compare_sample_file_remove(file1, file2, input_folder, outputfolder):
         left_samples = None
     
     return removed_samples, left_samples, len(set(clin_sam_new_df.iloc[4:, 1])), len(set(clin_sam_new_df.iloc[4:, 0]))
+
+
+def extract_filters_from_html(report):
+    filters = {}
+    with open(report, "r", encoding="utf-8") as file:
+        html_content = file.read()
+
+    fs_match = re.search(r'<section class="filters">.*?</section>', html_content, re.DOTALL)
+    if fs_match:
+        section_text = fs_match.group()
+        p_items = re.findall(r'<p>\s*<strong>([^<]+?)[:]*</strong>\s*[:=]?\s*(.*?)\s*</p>', section_text, re.DOTALL)
+        for key, value in p_items:
+            filters[key.strip().rstrip(':')] = value.strip()
+        other_items = re.findall(r'<strong>([^<]+?)</strong>\s*[:=]?\s*(.*?)(?=<br>|</div>|</section>)', section_text, re.DOTALL)
+        for key, value in other_items:
+            k = key.strip().rstrip(':')
+            if k not in filters:
+                filters[k] = value.strip()
+
+    vcf_match = re.search(r'<div class="subtitle">VCF Filters</div>\s*<div class="content">(.*?)</div>', html_content, re.DOTALL)
+    if vcf_match:
+        content = vcf_match.group(1)
+        alt_match = re.search(r'Keep only rows where\s*<strong>\s*ALT\s*</strong>\s*is different from\s*"(.*?)"', content, re.DOTALL)
+        if alt_match:
+            alt_val = alt_match.group(1).strip()
+            filters['ALT'] = '!="{}"'.format(alt_val)
+
+    return filters

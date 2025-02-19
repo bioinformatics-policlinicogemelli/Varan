@@ -203,7 +203,7 @@ def update_mutations(oldfile_path, newfile_path, output_folder):
 
 
     updated = pd.concat([old, new])
-    updated.drop_duplicates(keep='last', inplace=True)
+    updated.drop_duplicates(subset=updated.loc[:, "Hugo_Symbol":"n_AF"].columns, keep='last', inplace=True)
     updated.to_csv(os.path.join(output_folder, "data_mutations_extended.txt"), index=False, sep="\t")
     logger.info("data_mutation_extended.txt updated!")
     
@@ -223,27 +223,37 @@ def update_sv(oldfile_path, newfile_path, output_folder):
       >>>  update_sv('old_data_sv.txt', 'new_data_sv.txt', 'output_folder/')
     """
 
-    with open(oldfile_path,"r") as old_file:
-        with open(newfile_path,"r") as new_file:
-            with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
+    # with open(oldfile_path,"r") as old_file:
+    #     with open(newfile_path,"r") as new_file:
+    #         with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
 
-                for line in old_file:
-                    list_split = line.split("\t\t")
-                    list_strip = [elem.strip() for elem in list_split]
-                    new_row = "\t".join(list_strip) + '\n'
-                    of.write(new_row)
-                for linenew in new_file:
-                    # if linenew.startswith("Sample_ID"):
-                    #     new_row = linenew.replace("Sample_ID", "Sample_Id")
-                    #     of.write(new_row)
-                    if not linenew.startswith("Sample") :
-                        list_split = linenew.split("\t\t")
-                        list_strip = [elem.strip() for elem in list_split]
-                        new_row = "\t".join(list_strip) + '\n'
-                        of.write(new_row)
-    data_sv = pd.read_csv(os.path.join(output_folder, "data_sv.txt"), sep="\t")
-    data_sv = data_sv.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "SV_Status", "Class"], keep='last')
-    data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"), sep="\t", index=False)
+    #             for line in old_file:
+    #                 import pdb; pdb.set_trace()
+    #                 list_split = line.split("\t")
+    #                 list_strip = [elem.strip() for elem in list_split]
+    #                 new_row = "\t".join(list_strip) + '\n'
+    #                 of.write(new_row)
+    #             for linenew in new_file:
+    #                 # if linenew.startswith("Sample_ID"):
+    #                 #     new_row = linenew.replace("Sample_ID", "Sample_Id")
+    #                 #     of.write(new_row)
+    #                 if not linenew.startswith("Sample") :
+    #                     list_split = linenew.split("\t")
+    #                     list_strip = [elem.strip() for elem in list_split]
+    #                     new_row = "\t".join(list_strip) + '\n'
+    #                     of.write(new_row)
+    # data_sv = pd.read_csv(os.path.join(output_folder, "data_sv.txt"), sep="\t")
+    # data_sv = data_sv.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "SV_Status", "Class"], keep='last')
+    # data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"), sep="\t", index=False)
+    # logger.info("data_sv.txt updated!")
+
+    df_old = pd.read_csv(oldfile_path, sep="\t")
+    df_new = pd.read_csv(newfile_path, sep="\t")
+    merged_df = pd.concat([df_old, df_new], axis=0, join="outer", ignore_index=True)
+    merged_df.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "SV_Status", "Class"], keep="last", inplace=True)
+    output_file = os.path.join(output_folder, "data_sv.txt")
+    merged_df.to_csv(output_file, sep="\t", index=False)
+    
     logger.info("data_sv.txt updated!")
     
 
