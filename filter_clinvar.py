@@ -146,11 +146,16 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
     
     if filters!="" and filters!="d":
         
-        logger.info("Start filtering vcf...")
+        logger.info("Start filtering MAF...")
         os.makedirs(out_filter, exist_ok=True)
         
         for file in file_list:
             file_to_filter=pd.read_csv(file, sep="\t", dtype=object)
+            if "C" in filters:
+                file_to_filter = file_to_filter.dropna(subset=["t_alt_count"])
+                file_to_filter["t_alt_count"] = file_to_filter["t_alt_count"].astype(int)
+                file_to_filter = file_to_filter[(file_to_filter["Variant_Classification"].isin(["Missense_Mutation", "Nonsense_Mutation", "Splice_Region", "Splice_Site"])) & (file_to_filter["t_alt_count"] > 3) |
+                 ~(file_to_filter["Variant_Classification"].isin(["Missense_Mutation", "Nonsense_Mutation", "Splice_Region", "Splice_Site"])) & (file_to_filter["t_alt_count"] > 10)]
             
             if "i" in filters:
                 file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
