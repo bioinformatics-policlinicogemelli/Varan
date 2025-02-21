@@ -8,6 +8,7 @@ RUN apt-get update &&\
     apt-get install -y software-properties-common ca-certificates &&\
     apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libssl-dev libreadline-dev libffi-dev wget libbz2-dev libsqlite3-dev vcftools bcftools samtools && \
     update-ca-certificates && \
+    apt-get update && apt-get install -y python-setuptools && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /python && cd /python && \
