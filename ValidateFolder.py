@@ -29,8 +29,8 @@ def cBio_validation(output_folder):
         return process1.returncode
 
     except subprocess.CalledProcessError as e:
-        logger.error("Connection to localhost failed. This may be due to an incorrect port selection" +\
-                     " or invalid Docker settings.")
+        logger.warning("Connection to localhost failed. This may be due to an incorrect port selection." +\
+                     " This warning is expected if Varan Docker version is in use.")
         logger.info("Starting offline validation... Be warned that files succeeding this validation may still fail to load (correctly).")
 
         process2 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-n", "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -134,93 +134,6 @@ def validateFolderlog(folder):
             
     if all(result_all.values()):
         logger.success("Folder contains all required files for cBioportal")
-
-
-def validateFolder(folder,log=False):
-    """
-    Validates the contents of a folder against required files for cBioPortal data upload.
-
-    This function checks the contents of a folder against a set of required files for different categories
-    (e.g., Patient, Study, CNA, Fusion, SNV) that are necessary for uploading data to cBioPortal. It prints
-    any missing files and associated warnings.
-
-    Args:
-        folder (str): Path to the folder to be validated.
-
-    Returns:
-        None
-
-    Notes:
-        - The function checks the presence of required files within the specified 'folder' and its subdirectories.
-        - Required file paths are defined for each category in the 'required_files' dictionary.
-        - If any required file is missing, a warning message is printed along with the missing file names.
-
-    Example:
-        >>> validateFolder('data_folder/')
-        
-    """
-    
-    if not log:
-        logger.remove()
-        logfile="validateFolder_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",colorize=True)
-        logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}")#,mode="w")
-	
-    logger.info("Starting validateFolder script:")
-    logger.info(f"validateFolder args [folder:{folder}]")
-    
-    list_files=[]
-    for file in os.listdir(folder):
-        if os.path.isdir(os.path.join(folder,file)):
-            subdir=file
-            sudbirfiles=os.listdir(os.path.join(folder,subdir))
-            for subdirfile in sudbirfiles:
-                list_files.append(os.path.join(subdir,subdirfile))
-        else:
-            list_files.append(file)
-
- 
-    required_files = {
-        "Patient": [
-            "data_clinical_patient.txt",
-            "meta_clinical_patient.txt",
-        ],
-        "Study": [
-            "data_clinical_sample.txt",
-            "meta_study.txt",
-            "meta_clinical_sample.txt",
-        ],
-        "CNA": [
-            "case_lists/cases_cna.txt",
-            "data_cna.txt",
-            "data_cna_hg19.seg",
-            "meta_cna.txt",
-            "meta_cna_hg19_seg.txt",
-        ],
-        "Fusion": [
-            "case_lists/cases_sv.txt",
-            "data_sv.txt",
-            "meta_sv.txt",
-        ],
-        "SNV": [
-            "case_lists/cases_sequenced.txt",
-            "data_mutations_extended.txt",
-            "meta_mutations_extended.txt",
-        ],
-    }
-    
-    result_all = {}
-    for category, required_files_list in required_files.items():
-        missing_files = [elem for elem in required_files_list if elem not in list_files]
-        result_all[category] = len(missing_files) == 0
-    
-        
-        if not result_all[category]:
-            logger.warning(f"Missing file(s) for {category} from {folder}:")
-            for missing in missing_files:
-                print("- ", missing)
-
 
 def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None, filters=None):
     validateFolderlog(folder)
