@@ -7,16 +7,12 @@ import subprocess
 import shutil
 from write_report import *
 from Create_graphs import *
+from filter_clinvar import check_bool
 import zipfile
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
-ZIP_MAF = config.getboolean('Zip', 'ZIP_MAF')
-ZIP_SNV_FILTERED = config.getboolean('Zip', 'ZIP_SNV_FILTERED')
-COPY_MAF = config.getboolean('Zip', 'COPY_MAF')
-        
-        
 def cBio_validation(output_folder):
     config = ConfigParser()
     config.read('conf.ini')
@@ -244,6 +240,8 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
             temp_path = os.path.join(folder, "temp")
             
             if os.path.exists(maf_path):
+                ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+                ZIP_MAF = check_bool(ZIP_MAF)
                 if not os.listdir(maf_path):
                     shutil.rmtree(maf_path)
 
@@ -253,6 +251,8 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
                     logger.info("Deleting unzipped maf folder...")
                     shutil.rmtree(maf_path)
 
+            ZIP_SNV_FILTERED = config.get('Zip', 'ZIP_SNV_FILTERED')
+            ZIP_SNV_FILTERED = check_bool(ZIP_SNV_FILTERED)
             if os.path.exists(snv_path) and ZIP_SNV_FILTERED:
                 logger.info("Zipping snv_filtered folder...") 
                 shutil.make_archive(snv_path, "zip", snv_path)
@@ -276,6 +276,9 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
 
 
 def copy_maf(oldpath, output, COPY_MAF, ZIP_MAF):
+
+    COPY_MAF = config.get('Zip', 'COPY_MAF')
+    COPY_MAF = check_bool(COPY_MAF)
     if COPY_MAF:
         clin_sample = pd.read_csv(os.path.join(output, "data_clinical_sample.txt"), sep="\t", header=4)
         sample_IDs = clin_sample["SAMPLE_ID"]
@@ -299,6 +302,8 @@ def copy_maf(oldpath, output, COPY_MAF, ZIP_MAF):
                     if os.path.exists(old_file):
                         shutil.copy2(old_file, new_file)
 
+            ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+            ZIP_MAF = check_bool(ZIP_MAF)
             if ZIP_MAF:
                 maf_zip_path = os.path.join(output, "maf.zip")
                 with zipfile.ZipFile(maf_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_ref:

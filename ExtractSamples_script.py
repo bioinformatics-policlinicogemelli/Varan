@@ -7,13 +7,11 @@ from loguru import logger
 import shutil
 import sys
 from write_report import *
-
+from filter_clinvar import check_bool
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
-ZIP_MAF = config.getboolean('Zip', 'ZIP_MAF')
-COPY_MAF = config.getboolean('Zip', 'COPY_MAF')
 
 
 def extract_main(oldpath, extract_path, output, study_id, overwrite):
@@ -107,6 +105,10 @@ def extract_main(oldpath, extract_path, output, study_id, overwrite):
     #     old_version=old_versions[-1]
     #     compare_version(output, old_version, "extract", output)
 
+    ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+    ZIP_MAF = check_bool(ZIP_MAF)
+    COPY_MAF = config.get('Zip', 'COPY_MAF')
+    COPY_MAF = check_bool(COPY_MAF)
     copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
     
     logger.info("Starting Validation Folder...")

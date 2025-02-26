@@ -19,9 +19,10 @@ from loguru import logger
 import random
 import string
 import numpy as np
-from filter_clinvar import filter_OncoKB
+from filter_clinvar import filter_OncoKB, check_bool
 from versioning import get_newest_version, get_version_list
 from datetime import datetime
+import zipfile
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
@@ -33,7 +34,6 @@ VEP_DATA = config.get('Paths', 'VEP_DATA')
 CLINV = config.get('Paths', 'CLINV')
 CNA = ast.literal_eval(config.get('Cna', 'HEADER_CNV'))
 PLOIDY = int(config.get('Cna', 'PLOIDY'))
-CNVkit = config.getboolean('Cna', 'CNVkit')
 ONCOKB_FILTER = ast.literal_eval(config.get('Filters', 'ONCOKB_FILTER'))
 
 output_filtered = "snv_filtered"
@@ -169,50 +169,15 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         df_table.rename(columns={"discrete":"Copy_Number_Alteration", "ID":"Tumor_Sample_Barcode", "gene":"Hugo_Symbol"}, inplace=True)
         df_table_filt = df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
 
+        CNVkit = config.get('Cna', 'CNVkit')
+        CNVkit = check_bool(CNVkit)
         if CNVkit:
-            
-            ################################# OPZIONE 1 #########################################################
-            # if not os.path.isfile(input):
-            #     tsv_file=[file for file in os.listdir(input) if file.endswith(".tsv")][0]
-            #     input_file=pd.read_csv(os.path.join(input,tsv_file),sep="\t")
-            
-            # else:
-            #     input_file=pd.read_csv(input,sep="\t")
-            
-            # for index, row in df_table.iterrows():
-            #     tc= int(input_file[input_file["SampleID"]+".cnv.bam"==row["ID"]]["TC"])
-            #     df_table.at[index,"discrete"]= ((200*float(row["seg.mean"]))-2*(100-tc))/tc
-                
-            
-            # df_table_filtered=df_table#[(df_table["discrete"]>=3)|(df_table["discrete"]<=0.8)] 
-            
-            #df_table_filtered["Copy_Number_Alteration"]=0
-            # df_table_filtered.loc[(df_table_filtered["discrete"]>3)&(df_table_filtered["discrete"]<5), "Copy_Number_Alteration"]=1
-            # df_table_filtered.loc[df_table_filtered["discrete"]>5, "Copy_Number_Alteration"]=2
-            # df_table_filtered.loc[(df_table_filtered["discrete"]>0)&(df_table_filtered["discrete"]<0.8), "Copy_Number_Alteration"]=-1
-            # df_table_filtered.loc[df_table_filtered["discrete"]<=0, "Copy_Number_Alteration"]=-2
-            
-        
-            #df_table_filtered["Copy_Number_Alteration"]=df_table_filtered["discrete"]
-            #df_table_filtered.to_csv(os.path.join(output_folder,"data_cna_hg19.seg.filtered.txt"),sep="\t",index=False)
-            #temp_cna=reshape_cna(input,os.path.join(output_folder,"data_cna_hg19.seg.filtered.txt"),cancer,output_folder)
-            #annotate_cna(temp_cna,output_folder)
-    
-            ################################# OPZIONE 2 #########################################################
-    
-            # rename discrete 
-            
-            #df_table.rename(columns={"discrete":"Copy_Number_Alteration","ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},inplace=True)
-            #df_table_filt=df_table[df_table["Copy_Number_Alteration"].isin([-2,2])]
         
             if not os.path.isfile(input):
                 input_file = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t")
             else:
                 input_file = pd.read_csv(input, sep="\t")
             
-            #TODO inserire filtro per TC (mettere specifiche su valori di TC da considerare)
-            
-            #check for nan TC values
             try:
                 input_file["TC"]
             except:
@@ -269,7 +234,7 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
                 # ESCAT classification
                 escat_class(df_table, input_file, row)
                         
-            #nuovi filtri (filtro cnvkit - conservativo)
+            #nuovi filtri (filtro CNVkit - conservativo)
             if not cna["TC"].isnull().all():
                 cna["Copy_Number_Alteration"]=0
                 cna.loc[(cna["seg.mean"]<c[0]), "Copy_Number_Alteration"]=-2
@@ -795,37 +760,6 @@ def write_clinical_sample_empty(output_folder, table_dict):
         cil_sample.write(v[0] + '\t' + k + '\n')
     cil_sample.close()
 
-# def check_cna_vcf(file, inputFolderCNV, multivcf):
-#     vcf=pd.read_csv(os.path.join(inputFolderCNV, file), comment="#", sep="\t", \
-#                     names=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT","Sample"])
-        
-#     nsample = os.popen(f'bcftools query -l {os.path.join(inputFolderCNV,file)}').read().split("\n")
-#     nsample = [sample for sample in nsample if not sample == ""]
-#     if len(nsample)>1 and not multivcf:
-#         logger.critical("VCF contains multiple samples")
-#         exit(1)
-
-#     if vcf.loc[0]["FORMAT"] == "FC":
-#         return True
-#     else:
-#         return False
-    
-# def check_snv_vcf(file,inputFolderSNV, multivcf):
-#     vcf = pd.read_csv(os.path.join(inputFolderSNV, file), comment="#", sep="\t", \
-#                     names=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT","Sample"])
-    
-#     nsample = os.popen(f'bcftools query -l {os.path.join(inputFolderSNV, file)}').read().split("\n")
-#     nsample = [sample for sample in nsample if not sample == ""]
-#     if len(nsample)>1 and not multivcf:
-#         logger.critical("VCF contains multiple samples")
-#         exit(1)
-    
-#     if vcf.loc[0]["FORMAT"].startswith("GT"):
-#         return True
-#     else:
-#         return False
-   
-
 def extract_multiple_cnv(multiple_vcf, input_dir):
     single_sample_vcf_dir = os.path.join(input_dir, "single_sample_vcf")  
     if not os.path.exists(os.path.join(input_dir, "single_sample_vcf")):
@@ -964,7 +898,6 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
 
 def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
 
-    
     if "ONCOTREE_CODE" in input_file.columns:
         fusion_table_df = data_sv.merge(input_file[["SAMPLE_ID", "ONCOTREE_CODE"]], how="inner", left_on="Sample_Id", right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
@@ -1032,8 +965,9 @@ def check_data_cna(data_cna_path):
         logger.warning(f"{input_file} does not exist!")
 
 
-def fill_from_file(table_dict_patient, file_input_clinical, MSI_THR, TMB):
+def fill_from_file(table_dict_patient, file_input_clinical, MSI_THR, TMB_THR):
     #logger.info(f"Reading Tumor clinical parameters info in sample.tsv...")
+
     for k, m, t in zip(file_input_clinical["SAMPLE_ID"], file_input_clinical["MSI"], file_input_clinical["TMB"]):
         table_dict_patient[k].append(m)
         table_dict_patient[k].append(t)
@@ -1047,7 +981,7 @@ def fill_from_file(table_dict_patient, file_input_clinical, MSI_THR, TMB):
                 table_dict_patient[k].append('Unstable')
         
         if not np.isnan(float(t)):
-            for _k, _v in TMB.items():
+            for _k, _v in TMB_THR.items():
                 if eval("float(t)" + _v):
                     table_dict_patient[k].append(_k)
                     break
@@ -1078,18 +1012,18 @@ def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR
                 else:
                     table_dict_patient[k].append('Unstable')
 
-                found = False
+                # found = False
             else:
                 table_dict_patient[k].append('NA')
         else:
             table_dict_patient[k].append('NA')
-        found = False
+        # found = False
 
         if not tmv_msi["TMB_Total"]=="NA":
             for _k, _v in TMB.items():
                 if eval(tmv_msi["TMB_Total"] + _v):
                     table_dict_patient[k].append(_k)
-                    found = True
+                    # found = True
                     break
         else:
             table_dict_patient[k].append("NA")
@@ -1119,7 +1053,6 @@ def input_extraction_folder(input):
     if os.path.exists(os.path.join(input, "FUSIONS", "Fusions.tsv")):
         fusion_tsv = os.path.join(input, "FUSIONS", "Fusions.tsv")
     return sample_tsv, patient_tsv, fusion_tsv
-
 
 
 def validate_input(oncokb, vcf_type, filters, cancer, input):
@@ -1214,19 +1147,30 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         "No valid input file was found for neither SNV, CNV or CombinedOutput! Check your input file/folder and input options."
 
     maf_path = os.path.join(output_folder, 'maf')
+    maf_zip_path = os.path.join(output_folder, "maf.zip")
     clin_sample_path = os.path.join(input_folder, "sample.tsv")
     try:
         clin_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
     except Exception as e:
         logger.critical(f"Something went wrong while reading {clin_sample_path}!")
         raise(Exception("Error in reading the input file! Please check again."))
-    
+
     if resume:
-        try:
-            maf_samples = set(os.listdir(maf_path))
-        except:
-            logger.critical(f"maf folder not found. It may be compressed as 'maf.zip'. Please unzip this folder and restart the analysis.")
-            raise(Exception("maf folder not found!"))
+        if os.path.exists(maf_path):
+            try:
+                maf_samples = set(os.listdir(maf_path))
+            except:                
+                logger.critical(f"Error accessing the maf folder. Please check its integrity.")
+                raise(Exception("Error reading the maf folder."))
+        elif os.path.exists(maf_zip_path):
+            try:
+                with zipfile.ZipFile(maf_zip_path, 'r') as zipped_maf:
+                    zipped_maf.extractall(maf_path)
+                maf_samples = set(os.listdir(maf_path))
+            except:                
+                logger.critical(f"Error extracting the maf ZIP file. Please check its integrity.")
+                raise(Exception("Unable to extract the ZIP file. Try decompressing it manually and run Varan again."))
+                
 
         clin_samples = set(clin_file["SAMPLE_ID"])
         clin_in_maf = all(any(clin_sample in maf_sample for maf_sample in maf_samples) for clin_sample in clin_samples)
@@ -1235,6 +1179,11 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
         if not (clin_in_maf and maf_in_clin) and len(maf_samples) != 0:
             logger.critical("It seems you are resuming an existing study with a different set of input samples. Please verify the sample consistency!")
             raise FileNotFoundError("Sample mismatch detected.")
+        
+        ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+        ZIP_MAF = check_bool(ZIP_MAF)
+        if os.path.exists(maf_zip_path) and not ZIP_MAF:
+            os.remove(maf_zip_path)
 
     if len(os.listdir(inputFolderSNV))==0 and vcf_type == None:
         vcf_type = "cnv"

@@ -15,12 +15,13 @@ import walk
 import shutil
 import versioning
 import ast
+from filter_clinvar import check_bool
 
 
 config = ConfigParser()
 config.read('conf.ini')
 
-drop_NA_AF = config.getboolean('Filters', 'drop_NA_AF')
+annotations_list = ast.literal_eval(config.get('Annotations', 'ANNOTATIONS'))
 
 def extract_sample_list(filecase):
     with open(filecase, 'r') as meta:
@@ -212,6 +213,8 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
             </div>"""
 
     if "a" in filters:
+        drop_NA_AF = config.get('Filters', 'drop_NA_AF')
+        drop_NA_AF = check_bool(drop_NA_AF)
         if drop_NA_AF:
             excl_or_incl = "exclude"
         else:
@@ -309,6 +312,28 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
                 <div class="content">
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
+    
+    if os.path.exists(os.path.join(output_folder, general_graph_path)) or os.path.exists(os.path.join(output_folder, genes_graph_path)):
+        html_content += f"""</section>"""
+
+    if annotations_list != []:
+        html_content += f"""
+            <section class="annotations">
+                <div class="section-title">Annotations</div>
+                    <div class="content">
+                        <ul>"""
+
+        for annotation in annotations_list:
+            html_content += f"""
+                         <li><p>{annotation}</p></li>"""
+
+    if annotations_list != []:
+        html_content += f"""
+                    </ul>
+                </div>
+            </div>
+        </section>"""
+
 
     html_content += f"""
     </body>
@@ -417,9 +442,12 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
     updated_samples_sequenced, added_samples_sequenced, _, _ = compare_sample_file_update(sequenced_1, sequenced_2, new_study)
     updated_samples_sv, added_samples_sv, _, _ = compare_sample_file_update(sv_1, sv_2, new_study)
 
-    filters1 = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
-    filters2 = extract_filters_from_html(os.path.join(updating_with, "report_VARAN.html"))
-
+    if os.path.exists(os.path.join(original_study, "report_VARAN.html")) and os.path.exists(os.path.join(updating_with, "report_VARAN.html")):
+        filters1 = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+        filters2 = extract_filters_from_html(os.path.join(updating_with, "report_VARAN.html"))
+    else:
+        filters1 = dict()
+        filters2 = dict()
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT", "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", \
     "HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
@@ -639,55 +667,10 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
             </section>"""
 
 
-    # html_content += f"""
-    #     <div class="section-title">Filters & Configurations Comparison</div>
-    #     <div class="content">
-    #     <br />
-    #     <table>
-    #         <thead>
-    #             <tr>
-    #                 <th>Filter/Configuration</th>
-    #                 <th>Status</th>
-    #             </tr>
-    #         </thead>
-    #         <tbody>"""
-
-
-    
-    # order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT", "CLING_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", \
-    # "HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
-
-    # changed_filters = []
-    
-    # for filter_name in order:
-    #     if filter_name not in (filters1.keys() | filters2.keys()):
-    #         continue 
-    #     value1 = filters1.get(filter_name, "Not Present")
-    #     value2 = filters2.get(filter_name, "Not Present")
-    #     if value1 != value2:
-    #         # changed = True
-    #         changed_filters.append(filter_name)
-    #     # else:
-    #     #     changed = False
-        
-    # #     status = "Changed" if changed else "Same"
-    # #     html_content += f"""
-    # #                     <tr>
-    # #                         <td>{filter_name}</td>
-    # #                         <td class="{'filter-changed' if changed else 'filter-same'}">{status}</td>
-    # #                     </tr>"""
-
-    # # html_content += """
-    # #                 </tbody>
-    # #             </table>
-    # #         </div>
-    # #         <br />
-    # # """
-
 
     if any(filters1.get(f) != filters2.get(f) for f in filters1.keys() | filters2.keys()):
         html_content += f"""
-            <div class="section-title">DIfferences in Filters & Configurations</div>
+            <div class="section-title">Differences in Filters & Configurations</div>
             <div class="content">
             <br />
             <table>
@@ -736,8 +719,29 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
 
-    html_content += """
-        </div>
+    if os.path.exists(os.path.join(new_study, general_graph_path)) or os.path.exists(os.path.join(new_study, genes_graph_path)):
+        html_content += f"""
+            </section>"""
+
+    if annotations_list != []:
+        html_content += f"""
+            <section class="annotations">
+                <div class="section-title">Annotations</div>
+                    <div class="content">
+                        <ul>"""
+
+        for annotation in annotations_list:
+            html_content += f"""
+                         <li><p>{annotation}</p></li>"""
+
+    if annotations_list != []:
+        html_content += f"""
+                    </ul>
+                </div>
+            </div>
+        </section>"""
+        
+    html_content += f"""
     </body>
     </html>
     """
@@ -795,7 +799,10 @@ def write_report_extract(original_study, new_study, number_for_graph):
 
     ghosts = ghost_sample(new_study)
 
-    filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    if os.path.exists(os.path.join(original_study, "report_VARAN.html")):
+        filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    else:
+        filters = dict()
 
     case_list1 = os.path.join(original_study, "case_lists")
     case_list2 = os.path.join(new_study, "case_lists")
@@ -1020,8 +1027,28 @@ def write_report_extract(original_study, new_study, number_for_graph):
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
 
-    html_content += """
-        </div>
+    if os.path.exists(os.path.join(new_study, general_graph_path)) or os.path.exists(os.path.join(new_study, genes_graph_path)):
+        html_content += f"""</section>"""
+
+    if annotations_list != []:
+        html_content += f"""
+            <section class="annotations">
+                <div class="section-title">Annotations</div>
+                    <div class="content">
+                        <ul>"""
+
+        for annotation in annotations_list:
+            html_content += f"""
+                         <li><p>{annotation}</p></li>"""
+
+    if annotations_list != []:
+        html_content += f"""
+                    </ul>
+                </div>
+            </div>
+        </section>"""
+        
+    html_content += f"""
     </body>
     </html>
     """
@@ -1080,7 +1107,10 @@ def write_report_remove(original_study, new_study, number_for_graph):
 
     ghosts = ghost_sample(new_study)
 
-    filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    if os.path.exists(os.path.join(original_study, "report_VARAN.html")):
+        filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    else:
+        filters = dict()
 
     case_list1 = os.path.join(original_study, "case_lists")
     case_list2 = os.path.join(new_study, "case_lists")
@@ -1294,9 +1324,28 @@ def write_report_remove(original_study, new_study, number_for_graph):
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
 
-    html_content += f"""
+    if os.path.exists(os.path.join(new_study, general_graph_path)) or os.path.exists(os.path.join(new_study, genes_graph_path)):
+        html_content += f"""</section>"""
+
+    if annotations_list != []:
+        html_content += f"""
+            <section class="annotations">
+                <div class="section-title">Annotations</div>
+                    <div class="content">
+                        <ul>"""
+
+        for annotation in annotations_list:
+            html_content += f"""
+                         <li><p>{annotation}</p></li>"""
+
+    if annotations_list != []:
+        html_content += f"""
+                    </ul>
                 </div>
-        </div>
+            </div>
+        </section>"""
+        
+    html_content += f"""
     </body>
     </html>
     """

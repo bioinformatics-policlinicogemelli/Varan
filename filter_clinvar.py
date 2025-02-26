@@ -18,6 +18,18 @@ import numpy as np
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
+def check_bool(key_value):
+    bool_key_value = key_value
+    if bool_key_value.strip() in ["True", "true", "T"]:
+        bool_key_value = True
+    elif bool_key_value.strip() in ["False", "false", "F", ""]:
+        bool_key_value = False
+    else:
+        logger.critical(f"Please insert a boolean value in {bool_key_value} section of conf.ini: accepted values are [\"True\", \"true\", \"T\", \"False\", \"false\", \"F\", \"\"]")
+        raise ValueError("Check again the compilation conf.ini")
+    return bool_key_value
+
+
 def print_unique_clin_sig(df):
     unique_clin_sig = df['CLIN_SIG'].unique()
     print(unique_clin_sig)
@@ -28,12 +40,6 @@ def filter_OncoKB(df):
     df_filtered=df[df["ONCOGENIC"].isin(oncokb_filter)]
     return df_filtered
 
-def filter_benign(df):
-    benign_filter = ~df['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
-            , case=False
-            , na=False
-            , regex=True)
-    return df[benign_filter]
 
 def check_CLIN_SIG(row):
     clin_sig=ast.literal_eval(config.get('Filters', 'CLIN_SIG'))
@@ -72,17 +78,6 @@ def check_sift(row):
     else:
         output.append(False)
     return any(output)
-
-
-# NON VIENE USATA??????????????????
-# def keep_risk_factors(df):
-#     benign_filter = ~df['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
-#         , case=False
-#         , na=False
-#         , regex=True)
-#     df=df[benign_filter]
-#     df = df[df.apply(check_CLIN_SIG,axis=1)|df.apply(check_consequences,axis=1)]
-#     return df
 
 
 def write_csv_with_info(df, file_path):
@@ -151,7 +146,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
         
         for file in file_list:
             file_to_filter=pd.read_csv(file, sep="\t", dtype=object)
-            
+        
             if "i" in filters:
                 file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
             
@@ -192,7 +187,8 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             
             if "a" in filters: # for intronic variants   
                 af=config.get('Filters', 'AF')
-                drop_NA = ast.literal_eval(config.get('Filters', 'drop_NA_AF'))
+                drop_NA = config.get('Filters', 'drop_NA_AF')
+                drop_NA = check_bool(drop_NA)
                 file_to_filter['AF'] = pd.to_numeric(file_to_filter['AF'], errors='coerce')
                 na_file_to_filter = file_to_filter[~file_to_filter.index.isin(file_to_filter["AF"].dropna().index)]
                 
