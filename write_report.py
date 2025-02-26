@@ -417,9 +417,12 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
     updated_samples_sequenced, added_samples_sequenced, _, _ = compare_sample_file_update(sequenced_1, sequenced_2, new_study)
     updated_samples_sv, added_samples_sv, _, _ = compare_sample_file_update(sv_1, sv_2, new_study)
 
-    filters1 = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
-    filters2 = extract_filters_from_html(os.path.join(updating_with, "report_VARAN.html"))
-
+    if os.path.exists(os.path.join(updating_with, "report_VARAN.html") and os.path.join(original_study, "report_VARAN.html")):
+        filters1 = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+        filters2 = extract_filters_from_html(os.path.join(updating_with, "report_VARAN.html"))
+    else:
+        filters1=dict()
+        filters2=dict()
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT", "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", \
     "HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
@@ -795,7 +798,10 @@ def write_report_extract(original_study, new_study, number_for_graph):
 
     ghosts = ghost_sample(new_study)
 
-    filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    if os.path.exists(os.path.join(original_study, "report_VARAN.html")):
+        filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    else:
+        filters=dict()
 
     case_list1 = os.path.join(original_study, "case_lists")
     case_list2 = os.path.join(new_study, "case_lists")
@@ -1080,7 +1086,10 @@ def write_report_remove(original_study, new_study, number_for_graph):
 
     ghosts = ghost_sample(new_study)
 
-    filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    if os.path.exists(os.path.join(original_study, "report_VARAN.html")):
+        filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    else:
+        filters=dict()
 
     case_list1 = os.path.join(original_study, "case_lists")
     case_list2 = os.path.join(new_study, "case_lists")
