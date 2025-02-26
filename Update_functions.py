@@ -20,19 +20,41 @@ def update_clinical_samples(oldfile_path, newfile_path, output_folder):
     Example:
       >>>  update_clinical_samples('old_data_clinical_sample.txt', 'new_data_clinical_sample.txt', 'output_folder/')
     """
-    old = pd.read_csv(oldfile_path, sep="\t", dtype = str, index_col=0)
-    new = pd.read_csv(newfile_path, sep="\t", dtype = str, index_col=0) #, skiprows=4) #, names=old.columns, skiprows=5)
+    #header
+    old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
+    old_head.columns = old_head.iloc[4].tolist()
+    old_head.set_index(old_head.columns[0], inplace=True)
 
-    only_old_col = list(set(old.columns) - set(new.columns))
-    # TODO scrivere queste colonne nel summary indicando che sono state rimosse perche presenti nell'old e assenti nel new
+    new_head = pd.read_csv(newfile_path, sep="\t", dtype = str, header=None, nrows=5)
+    new_head.columns = new_head.iloc[4].tolist()
+    new_head.set_index(new_head.columns[0], inplace=True)
 
-    common_samples = old.index.intersection(new.index)
+    only_common_head = np.intersect1d(new_head.columns, old_head.columns)
 
-    old_updated = old.drop(only_old_col, axis=1)
+    old_updated_head = old_head.drop(list(only_common_head), axis=1)
+    old_updated_head.index = new_head.index
+    new_head = pd.concat([new_head, old_updated_head], axis=1).fillna(value=np.nan)
+    final_head = new_head.reset_index(drop=False)
 
-    old_updated = old.drop(index=common_samples)
-    updated = pd.concat([new, old_updated], axis=0)
-    updated.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=True, sep="\t", index_label=old.index.name)
+    #body
+    old_body = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=4)
+    new_body = pd.read_csv(newfile_path, sep="\t", dtype = str, header=4)
+
+    old_body_unique = old_body.drop(list(only_common_head), axis=1)
+    final_body = old_body_unique.merge(new_body, how='outer', on="SAMPLE_ID")
+
+    old_body.set_index(old_body.columns[0], inplace=True)
+    new_body.set_index(new_body.columns[0], inplace=True)
+    common_samples = old_body.index.intersection(new_body.index)
+    old_body = old_body.drop(index=common_samples)
+    final_body.set_index(final_body.columns[0], inplace=True)
+    final_body.update(old_body, overwrite=True, filter_func=None, errors='ignore')
+    final_body = final_body.reset_index(drop=False)
+
+    #final
+    final_patient = pd.concat([final_head, final_body], axis=0)
+    final_patient.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), header=False, index=False, sep="\t", na_rep="NaN")
+    logger.info("data_clinical_sample.txt updated!")
 
 
 def update_clinical_patient(oldfile_path, newfile_path, output_folder):
@@ -50,22 +72,43 @@ def update_clinical_patient(oldfile_path, newfile_path, output_folder):
     Example:
       >>>  update_clinical_patient('data_clinical_patient.txt', 'new_data_clinical_patient.txt', 'output_folder/')
     """
-    old = pd.read_csv(oldfile_path, sep="\t", dtype = str)
-    old.set_index(old.columns[0], inplace=True)
-    new = pd.read_csv(newfile_path, sep="\t", dtype = str) #, skiprows=4)
-    new.set_index(new.columns[0], inplace=True)
-
-    only_old_col = set(old.columns) - set(new.columns)
-    # TODO scrivere queste colonne nel summary indicando che sono state rimosse perche presenti nell'old e assenti nel new
-
-    common_patients = old.index.intersection(new.index)
-
-    old_updated = old.drop(list(only_old_col), axis=1)
-    old_updated = old_updated.drop(index=common_patients)
-
-    updated = pd.concat([new, old_updated], axis=0).fillna(value=np.nan)
-    updated.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=True, sep="\t", index_label=old.index.name)
     
+    #header
+    old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
+    old_head.columns = old_head.iloc[4].tolist()
+    old_head.set_index(old_head.columns[0], inplace=True)
+
+    new_head = pd.read_csv(newfile_path, sep="\t", dtype = str, header=None, nrows=5)
+    new_head.columns = new_head.iloc[4].tolist()
+    new_head.set_index(new_head.columns[0], inplace=True)
+
+    only_common_head = np.intersect1d(new_head.columns, old_head.columns)
+
+    old_updated_head = old_head.drop(list(only_common_head), axis=1)
+    old_updated_head.index = new_head.index
+    new_head = pd.concat([new_head, old_updated_head], axis=1).fillna(value=np.nan)
+    final_head = new_head.reset_index(drop=False)
+
+    #body
+    old_body = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=4)
+    new_body = pd.read_csv(newfile_path, sep="\t", dtype = str, header=4)
+
+    old_body_unique = old_body.drop(list(only_common_head), axis=1)
+    final_body = old_body_unique.merge(new_body, how='outer', on="PATIENT_ID")
+
+    old_body.set_index(old_body.columns[0], inplace=True)
+    new_body.set_index(new_body.columns[0], inplace=True)
+    common_samples = old_body.index.intersection(new_body.index)
+    old_body = old_body.drop(index=common_samples)
+    final_body.set_index(final_body.columns[0], inplace=True)
+    final_body.update(old_body, overwrite=True, filter_func=None, errors='ignore')
+    final_body = final_body.reset_index(drop=False)
+
+    #final
+    final_patient = pd.concat([final_head, final_body], axis=0)
+    final_patient.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), header=False, index=False, sep="\t", na_rep="NaN")
+    logger.info("data_clinical_patient.txt updated!")
+
 
 def update_cna_hg19(oldfile_path, newfile_path, output_folder):
     """
@@ -88,8 +131,29 @@ def update_cna_hg19(oldfile_path, newfile_path, output_folder):
     updated = pd.concat([old, new])
     updated = updated.drop_duplicates(subset=["ID","chrom","loc.start","loc.end"], keep='last')
     updated.to_csv(os.path.join(output_folder, "data_cna_hg19.seg"), index=False, sep="\t")
+    logger.info("data_cna_hg19.seg updated!")
         
+
+def update_cna_hg19_fc(oldfile_path, newfile_path, output_folder):
+    """
+    To rewrite
+
+    Args:
+        oldfile_path (str): Path to the original CNA data file.
+        newfile_path (str): Path to the new CNA data file.
+        output_folder (str): Path to the output folder where the updated file will be saved.
     
+    Example:
+      >>>  update_cna_hg19_fc('old_data_cna_hg19.seg.fc.txt', 'new_data_cna_hg19.seg.fc.txt', 'output_folder/')
+    """
+    old = pd.read_csv(oldfile_path, sep="\t")
+    new = pd.read_csv(newfile_path, sep="\t")
+
+    updated = pd.concat([old, new])
+    updated = updated.drop_duplicates(subset=["ID","chrom","loc.start","loc.end", "gene"], keep='last')
+    updated.to_csv(os.path.join(output_folder, "data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
+    logger.info("data_cna_hg19.seg.fc.txt updated!")
+
 
 def update_cna(oldfile_path, newfile_path, output_folder):
     """
@@ -116,6 +180,7 @@ def update_cna(oldfile_path, newfile_path, output_folder):
 
     updated = pd.concat([old.drop(columns=to_remove), new], axis=1).replace(np.nan, 0).astype(int)
     updated.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
+    logger.info("data_cna.txt updated!")
         
     
 def update_mutations(oldfile_path, newfile_path, output_folder):
@@ -133,12 +198,14 @@ def update_mutations(oldfile_path, newfile_path, output_folder):
     Example:
       >>>  update_mutations('old_data_mutations_extended.txt', 'new_data_mutations_extended.txt', 'output_folder/')
     """
-    old = pd.read_csv(oldfile_path, sep="\t")
-    new = pd.read_csv(newfile_path, sep="\t")
+    old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
+    new = pd.read_csv(newfile_path, sep="\t", dtype=str)
+
 
     updated = pd.concat([old, new])
-    updated.drop_duplicates(keep='last', inplace=True)
+    updated.drop_duplicates(subset=updated.loc[:, "Hugo_Symbol":"n_AF"].columns, keep='last', inplace=True)
     updated.to_csv(os.path.join(output_folder, "data_mutations_extended.txt"), index=False, sep="\t")
+    logger.info("data_mutation_extended.txt updated!")
     
 def update_sv(oldfile_path, newfile_path, output_folder):
     """
@@ -155,27 +222,39 @@ def update_sv(oldfile_path, newfile_path, output_folder):
     Example:
       >>>  update_sv('old_data_sv.txt', 'new_data_sv.txt', 'output_folder/')
     """
-    with open(oldfile_path,"r") as old_file:
-        with open(newfile_path,"r") as new_file:
-            with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
 
-                for line in old_file:
-                    list_split = line.split("\t\t")
-                    list_strip = [elem.strip() for elem in list_split]
-                    new_row = "\t".join(list_strip) + '\n'
-                    of.write(new_row)
-                for linenew in old_file:
-                    if linenew.startswith("Sample_ID"):
-                        new_row = linenew.replace("Sample_ID", "Sample_Id")
-                        of.write(new_row)
-                    if not linenew.startswith("Sample") :
-                        list_split = linenew.split("\t\t")
-                        list_strip = [elem.strip() for elem in list_split]
-                        new_row = "\t".join(list_strip) + '\n'
-                        of.write(new_row)
-    data_sv = pd.read_csv(os.path.join(output_folder, "data_sv.txt"), sep="\t")
-    data_sv = data_sv.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "Normal_Paired_End_Read_Count"], keep='last')
-    data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"), sep="\t")
+    # with open(oldfile_path,"r") as old_file:
+    #     with open(newfile_path,"r") as new_file:
+    #         with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
+
+    #             for line in old_file:
+    #                 import pdb; pdb.set_trace()
+    #                 list_split = line.split("\t")
+    #                 list_strip = [elem.strip() for elem in list_split]
+    #                 new_row = "\t".join(list_strip) + '\n'
+    #                 of.write(new_row)
+    #             for linenew in new_file:
+    #                 # if linenew.startswith("Sample_ID"):
+    #                 #     new_row = linenew.replace("Sample_ID", "Sample_Id")
+    #                 #     of.write(new_row)
+    #                 if not linenew.startswith("Sample") :
+    #                     list_split = linenew.split("\t")
+    #                     list_strip = [elem.strip() for elem in list_split]
+    #                     new_row = "\t".join(list_strip) + '\n'
+    #                     of.write(new_row)
+    # data_sv = pd.read_csv(os.path.join(output_folder, "data_sv.txt"), sep="\t")
+    # data_sv = data_sv.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "SV_Status", "Class"], keep='last')
+    # data_sv.to_csv(os.path.join(output_folder,"data_sv.txt"), sep="\t", index=False)
+    # logger.info("data_sv.txt updated!")
+
+    df_old = pd.read_csv(oldfile_path, sep="\t")
+    df_new = pd.read_csv(newfile_path, sep="\t")
+    merged_df = pd.concat([df_old, df_new], axis=0, join="outer", ignore_index=True)
+    merged_df.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "SV_Status", "Class"], keep="last", inplace=True)
+    output_file = os.path.join(output_folder, "data_sv.txt")
+    merged_df.to_csv(output_file, sep="\t", index=False)
+    
+    logger.info("data_sv.txt updated!")
     
 
 def update_caselist_cna(oldfile_path, newfile_path, output_folder):
@@ -289,6 +368,8 @@ def check_files(oldpath, newpath, output, file_name):
             update_clinical_patient(o_data,n_data,output)
         elif file_name == "data_cna_hg19.seg":
             update_cna_hg19(o_data,n_data,output)
+        elif file_name == "data_cna_hg19.seg.fc.txt":
+            update_cna_hg19_fc(o_data,n_data,output)
         elif file_name == "data_cna.txt":
             update_cna(o_data,n_data,output)
         elif file_name == "data_mutations_extended.txt":
@@ -314,7 +395,7 @@ def check_files_cases(oldpath, newpath, output_caseslists, file_name):
         elif file_name == "cases_sequenced.txt":
             update_caselist_sequenced(o_data,n_data,output_caseslists)
         elif file_name == "cases_sv.txt":
-            update_caselist_sv(o_data,n_data,update_caselist_sv)
+            update_caselist_sv(o_data,n_data,output_caseslists)
     elif os.path.exists(o_data) and not os.path.exists(n_data):
         logger.warning(f"{file_name} was not found in path 2 case_lists folder. The file is being copied from path 1.")  
         shutil.copy(o_data, output_caseslists)
@@ -323,4 +404,5 @@ def check_files_cases(oldpath, newpath, output_caseslists, file_name):
         shutil.copy(n_data, output_caseslists)
     else:
         logger.warning(f"{file_name} not found in 'case_lists' folders. Skipping")
+
     

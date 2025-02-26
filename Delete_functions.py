@@ -1,6 +1,8 @@
 import os
+import sys
 import pandas as pd
 import re
+import numpy as np
 import loguru
 from loguru import logger 
 
@@ -17,9 +19,10 @@ def delete_clinical_samples(file_path, sample_ids, output_folder):
         sample_ids (list): List of sample IDs to be deleted.
         output_folder (str): Path to the folder where the output file will be saved.
         
-    """
+    """    
     file = pd.read_csv(file_path, sep="\t")
-    filtered = file[~file.iloc[:, 0].astype(str).isin(sample_ids)]
+    idx_sample=np.argwhere(file.values == "SAMPLE_ID")[0][1]
+    filtered = file[~file.iloc[:, idx_sample].astype(str).isin(sample_ids)]
     filtered.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=False, sep="\t")
 
 
@@ -39,14 +42,18 @@ def delete_clinical_patient(oldpath, sample_ids, output_folder):
     """
     file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t")
     sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t")
-    patient_ids = list(sample[sample.iloc[:, 0].astype(str).isin(sample_ids)].iloc[:, 1])
+    
+    idx_sample=np.argwhere(sample.values == "SAMPLE_ID")[0][1]
+    idx_patient=np.argwhere(sample.values == "PATIENT_ID")[0][1]
+    
+    patient_ids = list(sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)].iloc[:, idx_patient])
     
     # clean file from un-find samples
-    sample_ids=list(sample[sample.iloc[:, 0].astype(str).isin(sample_ids)].iloc[:, 0])
+    sample_ids=list(sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)].iloc[:, idx_sample])
     
-    if len(sample[sample.iloc[:, 1].astype(str).isin(patient_ids)]) > len(sample_ids):
-        pzt_list=sample[sample.iloc[:, 1].astype(str).isin(patient_ids)]
-        pzt_dup=[pzt_list[pzt_list.duplicated(subset=sample.iloc[0, 1])].iloc[0,1]]
+    if len(sample[sample.iloc[:, idx_sample].astype(str).isin(patient_ids)]) > len(sample_ids):
+        pzt_list=sample[sample.iloc[:, idx_patient].astype(str).isin(patient_ids)]
+        pzt_dup=[pzt_list[pzt_list.duplicated(subset=sample.iloc[0, idx_sample])].iloc[0,1]]
         
         for p_dup in pzt_dup:
             df_dup=pzt_list[pzt_list.iloc[:,1]==p_dup]
@@ -54,7 +61,7 @@ def delete_clinical_patient(oldpath, sample_ids, output_folder):
                 patient_ids.remove(p_dup)
         
     filtered = file[~file.iloc[:, 0].astype(str).isin(patient_ids)]
-    filtered.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t")
+    filtered.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t", na_rep="NaN")
    
 def delete_cna_hg19(file_path, sample_ids, output_folder):
     """
@@ -74,6 +81,25 @@ def delete_cna_hg19(file_path, sample_ids, output_folder):
     filtered.to_csv(os.path.join(output_folder, "data_cna_hg19.seg"), index=False, sep="\t")
 
 
+def delete_cna_hg19_fc(file_path, sample_ids, output_folder):
+    """
+    Delete specific copy number alteration data from a file in hg19 format.
+
+    This function reads a data file in tab-separated format, filters out the rows
+    with specified IDs, and saves the filtered data to a new file in the specified output folder.
+
+    Args:
+        file_path (str): Path to the input data file.
+        sample_ids (list): List of IDs to be deleted.
+        output_folder (str): Path to the folder where the output file will be saved.
+
+    """
+    file = pd.read_csv(file_path, sep="\t")
+    filtered = file[~file["ID"].astype(str).isin(sample_ids)]
+    filtered.to_csv(os.path.join(output_folder, "data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
+
+
+
 def delete_cna(file_path, sample_ids, output_folder):
     """
     Delete copy number alteration data associated with specific samples.
@@ -87,9 +113,10 @@ def delete_cna(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output file will be saved.
 
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", index_col=0)
     filtered = file.drop(columns=sample_ids, axis=1, errors="ignore")
-    filtered.to_csv(os.path.join(output_folder, "data_cna.txt"), index=False, sep="\t")
+    filtered = filtered.loc[(filtered != 0).any(axis=1)]
+    filtered.to_csv(os.path.join(output_folder, "data_cna.txt"), sep="\t")
         
 def delete_mutations(file_path, sample_ids, output_folder):
     """
@@ -104,7 +131,7 @@ def delete_mutations(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output file will be saved.
 
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", dtype=str)
     filtered = file[~file["Tumor_Sample_Barcode"].astype(str).isin(sample_ids)]
     filtered.to_csv(os.path.join(output_folder, "data_mutations_extended.txt"), index=False, sep="\t")
 
@@ -234,3 +261,29 @@ def delete_caselist_sv(file_path, sample_ids, output_folder):
                 if line.startswith("case_list_ids"):
                     line = "case_list_ids:" + "\t".join(updated)
                 filtered.write(line)
+
+def check_sample_list(remove_path, oldpath):
+    with open(remove_path) as sample_list:
+        first_line = sample_list.readline()
+        if len(first_line.split("\t")) > 1:
+            logger.critical(f"The file {remove_path} contains more than a column. It may not be in the correct format!")
+            sys.exit()
+
+    with open(remove_path) as sample_list:
+        all_samples_to_remove = set(sample.strip() for sample in sample_list.readlines())
+
+        sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t", skiprows=4)
+        old_samples = set(sample["SAMPLE_ID"])
+
+        if not any(sample in old_samples for sample in all_samples_to_remove):
+            logger.critical("The sample(s) you are trying to remove are not present in data_clinical_sample.txt file! Please check again!")
+            sys.exit()
+
+        missing_samples = set(all_samples_to_remove) - set(old_samples)
+        if missing_samples:
+            logger.warning(f"Some of the samples you are trying to remove may not be present in data_clinical_sample.txt file!")
+            logger.warning(f"Missing sample(s): {', '.join(missing_samples)}")
+
+        if len(set(old_samples) - set(all_samples_to_remove)) == 0:
+            logger.critical("It looks like you are removing all the samples from original study! Cannot create an empty study!")
+            sys.exit()

@@ -7,6 +7,7 @@ version = "1.0"
 
 import argparse
 import math
+import sys
 import pandas as pd
 import os
 from loguru import logger
@@ -98,8 +99,9 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 				sample_info = info.split(":")
 				fc = sample_info[fc_position]
 			else:
-				logger.critical(f"The {version} version of VCF is not currently supported")
-
+				version_number = version.split("v")[-1]
+				logger.critical(f"The VCF file for sample {SAMPLE} is in an unsupported version (v{version_number}). Supported versions: [4.1, 4.2]")
+				sys.exit()
 
 			if fc != ".":
 				fc = float(fc)
@@ -144,7 +146,6 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 				version = (line.split("=")[-1]).strip()
 				#logger.info(f"Analyzing {version} version")
 
-			# Skip commented lines
 			if line.startswith('##'):
 				continue
 
@@ -161,9 +162,8 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 				
 				continue
 
-			# Split the line by tabs
 			fields = line.strip().split('\t')
-			# Extract the data we want to keep
+
 			chrom = fields[chrom_position].strip('chr')
 			start = fields[start_position]
 			infos = fields[info_position].split(";")
@@ -173,7 +173,6 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 			format = fields[format_position]
 			sample_infos = fields[sample_position]
 
-			# Acts differently based on VCF version
 			if version == "VCFv4.1":
 				gene = [info.split("=")[-1] for info in infos if "ANT" in info][0]
 				end = [info.split("=")[-1] for info in infos if "END" in info][0]
@@ -193,6 +192,7 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 					fc = 0.0001
 			else:
 				continue
+			
 			########################
 			# manage discrete data #
 			########################
