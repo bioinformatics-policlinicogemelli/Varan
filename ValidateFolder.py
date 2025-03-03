@@ -16,37 +16,17 @@ configFile = config.read("conf.ini")
 def cBio_validation(output_folder):
     config = ConfigParser()
     config.read('conf.ini')
-    PORT = config.get('Validation', 'PORT')
-    logger.info(f"Starting online validation. Connecting to {PORT}...")
+
+    logger.info("Starting validation... ")
+    logger.warning("Be warned that files succeeding this validation may still fail to load (correctly).")
+
+    process = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-n", "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    stdout, stderr = process.communicate()
     
-    try:
-        process1 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-u", PORT, "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout1, stderr1 = process1.communicate()
-        warn = stderr1
-        if process1.returncode == 1:
-            raise subprocess.CalledProcessError(process1.returncode, process1.args, output=stdout1, stderr=stderr1)
-        check_process_status(process1, warn)
-        return process1.returncode
-
-    except subprocess.CalledProcessError as e:
-        logger.warning("Connection to localhost failed. This may be due to an incorrect port selection." +\
-                     " This warning is expected if Varan Docker version is in use.")
-        logger.info("Starting offline validation... Be warned that files succeeding this validation may still fail to load (correctly).")
-
-        process2 = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-n", "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout2, stderr2 = process2.communicate()
-        warn = stderr2
-        if process2.returncode == 1:
-            logger.error(f"Error: {stderr2.strip()} Check the report file in the study folder for more info!")
-        
-        if process1.returncode == 1 and 'process2' in locals():
-            check_process_status(process2, warn)
-        return process2.returncode
-
-
-def check_process_status(process, warn_msg):
-    if process.returncode in [2, 3]:
-        logger.warning(f"{warn_msg.strip()} Check the report file in the study folder for details!")
+    if process.returncode == 1:
+        logger.error(f"Error: {stderr.strip()} Check the report file in the study folder for more info!")
+    elif process.returncode in [2, 3]:
+        logger.warning(f"{stderr.strip()} Check the report file in the study folder for details!")
     elif process.returncode == 0:
         logger.success("The validation proceeded without errors and warnings! The study is ready to be uploaded!")
 
@@ -214,6 +194,9 @@ def copy_maf(oldpath, output, COPY_MAF, ZIP_MAF):
                     
                     if os.path.exists(old_file):
                         shutil.copy2(old_file, new_file)
+
+            if os.path.exists(maf_zip_path):
+                shutil.rmtree(maf_dir)
 
             ZIP_MAF = config.get('Zip', 'ZIP_MAF')
             ZIP_MAF = check_bool(ZIP_MAF)

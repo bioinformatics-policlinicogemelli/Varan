@@ -747,19 +747,6 @@ def add_header_patient_long(patient_tsv, datapat_columns, conf_header_long, defa
     final_data_pat = pd.concat([pat_header_long, final_data_pat], ignore_index=True)
     return final_data_pat
 
-def write_clinical_sample_empty(output_folder, table_dict):
-    logger.info("Writing data_clinical_sample.txt file...")
-    data_clin_samp = os.path.join(output_folder, 'data_clinical_sample.txt')
-    cil_sample = open(data_clin_samp, 'w')
-    cil_sample.write('#Patient Identifier\tSample Identifier\n')
-    cil_sample.write('#Patient identifier\tSample Identifier\n')
-    cil_sample.write('#STRING\tSTRING\n')
-    cil_sample.write('#1\t1\n')
-    cil_sample.write('PATIENT_ID\tSAMPLE_ID\n')
-    for k, v in table_dict.items():
-        cil_sample.write(v[0] + '\t' + k + '\n')
-    cil_sample.close()
-
 def extract_multiple_cnv(multiple_vcf, input_dir):
     single_sample_vcf_dir = os.path.join(input_dir, "single_sample_vcf")  
     if not os.path.exists(os.path.join(input_dir, "single_sample_vcf")):
@@ -1013,11 +1000,15 @@ def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR
             table_dict_patient[k].append('NA')
 
         if not tmv_msi["TMB_Total"]=="NA":
+            found = False
             for _k, _v in TMB.items():
                 if eval(tmv_msi["TMB_Total"] + _v):
                     table_dict_patient[k].append(_k)
-
+                    found = True
                     break
+            if found == False:
+                logger.warning(f"The TMB value {tmv_msi['TMB_Total']} is not within the conf.ini thresholds {list(TMB.values())}. For this value, the TMB_THR will be set as 'Out of threshold ranges'.")
+                table_dict_patient[k].append("Out of threshold ranges")
         else:
             table_dict_patient[k].append("NA")
             
