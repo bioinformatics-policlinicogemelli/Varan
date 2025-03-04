@@ -1,0 +1,78 @@
+## Installation Procedure
+
+### Docker (recommended)
+
+<details open>
+  <summary><b>Prerequisites</b></summary>
+  
+* [Docker](https://www.docker.com/)
+* <a href="https://ftp.ensembl.org/pub/release-111/variation/indexed_vep_cache"> Vep Cache</a> 
+</br> ⚠️ For test data download <a href="https://ftp.ensembl.org/pub/release-111/variation/indexed_vep_cache/homo_sapiens_vep_111_GRCh37.tar.gz">homo_sapiens_vep_111_GRCh37.tar.gz</a> 
+
+* A reference genome (which you can find <a href="http://www.ensembl.org/info/docs/tools/vep/script/vep_cache.html#cache"> here</a>) and its indexed version (<a href="http://www.htslib.org/doc/samtools-faidx.html">how to index the genome</a> with Samtools).
+</br>⚠️ You must use the same genome reference version that was used to generate the VCF files. 
+</details>
+
+<details open>
+  <summary><b>Procedure</b></summary>
+
+1. Open a terminal
+2. Clone the repository folder:
+```
+git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git
+```
+3. Build docker file
+<br> ⚠️ This step can take about 30 minutes 
+```
+cd <Varan_folder_path>/Varan-Pub
+docker build -t varan .
+```
+4. Run Varan to test the installation
+```
+docker run --rm -it varan -h
+```
+
+⚠️ for Windows users: some issues with Git Bash (Git for Windows) have been reported. It is recommended to launch the docker command through [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)
+</details>
+
+### Local
+
+<details open>
+  <summary><b>Prerequisites</b></summary>
+
+* **Variant Effect Predictor (VEP)**<p align="justify">The Variant Effect Predictor <a href="https://www.ensembl.org/info/docs/tools/vep/index.html">VEP</a> is a tool used to determine the effect of variants (SNPs, insertions, deletions, CNVs or structural variants) on genes, transcripts, and protein sequence, as well as regulatory regions. <br>The steps to install VEP can be found <a href="https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html"> here</a>, while DB and FASTA files can be downloaded <a href="http://www.ensembl.org/info/docs/tools/vep/script/vep_cache.html#cache"> here</a>
+
+* **vcf2maf**<p align="justify"><a href="https://github.com/mskcc/vcf2maf/tree/main">vcf2maf</a> is the tool required to convert vcf files into maf format. 
+<br>All the installation info can be found <a href="https://github.com/mskcc/vcf2maf/tree/main">here</a>
+
+* **Samtools**<p align="justify"><a href="https://www.htslib.org/">Samtools</a> is a suite of programs for interacting with high-throughput sequencing data. 
+<br>All the installation info can be found <a href="https://www.htslib.org/download/">here</a>
+</details>
+
+<details open>
+  <summary><b>Procedure</b></summary>
+
+To correctly install and use Varan:
+1. Open a terminal
+2. Type the following command to clone the repository folder: 
+```
+git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git
+```
+3.  Install all the packages required (cbioimporter and oncokb-annotator)
+```
+cd <varan_folder_path>/Varan-Pub
+bash installer.sh
+```
+ 
+<p align="justify">
+⚠️ <i>Depending on the Python version, pip3 may be required instead of pip</i><br><br>
+To test the installation and check if everything works, launch the main script <b>varan.py</b>: 
+
+```
+cd <varan_folder_path>/Varan-Pub
+python varan.py -h
+```
+
+<p align="justify">
+⚠️ <i>If any error is printed while launching varan.py, check if step 3 completed without errors</i>
+</details>
