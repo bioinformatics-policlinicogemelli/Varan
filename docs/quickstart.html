@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VARAN - Data Management Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e6f0ff;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        header {
+            background-color: #003366;
+            color: white;
+            padding: 20px;
+            text-align: left;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            font-size: 1.6em;
+            margin: 5px 0;
+            color: #003366;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            color: #005599;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        pre {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-x: auto;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 1em;
+        }
+
+        a {
+            color: #003366;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>VARAN</h1>
+    </header>
+
+    <div class="container">
+
+        <h2>Quickstart using Docker container</h2>
+
+        <div class="content">
+            <h3>Requirements</h3>
+            <h3>Software Requirements:</h3>
+            <ul>
+                <li><a href="https://www.docker.com/">Docker</a></li>
+            </ul>
+            <h3>Hardware Requirements:</h3>
+            <ul>
+                <li>~3 GB storage space for the container image.</li>
+                <li>~25 GB storage space for the VEP cache and the reference genome.</li>
+            </ul>
+        </div>
+
+        <h2>Step 1: Clone Varan repository</h2>
+        <p>Follow the steps below to clone and set up the Varan repository:</p>
+        <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
+        <p>Navigate to the repository and build the Docker container:</p>
+        <pre>cd Varan-Pub</pre>
+        <pre>docker build -t varan .</pre>
+        <p>Test the installation with:</p>
+        <pre>docker run --rm -it varan -h</pre>
+        <p><strong>⚠️ For Windows users:</strong> Some issues with Git Bash have been reported. It is recommended to launch the docker command through <a href="https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4">Powershell</a>.</p>
+
+        <h2>Step 2: Download the example data</h2>
+        <p>Run the following command to download all the necessary files for your first study:</p>
+        <pre>wget .........</pre>
+        <p>The TEST folder will be organized into the following subfolders:</p>
+        <ul>
+            <li><strong>Genome</strong>: contains the reference genome and its indexed version.</li>
+            <li><strong>Input</strong>: includes all necessary input files for processing.</li>
+            <li><strong>Vep_cache</strong>: stores the transcript models, regulatory features, and variant data for <i>Homo sapiens</i>.</li>
+        </ul>
+
+        <h2>Step 3: Create a new study</h2>
+        <p>To create your first study, run the following command:</p>
+        <pre>python varan.py -i Input/TEST -o output_test -c mixed</pre>
+        <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready. Congratulations on completing your first Varan study!</p>
+
+        <h2>Step 4: Modify an existing study</h2>
+
+        <h3>Step 4.1: Extract samples from an existing study</h3>
+        <p>Create a list containing the desired samples:</p>
+        <pre>nano extract_list.tsv</pre>
+        <p>In the editor, type the sample IDs:</p>
+        <pre>0000001_DNA
+0000002_DNA</pre>
+        <p>Save and close the file. Then, extract the samples using:</p>
+        <pre>python varan.py -e -p output_test_v1 -s extract_list.tsv -o extract_study</pre>
+        <p>This will produce the <i>extract_study_v1</i> folder with the selected samples.</p>
+
+        <h3>Step 4.2: Remove samples from an existing study</h3>
+        <p>Create a list of the samples to remove:</p>
+        <pre>nano remove_list.tsv</pre>
+        <p>In the editor, type the sample IDs:</p>
+        <pre>0000001_DNA
+0000002_DNA
+0000003_DNA</pre>
+        <p>Save and close the file. Then, remove the samples using:</p>
+        <pre>python varan.py -r -p output_test_v1 -s remove_list.tsv -o remove_study</pre>
+        <p>This will create the <i>remove_study_v1</i> folder, containing the remaining samples.</p>
+
+        <h3>Step 4.3: Merge two existing studies</h3>
+        <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
+        <pre>python varan.py -u -p extract_study_v1 -n remove_study_v1 -o update_study</pre>
+        <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>
+
+    </div>
+
+</body>
+</html>

@@ -18,15 +18,7 @@
             background-color: #003366;
             color: white;
             padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-        }
-
-        header img {
-            max-width: 80px;
-            height: auto;
-            margin-right: 20px;
+            text-align: left;
         }
 
         h1 {
@@ -37,15 +29,10 @@
 
         h2 {
             font-size: 1.6em;
-            margin: 5px 0 0;
-            color: #003366; /* Blu per i titoli */
-            font-weight: bold;
-            text-align: left; /* Allineamento a sinistra */
-        }
-
-        strong {
+            margin: 5px 0;
             color: #003366;
             font-weight: bold;
+            text-align: left;
         }
 
         .container {
@@ -55,75 +42,26 @@
             background-color: #ffffff;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            position: relative;
             text-align: left;
-        }
-
-        .section-title {
-            font-size: 1.6em;
-            color: white;
-            background-color: #003366;
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 5px;
         }
 
         .content {
-            text-align: left;
             font-size: 1.1em;
             line-height: 1.6;
             margin-bottom: 20px;
         }
 
-        .subtitle {
-            text-align: left;
-            font-size: 1.5em;
-            margin-bottom: 8px;
+        .blue-text {
             color: #003366;
-            font-weight: bold;
-            background-color: #b0c4de;
-            border-radius: 5px;
-            padding: 3px;
         }
 
-        table {
-            width: 75%;
-            border-collapse: collapse;
-            border-radius: 8px;
-            margin-left: auto;
-            margin-right: auto;
-            border-radius: 10px;
+        a {
+            color: #003366;
+            text-decoration: none;
         }
 
-        th, td {
-            border: 1px solid #003366;
-            padding: 10px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #003366;
-            color: white;
-            text-align: center;
-        }
-
-        td {
-            text-align: center;
-        }
-
-        td.filter-same {
-            background-color: #d4edda;
-            text-align: center;
-        }
-
-        td.filter-changed {
-            background-color: #f8d7da;
-            text-align: center;
-        }
-
-        .badge {
-            display: block;
-            margin: 20px auto;
+        a:hover {
+            text-decoration: underline;
         }
 
         img {
@@ -131,19 +69,6 @@
             height: auto;
         }
 
-        /* Aggiunta per uniformare il colore dei link e rimuovere la sottolineatura */
-        a {
-            color: #003366; /* Blu scuro */
-            text-decoration: none; /* Rimuove la sottolineatura */
-        }
-
-        a:hover {
-            text-decoration: underline; /* Aggiunge la sottolineatura al passaggio del mouse */
-        }
-
-        .blue-text {
-            color: #003366;
-        }
     </style>
 </head>
 <body>
@@ -154,42 +79,34 @@
 
 <div class="container">
 
-    <!-- Zenodo DOI Badge -->
-    <a href="https://zenodo.org/doi/10.5281/zenodo.12806060" class="badge">
+    <a href="https://zenodo.org/doi/10.5281/zenodo.12806060">
         <img src="https://zenodo.org/badge/788270006.svg" alt="DOI Badge">
     </a>
 
-    <!-- Varan Logo -->
     <p align="center">
-        <img src="logo_VARAN.png" alt="Varan (a data management tool for cBioPortal) logo" style="height: 350px; width: 350px;">
+        <img src="logo_VARAN.png" alt="Varan logo" style="height: 350px; width: 350px;">
     </p>
 
-    <!-- Overview Section -->
     <h2>Overview</h2>
-    <p class="content">Varan is a Python-based application that provides a pipeline to automatically prepare and manipulate cancer genomics data in the specific format supported by the <a href="https://www.cbioportal.org/" target="_blank">cBioPortal</a>.</p>
+    <p class="content">Varan is a Python-based application that provides a pipeline to prepare and manipulate cancer genomics data for <a href="https://www.cbioportal.org/" target="_blank">cBioPortal</a>.</p>
 
-    <!-- Features Section -->
     <h2>Features</h2>
     <ul class="content">
-        <li><span class="blue-text"><b>Study Creation</b></span>: This section generates a well-structured and validated study folder starting from raw VCF files, ready to be uploaded into the local instance of cBioPortal.</li>
-        <li><span class="blue-text"><b>Study Manipulation</b></span>: This section allows users to work with existing studies, including merging two studies or modifying a study by extracting/removing samples.</li>
+        <li><b>Study Creation</b>: Generates a validated study folder from raw VCF files, ready for upload to cBioPortal.</li>
+        <li><b>Study Manipulation</b>: Allows merging studies or modifying an existing study by extracting or removing samples.</li>
     </ul>
 
-    <!-- Quickstart Section -->
-    <a href="Quickstart.md"><h2>Quick Start</h2></a>
-    <p class="content">Quickly deploy Varan from raw data to launching analysis pipelines in under 30 minutes using a Docker container.</p>
+    <a href="quickstart.html"><h2>Quick Start</h2></a>
+    <p class="content">Deploy Varan from raw data to analysis pipelines in under 30 minutes using a Docker container.</p>
 
-    <!-- User Guide Section -->
     <a href="User_guide.md"><h2>User Guide</h2></a>
-    <p class="content">The user guide provides an in-depth description of Varan's usage, detailing specific functions, workflows, and use cases.</p>
+    <p class="content">Detailed descriptions of Varan's usage, functions, and workflows.</p>
 
-    <!-- Issue Reporting Section -->
     <h2>Issue Reporting</h2>
-    <p class="content">If you encounter any issues while running a command and cannot find a solution in the documentation, feel free to open an issue on GitHub. We will do our best to respond as soon as possible.</p>
+    <p class="content">Open an issue on GitHub if you encounter problems not covered in the documentation.</p>
 
-    <!-- Citing Section -->
     <h2>Citing Varan</h2>
-    <p class="content">If you wish to cite Varan in your work, please use the following DOI: <a href="https://zenodo.org/doi/10.5281/zenodo.12806060" target="_blank">https://zenodo.org/doi/10.5281/zenodo.12806060</a></p>
+    <p class="content">For citation, use the DOI: <a href="https://zenodo.org/doi/10.5281/zenodo.12806060" target="_blank">https://zenodo.org/doi/10.5281/zenodo.12806060</a></p>
 
 </div>
 
