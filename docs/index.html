@@ -1,32 +1,197 @@
-<h1>VARAN</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VARAN - Data Management Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e6f0ff;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
 
-<a href="https://zenodo.org/doi/10.5281/zenodo.12806060">
-    <img src="https://zenodo.org/badge/788270006.svg" alt="DOI Badge" />
-  </a>
+        header {
+            background-color: #003366;
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
 
-<p align="center">
-<img src="../readme_content/img/logo_VARAN.png" alt="Varan (a data management tool for cbioportal) logo" style="height: 350px; width:350px;"/>
-</p>
+        header img {
+            max-width: 80px;
+            height: auto;
+            margin-right: 20px;
+        }
 
-<h2>Overview</h2>
-<p align="justify">
-<p>Varan is a Python-based application that provides a pipeline to automatically prepare and manipulate cancer genomics data in the specific format supported by the <a href="https://www.cbioportal.org/">cBioPortal</a>.</p>
+        h1 {
+            font-size: 3em;
+            margin: 0;
+            text-transform: uppercase;
+        }
 
-<h2>Features</h2>
-<ul>
-    <li><p><b>Study Creation</b>: This section provides, starting from raw vcf files, a well-structured and validated study folder ready to be uploaded into the local instance of cBioPortal.</p></li>
-    <li><p><b>Study Manipulation</b>: This section allows users to work on already existing studies. In particular it is possible to merge two studies or to modify a study by extracting/removing samples.</p></li>
-</ul>
+        h2 {
+            font-size: 1.6em;
+            margin: 5px 0 0;
+            color: #003366; /* Blu per i titoli */
+            font-weight: bold;
+            text-align: left; /* Allineamento a sinistra */
+        }
 
+        strong {
+            color: #003366;
+            font-weight: bold;
+        }
 
-<h2><a href="/Quickstart.md">Varan quick start</a></h2>
-<p>Quick deploy Varan from raw data to launching analysis pipelines in under 30 minutes using a Docker container.</p>
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            text-align: left;
+        }
 
-<h2><a href="/User_guide.md">User guide</a></h2>
-<p>User guide provides in depth description of Varan usage, detailing specific functions, workflows and use cases.</p>
+        .section-title {
+            font-size: 1.6em;
+            color: white;
+            background-color: #003366;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
 
-<h2>Issue reporting</h2>
-<p>If you are struggling with running a command and cannot find any solution in the documentation, feel free to open an issue here on GitHub. We will do our best to reach you ASAP.</p>
+        .content {
+            text-align: left;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
 
-<h2>Citing Varan</h2>
-<p><a href="https://zenodo.org/doi/10.5281/zenodo.12806060">https://zenodo.org/doi/10.5281/zenodo.12806060</a></p>
+        .subtitle {
+            text-align: left;
+            font-size: 1.5em;
+            margin-bottom: 8px;
+            color: #003366;
+            font-weight: bold;
+            background-color: #b0c4de;
+            border-radius: 5px;
+            padding: 3px;
+        }
+
+        table {
+            width: 75%;
+            border-collapse: collapse;
+            border-radius: 8px;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 10px;
+        }
+
+        th, td {
+            border: 1px solid #003366;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #003366;
+            color: white;
+            text-align: center;
+        }
+
+        td {
+            text-align: center;
+        }
+
+        td.filter-same {
+            background-color: #d4edda;
+            text-align: center;
+        }
+
+        td.filter-changed {
+            background-color: #f8d7da;
+            text-align: center;
+        }
+
+        .badge {
+            display: block;
+            margin: 20px auto;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Aggiunta per uniformare il colore dei link e rimuovere la sottolineatura */
+        a {
+            color: #003366; /* Blu scuro */
+            text-decoration: none; /* Rimuove la sottolineatura */
+        }
+
+        a:hover {
+            text-decoration: underline; /* Aggiunge la sottolineatura al passaggio del mouse */
+        }
+
+        .blue-text {
+            color: #003366;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>VARAN</h1>
+</header>
+
+<div class="container">
+
+    <!-- Zenodo DOI Badge -->
+    <a href="https://zenodo.org/doi/10.5281/zenodo.12806060" class="badge">
+        <img src="https://zenodo.org/badge/788270006.svg" alt="DOI Badge">
+    </a>
+
+    <!-- Varan Logo -->
+    <p align="center">
+        <img src="logo_VARAN.png" alt="Varan (a data management tool for cBioPortal) logo" style="height: 350px; width: 350px;">
+    </p>
+
+    <!-- Overview Section -->
+    <h2>Overview</h2>
+    <p class="content">Varan is a Python-based application that provides a pipeline to automatically prepare and manipulate cancer genomics data in the specific format supported by the <a href="https://www.cbioportal.org/" target="_blank">cBioPortal</a>.</p>
+
+    <!-- Features Section -->
+    <h2>Features</h2>
+    <ul class="content">
+        <li><span class="blue-text"><b>Study Creation</b></span>: This section generates a well-structured and validated study folder starting from raw VCF files, ready to be uploaded into the local instance of cBioPortal.</li>
+        <li><span class="blue-text"><b>Study Manipulation</b></span>: This section allows users to work with existing studies, including merging two studies or modifying a study by extracting/removing samples.</li>
+    </ul>
+
+    <!-- Quickstart Section -->
+    <a href="Quickstart.md"><h2>Quick Start</h2></a>
+    <p class="content">Quickly deploy Varan from raw data to launching analysis pipelines in under 30 minutes using a Docker container.</p>
+
+    <!-- User Guide Section -->
+    <a href="User_guide.md"><h2>User Guide</h2></a>
+    <p class="content">The user guide provides an in-depth description of Varan's usage, detailing specific functions, workflows, and use cases.</p>
+
+    <!-- Issue Reporting Section -->
+    <h2>Issue Reporting</h2>
+    <p class="content">If you encounter any issues while running a command and cannot find a solution in the documentation, feel free to open an issue on GitHub. We will do our best to respond as soon as possible.</p>
+
+    <!-- Citing Section -->
+    <h2>Citing Varan</h2>
+    <p class="content">If you wish to cite Varan in your work, please use the following DOI: <a href="https://zenodo.org/doi/10.5281/zenodo.12806060" target="_blank">https://zenodo.org/doi/10.5281/zenodo.12806060</a></p>
+
+</div>
+
+</body>
+</html>
