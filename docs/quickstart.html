@@ -8,6 +8,11 @@
 </head>
 <body>
 
+    <!-- Barra Superiore -->
+    <header>
+        <h1>VARAN</h1>
+    </header>
+
     <!-- Sidebar -->
     <div class="sidebar">
         <h2>Table of Contents</h2>
@@ -23,17 +28,20 @@
                     <li><a href="#step-1">Step 1: Clone Varan repository</a></li>
                     <li><a href="#step-2">Step 2: Download the example data</a></li>
                     <li><a href="#step-3">Step 3: Create a new study</a></li>
-                    <li><a href="#step-4">Step 4: Modify an existing study</a></li>
+                    <li><a href="#step-4">Step 4: Modify an existing study</a>
+                        <ul>
+                            <li><a href="#step-4-1">Step 4.1: Extract samples from an existing study</a></li>
+                            <li><a href="#step-4-2">Step 4.2: Remove samples from an existing study</a></li>
+                            <li><a href="#step-4-3">Step 4.3: Merge two existing studies</a></li>
+                        </ul>
+                    </li>
                 </ul>
             </li>
         </ul>
     </div>
 
+    <!-- Contenuto Principale -->
     <div class="content">
-        <!-- Main content area -->
-        <header>
-            <h1>VARAN</h1>
-        </header>
         <h2 class="centered-heading" id="getting-started">Quickstart using Docker container</h2>
 
         <div class="container">
@@ -78,7 +86,7 @@
 
                 <h2 class="subsection-title" id="step-4">Step 4: Modify an existing study</h2>
 
-                <h3>Step 4.1: Extract samples from an existing study</h3>
+                <h3 id="step-4-1">Step 4.1: Extract samples from an existing study</h3>
                 <p>Create a list containing the desired samples:</p>
                 <pre>nano extract_list.tsv</pre>
                 <p>In the editor, type the sample IDs:</p>
@@ -87,7 +95,7 @@
                 <p>Save and close the file. Then, extract the samples using:</p>
                 <pre>python varan.py -e -p output_test_v1 -s extract_list.tsv -o extract_study</pre>
 
-                <h3>Step 4.2: Remove samples from an existing study</h3>
+                <h3 id="step-4-2">Step 4.2: Remove samples from an existing study</h3>
                 <p>Create a list of the samples to remove:</p>
                 <pre>nano remove_list.tsv</pre>
                 <p>In the editor, type the sample IDs:</p>
@@ -97,7 +105,7 @@
                 <p>Save and close the file. Then, remove the samples using:</p>
                 <pre>python varan.py -r -p output_test_v1 -s remove_list.tsv -o remove_study</pre>
 
-                <h3>Step 4.3: Merge two existing studies</h3>
+                <h3 id="step-4-3">Step 4.3: Merge two existing studies</h3>
                 <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
                 <pre>python varan.py -u -p extract_study_v1 -n remove_study_v1 -o update_study</pre>
                 <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>

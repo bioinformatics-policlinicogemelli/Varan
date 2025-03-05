@@ -1,96 +1,35 @@
+/* Global Styles */
 body {
     font-family: Arial, sans-serif;
     background-color: #e6f0ff;
-    color: #333;
     margin: 0;
     padding: 0;
-    text-align: center;
 }
 
+/* Barra Superiore */
 header {
     background-color: #003366;
     color: white;
     padding: 20px;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10;
     text-align: left;
 }
 
-h1 {
-    font-size: 3.5em;
+header h1 {
+    font-size: 3em;
     margin: 0;
-    text-transform: uppercase;
 }
 
-h2 {
-    font-size: 2em;
-    margin: 10px 0;
-    color: #003366;
-    font-weight: bold;
-    text-align: left;
-}
-
-h3 {
-    font-size: 1.5em;
-    color: #005599;
-    font-weight: bold;
-    text-align: left;
-}
-
-.content {
-    margin-left: 260px;
-    padding: 20px;
-}
-
-.centered-heading {
-    text-align: center;
-    font-size: 40px;
-}
-
-.container {
-    max-width: 1000px;
-    margin: 30px auto;
-    padding: 20px;
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    text-align: left;
-}
-
-.subsection-title {
-    font-size: 1.3em;
-    color: #003366;
-    font-weight: bold;
-    margin-top: 15px;
-}
-
-.highlight {
-    color: #003366;
-    font-weight: bold;
-}
-
-pre {
-    background-color: #1e1e1e;
-    color: #ffffff;
-    border-radius: 5px;
-    padding: 10px;
-    overflow-x: auto;
-    font-family: "Courier New", Courier, monospace;
-    font-size: 1em;
-}
-
-a {
-    color: #003366;
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
+/* Sidebar */
 .sidebar {
     height: 100%;
     width: 250px;
     position: fixed;
-    top: 0;
+    top: 80px; /* Inizia sotto la barra superiore */
     left: 0;
     background-color: #003366;
     padding-top: 20px;
@@ -98,12 +37,14 @@ a:hover {
     font-family: Arial, sans-serif;
     font-size: 1.1em;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    padding-left: 15px;
 }
 
 .sidebar h2 {
     text-align: center;
     margin-bottom: 20px;
     font-size: 1.5em;
+    color: white;
 }
 
 .sidebar ul {
@@ -127,4 +68,106 @@ a:hover {
 
 .sidebar ul li a:hover {
     background-color: #0055a5;
+}
+
+/* Content */
+.content {
+    margin-left: 270px; /* Per far partire il contenuto dopo il menu laterale */
+    padding: 20px;
+    padding-top: 100px; /* Per compensare la barra superiore */
+    width: calc(100% - 270px); /* Assicurarsi che la larghezza sia corretta */
+}
+
+/* Heading Styles */
+.centered-heading {
+    text-align: center;
+    font-size: 40px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 2.5em;
+    color: #003366;
+    margin-bottom: 20px;
+}
+
+h3 {
+    font-size: 2em;
+    color: #005599;
+    margin-bottom: 15px;
+}
+
+/* Subsection Titles */
+.subsection-title {
+    font-size: 1.5em;
+    color: #003366;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+/* Code Blocks */
+pre {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border-radius: 5px;
+    padding: 10px;
+    overflow-x: auto;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 1em;
+    margin-bottom: 20px;
+}
+
+/* Highlight Text */
+.highlight {
+    color: #003366;
+    font-weight: bold;
+}
+
+/* Links */
+a {
+    color: #003366;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Step 4 Sub-Steps (4.1, 4.2, etc.) */
+h3#step-4-1, h3#step-4-2, h3#step-4-3 {
+    font-size: 1.6em; /* Più piccolo rispetto agli altri h3 */
+    font-weight: normal;
+    margin-left: 20px;
+}
+
+/* Responsiveness */
+@media screen and (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        position: relative;
+        top: 0;
+    }
+
+    .content {
+        margin-left: 0;
+        width: 100%;
+        padding-top: 150px; /* Per far spazio alla barra superiore */
+    }
+
+    header h1 {
+        font-size: 2.5em;
+    }
+    
+    .centered-heading {
+        font-size: 32px;
+    }
+    
+    h2 {
+        font-size: 2em;
+    }
+
+    h3 {
+        font-size: 1.5em;
+    }
 }
