@@ -33,6 +33,18 @@
             margin: 0;
         }
 
+        /* Menu a tendina */
+        .menu-icon {
+            display: block;
+            cursor: pointer;
+            font-size: 30px;
+            color: white;
+            padding: 10px;
+            background-color: #003366;
+            border: none;
+            margin: 10px;
+        }
+
         /* Contenitore principale con barra laterale e contenuto */
         .main-container {
             display: flex;
@@ -54,6 +66,11 @@
             overflow-y: auto;
             padding-left: 15px;
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            display: none; /* Nascondi la sidebar per default */
+        }
+
+        .sidebar.active {
+            display: block; /* Mostra la sidebar quando è attiva */
         }
 
         .sidebar h2 {
@@ -103,8 +120,8 @@
         }
         
         .content::-webkit-scrollbar {
-        display: none; /* per Chrome, Safari, Edge */
-}
+            display: none; /* per Chrome, Safari, Edge */
+        }
 
         /* Titoli */
         .centered-heading {
@@ -119,9 +136,21 @@
         }
 
         h3 {
-            font-size: 1.5em;
-            color: #005599;
-            margin-bottom: 10px;
+            font-size: 1.8em;
+            color: #003366;
+            margin-bottom: 15px;
+        }
+
+        h4 {
+            font-size: 1.4em;
+            color: #003366;
+            margin-bottom: 7px;
+        }
+
+        h5 {
+            font-size: 1.2em;
+            color: #003366;
+            margin-bottom: px;
         }
 
         /* Code Blocks */
@@ -150,13 +179,6 @@
 
         a:hover {
             text-decoration: underline;
-        }
-
-        /* Step 4 Sub-Steps (4.1, 4.2, etc.) */
-        h3#step-4-1, h3#step-4-2, h3#step-4-3 {
-            font-size: 1.6em;
-            font-weight: normal;
-            margin-left: 20px;
         }
 
         /* Responsiveness */
@@ -193,6 +215,18 @@
             h3 {
                 font-size: 1.3em;
             }
+
+            h4 {
+                font-size: 1.2em;
+            }
+
+            h5 {
+                font-size: 1.1em;
+            }
+
+            .menu-icon {
+                display: block; /* Mostra l'icona del menu a tendina sui dispositivi mobili */
+            }
         }
     </style>
 </head>
@@ -200,7 +234,8 @@
 
     <!-- Barra Superiore -->
     <header>
-        <h1>VARAN</h1>
+        <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
+        <button class="menu-icon" onclick="toggleMenu()">&#9776;</button>
     </header>
 
     <!-- Contenitore principale (barra laterale + contenuto) -->
@@ -235,19 +270,20 @@
         <div class="content">
             <h2 class="centered-heading">Quickstart using Docker container</h2>
 
-            <h2 id="requirements">Requirements</h2>
-            <h2 class="subsection-title" id="software-requirements">Software Requirements:</h2>
+            <h3 id="requirements">Requirements</h3>
+            <h4 class="subsection-title" id="software-requirements">Software Requirements:</h4>
             <ul>
                 <li><a href="https://www.docker.com/">Docker</a></li>
             </ul>
-            <h2 class="subsection-title" id="hardware-requirements">Hardware Requirements:</h2>
+            <h4 class="subsection-title" id="hardware-requirements">Hardware Requirements:</h4>
             <ul>
                 <li>~3 GB storage space for the container image.</li>
                 <li>~25 GB storage space for the VEP cache and the reference genome.</li>
             </ul>
 
-            <h2 id="getting-started">Getting Started with Varan</h2>
-            <h2 class="subsection-title" id="step-1">Step 1: Clone Varan repository</h2>
+            <h3 id="getting-started">Getting Started with Varan</h3>
+            <p>We will walk you through a simple tutorial that covers everything from installing Varan to creating and manipulating studies, providing a hands-on introduction to its core functionality.</p>
+            <h4 class="subsection-title" id="step-1">Step 1: Clone Varan repository</h4>
             <p>Follow the steps below to clone and set up the Varan repository:</p>
             <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
             <p>Navigate to the repository and build the Docker container:</p>
@@ -257,7 +293,7 @@
             <pre>docker run --rm -it varan -h</pre>
             <p><span class="highlight">⚠️ For Windows users:</span> Some issues with Git Bash have been reported. It is recommended to launch the docker command through <a href="https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4">Powershell</a>.</p>
 
-            <h2 class="subsection-title" id="step-2">Step 2: Download the example data</h2>
+            <h4 class="subsection-title" id="step-2">Step 2: Download the example data</h4>
             <p>Run the following command to download all the necessary files for your first study:</p>
             <pre>wget .........</pre>
             <p>The TEST folder will be organized into the following subfolders:</p>
@@ -267,14 +303,15 @@
                 <li><span class="highlight">Vep_cache</span>: stores the transcript models, regulatory features, and variant data for <i>Homo sapiens</i>.</li>
             </ul>
 
-            <h2 class="subsection-title" id="step-3">Step 3: Create a new study</h2>
+            <h4 class="subsection-title" id="step-3">Step 3: Create a new study</h4>
             <p>To create your first study, run the following command:</p>
             <pre>python varan.py -i TEST/Input -o output_test -c mixed</pre>
-            <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready. Congratulations on completing your first Varan study!</p>
+            <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready.</p>
+            <p>Congratulations on completing your first Varan study! You can take some time to explore the output files.</p>
 
-            <h2 class="subsection-title" id="step-4">Step 4: Modify an existing study</h2>
+            <h4 class="subsection-title" id="step-4">Step 4: Modify an existing study</h4>
 
-            <h3 id="step-4-1">Step 4.1: Extract samples from an existing study</h3>
+            <h5 id="step-4-1">Step 4.1: Extract samples from an existing study</h5>
             <p>Create a list containing the desired samples:</p>
             <pre>nano extract_list.tsv</pre>
             <p>In the editor, type the sample IDs:</p>
@@ -283,7 +320,7 @@
             <p>Save and close the file. Then, extract the samples using:</p>
             <pre>python varan.py -e -p output_test_v1 -s extract_list.tsv -o extract_study</pre>
 
-            <h3 id="step-4-2">Step 4.2: Remove samples from an existing study</h3>
+            <h5 id="step-4-2">Step 4.2: Remove samples from an existing study</h5>
             <p>Create a list of the samples to remove:</p>
             <pre>nano remove_list.tsv</pre>
             <p>In the editor, type the sample IDs:</p>
@@ -293,12 +330,19 @@
             <p>Save and close the file. Then, remove the samples using:</p>
             <pre>python varan.py -r -p output_test_v1 -s remove_list.tsv -o remove_study</pre>
 
-            <h3 id="step-4-3">Step 4.3: Merge two existing studies</h3>
+            <h5 id="step-4-3">Step 4.3: Merge two existing studies</h5>
             <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
             <pre>python varan.py -u -p extract_study_v1 -n remove_study_v1 -o update_study</pre>
             <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>
         </div>
     </div>
 
+    <script>
+        // Funzione per mostrare/nascondere il menu laterale
+        function toggleMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('active');
+        }
+    </script>
 </body>
 </html>
