@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VARAN - Data Management Tool</title>
+    <title>VARAN</title>
     <link rel="stylesheet" href="readme_style.css">
 </head>
 <body>
@@ -13,9 +13,6 @@
     </header>
     <h2 class="centered-heading">Quickstart using Docker container</h2>
     <div class="container">
-
-        <h2>Quickstart using Docker container</h2>
-
         <div class="content">
             <h2>Requirements</h2>
             <h2 class="subsection-title">Software Requirements:</h2>
@@ -29,6 +26,7 @@
             </ul>
         </div>
 
+        <h2>Getting Started with Varan</h2>
         <h2 class="subsection-title">Step 1: Clone Varan repository</h2>
         <p>Follow the steps below to clone and set up the Varan repository:</p>
         <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
@@ -52,9 +50,9 @@
         <h2 class="subsection-title">Step 3: Create a new study</h2>
         <p>To create your first study, run the following command:</p>
         <pre>python varan.py -i TEST/Input -o output_test -c mixed</pre>
-        <p>After about 2 minutes, the <span class="highlight">output_test_v1</span> folder will be ready. Congratulations on completing your first Varan study!</p>
+        <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready. Congratulations on completing your first Varan study!</p>
 
-        <h2>Step 4: Modify an existing study</h2>
+        <h2 class="subsection-title">Step 4: Modify an existing study</h2>
 
         <h3>Step 4.1: Extract samples from an existing study</h3>
         <p>Create a list containing the desired samples:</p>
@@ -64,7 +62,7 @@
 0000002_DNA</pre>
         <p>Save and close the file. Then, extract the samples using:</p>
         <pre>python varan.py -e -p output_test_v1 -s extract_list.tsv -o extract_study</pre>
-        <p>This will produce the <span class="highlight">extract_study_v1</span> folder with the selected samples.</p>
+        <p>This will produce the <i>extract_study_v1</i> folder with the selected samples.</p>
 
         <h3>Step 4.2: Remove samples from an existing study</h3>
         <p>Create a list of the samples to remove:</p>
@@ -75,12 +73,12 @@
 0000003_DNA</pre>
         <p>Save and close the file. Then, remove the samples using:</p>
         <pre>python varan.py -r -p output_test_v1 -s remove_list.tsv -o remove_study</pre>
-        <p>This will create the <span class="highlight">remove_study_v1</span> folder, containing the remaining samples.</p>
+        <p>This will create the <i>remove_study_v1</i> folder, containing the remaining samples.</p>
 
         <h3>Step 4.3: Merge two existing studies</h3>
-        <p>To merge the <span class="highlight">remove_study_v1</span> and <span class="highlight">extract_study_v1</span> studies, use the following command:</p>
+        <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
         <pre>python varan.py -u -p extract_study_v1 -n remove_study_v1 -o update_study</pre>
-        <p>This will create the <span class="highlight">update_study_v1</span> folder with the samples from both studies.</p>
+        <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>
 
     </div>
 
