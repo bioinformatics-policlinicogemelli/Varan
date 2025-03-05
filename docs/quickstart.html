@@ -24,7 +24,9 @@
             color: white;
             padding: 20px;
             width: 100%;
-            text-align: left;
+            display: flex; /* Impostiamo il contenitore come flexbox */
+            justify-content: flex-start; /* Allinea gli elementi a sinistra (vicino tra loro) */
+            align-items: center; /* Centra verticalmente gli elementi */
             z-index: 10;
         }
 
@@ -35,14 +37,13 @@
 
         /* Menu a tendina */
         .menu-icon {
-            display: block;
             cursor: pointer;
             font-size: 30px;
             color: white;
-            padding: 10px;
             background-color: #003366;
             border: none;
-            margin: 10px;
+            padding: 10px;
+            margin: 0; /* Rimuovi margine */
         }
 
         /* Contenitore principale con barra laterale e contenuto */
@@ -56,7 +57,7 @@
         .sidebar {
             height: 100vh;
             width: 220px;
-            background-color: #335577;
+            background-color: #e6f0ff;
             padding-top: 20px;
             padding-right: 7px;
             padding-left: 7px;
@@ -74,8 +75,8 @@
         }
 
         .sidebar h2 {
-            margin-bottom: 15px;
-            font-size: 1.5em;
+            margin-bottom: 13px;
+            font-size: 1.3em;
             color: white;
             text-align: left;
         }
@@ -234,8 +235,8 @@
 
     <!-- Barra Superiore -->
     <header>
-        <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
         <button class="menu-icon" onclick="toggleMenu()">&#9776;</button>
+        <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
     </header>
 
     <!-- Contenitore principale (barra laterale + contenuto) -->
@@ -282,7 +283,7 @@
             </ul>
 
             <h3 id="getting-started">Getting Started with Varan</h3>
-            <p>We will walk you through a simple tutorial that covers everything from installing Varan to creating and manipulating studies, providing a hands-on introduction to its core functionality.</p>
+            <p>We will guide you through a comprehensive tutorial that covers everything from installing Varan using Docker (for instructions on local installation, please refer to <a href="/installation_procedures.html">this guide</a>), to creating and managing studies, offering a practical introduction to the core functionalities of the tool.</p>
             <h4 class="subsection-title" id="step-1">Step 1: Clone Varan repository</h4>
             <p>Follow the steps below to clone and set up the Varan repository:</p>
             <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
@@ -300,12 +301,14 @@
             <ul>
                 <li><span class="highlight">Genome</span>: contains the reference genome and its indexed version.</li>
                 <li><span class="highlight">Input</span>: includes all necessary input files for processing.</li>
+                <li><span class="highlight">Output</span>: empty folder to store our test outputs.</li>
                 <li><span class="highlight">Vep_cache</span>: stores the transcript models, regulatory features, and variant data for <i>Homo sapiens</i>.</li>
             </ul>
 
             <h4 class="subsection-title" id="step-3">Step 3: Create a new study</h4>
             <p>To create your first study, run the following command:</p>
-            <pre>python varan.py -i TEST/Input -o output_test -c mixed</pre>
+            <pre>python varan.py</pre>
+            <pre>docker run --rm -it -v TEST:/test_folder varan -i test_folder/Input -o test_folder/Output/output_test -c mixed</pre>
             <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready.</p>
             <p>Congratulations on completing your first Varan study! You can take some time to explore the output files.</p>
 
@@ -317,8 +320,10 @@
             <p>In the editor, type the sample IDs:</p>
             <pre>0000001_DNA
 0000002_DNA</pre>
-            <p>Save and close the file. Then, extract the samples using:</p>
-            <pre>python varan.py -e -p output_test_v1 -s extract_list.tsv -o extract_study</pre>
+            <p>To save and close the file, press <strong>Ctrl + X</strong> (or <strong>Cmd + X</strong> on Mac), then press <strong>Y</strong> to confirm saving the changes.</p>
+            <p>Extract the samples using:</p>
+            <pre>docker run --rm -it -v TEST:/test_folder varan -e -p test_folder/Output/output_test_v1 -s test_folder/extract_list.tsv -o test_folder/Output/extract_study</pre>
+            <p>The new <i>extract_study_v1</i> folder contains a study with the selected samples</p>
 
             <h5 id="step-4-2">Step 4.2: Remove samples from an existing study</h5>
             <p>Create a list of the samples to remove:</p>
@@ -327,12 +332,14 @@
             <pre>0000001_DNA
 0000002_DNA
 0000003_DNA</pre>
-            <p>Save and close the file. Then, remove the samples using:</p>
-            <pre>python varan.py -r -p output_test_v1 -s remove_list.tsv -o remove_study</pre>
+            <p><p>To save and close the file, press <strong>Ctrl + x</strong> (or <strong>Cmd + x</strong> on Mac), then press <strong>y</strong> to confirm saving the changes.</p>
+            <p>Remove the samples using:</p>
+            <pre>docker run --rm -it -v TEST:/test_folder varan -r -p test_folder/Output/output_test_v1 -s test_folder/remove_list.tsv -o test_folder/Output/remove_study</pre>
+            <p>The new <i>remove_study_v1</i> folder contains a study with the original samples, excluding the ones that were removed</p>
 
             <h5 id="step-4-3">Step 4.3: Merge two existing studies</h5>
             <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
-            <pre>python varan.py -u -p extract_study_v1 -n remove_study_v1 -o update_study</pre>
+            <pre>docker run --rm -it -v TEST:/test_folder varan -u -p test_folder/Output/extract_study_v1 -n test_folder/Output/remove_study_v1 -o test_folder/Output/update_study</pre>
             <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>
         </div>
     </div>

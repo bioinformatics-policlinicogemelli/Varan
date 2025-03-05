@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Varan Installation Instructions</title>
+    <style>
+        /* Global Styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e6f0ff;
+            margin: 0;
+            padding: 0;
+            text-align: left;
+            color: #000000;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Barra Superiore */
+        header {
+            background-color: #003366;
+            color: white;
+            padding: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            z-index: 10;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin: 0;
+        }
+
+        /* Menu a tendina */
+        .menu-icon {
+            cursor: pointer;
+            font-size: 30px;
+            color: white;
+            background-color: #003366;
+            border: none;
+            padding: 10px;
+            margin: 0;
+        }
+
+        /* Contenitore principale con barra laterale e contenuto */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            height: 100vh;
+            width: 220px;
+            background-color: #e6f0ff;
+            padding-top: 20px;
+            padding-right: 7px;
+            padding-left: 7px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 1.1em;
+            overflow-y: auto;
+            padding-left: 15px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .sidebar.active {
+            display: block;
+        }
+
+        .sidebar h2 {
+            margin-bottom: 13px;
+            font-size: 1.3em;
+            color: white;
+            text-align: left;
+        }
+
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .sidebar ul li {
+            margin: 5px 0;
+        }
+
+        .sidebar ul li a {
+            text-decoration: none;
+            color: white;
+            display: block;
+            padding-left: 8px;
+            font-size: 1.1em;
+        }
+
+        .sidebar ul li a:hover {
+            color: #ddd;
+        }
+
+        /* Contenuto Principale */
+        .content {
+            flex: 1;
+            margin-top: 20px;
+            margin-left: 20px;
+            padding: 25px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-y: scroll;
+        }
+
+        /* Titoli */
+        .centered-heading {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 2em;
+            color: #003366;
+            margin-bottom: 15px;
+        }
+
+        h3 {
+            font-size: 1.8em;
+            color: #003366;
+            margin-bottom: 15px;
+        }
+
+        h4 {
+            font-size: 1.4em;
+            color: #003366;
+            margin-bottom: 7px;
+        }
+
+        h5 {
+            font-size: 1.2em;
+            color: #003366;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-x: auto;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 1em;
+            margin-bottom: 20px;
+        }
+
+        /* Highlight Text */
+        .highlight {
+            color: #003366;
+            font-weight: bold;
+        }
+
+        /* Links */
+        a {
+            color: #003366;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsiveness */
+        @media screen and (max-width: 768px) {
+            header h1 {
+                font-size: 2.5em;
+            }
+
+            .main-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 10px;
+            }
+
+            .content {
+                margin-top: 120px;
+                width: 100%;
+                padding-top: 20px;
+            }
+
+            .centered-heading {
+                font-size: 2em;
+            }
+
+            h2 {
+                font-size: 1.8em;
+            }
+
+            h3 {
+                font-size: 1.3em;
+            }
+
+            h4 {
+                font-size: 1.2em;
+            }
+
+            h5 {
+                font-size: 1.1em;
+            }
+
+            .menu-icon {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barra Superiore -->
+    <header>
+        <button class="menu-icon" onclick="toggleMenu()">&#9776;</button>
+        <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
+    </header>
+
+    <!-- Contenitore principale (barra laterale + contenuto) -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <ul>
+                <li><a href="#prerequisites">Prerequisites</a></li>
+                <li><a href="#procedure">Procedure</a></li>
+            </ul>
+        </div>
+
+        <!-- Contenuto Principale -->
+        <div class="content">
+            <h2 class="centered-heading">Local Installation Procedures</h2>
+
+            <h3 id="prerequisites">Prerequisites</h3>
+            <ul>
+                <li><h4>Variant Effect Predictor (VEP)</h4>
+                    <p><a href="https://www.ensembl.org/info/docs/tools/vep/index.html">VEP</a> is a tool used to determine the effect of variants (SNPs, insertions, deletions, CNVs, or structural variants) on genes, transcripts, and protein sequence, as well as regulatory regions. <br>The steps to install VEP can be found <a href="https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html">here</a>, while DB and FASTA files can be downloaded <a href="http://www.ensembl.org/info/docs/tools/vep/script/vep_cache.html#cache">here</a></p>
+                </li>
+                <li><h4>vcf2maf</h4>
+                    <p><a href="https://github.com/mskcc/vcf2maf/tree/main">vcf2maf</a> is the tool required to convert vcf files into maf format. <br>All the installation info can be found <a href="https://github.com/mskcc/vcf2maf/tree/main">here</a></p>
+                </li>
+                <li><h4>Samtools</h4>
+                    <p><a href="https://www.htslib.org/">Samtools</a> is a suite of programs for interacting with high-throughput sequencing data. <br>All the installation info can be found <a href="https://www.htslib.org/download/">here</a></p>
+                </li>
+            </ul>
+
+            <h3 id="procedure">Procedure</h3>
+            <p>To correctly install and use Varan:</p>
+            <ol>
+                <li>Open a terminal</li>
+                <li>Type the following command to clone the repository folder:
+                    <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
+                </li>
+                <li>Install all the packages required (cbioimporter and oncokb-annotator):
+                    <pre>cd &lt;varan_folder_path&gt;/Varan-Pub
+bash installer.sh</pre>
+                </li>
+            </ol>
+
+            <p>⚠️ <i>Depending on the Python version, pip3 may be required instead of pip</i></p>
+
+            <p>To test the installation and check if everything works, launch the main script <b>varan.py</b>: 
+                <pre>python varan.py -h</pre>
+            </p>
+
+            <p>⚠️ <i>If any error is printed while launching varan.py, check if step 3 completed without errors</i></p>
+        </div>
+    </div>
+
+    <script>
+        // Funzione per mostrare/nascondere il menu laterale
+        function toggleMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('active');
+        }
+    </script>
+</body>
+</html>

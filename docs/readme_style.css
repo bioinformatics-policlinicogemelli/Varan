@@ -26,23 +26,24 @@ header h1 {
 
 /* Sidebar */
 .sidebar {
-    height: 100%;
-    width: 250px;
+    height: 100vh;
+    width: 220px;
     position: fixed;
     top: 80px; /* Inizia sotto la barra superiore */
     left: 0;
-    background-color: #003366;
+    background-color: #335577;
     padding-top: 20px;
     color: white;
     font-family: Arial, sans-serif;
     font-size: 1.1em;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
     padding-left: 15px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar h2 {
-    text-align: center;
-    margin-bottom: 20px;
+    text-align: left;
+    margin-bottom: 15px;
     font-size: 1.5em;
     color: white;
 }
@@ -53,57 +54,52 @@ header h1 {
 }
 
 .sidebar ul li {
-    margin: 10px 0;
+    margin: 5px 0;
 }
 
 .sidebar ul li a {
     text-decoration: none;
     color: white;
     display: block;
-    padding: 8px;
-    background-color: #004080;
-    border-radius: 5px;
-    transition: background-color 0.3s;
+    padding-left: 8px;
+    font-size: 1.1em;
 }
 
 .sidebar ul li a:hover {
-    background-color: #0055a5;
+    color: #ddd;
+}
+
+.sidebar ul li ul {
+    margin-left: 15px;
+    font-size: 0.9em;
 }
 
 /* Content */
 .content {
-    margin-left: 270px; /* Per far partire il contenuto dopo il menu laterale */
+    margin-left: 250px; /* Per far partire il contenuto dopo il menu laterale */
     padding: 20px;
     padding-top: 100px; /* Per compensare la barra superiore */
-    width: calc(100% - 270px); /* Assicurarsi che la larghezza sia corretta */
+    width: calc(100% - 250px); /* Assicurarsi che la larghezza sia corretta */
+    text-align: left;
 }
 
 /* Heading Styles */
 .centered-heading {
-    text-align: center;
-    font-size: 40px;
-    margin-bottom: 20px;
+    text-align: left;
+    font-size: 2.5em;
+    margin-bottom: 10px;
 }
 
 h2 {
-    font-size: 2.5em;
-    color: #003366;
-    margin-bottom: 20px;
-}
-
-h3 {
     font-size: 2em;
-    color: #005599;
+    color: #003366;
     margin-bottom: 15px;
 }
 
-/* Subsection Titles */
-.subsection-title {
+h3 {
     font-size: 1.5em;
-    color: #003366;
-    margin-top: 20px;
+    color: #005599;
     margin-bottom: 10px;
-    font-weight: bold;
 }
 
 /* Code Blocks */
@@ -123,7 +119,6 @@ pre {
     color: #003366;
     font-weight: bold;
 }
-
 /* Links */
 a {
     color: #003366;
@@ -140,7 +135,6 @@ h3#step-4-1, h3#step-4-2, h3#step-4-3 {
     font-weight: normal;
     margin-left: 20px;
 }
-
 /* Responsiveness */
 @media screen and (max-width: 768px) {
     .sidebar {
@@ -152,7 +146,7 @@ h3#step-4-1, h3#step-4-2, h3#step-4-3 {
     .content {
         margin-left: 0;
         width: 100%;
-        padding-top: 150px; /* Per far spazio alla barra superiore */
+        padding-top: 120px;
     }
 
     header h1 {
@@ -160,14 +154,14 @@ h3#step-4-1, h3#step-4-2, h3#step-4-3 {
     }
     
     .centered-heading {
-        font-size: 32px;
+        font-size: 2em;
     }
     
     h2 {
-        font-size: 2em;
+        font-size: 1.8em;
     }
 
     h3 {
-        font-size: 1.5em;
+        font-size: 1.3em;
     }
 }
