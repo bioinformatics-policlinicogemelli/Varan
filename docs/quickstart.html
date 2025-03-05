@@ -8,78 +8,101 @@
 </head>
 <body>
 
-    <header>
-        <h1>VARAN</h1>
-    </header>
-    <h2 class="centered-heading">Quickstart using Docker container</h2>
-    <div class="container">
-        <div class="content">
-            <h2>Requirements</h2>
-            <h2 class="subsection-title">Software Requirements:</h2>
-            <ul>
-                <li><a href="https://www.docker.com/">Docker</a></li>
-            </ul>
-            <h2 class="subsection-title">Hardware Requirements:</h2>
-            <ul>
-                <li>~3 GB storage space for the container image.</li>
-                <li>~25 GB storage space for the VEP cache and the reference genome.</li>
-            </ul>
-        </div>
-
-        <h2>Getting Started with Varan</h2>
-        <h2 class="subsection-title">Step 1: Clone Varan repository</h2>
-        <p>Follow the steps below to clone and set up the Varan repository:</p>
-        <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
-        <p>Navigate to the repository and build the Docker container:</p>
-        <pre>cd Varan-Pub</pre>
-        <pre>docker build -t varan .</pre>
-        <p>Test the installation with:</p>
-        <pre>docker run --rm -it varan -h</pre>
-        <p><span class="highlight">⚠️ For Windows users:</span> Some issues with Git Bash have been reported. It is recommended to launch the docker command through <a href="https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4">Powershell</a>.</p>
-
-        <h2 class="subsection-title">Step 2: Download the example data</h2>
-        <p>Run the following command to download all the necessary files for your first study:</p>
-        <pre>wget .........</pre>
-        <p>The TEST folder will be organized into the following subfolders:</p>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h2>Table of Contents</h2>
         <ul>
-            <li><span class="highlight">Genome</span>: contains the reference genome and its indexed version.</li>
-            <li><span class="highlight">Input</span>: includes all necessary input files for processing.</li>
-            <li><span class="highlight">Vep_cache</span>: stores the transcript models, regulatory features, and variant data for <i>Homo sapiens</i>.</li>
+            <li><a href="#requirements">Requirements</a>
+                <ul>
+                    <li><a href="#software-requirements">Software Requirements</a></li>
+                    <li><a href="#hardware-requirements">Hardware Requirements</a></li>
+                </ul>
+            </li>
+            <li><a href="#getting-started">Getting Started with Varan</a>
+                <ul>
+                    <li><a href="#step-1">Step 1: Clone Varan repository</a></li>
+                    <li><a href="#step-2">Step 2: Download the example data</a></li>
+                    <li><a href="#step-3">Step 3: Create a new study</a></li>
+                    <li><a href="#step-4">Step 4: Modify an existing study</a></li>
+                </ul>
+            </li>
         </ul>
+    </div>
 
-        <h2 class="subsection-title">Step 3: Create a new study</h2>
-        <p>To create your first study, run the following command:</p>
-        <pre>python varan.py -i TEST/Input -o output_test -c mixed</pre>
-        <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready. Congratulations on completing your first Varan study!</p>
+    <div class="content">
+        <!-- Main content area -->
+        <header>
+            <h1>VARAN</h1>
+        </header>
+        <h2 class="centered-heading" id="getting-started">Quickstart using Docker container</h2>
 
-        <h2 class="subsection-title">Step 4: Modify an existing study</h2>
+        <div class="container">
+            <div class="content">
+                <!-- Requirements Section -->
+                <h2 id="requirements">Requirements</h2>
+                <h2 class="subsection-title" id="software-requirements">Software Requirements:</h2>
+                <ul>
+                    <li><a href="https://www.docker.com/">Docker</a></li>
+                </ul>
+                <h2 class="subsection-title" id="hardware-requirements">Hardware Requirements:</h2>
+                <ul>
+                    <li>~3 GB storage space for the container image.</li>
+                    <li>~25 GB storage space for the VEP cache and the reference genome.</li>
+                </ul>
 
-        <h3>Step 4.1: Extract samples from an existing study</h3>
-        <p>Create a list containing the desired samples:</p>
-        <pre>nano extract_list.tsv</pre>
-        <p>In the editor, type the sample IDs:</p>
-        <pre>0000001_DNA
+                <h2 id="getting-started">Getting Started with Varan</h2>
+                <h2 class="subsection-title" id="step-1">Step 1: Clone Varan repository</h2>
+                <p>Follow the steps below to clone and set up the Varan repository:</p>
+                <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
+                <p>Navigate to the repository and build the Docker container:</p>
+                <pre>cd Varan-Pub</pre>
+                <pre>docker build -t varan .</pre>
+                <p>Test the installation with:</p>
+                <pre>docker run --rm -it varan -h</pre>
+                <p><span class="highlight">⚠️ For Windows users:</span> Some issues with Git Bash have been reported. It is recommended to launch the docker command through <a href="https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4">Powershell</a>.</p>
+
+                <h2 class="subsection-title" id="step-2">Step 2: Download the example data</h2>
+                <p>Run the following command to download all the necessary files for your first study:</p>
+                <pre>wget .........</pre>
+                <p>The TEST folder will be organized into the following subfolders:</p>
+                <ul>
+                    <li><span class="highlight">Genome</span>: contains the reference genome and its indexed version.</li>
+                    <li><span class="highlight">Input</span>: includes all necessary input files for processing.</li>
+                    <li><span class="highlight">Vep_cache</span>: stores the transcript models, regulatory features, and variant data for <i>Homo sapiens</i>.</li>
+                </ul>
+
+                <h2 class="subsection-title" id="step-3">Step 3: Create a new study</h2>
+                <p>To create your first study, run the following command:</p>
+                <pre>python varan.py -i TEST/Input -o output_test -c mixed</pre>
+                <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready. Congratulations on completing your first Varan study!</p>
+
+                <h2 class="subsection-title" id="step-4">Step 4: Modify an existing study</h2>
+
+                <h3>Step 4.1: Extract samples from an existing study</h3>
+                <p>Create a list containing the desired samples:</p>
+                <pre>nano extract_list.tsv</pre>
+                <p>In the editor, type the sample IDs:</p>
+                <pre>0000001_DNA
 0000002_DNA</pre>
-        <p>Save and close the file. Then, extract the samples using:</p>
-        <pre>python varan.py -e -p output_test_v1 -s extract_list.tsv -o extract_study</pre>
-        <p>This will produce the <i>extract_study_v1</i> folder with the selected samples.</p>
+                <p>Save and close the file. Then, extract the samples using:</p>
+                <pre>python varan.py -e -p output_test_v1 -s extract_list.tsv -o extract_study</pre>
 
-        <h3>Step 4.2: Remove samples from an existing study</h3>
-        <p>Create a list of the samples to remove:</p>
-        <pre>nano remove_list.tsv</pre>
-        <p>In the editor, type the sample IDs:</p>
-        <pre>0000001_DNA
+                <h3>Step 4.2: Remove samples from an existing study</h3>
+                <p>Create a list of the samples to remove:</p>
+                <pre>nano remove_list.tsv</pre>
+                <p>In the editor, type the sample IDs:</p>
+                <pre>0000001_DNA
 0000002_DNA
 0000003_DNA</pre>
-        <p>Save and close the file. Then, remove the samples using:</p>
-        <pre>python varan.py -r -p output_test_v1 -s remove_list.tsv -o remove_study</pre>
-        <p>This will create the <i>remove_study_v1</i> folder, containing the remaining samples.</p>
+                <p>Save and close the file. Then, remove the samples using:</p>
+                <pre>python varan.py -r -p output_test_v1 -s remove_list.tsv -o remove_study</pre>
 
-        <h3>Step 4.3: Merge two existing studies</h3>
-        <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
-        <pre>python varan.py -u -p extract_study_v1 -n remove_study_v1 -o update_study</pre>
-        <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>
-
+                <h3>Step 4.3: Merge two existing studies</h3>
+                <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
+                <pre>python varan.py -u -p extract_study_v1 -n remove_study_v1 -o update_study</pre>
+                <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>
+            </div>
+        </div>
     </div>
 
 </body>
