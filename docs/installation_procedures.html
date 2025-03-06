@@ -8,15 +8,12 @@
 </head>
 <body>
 
-    <!-- Barra Superiore -->
     <header>
         <button class="menu-icon" onclick="toggleMenu()">&#9776;</button>
         <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
     </header>
 
-    <!-- Contenitore principale (barra laterale + contenuto) -->
     <div class="main-container">
-        <!-- Sidebar -->
         <div class="sidebar">
             <ul>
                 <li><a href="#prerequisites">Prerequisites</a></li>
@@ -24,7 +21,6 @@
             </ul>
         </div>
 
-        <!-- Contenuto Principale -->
         <div class="content">
             <h2 class="centered-heading">Local Installation Procedures</h2>
 
@@ -65,7 +61,6 @@ bash installer.sh</pre>
     </div>
 
     <script>
-        // Funzione per mostrare/nascondere il menu laterale
         function toggleMenu() {
             const sidebar = document.querySelector('.sidebar');
             sidebar.classList.toggle('active');

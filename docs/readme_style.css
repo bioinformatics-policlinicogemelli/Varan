@@ -103,14 +103,17 @@ header h1 {
 .content {
     flex: 1;
     margin-top: 20px;
-    margin-left: 20px;
+    margin-left: 10%; /* Imposta un margine sinistro per centrare il contenuto */
+    margin-right: 10%; /* Imposta un margine destro per centrare il contenuto */
     padding: 25px;
     background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     overflow-y: scroll;
     scrollbar-width: none; /* per Firefox */
+    width: 80%; /* Imposta la larghezza al 80% dello schermo */
 }
+
 
 .content::-webkit-scrollbar {
     display: none; /* per Chrome, Safari, Edge */

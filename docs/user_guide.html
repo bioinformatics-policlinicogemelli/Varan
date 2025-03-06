@@ -1,52 +1,54 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="readme_style.css">
     <title>Varan User Guide</title>
 </head>
+
 <body>
     <header>
       <button class="menu-icon" onclick="toggleMenu()">&#9776;</button>
       <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
     </header>
 
-    <div class="sidebar">
-      <ul>
-            <li><a href="#study-creation">Study Creation</a>
-            <ul>
-                <a href="#input-preparation1">Input Preparation</a>
-                <ul>
-                    <li><a href="#folder1">Folder</a></li>
-                    <li><a href="#file">File</a></li>
-                    <li><a href="#templates">Templates</a></li>
-                    <li><a href="#configuration-file1">Configuration File</a></li>
-                </ul>
-                <a href="#launch-varan1">Launch Varan</a>
-                <ul>
-                    <li><a href="#options1">Options</a></li>
-                    <li><a href="#examples1">Examples</a></li>
-                </ul>
-            </ul>
-            <li><a href="#study-manipulation">Study Manipulation</a>
-            <ul>
-                <a href="#input-preparation2">Input Preparation</a>
-                <ul>
-                    <li><a href="#folder2">Folder</a></li>
-                    <li><a href="#configuration-file2">Configuration File</a></li>
-                </ul>
-                <a href="#launch-varan2">Launch Varan</a>
-                <ul>
-                    <li><a href="#options2">Options</a></li>
-                    <li><a href="#examples2">Examples</a></li>
-                </ul>
-            </ul>
-            <li><a href="#output">Output</a>
-        </ul>
-  </div>
-
     <div class="main-container">
+        <div class="sidebar">
+            <ul>
+                  <li><a href="#study-creation">Study Creation</a>
+                  <ul>
+                      <a href="#input-preparation1">Input Preparation</a>
+                      <ul>
+                          <li><a href="#folder1">Folder</a></li>
+                          <li><a href="#file">File</a></li>
+                          <li><a href="#templates">Templates</a></li>
+                          <li><a href="#configuration-file1">Configuration File</a></li>
+                      </ul>
+                      <a href="#launch-varan1">Launch Varan</a>
+                      <ul>
+                          <li><a href="#options1">Options</a></li>
+                          <li><a href="#examples1">Examples</a></li>
+                      </ul>
+                  </ul>
+                  <li><a href="#study-manipulation">Study Manipulation</a>
+                  <ul>
+                      <a href="#input-preparation2">Input Preparation</a>
+                      <ul>
+                          <li><a href="#folder2">Folder</a></li>
+                          <li><a href="#configuration-file2">Configuration File</a></li>
+                      </ul>
+                      <a href="#launch-varan2">Launch Varan</a>
+                      <ul>
+                          <li><a href="#options2">Options</a></li>
+                          <li><a href="#examples2">Examples</a></li>
+                      </ul>
+                  </ul>
+                  <li><a href="#output">Output</a>
+              </ul>
+        </div>
+
+        
         <div class="content">
             <h2>User guide</h2>
             
@@ -362,326 +364,328 @@ HEADER_PATIENT_TYPE = &lt; ['string','string',...] &gt;
             <pre>[Annotations]
 ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             
-<h4 id="launch-varan1">Launch Varan</h4>
+            <h4 id="launch-varan1">Launch Varan</h4>
 
-<h5 id="options1">Options</h5>
-<p>The possible option to create a study with Varan are:</p>
+            <h5 id="options1">Options</h5>
+            <p>The possible option to create a study with Varan are:</p>
 
-<table>
-  <thead>
-    <tr>
-      <th>Options</th>
-      <th>Description</th>
-      <th>Type</th>
-      <th>Required</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="width:130px">-i --input</td>
-      <td style="width:220px"><p align="justify">Add this option to insert the path of the input (folder or file(s))</p></td>
-      <td>string/list</td>
-      <td>Yes</td>
-    </tr>
-    <tr>
-      <td>-o --output_folder</td>
-      <td><p align="justify">Add this option to insert the path where to save the output folder</p></td>
-      <td>string</td>
-      <td>Yes</td>
-    </tr>
-    <tr>
-      <td>-c --cancer</td>
-      <td><p align="justify">Add this option to specify the cancer type</p></td>
-      <td>string</td>
-      <td>Yes</td>
-    </tr>
-    <tr>
-      <td>-f --filter</td>
-      <td><p align="justify">Add this option to filter out variants from vcf/maf</p></td>
-      <td>string</td>
-      <td>No</td>
-    </tr>
-    <tr>
-      <td>-k --onocoKB</td>
-      <td><p align="justify">Add this option to annotate with oncoKB</p></td>
-      <td>boolean</td>
-      <td>No</td>
-    </tr>
-    <tr>
-      <td>-t --analysis_type</td>
-      <td><p align="justify">Add this option to specify the type of file (snv/cnv/fus/tab) to analyze. If not specified, all analysis will be done</p></td>
-      <td>string</td>
-      <td>No</td>
-    </tr>
-    <tr>
-      <td>-w --overWrite</td>
-      <td><p align="justify">Add this option to overwrite an already existing output folder</p></td>
-      <td>boolean</td>
-      <td>No</td>
-    </tr>
-    <tr>
-      <td>-R --resume</td>
-      <td><p align="justify">Add this option to resume an already started analysis.<br><br>⚠️This option must be used with caution, because it assumes that the previous VCF to MAF conversion step was successful.</p></td>
-      <td>boolean</td>
-      <td>No</td>
-    </tr>
-    <tr>
-      <td>-m --multiple</td>
-      <td><p align="justify">Add this option to specify that the input is a multi-sample vcf file (a single VCF containing information from multiple patients)</p></td>
-      <td>boolean</td>
-      <td>No</td>
-    </tr>
-  </tbody>
-</table>
+            <table>
+            <thead>
+                <tr>
+                <th>Options</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Required</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                <td style="width:130px">-i --input</td>
+                <td style="width:220px"><p align="justify">Add this option to insert the path of the input (folder or file(s))</p></td>
+                <td>string/list</td>
+                <td>Yes</td>
+                </tr>
+                <tr>
+                <td>-o --output_folder</td>
+                <td><p align="justify">Add this option to insert the path where to save the output folder</p></td>
+                <td>string</td>
+                <td>Yes</td>
+                </tr>
+                <tr>
+                <td>-c --cancer</td>
+                <td><p align="justify">Add this option to specify the cancer type</p></td>
+                <td>string</td>
+                <td>Yes</td>
+                </tr>
+                <tr>
+                <td>-f --filter</td>
+                <td><p align="justify">Add this option to filter out variants from vcf/maf</p></td>
+                <td>string</td>
+                <td>No</td>
+                </tr>
+                <tr>
+                <td>-k --onocoKB</td>
+                <td><p align="justify">Add this option to annotate with oncoKB</p></td>
+                <td>boolean</td>
+                <td>No</td>
+                </tr>
+                <tr>
+                <td>-t --analysis_type</td>
+                <td><p align="justify">Add this option to specify the type of file (snv/cnv/fus/tab) to analyze. If not specified, all analysis will be done</p></td>
+                <td>string</td>
+                <td>No</td>
+                </tr>
+                <tr>
+                <td>-w --overWrite</td>
+                <td><p align="justify">Add this option to overwrite an already existing output folder</p></td>
+                <td>boolean</td>
+                <td>No</td>
+                </tr>
+                <tr>
+                <td>-R --resume</td>
+                <td><p align="justify">Add this option to resume an already started analysis.<br><br>⚠️This option must be used with caution, because it assumes that the previous VCF to MAF conversion step was successful.</p></td>
+                <td>boolean</td>
+                <td>No</td>
+                </tr>
+                <tr>
+                <td>-m --multiple</td>
+                <td><p align="justify">Add this option to specify that the input is a multi-sample vcf file (a single VCF containing information from multiple patients)</p></td>
+                <td>boolean</td>
+                <td>No</td>
+                </tr>
+            </tbody>
+            </table>
 
-<br>
+            <br>
 
-<h5 id="examples1">Examples</h5>
-<p>To launch Varan docker version is mandatory to mount several volumes (-v) for granting a correct functioning.</p>
-<pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan &lt;commands&gt;</pre>
+            <h5 id="examples1">Examples</h5>
+            <p>To launch Varan docker version is mandatory to mount several volumes (-v) for granting a correct functioning.</p>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan &lt;commands&gt;</pre>
 
-<p>Ex 1) <ins>Launch Varan base analysis with input folder</ins>:</p>
-<p>Launch this command to process the contents of the input folder</p>
-<pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta varan &lt;commands&gt; -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;path_input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt;</pre>
+            <p>Ex 1) <ins>Launch Varan base analysis with input folder</ins>:</p>
+            <p>Launch this command to process the contents of the input folder</p>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta varan &lt;commands&gt; -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;path_input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt;</pre>
 
-<p>Ex 2) <ins>Launch Varan base analysis with input file</ins>:</p>
-<p>Launch one of these commands to process the contents of the input file(s):</p>
-<ul>
-    <li>If you have sample.tsv and patient.tsv as input:</li>
-    <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i sample.tsv patient.tsv -o /output/&lt;output_name&gt; -c mixed</pre>
-    <li>If you have sample.tsv and fusion.tsv as input:</li>
-    <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i sample.tsv "" fusion.tsv -o /output/&lt;output_name&gt; -c mixed</pre>
-    <li>If you have sample.tsv, patient.tsv and fusion.tsv as input:</li>
-    <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i sample.tsv patient.tsv fusion.tsv -o /output/&lt;output_name&gt; -c mixed</pre>
-</ul>
+            <p>Ex 2) <ins>Launch Varan base analysis with input file</ins>:</p>
+            <p>Launch one of these commands to process the contents of the input file(s):</p>
+            <ul>
+                <li>If you have sample.tsv and patient.tsv as input:</li>
+                <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i sample.tsv patient.tsv -o /output/&lt;output_name&gt; -c mixed</pre>
+                <li>If you have sample.tsv and fusion.tsv as input:</li>
+                <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i sample.tsv "" fusion.tsv -o /output/&lt;output_name&gt; -c mixed</pre>
+                <li>If you have sample.tsv, patient.tsv and fusion.tsv as input:</li>
+                <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i sample.tsv patient.tsv fusion.tsv -o /output/&lt;output_name&gt; -c mixed</pre>
+            </ul>
 
-<p>Ex 3) <ins>Multiple vcf analysis</ins>:</p>
-<p>Launch this command to specify that your input is a multi-vcf file or folder:</p>
-<pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -m</pre>
+            <p>Ex 3) <ins>Multiple vcf analysis</ins>:</p>
+            <p>Launch this command to specify that your input is a multi-vcf file or folder:</p>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -m</pre>
 
-<p>Ex 4) <ins>Overwrite analysis</ins>:</p>
-<p>Launch this command to overwrite the output folder:</p>
-<pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -w</pre>
+            <p>Ex 4) <ins>Overwrite analysis</ins>:</p>
+            <p>Launch this command to overwrite the output folder:</p>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -w</pre>
 
-<p>Ex 5) <ins>Resume analysis</ins>:</p>
-<p>Launch this command to resume an already started analysis:</p>
-<pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -R</pre>
+            <p>Ex 5) <ins>Resume analysis</ins>:</p>
+            <p>Launch this command to resume an already started analysis:</p>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -R</pre>
 
-<p>Ex 6) <ins>Specify analysis</ins>:</p>
-<p>Launch one of these commands to specify the analysis' type:</p>
-<ul>
-    <li>snv -> only snv analysis.</li>
-    <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -t snv</pre>
-    <li>cnv -> only cnv analysis.</li>
-    <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -t cnv</pre>
-    <li>fus -> only fusion analysis.</li>
-    <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -t fus</pre>
-    <li>tab -> only meta file creation.</li>
-    <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -t tab</pre>
-</ul>
+            <p>Ex 6) <ins>Specify analysis</ins>:</p>
+            <p>Launch one of these commands to specify the analysis' type:</p>
+            <ul>
+                <li>snv -> only snv analysis.</li>
+                <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -t snv</pre>
+                <li>cnv -> only cnv analysis.</li>
+                <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -t cnv</pre>
+                <li>fus -> only fusion analysis.</li>
+                <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -t fus</pre>
+                <li>tab -> only meta file creation.</li>
+                <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -t tab</pre>
+            </ul>
 
-<p>Ex 7) <ins>OncoKB annotation</ins>:</p>
-<p>Launch this command to use OncoKB annotation:</p>
-<pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k</pre>
+            <p>Ex 7) <ins>OncoKB annotation</ins>:</p>
+            <p>Launch this command to use OncoKB annotation:</p>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k</pre>
 
-<p>Ex 8) <ins>Filter vcf/maf</ins>:</p>
+            <p>Ex 8) <ins>Filter vcf/maf</ins>:</p>
 
-<p>Run this command to specify the type of filter to use:</p>
+            <p>Run this command to specify the type of filter to use:</p>
 
-<ul>
-  <li><span class="highlight">d</span> -> filters SNV mutations with ALT="." and FILTER ≠"PASS".</li>
-  <li><span class="highlight">p</span> -> filters MAF mutations with FILTER ≠"PASS".</li>
-  <li><span class="highlight">v</span> -> filters MAF mutations with vaf values (t_VF column) <ins>not included</ins> in the interval [t_VAF_min; t_VAF_max] specified in the <i>conf.ini</i> file.</li>
-  <li><span class="highlight">n</span> -> applies a specific VAF filter for new mutations (dbSNP_RS = "novel"), excluding new MAF mutations with vaf <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file, t_VAF_min_novel.</li>
-  <li><span class="highlight">a</span> -> filters MAF mutations with AF values <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file. You can choose whether to remove or keep mutations without a value for this column using the 'drop_NA_AF' setting.</li>
-  <li><span class="highlight">o</span> -> filters MAF mutations with ONCOGENIC values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the ONCOKB_FILTER field. This requires the OncoKB annotation (-k).</li>
-  <li><span class="highlight">c</span> -> filters MAF mutations with CLIN_SIG values <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the CLIN_SIG field.</li>
-  <li><span class="highlight">q</span> -> filters MAF mutations with Consequences values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the CONSEQUENCES field.</li>
-  <li><span class="highlight">y</span> -> filters MAF mutations with PolyPhen annotations <ins>different</ins> from those specified in the <i>conf.ini</i> file under the POLYPHEN field.</li>
-  <li><span class="highlight">i</span> -> filters MAF mutations with IMPACT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the IMPACT field.</li>
-  <li><span class="highlight">s</span> -> filters MAF mutations with SIFT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the SIFT field.</li>
-</ul>
+            <ul>
+            <li><span class="highlight">d</span> -> filters SNV mutations with ALT="." and FILTER ≠"PASS".</li>
+            <li><span class="highlight">p</span> -> filters MAF mutations with FILTER ≠"PASS".</li>
+            <li><span class="highlight">v</span> -> filters MAF mutations with vaf values (t_VF column) <ins>not included</ins> in the interval [t_VAF_min; t_VAF_max] specified in the <i>conf.ini</i> file.</li>
+            <li><span class="highlight">n</span> -> applies a specific VAF filter for new mutations (dbSNP_RS = "novel"), excluding new MAF mutations with vaf <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file, t_VAF_min_novel.</li>
+            <li><span class="highlight">a</span> -> filters MAF mutations with AF values <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file. You can choose whether to remove or keep mutations without a value for this column using the 'drop_NA_AF' setting.</li>
+            <li><span class="highlight">o</span> -> filters MAF mutations with ONCOGENIC values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the ONCOKB_FILTER field. This requires the OncoKB annotation (-k).</li>
+            <li><span class="highlight">c</span> -> filters MAF mutations with CLIN_SIG values <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the CLIN_SIG field.</li>
+            <li><span class="highlight">q</span> -> filters MAF mutations with Consequences values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the CONSEQUENCES field.</li>
+            <li><span class="highlight">y</span> -> filters MAF mutations with PolyPhen annotations <ins>different</ins> from those specified in the <i>conf.ini</i> file under the POLYPHEN field.</li>
+            <li><span class="highlight">i</span> -> filters MAF mutations with IMPACT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the IMPACT field.</li>
+            <li><span class="highlight">s</span> -> filters MAF mutations with SIFT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the SIFT field.</li>
+            </ul>
 
-<p>Here are some usage examples:</p>
+            <p>Here are some usage examples:</p>
 
-<pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f q
-</pre>
+            <pre>
+            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f q
+            </pre>
 
-<pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f cav
-</pre>
+            <pre>
+            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f cav
+            </pre>
 
-<pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k -f divo
-</pre>
+            <pre>
+            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k -f divo
+            </pre>
 
-<p><strong>⚠️</strong> It's possible to use more than one filter at time.</p>
-<p><strong>⚠️</strong> oncokb filter (o) requires -k option.</p>
+            <p><strong>⚠️</strong> It's possible to use more than one filter at time.</p>
+            <p><strong>⚠️</strong> oncokb filter (o) requires -k option.</p>
 
-<h3 id="study-manipulation">Study Manipulation</h3>
-<br>
-<p align="center">
-    <img style="max-width: 80%; height: auto;" src="img/block2.png">
-</p>
+            <h3 id="study-manipulation">Study Manipulation</h3>
+            <br>
+            <p align="center">
+                <img style="max-width: 80%; height: auto;" src="img/block2.png">
+            </p>
 
-<h4 id="input-preparation2">Input Preparation</h4>
+            <h4 id="input-preparation2">Input Preparation</h4>
 
-<h5 id="folder2"></h5>
-<p align="justify">The input for this block is a study folder correctly populated. It can be the output of the first block or an existing study folder downloaded from cBioPortal. 
-Based on the requested type of action (Update, Extract, Remove), the other input can be another study folder or a sample list tsv file.</p>
+            <h5 id="folder2"></h5>
+            <p align="justify">The input for this block is a study folder correctly populated. It can be the output of the first block or an existing study folder downloaded from cBioPortal. 
+            Based on the requested type of action (Update, Extract, Remove), the other input can be another study folder or a sample list tsv file.</p>
 
-<h5 id="configuration-file2">Configuration File</h5>
-<p>The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>.</p>
-<p>⚠️ Only the fields from the <i>conf.ini</i> file that are actively used for this functionality will be displayed below:</p>
+            <h5 id="configuration-file2">Configuration File</h5>
+            <p>The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>.</p>
+            <p>⚠️ Only the fields from the <i>conf.ini</i> file that are actively used for this functionality will be displayed below:</p>
 
-<h6>Zip</h6>
-<p>In this section, you can decide how to manage MAF and SNV_FILTERED files.</p>
-<pre>
-[Zip]
-ZIP_MAF = &lt; boolean &gt;
-ZIP_SNV_FILTERED = &lt; boolean &gt;
-COPY_MAF = &lt; boolean &gt;
-</pre>
-<h6>Annotations</h6>
-<p>In this section, it's possible to insert manual notes that will appear in the report_VARAN.html file.</p>
-<pre>[Annotations]
-ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
-<h4 id=launch-varan2"">Launch Varan</h4>
+            <h6>Zip</h6>
+            <p>In this section, you can decide how to manage MAF and SNV_FILTERED files.</p>
+            <pre>
+            [Zip]
+            ZIP_MAF = &lt; boolean &gt;
+            ZIP_SNV_FILTERED = &lt; boolean &gt;
+            COPY_MAF = &lt; boolean &gt;
+            </pre>
+            <h6>Annotations</h6>
+            <p>In this section, it's possible to insert manual notes that will appear in the report_VARAN.html file.</p>
+            <pre>[Annotations]
+            ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
+            <h4 id=launch-varan2"">Launch Varan</h4>
 
-<h5 id="options2">Options</h5>
-<p>The possible options to launch Varan main for block 2 are:</p>
+            <h5 id="options2">Options</h5>
+            <p>The possible options to launch Varan main for block 2 are:</p>
 
-<table>
-  <tr>
-    <th>Options</th>
-    <th>Input</th>
-    <th>Type</th>
-    <th>Required</th>
-  </tr>
-  <tr>
-    <td>-u <br> --Update</td>
-    <td><p align="justify">Add this option if you want to update an existing study folder or merge two studies.</p></td>
-    <td>boolean</td>
-    <td>One between -u, -e or -r is required</td>
-  </tr>
-  <tr>
-    <td>-e <br> --Extract</td>
-    <td><p align="justify">Add this option if you want to extract samples from an existing study folder.</p></td>
-    <td>boolean</td>
-    <td>One between -u, -e or -r is required</td>
-  </tr>
-  <tr>
-    <td>-r <br> --Remove</td>
-    <td><p align="justify">Add this option if you want to remove samples from an existing study folder.</p></td>
-    <td>boolean</td>
-    <td>One between -u, -e or -r is required</td>
-  </tr>
-  <tr>
-    <td>-p <br> --Path</td>
-    <td><p align="justify">Add this option to specify the path of the existing study folder to update, or from which to remove/extract samples.</p></td>
-    <td>string</td>
-    <td>Yes</td>
-  </tr>
-  <tr>
-    <td>-n <br> --NewPath</td>
-    <td><p align="justify">Add this option to specify the path of the study folder containing updated/new information.</p></td>
-    <td>string</td>
-    <td>Only if the -u option is selected</td>
-  </tr>
-  <tr>
-    <td>-s <br> --SampleList</td>
-    <td><p align="justify">Add this option to insert the path of the .txt file containing the list of samples to remove/extract from the study folder.</p></td>
-    <td>string</td>
-    <td>Only if the -e or -r option is selected</td>
-  </tr>
-  <tr>
-    <td>-N <br> --Name</td>
-    <td><p align="justify">Add this option if you want to customize the study name (studyID).</p></td>
-    <td>string</td>
-    <td>No</td>
-  </tr>
-  <tr>
-    <td>-o <br> --output_folder</td>
-    <td><p align="justify">Add this option to specify the path where to save the output folder. If not provided, a new version of the existing study will be created.</p></td>
-    <td>string</td>
-    <td>Only if the -N option is selected</td>
-  </tr>
-</table>
+            <table>
+            <tr>
+                <th>Options</th>
+                <th>Input</th>
+                <th>Type</th>
+                <th>Required</th>
+            </tr>
+            <tr>
+                <td>-u <br> --Update</td>
+                <td><p align="justify">Add this option if you want to update an existing study folder or merge two studies.</p></td>
+                <td>boolean</td>
+                <td>One between -u, -e or -r is required</td>
+            </tr>
+            <tr>
+                <td>-e <br> --Extract</td>
+                <td><p align="justify">Add this option if you want to extract samples from an existing study folder.</p></td>
+                <td>boolean</td>
+                <td>One between -u, -e or -r is required</td>
+            </tr>
+            <tr>
+                <td>-r <br> --Remove</td>
+                <td><p align="justify">Add this option if you want to remove samples from an existing study folder.</p></td>
+                <td>boolean</td>
+                <td>One between -u, -e or -r is required</td>
+            </tr>
+            <tr>
+                <td>-p <br> --Path</td>
+                <td><p align="justify">Add this option to specify the path of the existing study folder to update, or from which to remove/extract samples.</p></td>
+                <td>string</td>
+                <td>Yes</td>
+            </tr>
+            <tr>
+                <td>-n <br> --NewPath</td>
+                <td><p align="justify">Add this option to specify the path of the study folder containing updated/new information.</p></td>
+                <td>string</td>
+                <td>Only if the -u option is selected</td>
+            </tr>
+            <tr>
+                <td>-s <br> --SampleList</td>
+                <td><p align="justify">Add this option to insert the path of the .txt file containing the list of samples to remove/extract from the study folder.</p></td>
+                <td>string</td>
+                <td>Only if the -e or -r option is selected</td>
+            </tr>
+            <tr>
+                <td>-N <br> --Name</td>
+                <td><p align="justify">Add this option if you want to customize the study name (studyID).</p></td>
+                <td>string</td>
+                <td>No</td>
+            </tr>
+            <tr>
+                <td>-o <br> --output_folder</td>
+                <td><p align="justify">Add this option to specify the path where to save the output folder. If not provided, a new version of the existing study will be created.</p></td>
+                <td>string</td>
+                <td>Only if the -N option is selected</td>
+            </tr>
+            </table>
 
-<br>
+            <br>
 
-<h5 id="examples2">Examples</h4>
+            <h5 id="examples2">Examples</h4>
 
-<p>To launch Varan Docker version, it is mandatory to mount at least the input and the output folder for correct functioning.</p>
+            <p>To launch Varan Docker version, it is mandatory to mount at least the input and the output folder for correct functioning.</p>
 
-<pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan &lt;commands&gt;
-</pre>
+            <pre>
+            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan &lt;commands&gt;
+            </pre>
 
-<p>Ex 1) <ins>Update a study folder</ins>: <p>
-<p align="justify">Launch this command to update a study folder:</p>
+            <p>Ex 1) <ins>Update a study folder</ins>: <p>
+            <p align="justify">Launch this command to update a study folder:</p>
 
-<pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -u -p /input/&lt;path_to_old_study_folder&gt; -n /input/&lt;path_to_new_study_folder&gt; -o /output/&lt;path_to_output_folder&gt;
-</pre>
+            <pre>
+            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -u -p /input/&lt;path_to_old_study_folder&gt; -n /input/&lt;path_to_new_study_folder&gt; -o /output/&lt;path_to_output_folder&gt;
+            </pre>
 
-<p>Ex 2) <ins>Extract a study with a subset of samples</ins>: </p>
-<p align="justify">Launch this command to extract a list of samples from a study folder and create a new study containing only these samples in the output path:</p>
+            <p>Ex 2) <ins>Extract a study with a subset of samples</ins>: </p>
+            <p align="justify">Launch this command to extract a list of samples from a study folder and create a new study containing only these samples in the output path:</p>
 
-<pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -e -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt;
-</pre>
+            <pre>
+            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -e -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt;
+            </pre>
 
-<p>Ex 3) <ins>Remove samples from a study</ins>:</p>
-<p align="justify">Launch this command to remove a list of samples from a study folder and save a new study without them in the output path, assigning a customized study name:</p>
+            <p>Ex 3) <ins>Remove samples from a study</ins>:</p>
+            <p align="justify">Launch this command to remove a list of samples from a study folder and save a new study without them in the output path, assigning a customized study name:</p>
 
-<pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -r -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt; -N &lt;new_studyID_in_meta&gt;
-</pre>
+            <pre>
+            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -r -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt; -N &lt;new_studyID_in_meta&gt;
+            </pre>
 
-<h3 id="output">Output</h3>
+            <h3 id="output">Output</h3>
 
-<p align="justify">After varan.py has run successfully, the resulted output folder will have the following organization and content:</p>
+            <p align="justify">After varan.py has run successfully, the resulted output folder will have the following organization and content:</p>
 
-<pre>
-study_name
-├── case_lists
-│   ├── cases_cna.txt
-│   ├── cases_sequenced.txt
-│   └── cases_sv.txt
-├── data_clinical_patient.txt
-├── data_clinical_sample.txt
-├── data_cna_hg19.seg
-├── data_cna_hg19.seg.fc.txt
-├── data_cna.txt
-├── data_mutations_extended.txt
-├── data_sv.txt
-├── img
-├── MAF_Filtered or MAF_Onco_filtered(*)
-├── MAF_OncoKB (**)
-├── maf or maf.zip (***)
-├── meta_clinical_patient.txt
-├── meta_clinical_sample.txt
-├── meta_cna_hg19_seg.txt
-├── meta_cna.txt
-├── meta_mutations_extended.txt
-├── meta_study.txt
-├── meta_sv.txt
-├── report_validate.html
-└── report_VARAN.html
-</pre>
+            <pre>
+            study_name
+            ├── case_lists
+            │   ├── cases_cna.txt
+            │   ├── cases_sequenced.txt
+            │   └── cases_sv.txt
+            ├── data_clinical_patient.txt
+            ├── data_clinical_sample.txt
+            ├── data_cna_hg19.seg
+            ├── data_cna_hg19.seg.fc.txt
+            ├── data_cna.txt
+            ├── data_mutations_extended.txt
+            ├── data_sv.txt
+            ├── img
+            ├── MAF_Filtered or MAF_Onco_filtered(*)
+            ├── MAF_OncoKB (**)
+            ├── maf or maf.zip (***)
+            ├── meta_clinical_patient.txt
+            ├── meta_clinical_sample.txt
+            ├── meta_cna_hg19_seg.txt
+            ├── meta_cna.txt
+            ├── meta_mutations_extended.txt
+            ├── meta_study.txt
+            ├── meta_sv.txt
+            ├── report_validate.html
+            └── report_VARAN.html
+            </pre>
 
-<p>(*) Filtered MAF will be stored respectively inside MAF_Onco_filtered or MAF_Filtered if MAFs were annotated with OncoKB or not.</p>
-<p>(**) MAF_OncoKB folder will be created only if the <code>-k</code> option is set and will contain all the MAF with OncoKB annotations.</p>
-<p>(***) A folder containing MAF files. It will be zipped if <code>ZIP_MAF</code> is set as True in <i>conf.ini</i>.</p>
+            <p>(*) Filtered MAF will be stored respectively inside MAF_Onco_filtered or MAF_Filtered if MAFs were annotated with OncoKB or not.</p>
+            <p>(**) MAF_OncoKB folder will be created only if the <code>-k</code> option is set and will contain all the MAF with OncoKB annotations.</p>
+            <p>(***) A folder containing MAF files. It will be zipped if <code>ZIP_MAF</code> is set as True in <i>conf.ini</i>.</p>
 
-<script>
-    // Funzione per mostrare/nascondere il menu laterale
-    function toggleMenu() {
-        const sidebar = document.querySelector('.sidebar');
-        sidebar.classList.toggle('active');
-    }
-</script>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('active');
+        }
+    </script>
 </body>
 </html>
