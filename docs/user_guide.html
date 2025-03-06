@@ -3,256 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="readme_style.css">
     <title>Varan User Guide</title>
-    <style>
-        /* Global Styles */
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #e6f0ff;
-            margin: 0;
-            padding: 0;
-            text-align: left;
-            color: #000000;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        /* Barra Superiore */
-        header {
-            background-color: #003366;
-            color: white;
-            padding: 20px;
-            width: 100%;
-            display: flex; /* Impostiamo il contenitore come flexbox */
-            justify-content: flex-start; /* Allinea gli elementi a sinistra (vicino tra loro) */
-            align-items: center; /* Centra verticalmente gli elementi */
-            z-index: 10;
-        }
-
-        header h1 {
-            font-size: 3em;
-            margin: 0;
-        }
-
-        /* Menu a tendina */
-        .menu-icon {
-            cursor: pointer;
-            font-size: 30px;
-            color: white;
-            background-color: #003366;
-            border: none;
-            padding: 10px;
-            margin: 0; /* Rimuovi margine */
-        }
-
-        /* Contenitore principale con barra laterale e contenuto */
-        .main-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            height: 100vh;
-            width: 220px;
-            background-color: #e6f0ff;
-            padding-top: 20px;
-            padding-right: 7px;
-            padding-left: 15px;
-            font-family: Arial, sans-serif;
-            font-size: 1.1em;
-            overflow-y: auto;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            display: none; /* Nascondi la sidebar per default */
-        }
-
-        .sidebar.active {
-            display: block; /* Mostra la sidebar quando è attiva */
-        }
-
-        .sidebar h2 {
-            margin-bottom: 13px;
-            font-size: 1.3em;
-            color: #003366; /* Testo in blu scuro */
-            text-align: left;
-        }
-
-        .sidebar ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        .sidebar ul li {
-            margin: 5px 0;
-        }
-
-        .sidebar ul li a {
-            text-decoration: none;
-            color: #003366; /* Testo in blu scuro */
-            display: block;
-            padding-left: 8px;
-            font-size: 1.1em;
-        }
-
-        .sidebar ul li a:hover {
-            color: #336699; /* Hover in una tonalità più chiara di blu */
-        }
-
-        .sidebar ul li ul {
-            margin-left: 15px;
-            font-size: 0.9em;
-        }
-
-
-        /* Contenuto Principale */
-        .content {
-            flex: 1;
-            margin-top: 20px;
-            margin-left: 20px;
-            padding: 25px;
-            background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            overflow-y: scroll;
-            scrollbar-width: none; /* per Firefox */
-        }
-        
-        .content::-webkit-scrollbar {
-            display: none; /* per Chrome, Safari, Edge */
-        }
-
-        /* Titoli */
-        .centered-heading {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        h2 {
-            font-size: 2em;
-            color: #003366;
-            margin-bottom: 15px;
-        }
-
-        h3 {
-            font-size: 1.8em;
-            color: #003366;
-            margin-bottom: 15px;
-        }
-
-        h4 {
-            font-size: 1.4em;
-            color: #003366;
-            margin-bottom: 7px;
-        }
-
-        h5 {
-            font-size: 1.2em;
-            color: #003366;
-            margin-bottom: 5px;
-        }
-
-        h6 {
-            font-size: 1.0em;
-            color: #003366;
-            margin-bottom: 5px;
-        }
-
-
-        /* Code Blocks */
-        pre {
-            background-color: #1e1e1e;
-            color: #ffffff;
-            border-radius: 5px;
-            padding: 10px;
-            overflow-x: auto;
-            font-family: "Courier New", Courier, monospace;
-            font-size: 1em;
-            margin-bottom: 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 17px;
-        }
-        th, td {
-            border: 1px solid black;
-            padding: 4px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        /* Highlight Text */
-        .highlight {
-            color: #003366;
-            font-weight: bold;
-        }
-
-        /* Links */
-        a {
-            color: #003366;
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        /* Responsiveness */
-        @media screen and (max-width: 768px) {
-            header h1 {
-                font-size: 2.5em;
-            }
-
-            .main-container {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-                padding: 10px;
-            }
-
-            .content {
-                margin-top: 20px;
-                width: 100%;
-                padding-top: 20px;
-            }
-
-            .centered-heading {
-                font-size: 2em;
-            }
-
-            h2 {
-                font-size: 1.8em;
-            }
-
-            h3 {
-                font-size: 1.3em;
-            }
-
-            h4 {
-                font-size: 1.2em;
-            }
-
-            h5 {
-                font-size: 1.1em;
-            }
-
-            h6 {
-                font-size: 1.0em;
-            }
-
-            .menu-icon {
-                display: block; /* Mostra l'icona del menu a tendina sui dispositivi mobili */
-            }
-        }
-    </style>
 </head>
 <body>
     <header>
@@ -270,6 +22,7 @@
                     <li><a href="#file">File</a></li>
                     <li><a href="#templates">Templates</a></li>
                     <li><a href="#configuration-file1">Configuration File</a></li>
+                </ul>
                 <a href="#launch-varan1">Launch Varan</a>
                 <ul>
                     <li><a href="#options1">Options</a></li>
@@ -297,10 +50,25 @@
         <div class="content">
             <h2>User guide</h2>
             
+            <p>The <strong>Varan</strong> application is organized into two distinct functionalities, each designed to handle different tasks and requiring specific inputs:</p>
+            <ul>
+              <li><span class="highlight">Study Creation</span>: This function allows users to initiate a new study folder from scratch, setting up all the necessary configurations and files.</li>
+              <li><span class="highlight">Study Manipulation</span>: This functionality supports updating, extracting, or removing samples from an already existing study folder.</li>
+            </ul>
+            <p align="center">
+            <img style="max-width: 80%; height: auto;" src="img/workflow.png">
+            </p>
+            
+            <p>To ensure transparency and traceability, the application maintains a comprehensive log of all operations performed. Additionally, a robust versioning system is in place to track changes and updates over time.</p>
+                        
             <h3 id="study-creation">Study Creation</h3>
-            <h1>AGGIUNGERE DESCRIZIONE E IMMAGINE</h1>
+
+            <p align="center">
+            <img style="max-width: 80%; height: auto;" src="img/block1.png">
+            </p>
+
             <h4 id="input-preparation1">Input Preparation</h4>
-            <p>Varan accepts two types of input:</p>
+            <p>To create a new study, Varan accepts two types of input:</p>
             <ol>
                 <li><span class="highlight">Folder Input</span>: A folder containing all the necessary data files.</li>
                 <li><span class="highlight">File Input</span>: A file that contains the paths to the data files.</li>
@@ -330,31 +98,32 @@ input_folder/
 
             <p>Where:</p>
             <ul>
-                <li><b>SNV</b> folder contains all vcf files related to single nucleotide variants.</li>
-                <li><b>CNV</b> folder contains all vcf files related to copy number variants.</li>
-                <li><b>CombinedVariantOutput</b> folder contains all the Combined Variant Output file in tsv format (this kind of files contains info about TMB, MSI and Fusions).</li>
-                <li><b>FUSIONS</b> folder contains the template fusion.tsv, which can filled with fusion data if the Combined Variant Output files are unavailable.</li>
-                <li><b>sample.tsv</b> file is a template for clinical data of the samples.</li>
-                <li><b>patient.tsv</b> file is a template for clinical data of the patients.</li>
-            </ul>
+                <li><span class="highlight">SNV</span> folder contains all VCF files related to single nucleotide variants.</li>
+                <li><span class="highlight">CNV</span> folder contains all VCF files related to copy number variants.</li>
+                <li><span class="highlight">CombinedVariantOutput</span> folder contains all the Combined Variant Output files in TSV format, named based on the patient ID. These files include information about TMB, MSI, and Fusions.</li>
+                <li><span class="highlight">FUSIONS</span> folder contains the template fusion.tsv, which can be filled with fusion data if the Combined Variant Output files are unavailable.</li>
+                <li><span class="highlight">sample.tsv</span> file is a template for clinical data of the samples.</li>
+                <li><span class="highlight">patient.tsv</span> file is a template for clinical data of the patients.</li>
+            </ul>            
             
             <h5 id="file">File(s)</h5>
             <p>User must compile several input files (by filling in specific templates):</p>
             <ul>
-                <li><b>sample.tsv</b> file, a template to fill with samples' clinical info.</li>
-                <li><b>fusions.tsv</b> file, a template to fill with fusions' information.</li>
-                <li><b>patient.tsv</b> file, a template to fill with patients' clinical info.</li>
+                <li><span class="highlight">sample.tsv</span> file is a template for clinical data of the samples.</li>
+                <li><span class="highlight">patient.tsv</span> file is a template for clinical data of the patients.</li>
+                <li><span class="highlight">fusions.tsv</span> file is a template for fusions' information.</li>
             </ul>
-            <p>⚠️ For this input, only the <i>sample.tsv</i> file is mandatory.</p>
+            
+            <p>⚠️ For this kind of input, only the <i>sample.tsv</i> file is mandatory.</p>
 
             <h5 id="templates">Templates</h5>
-            <p>For both input by folder and by file, template filling by user is requested. Below will be briefly explained the structure of these templates:</p>
+            <p>For both folder-based and file-based input, users are required to complete the provided templates. The following section outlines the structure of these templates:</p>
 
             <h6 id="sample.tsv"><i>sample.tsv</i></h6>
             <p>This template must be filled by user with all disposable samples' clinical info and will be used to create the <i>data_clinical_sample.txt</i>.</p>
             <p>⚠️ This file is mandatory for Varan analysis!</p>
 
-          <table border="1" cellpadding="5" cellspacing="0">
+          <table>
               <thead>
                   <tr>
                       <th>SAMPLE_ID</th>
@@ -402,7 +171,7 @@ input_folder/
             <h6 id="patient.tsv"><i>patient.tsv</i></h6>
             <p>This template must be filled by user with all disposable patients' clinical info and will be used to create the <i>data_clinical_patient.txt</i>.</p>
             <p>⚠️ This file is optional.</p>
-            <table border="1" cellpadding="5" cellspacing="0">
+            <table>
               <thead>
                   <tr>
                       <th>PATIENT_ID</th>
@@ -428,7 +197,7 @@ input_folder/
             <h6 id="fusion.tsv"><i>fusion.tsv</i></h6>
             <p>This template must be filled by user with all disposable fusion info and will be used to create the <i>data_sv.txt</i>.</p>
             <p>⚠️ This file is optional.</p>
-            <table border="1" cellpadding="5" cellspacing="0">
+            <table>
                 <thead>
                     <tr>
                         <th>Sample_Id</th>
@@ -720,17 +489,17 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
 <p>Run this command to specify the type of filter to use:</p>
 
 <ul>
-  <li><code class="highlight">d</code> -> filters SNV mutations with ALT="." and FILTER ≠"PASS".</li>
-  <li><code class="highlight">p</code> -> filters MAF mutations with FILTER ≠"PASS".</li>
-  <li><code class="highlight">v</code> -> filters MAF mutations with vaf values (t_VF column) <ins>not included</ins> in the interval [t_VAF_min; t_VAF_max] specified in the <i>conf.ini</i> file.</li>
-  <li><code class="highlight">n</code> -> applies a specific VAF filter for new mutations (dbSNP_RS = "novel"), excluding new MAF mutations with vaf <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file, t_VAF_min_novel.</li>
-  <li><code class="highlight">a</code> -> filters MAF mutations with AF values <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file. You can choose whether to remove or keep mutations without a value for this column using the 'drop_NA_AF' setting.</li>
-  <li><code class="highlight">o</code> -> filters MAF mutations with ONCOGENIC values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the ONCOKB_FILTER field. This requires the OncoKB annotation (-k).</li>
-  <li><code class="highlight">c</code> -> filters MAF mutations with CLIN_SIG values <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the CLIN_SIG field.</li>
-  <li><code class="highlight">q</code> -> filters MAF mutations with Consequences values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the CONSEQUENCES field.</li>
-  <li><code class="highlight">y</code> -> filters MAF mutations with PolyPhen annotations <ins>different</ins> from those specified in the <i>conf.ini</i> file under the POLYPHEN field.</li>
-  <li><code class="highlight">i</code> -> filters MAF mutations with IMPACT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the IMPACT field.</li>
-  <li><code class="highlight">s</code> -> filters MAF mutations with SIFT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the SIFT field.</li>
+  <li><span class="highlight">d</span> -> filters SNV mutations with ALT="." and FILTER ≠"PASS".</li>
+  <li><span class="highlight">p</span> -> filters MAF mutations with FILTER ≠"PASS".</li>
+  <li><span class="highlight">v</span> -> filters MAF mutations with vaf values (t_VF column) <ins>not included</ins> in the interval [t_VAF_min; t_VAF_max] specified in the <i>conf.ini</i> file.</li>
+  <li><span class="highlight">n</span> -> applies a specific VAF filter for new mutations (dbSNP_RS = "novel"), excluding new MAF mutations with vaf <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file, t_VAF_min_novel.</li>
+  <li><span class="highlight">a</span> -> filters MAF mutations with AF values <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file. You can choose whether to remove or keep mutations without a value for this column using the 'drop_NA_AF' setting.</li>
+  <li><span class="highlight">o</span> -> filters MAF mutations with ONCOGENIC values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the ONCOKB_FILTER field. This requires the OncoKB annotation (-k).</li>
+  <li><span class="highlight">c</span> -> filters MAF mutations with CLIN_SIG values <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the CLIN_SIG field.</li>
+  <li><span class="highlight">q</span> -> filters MAF mutations with Consequences values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the CONSEQUENCES field.</li>
+  <li><span class="highlight">y</span> -> filters MAF mutations with PolyPhen annotations <ins>different</ins> from those specified in the <i>conf.ini</i> file under the POLYPHEN field.</li>
+  <li><span class="highlight">i</span> -> filters MAF mutations with IMPACT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the IMPACT field.</li>
+  <li><span class="highlight">s</span> -> filters MAF mutations with SIFT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the SIFT field.</li>
 </ul>
 
 <p>Here are some usage examples:</p>
@@ -748,13 +517,12 @@ docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/out
 </pre>
 
 <p><strong>⚠️</strong> It's possible to use more than one filter at time.</p>
+<p><strong>⚠️</strong> oncokb filter (o) requires -k option.</p>
 
 <h3 id="study-manipulation">Study Manipulation</h3>
-
 <br>
-
 <p align="center">
-    <img style="max-width: 800%; height: auto;" src="img/block2.png">
+    <img style="max-width: 80%; height: auto;" src="img/block2.png">
 </p>
 
 <h4 id="input-preparation2">Input Preparation</h4>
@@ -764,8 +532,21 @@ docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/out
 Based on the requested type of action (Update, Extract, Remove), the other input can be another study folder or a sample list tsv file.</p>
 
 <h5 id="configuration-file2">Configuration File</h5>
-<p>The options of the <i>conf.ini</i> file that are read for this type of usage are:</p>
+<p>The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>.</p>
+<p>⚠️ Only the fields from the <i>conf.ini</i> file that are actively used for this functionality will be displayed below:</p>
 
+<h6>Zip</h6>
+<p>In this section, you can decide how to manage MAF and SNV_FILTERED files.</p>
+<pre>
+[Zip]
+ZIP_MAF = &lt; boolean &gt;
+ZIP_SNV_FILTERED = &lt; boolean &gt;
+COPY_MAF = &lt; boolean &gt;
+</pre>
+<h6>Annotations</h6>
+<p>In this section, it's possible to insert manual notes that will appear in the report_VARAN.html file.</p>
+<pre>[Annotations]
+ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
 <h4 id=launch-varan2"">Launch Varan</h4>
 
 <h5 id="options2">Options</h5>
@@ -838,21 +619,21 @@ Based on the requested type of action (Update, Extract, Remove), the other input
 docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan &lt;commands&gt;
 </pre>
 
-<h5>Ex 1) <ins>Update a study folder</ins>: </h5>
+<p>Ex 1) <ins>Update a study folder</ins>: <p>
 <p align="justify">Launch this command to update a study folder:</p>
 
 <pre>
 docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -u -p /input/&lt;path_to_old_study_folder&gt; -n /input/&lt;path_to_new_study_folder&gt; -o /output/&lt;path_to_output_folder&gt;
 </pre>
 
-<h5>Ex 2) <ins>Extract a study with a subset of samples</ins>: </h5>
+<p>Ex 2) <ins>Extract a study with a subset of samples</ins>: </p>
 <p align="justify">Launch this command to extract a list of samples from a study folder and create a new study containing only these samples in the output path:</p>
 
 <pre>
 docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -e -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt;
 </pre>
 
-<h5>Ex 3) <ins>Remove samples from a study</ins>:</h5>
+<p>Ex 3) <ins>Remove samples from a study</ins>:</p>
 <p align="justify">Launch this command to remove a list of samples from a study folder and save a new study without them in the output path, assigning a customized study name:</p>
 
 <pre>
@@ -886,7 +667,9 @@ study_name
 ├── meta_cna.txt
 ├── meta_mutations_extended.txt
 ├── meta_study.txt
-└── meta_sv.txt
+├── meta_sv.txt
+├── report_validate.html
+└── report_VARAN.html
 </pre>
 
 <p>(*) Filtered MAF will be stored respectively inside MAF_Onco_filtered or MAF_Filtered if MAFs were annotated with OncoKB or not.</p>

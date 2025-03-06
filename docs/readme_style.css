@@ -146,6 +146,12 @@ h5 {
     margin-bottom: px;
 }
 
+h6 {
+    font-size: 1.0em;
+    color: #003366;
+    margin-bottom: 5px;
+}
+
 /* Code Blocks */
 pre {
     background-color: #1e1e1e;
