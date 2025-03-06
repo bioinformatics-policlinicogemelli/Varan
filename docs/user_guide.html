@@ -21,7 +21,7 @@
                       <a href="#input-preparation1">Input Preparation</a>
                       <ul>
                           <li><a href="#folder1">Folder</a></li>
-                          <li><a href="#file">File</a></li>
+                          <li><a href="#file">File(s)</a></li>
                           <li><a href="#templates">Templates</a></li>
                           <li><a href="#configuration-file1">Configuration File</a></li>
                       </ul>
@@ -507,15 +507,15 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <p>Here are some usage examples:</p>
 
             <pre>
-            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f q
+docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f q
             </pre>
 
             <pre>
-            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f cav
+docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f cav
             </pre>
 
             <pre>
-            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k -f divo
+docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k -f divo
             </pre>
 
             <p><strong>⚠️</strong> It's possible to use more than one filter at time.</p>
@@ -529,7 +529,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
 
             <h4 id="input-preparation2">Input Preparation</h4>
 
-            <h5 id="folder2"></h5>
+            <h5 id="folder2">Folder</h5>
             <p align="justify">The input for this block is a study folder correctly populated. It can be the output of the first block or an existing study folder downloaded from cBioPortal. 
             Based on the requested type of action (Update, Extract, Remove), the other input can be another study folder or a sample list tsv file.</p>
 
@@ -540,16 +540,16 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <h6>Zip</h6>
             <p>In this section, you can decide how to manage MAF and SNV_FILTERED files.</p>
             <pre>
-            [Zip]
-            ZIP_MAF = &lt; boolean &gt;
-            ZIP_SNV_FILTERED = &lt; boolean &gt;
-            COPY_MAF = &lt; boolean &gt;
+[Zip]
+ZIP_MAF = &lt; boolean &gt;
+ZIP_SNV_FILTERED = &lt; boolean &gt;
+COPY_MAF = &lt; boolean &gt;
             </pre>
             <h6>Annotations</h6>
             <p>In this section, it's possible to insert manual notes that will appear in the report_VARAN.html file.</p>
             <pre>[Annotations]
-            ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
-            <h4 id=launch-varan2"">Launch Varan</h4>
+ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
+            <h4 id="launch-varan2">Launch Varan</h4>
 
             <h5 id="options2">Options</h5>
             <p>The possible options to launch Varan main for block 2 are:</p>
@@ -618,28 +618,28 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <p>To launch Varan Docker version, it is mandatory to mount at least the input and the output folder for correct functioning.</p>
 
             <pre>
-            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan &lt;commands&gt;
+docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan &lt;commands&gt;
             </pre>
 
             <p>Ex 1) <ins>Update a study folder</ins>: <p>
             <p align="justify">Launch this command to update a study folder:</p>
 
             <pre>
-            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -u -p /input/&lt;path_to_old_study_folder&gt; -n /input/&lt;path_to_new_study_folder&gt; -o /output/&lt;path_to_output_folder&gt;
+docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -u -p /input/&lt;path_to_old_study_folder&gt; -n /input/&lt;path_to_new_study_folder&gt; -o /output/&lt;path_to_output_folder&gt;
             </pre>
 
             <p>Ex 2) <ins>Extract a study with a subset of samples</ins>: </p>
             <p align="justify">Launch this command to extract a list of samples from a study folder and create a new study containing only these samples in the output path:</p>
 
             <pre>
-            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -e -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt;
+docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -e -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt;
             </pre>
 
             <p>Ex 3) <ins>Remove samples from a study</ins>:</p>
             <p align="justify">Launch this command to remove a list of samples from a study folder and save a new study without them in the output path, assigning a customized study name:</p>
 
             <pre>
-            docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -r -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt; -N &lt;new_studyID_in_meta&gt;
+docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -r -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt; -N &lt;new_studyID_in_meta&gt;
             </pre>
 
             <h3 id="output">Output</h3>
@@ -647,31 +647,31 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <p align="justify">After varan.py has run successfully, the resulted output folder will have the following organization and content:</p>
 
             <pre>
-            study_name
-            ├── case_lists
-            │   ├── cases_cna.txt
-            │   ├── cases_sequenced.txt
-            │   └── cases_sv.txt
-            ├── data_clinical_patient.txt
-            ├── data_clinical_sample.txt
-            ├── data_cna_hg19.seg
-            ├── data_cna_hg19.seg.fc.txt
-            ├── data_cna.txt
-            ├── data_mutations_extended.txt
-            ├── data_sv.txt
-            ├── img
-            ├── MAF_Filtered or MAF_Onco_filtered(*)
-            ├── MAF_OncoKB (**)
-            ├── maf or maf.zip (***)
-            ├── meta_clinical_patient.txt
-            ├── meta_clinical_sample.txt
-            ├── meta_cna_hg19_seg.txt
-            ├── meta_cna.txt
-            ├── meta_mutations_extended.txt
-            ├── meta_study.txt
-            ├── meta_sv.txt
-            ├── report_validate.html
-            └── report_VARAN.html
+study_name
+├── case_lists
+│   ├── cases_cna.txt
+│   ├── cases_sequenced.txt
+│   └── cases_sv.txt
+├── data_clinical_patient.txt
+├── data_clinical_sample.txt
+├── data_cna_hg19.seg
+├── data_cna_hg19.seg.fc.txt
+├── data_cna.txt
+├── data_mutations_extended.txt
+├── data_sv.txt
+├── img
+├── MAF_Filtered or MAF_Onco_filtered(*)
+├── MAF_OncoKB (**)
+├── maf or maf.zip (***)
+├── meta_clinical_patient.txt
+├── meta_clinical_sample.txt
+├── meta_cna_hg19_seg.txt
+├── meta_cna.txt
+├── meta_mutations_extended.txt
+├── meta_study.txt
+├── meta_sv.txt
+├── report_validate.html
+└── report_VARAN.html
             </pre>
 
             <p>(*) Filtered MAF will be stored respectively inside MAF_Onco_filtered or MAF_Filtered if MAFs were annotated with OncoKB or not.</p>
