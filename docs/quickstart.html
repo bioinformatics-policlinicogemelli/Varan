@@ -117,8 +117,8 @@
             <p>You can create a new study by merging two existing studies and updating the information.</p>
             
             <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
-            <pre>docker run --rm -it -v TEST:/test_folder varan -u -p test_folder/Output/extract_study_v1 -n test_folder/Output/remove_study_v1 -o test_folder/Output/update_study</pre>
-            <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>
+            <pre>docker run --rm -it -v TEST:/test_folder varan -u -p test_folder/Output/extract_study_v1 -n test_folder/Output/remove_study_v1 -o test_folder/Output/output_test</pre>
+            <p>This will create the <i>output_test_v2</i> folder with the samples from both input studies.</p>
 
             <p>Now that you've completed the quickstart tutorial, you can explore advanced features in the full <a href="user_guide.html">user guide</a>.</p>
         </div>
@@ -129,6 +129,25 @@
             const sidebar = document.querySelector('.sidebar');
             sidebar.classList.toggle('active');
         }
+
+        function copyToClipboard(event) {
+            var text = event.target.previousElementSibling.innerText;
+            var tempInput = document.createElement("input");
+            document.body.appendChild(tempInput);
+            tempInput.value = text;
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            alert("Text copied to clipboard!");
+        }
+
+        document.querySelectorAll('.code-container').forEach(function(container) {
+            var button = document.createElement('button');
+            button.classList.add('copy-btn');
+            button.textContent = 'Copy';
+            button.onclick = copyToClipboard;
+            container.appendChild(button);
+        });
     </script>
 </body>
 </html>

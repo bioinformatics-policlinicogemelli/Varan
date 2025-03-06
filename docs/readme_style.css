@@ -11,9 +11,18 @@ body {
     flex-direction: column;
     height: 100vh;
     overflow-x: hidden;
+    overflow-y: scroll;
 }
 
-/* Barra Superiore */
+body::-webkit-scrollbar {
+    display: none; 
+}
+
+body {
+    -ms-overflow-style: none; 
+    scrollbar-width: none; 
+}
+
 header {
     background-color: #003366;
     color: white;
@@ -30,7 +39,7 @@ header h1 {
     margin: 0;
 }
 
-/* Menu a tendina */
+
 .menu-icon {
     cursor: pointer;
     font-size: 30px;
@@ -41,7 +50,7 @@ header h1 {
     margin: 0; /* Rimuovi margine */
 }
 
-/* Contenitore principale con barra laterale e contenuto */
+
 .main-container {
     display: flex;
     flex: 1;
@@ -61,17 +70,17 @@ header h1 {
     font-size: 1.1em;
     overflow-y: auto;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    display: none; /* Nascondi la sidebar per default */
+    display: none; 
 }
 
 .sidebar.active {
-    display: block; /* Mostra la sidebar quando è attiva */
+    display: block; 
 }
 
 .sidebar h2 {
     margin-bottom: 13px;
     font-size: 1.3em;
-    color: #003366; /* Testo in blu scuro */
+    color: #003366; 
     text-align: left;
 }
 
@@ -86,14 +95,14 @@ header h1 {
 
 .sidebar ul li a {
     text-decoration: none;
-    color: #003366; /* Testo in blu scuro */
+    color: #003366; 
     display: block;
     padding-left: 8px;
     font-size: 1.1em;
 }
 
 .sidebar ul li a:hover {
-    color: #336699; /* Hover in una tonalità più chiara di blu */
+    color: #336699;
 }
 
 .sidebar ul li ul {
@@ -102,27 +111,27 @@ header h1 {
 }
 
 
-/* Contenuto Principale */
+/* Main Content */
 .content {
     flex: 1;
     margin-top: 20px;
-    margin-left: 10%; /* Imposta un margine sinistro per centrare il contenuto */
-    margin-right: 10%; /* Imposta un margine destro per centrare il contenuto */
+    margin-left: 10%; 
+    margin-right: 10%; 
     padding: 25px;
     background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     overflow-y: scroll;
-    scrollbar-width: none; /* per Firefox */
-    width: 80%; /* Imposta la larghezza al 80% dello schermo */
+    scrollbar-width: none; /* for Firefox */
+    width: 80%; 
 }
 
 
 .content::-webkit-scrollbar {
-    display: none; /* per Chrome, Safari, Edge */
+    display: none; /* for Chrome, Safari, Edge */
 }
 
-/* Titoli */
+/* Titles */
 .centered-heading {
     font-size: 2.5em;
     margin-bottom: 10px;
@@ -167,7 +176,34 @@ pre {
     overflow-x: auto;
     font-family: "Courier New", Courier, monospace;
     font-size: 1em;
-    margin-bottom: 20px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.code-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    background-color: #f7f7f7;
+    border-radius: 8px;
+}
+
+.copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.copy-btn:hover {
+    background-color: #0056b3;
 }
 
 table {
@@ -206,7 +242,9 @@ a:hover {
     }
 
     .main-container {
+        display: flex;
         flex-direction: column;
+        padding: 0 10px; 
     }
 
     .sidebar {
@@ -214,12 +252,14 @@ a:hover {
         height: auto;
         position: relative;
         padding: 10px;
+        box-sizing: border-box; 
     }
 
     .content {
         margin-top: 20px;
         width: 100%;
         padding-top: 20px;
+        box-sizing: border-box; 
     }
 
     .centered-heading {
@@ -243,6 +283,7 @@ a:hover {
     }
 
     .menu-icon {
-        display: block; /* Mostra l'icona del menu a tendina sui dispositivi mobili */
+        display: block; 
     }
 }
+

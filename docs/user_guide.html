@@ -28,6 +28,7 @@
                     <a href="#launch-varan1">Launch Varan</a>
                     <ul>
                         <li><a href="#options1">Options</a></li>
+                        <li><a href="#filtering">Filtering</a></li>
                         <li><a href="#examples1">Examples</a></li>
                     </ul>
                 </ul>
@@ -61,8 +62,15 @@
             <img style="max-width: 80%; height: auto;" src="img/workflow.png">
             </p>
             
-            <p>To ensure transparency and traceability, the application maintains a comprehensive log of all operations performed. Additionally, a robust versioning system is in place to track changes and updates over time.</p>
-                        
+            <p>To ensure transparency and traceability, the system implements the following features:</p>
+            <ul>
+                <li><span class="highlight">Versioning</span>: Each study is automatically versioned (e.g., <code>study_v1</code>, <code>study_v2</code>, etc.), allowing clear tracking of changes and updates over time.</li>
+                
+                <li><span class="highlight">Detailed Reports</span>: For each version, a comprehensive report is generated, which includes the filters applied, the configuration used in the study, the number of samples and patients, and a comparison with previous versions to track the study's evolution.</li>
+                
+                <li><span class="highlight">Validation Check</span>: Before uploading a study to cBioPortal, the system performs a validation to confirm the upload can be executed successfully. <strong>Be warned that files succeeding this validation may still fail to load (correctly).</strong></li>
+            </ul>
+
             <h3 id="study-creation">Study Creation</h3>
 
             <p align="center">
@@ -166,7 +174,7 @@ input_folder/
                 <li><ins>TMB</ins>: TMB value for each of the samples.</li>
                 <li><ins>MSI_THR</ins>: MSI categorization based on the threshold set in the <i>conf.ini</i> file.</li>
                 <li><ins>TMB_THR</ins>: TMB categorization based on the threshold set in the <i>conf.ini</i> file.</li>
-                <li><ins>ONCOTREE_CODE</ins>: code to associate for the oncokb annotation.</li>
+                <li><ins>ONCOTREE_CODE</ins>: code to associate for the oncoKB annotation.</li>
             </ul>
             <p>⚠️ The user can add new columns starting from the last one.</p>
             
@@ -239,12 +247,12 @@ input_folder/
             <p>This section allows you to specify the paths for vcf2maf (VCF2MAF), ClinVar (CLINV), fasta (REF_FASTA), VEP (VEP_PATH), and its cache (VEP_DATA). In the CACHE section, you can set the Ensembl version (e.g., 111).</p>
             <pre>
 [Paths]
-VCF2MAF = 
-CLINV =
-REF_FASTA = 
-VEP_PATH = 
-VEP_DATA = 
-CACHE =
+VCF2MAF = &lt; string &gt;
+CLINV = &lt; string &gt;
+REF_FASTA = &lt; string &gt;
+VEP_PATH = &lt; string &gt;
+VEP_DATA = &lt; string &gt;
+CACHE = &lt; string &gt;
             </pre>
 
             <h6>Multiple</h6>
@@ -371,7 +379,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <h5 id="options1">Options</h5>
             <p>The available options for creating a study with Varan are:</p>
 
-            <table>
+            <table style="width: 75%; margin: 0 auto;">
             <thead>
                 <tr>
                 <th>Options</th>
@@ -382,8 +390,8 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             </thead>
             <tbody>
                 <tr>
-                <td style="width:130px">-i --input</td>
-                <td style="width:220px"><p align="justify">Add this option to insert the path of the input (folder or file(s))</p></td>
+                <td style="width:150px">-i --input</td>
+                <td><p align="justify">Add this option to insert the path of the input (folder or file(s))</p></td>
                 <td>string/list</td>
                 <td>Yes</td>
                 </tr>
@@ -438,6 +446,66 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             </tbody>
             </table>
 
+
+            <h5 id="filtering">Filtering</h5>
+
+            <p>Use the following letters after the <code>-f</code> option to apply the corresponding filters described in the table above. You can specify multiple letters at once to apply multiple filters simultaneously:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Letter</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="highlight">d</span></td>
+                        <td>Filters SNV mutations with ALT="." and FILTER ≠"PASS".</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">p</span></td>
+                        <td>Filters MAF mutations with FILTER ≠"PASS".</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">v</span></td>
+                        <td>Filters MAF mutations with vaf values (t_VF column) <ins>not included</ins> in the interval [t_VAF_min; t_VAF_max] specified in the <i>conf.ini</i> file.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">n</span></td>
+                        <td>Applies a specific VAF filter for new mutations (dbSNP_RS = "novel"), excluding new MAF mutations with vaf <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file, t_VAF_min_novel.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">a</span></td>
+                        <td>Filters MAF mutations with AF values <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file. You can choose whether to remove or keep mutations without a value for this column using the 'drop_NA_AF' setting.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">o</span></td>
+                        <td>Filters MAF mutations with ONCOGENIC values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the ONCOKB_FILTER field. This requires the OncoKB annotation (-k).</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">c</span></td>
+                        <td>Filters MAF mutations with CLIN_SIG values <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the CLIN_SIG field.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">q</span></td>
+                        <td>Filters MAF mutations with Consequences values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the CONSEQUENCES field.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">y</span></td>
+                        <td>Filters MAF mutations with PolyPhen annotations <ins>different</ins> from those specified in the <i>conf.ini</i> file under the POLYPHEN field.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">i</span></td>
+                        <td>Filters MAF mutations with IMPACT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the IMPACT field.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="highlight">s</span></td>
+                        <td>Filters MAF mutations with SIFT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the SIFT field.</td>
+                    </tr>
+                </tbody>
+            </table>
+            
             <br>
 
             <h5 id="examples1">Examples</h5>
@@ -488,25 +556,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <p>Run this command to use OncoKB annotation:</p>
             <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k</pre>
 
-            <p id="filters">Ex 8) <ins>Filter VCF/MAF</ins>:</p>
-
-            <p>Run this command to specify the type of filter to use:</p>
-
-            <ul>
-            <li><span class="highlight">d</span> -> filters SNV mutations with ALT="." and FILTER ≠"PASS".</li>
-            <li><span class="highlight">p</span> -> filters MAF mutations with FILTER ≠"PASS".</li>
-            <li><span class="highlight">v</span> -> filters MAF mutations with vaf values (t_VF column) <ins>not included</ins> in the interval [t_VAF_min; t_VAF_max] specified in the <i>conf.ini</i> file.</li>
-            <li><span class="highlight">n</span> -> applies a specific VAF filter for new mutations (dbSNP_RS = "novel"), excluding new MAF mutations with vaf <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file, t_VAF_min_novel.</li>
-            <li><span class="highlight">a</span> -> filters MAF mutations with AF values <ins>not included</ins> in the interval specified in the <i>conf.ini</i> file. You can choose whether to remove or keep mutations without a value for this column using the 'drop_NA_AF' setting.</li>
-            <li><span class="highlight">o</span> -> filters MAF mutations with ONCOGENIC values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the ONCOKB_FILTER field. This requires the OncoKB annotation (-k).</li>
-            <li><span class="highlight">c</span> -> filters MAF mutations with CLIN_SIG values <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the CLIN_SIG field.</li>
-            <li><span class="highlight">q</span> -> filters MAF mutations with Consequences values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the CONSEQUENCES field.</li>
-            <li><span class="highlight">y</span> -> filters MAF mutations with PolyPhen annotations <ins>different</ins> from those specified in the <i>conf.ini</i> file under the POLYPHEN field.</li>
-            <li><span class="highlight">i</span> -> filters MAF mutations with IMPACT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the IMPACT field.</li>
-            <li><span class="highlight">s</span> -> filters MAF mutations with SIFT annotations <ins>equal</ins> to those specified in the <i>conf.ini</i> file under the SIFT field.</li>
-            </ul>
-
-            <p>Here are some usage examples:</p>
+            <p>Ex 8) <ins>Filter VCF/MAF</ins>:</p>
 
             <pre>
 docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f q
@@ -519,9 +569,6 @@ docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/out
             <pre>
 docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k -f divo
             </pre>
-
-            <p><strong>⚠️</strong> It's possible to use more than one filter at time.</p>
-            <p><strong>⚠️</strong> oncokb filter (o) requires -k option.</p>
 
             <h3 id="study-manipulation">Study Manipulation</h3>
             <br>
@@ -537,7 +584,7 @@ docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/out
 
             <h5 id="configuration-file2">Configuration File</h5>
             <p>The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>.</p>
-            <p>⚠️ Only the fields from the <i>conf.ini</i> file that are actively used for this functionality will be displayed below:</p>
+            <p>⚠️ Only the fields from the <i>conf.ini</i> file that are actively used for this functionality will be displayed below.</p>
 
             <h6>Zip</h6>
             <p>In this section, you can decide if you want to copy and zip MAF from the original study.</p>
@@ -678,6 +725,8 @@ study_name
             <p>(*) Filtered MAF files will be stored in the MAF_Onco_filtered or MAF_Filtered folders, depending on whether the MAFs were annotated with OncoKB.</p>
             <p>(**) MAF_OncoKB folder will be created only if the <code>-k</code> option is set and will contain all the MAF with OncoKB annotations.</p>
             <p>(***) A folder containing MAF files. It will be zipped if <code>ZIP_MAF</code> is set as True in <i>conf.ini</i>.</p>
+            <p><i>report_validate.html</i> is an automatically generated file that provides a report on the cBioPortal validation, highlighting any errors or warnings encountered during the validation process.</p>
+            <p><i>report_VARAN.html</i> is an automatically generated file that provides a summary of the study, including the filters applied, the configuration used, and a comparison with previous versions of the same study.</p>
 
         </div>
     </div>
@@ -687,6 +736,25 @@ study_name
             const sidebar = document.querySelector('.sidebar');
             sidebar.classList.toggle('active');
         }
+
+        function copyToClipboard(event) {
+            var text = event.target.previousElementSibling.innerText;
+            var tempInput = document.createElement("input");
+            document.body.appendChild(tempInput);
+            tempInput.value = text;
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            alert("Text copied to clipboard!");
+        }
+
+        document.querySelectorAll('.code-container').forEach(function(container) {
+            var button = document.createElement('button');
+            button.classList.add('copy-btn');
+            button.textContent = 'Copy';
+            button.onclick = copyToClipboard;
+            container.appendChild(button);
+        });
     </script>
 </body>
 </html>
