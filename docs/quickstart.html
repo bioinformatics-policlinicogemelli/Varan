@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="readme_style.css">
-    <title>VARAN Quickstart</title>
+    <title>VARAN - Quickstart</title>
 </head>
 
 <body>
@@ -68,7 +68,7 @@
             <h4 class="subsection-title" id="step-2">Step 2: Download the example data</h4>
             <p>Run the following command to download all the necessary files for your first study:</p>
             <pre>wget .........</pre>
-            <p>The TEST folder will be organized into the following subfolders:</p>
+            <p>The 'TEST' folder contains the following subfolders::</p>
             <ul>
                 <li><span class="highlight">Genome</span>: contains the reference genome and its indexed version.</li>
                 <li><span class="highlight">Input</span>: includes all necessary input files for processing.</li>
@@ -84,9 +84,12 @@
             <p>Congratulations on completing your first Varan study! You can take some time to explore the output files.</p>
 
             <h4 class="subsection-title" id="step-4">Step 4: Modify an existing study</h4>
+            <p>Now we can manipulate the <i>output_test_v1</i> study and explore other Varan functions.</p>
 
             <h5 id="step-4-1">Step 4.1: Extract samples from an existing study</h5>
-            <p>Create a list containing the desired samples:</p>
+            <p>You can create a new study by extracting specific samples from an existing study.</p>
+
+            <p>Create a list of the desired samples:</p>
             <pre>nano extract_list.tsv</pre>
             <p>In the editor, type the sample IDs:</p>
             <pre>0000001_DNA
@@ -94,24 +97,30 @@
             <p>To save and close the file, press <strong>Ctrl + X</strong> (or <strong>Cmd + X</strong> on Mac), then press <strong>Y</strong> to confirm saving the changes.</p>
             <p>Extract the samples using:</p>
             <pre>docker run --rm -it -v TEST:/test_folder varan -e -p test_folder/Output/output_test_v1 -s test_folder/extract_list.tsv -o test_folder/Output/extract_study</pre>
-            <p>The new <i>extract_study_v1</i> folder contains a study with the selected samples</p>
+            <p>The new <i>extract_study_v1</i> folder contains a study with the selected samples.</p>
 
             <h5 id="step-4-2">Step 4.2: Remove samples from an existing study</h5>
+            <p>You can create a new study by removing specific samples from an existing study.</p>
+
             <p>Create a list of the samples to remove:</p>
             <pre>nano remove_list.tsv</pre>
             <p>In the editor, type the sample IDs:</p>
             <pre>0000001_DNA
 0000002_DNA
 0000003_DNA</pre>
-            <p><p>To save and close the file, press <strong>Ctrl + x</strong> (or <strong>Cmd + x</strong> on Mac), then press <strong>y</strong> to confirm saving the changes.</p>
+            <p><p>To save and close the file, press <strong>Ctrl + X</strong> (or <strong>Cmd + X</strong> on Mac), then press <strong>Y</strong> to confirm saving the changes.</p>
             <p>Remove the samples using:</p>
             <pre>docker run --rm -it -v TEST:/test_folder varan -r -p test_folder/Output/output_test_v1 -s test_folder/remove_list.tsv -o test_folder/Output/remove_study</pre>
             <p>The new <i>remove_study_v1</i> folder contains a study with the original samples, excluding the ones that were removed</p>
 
             <h5 id="step-4-3">Step 4.3: Merge two existing studies</h5>
+            <p>You can create a new study by merging two existing studies and updating the information.</p>
+            
             <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
             <pre>docker run --rm -it -v TEST:/test_folder varan -u -p test_folder/Output/extract_study_v1 -n test_folder/Output/remove_study_v1 -o test_folder/Output/update_study</pre>
             <p>This will create the <i>update_study_v1</i> folder with the samples from both studies.</p>
+
+            <p>Now that you've completed the quickstart tutorial, you can explore advanced features in the full <a href="user_guide.html">user guide</a>.</p>
         </div>
     </div>
 

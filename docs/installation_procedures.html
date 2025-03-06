@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="readme_style.css">
-    <title>Varan Installation Instructions</title>
+    <title>VARAN - Local Installation Procedure</title>
 </head>
-<body>
 
+<body>
     <header>
         <button class="menu-icon" onclick="toggleMenu()">&#9776;</button>
         <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
@@ -38,13 +38,13 @@
             </ul>
 
             <h3 id="procedure">Procedure</h3>
-            <p>To correctly install and use Varan:</p>
+            <p>Follow these steps to correctly install and use Varan:</p>
             <ol>
                 <li>Open a terminal</li>
                 <li>Type the following command to clone the repository folder:
                     <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
                 </li>
-                <li>Install all the packages required (cbioimporter and oncokb-annotator):
+                <li>Install all the required dependencies (cbioimporter and oncokb-annotator):
                     <pre>cd &lt;varan_folder_path&gt;/Varan-Pub
 bash installer.sh</pre>
                 </li>
@@ -52,11 +52,11 @@ bash installer.sh</pre>
 
             <p>⚠️ <i>Depending on the Python version, pip3 may be required instead of pip</i></p>
 
-            <p>To test the installation and check if everything works, launch the main script <b>varan.py</b>: 
+            <p>To test the installation and verify that everything is working, run the main script <span class="highlight">varan.py</span>: 
                 <pre>python varan.py -h</pre>
             </p>
 
-            <p>⚠️ <i>If any error is printed while launching varan.py, check if step 3 completed without errors</i></p>
+            <p>⚠️ <i>If any errors occur when launching <i>varan.py</i>, ensure that the previous steps were completed successfully without any issues.</i></p>
         </div>
     </div>
 
