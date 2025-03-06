@@ -194,6 +194,8 @@ input_folder/
             <p>The obligatory fields to keep are:</p>
             <ul>
                 <li><ins>PATIENT_ID</ins>: IDs of all patients of interest.</li>
+                <li><ins>AGE</ins>: Age all patients of interest.</li>
+                <li><ins>SEX</ins>: Sex all patients of interest.</li>
             </ul>
             
             <h6 id="fusion.tsv"><i>fusion.tsv</i></h6>
@@ -399,7 +401,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
                 </tr>
                 <tr>
                 <td>-f --filter</td>
-                <td><p align="justify">Add this option to filter out variants from vcf/maf</p></td>
+                <td><p align="justify">Add this option to filter out variants from VCF/MAF</p></td>
                 <td>string</td>
                 <td>No</td>
                 </tr>
@@ -486,7 +488,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <p>Run this command to use OncoKB annotation:</p>
             <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k</pre>
 
-            <p id="filters">Ex 8) <ins>Filter vcf/maf</ins>:</p>
+            <p id="filters">Ex 8) <ins>Filter VCF/MAF</ins>:</p>
 
             <p>Run this command to specify the type of filter to use:</p>
 
@@ -538,11 +540,10 @@ docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/out
             <p>⚠️ Only the fields from the <i>conf.ini</i> file that are actively used for this functionality will be displayed below:</p>
 
             <h6>Zip</h6>
-            <p>In this section, you can decide how to manage MAF and SNV_FILTERED files.</p>
+            <p>In this section, you can decide if you want to copy and zip MAF from the original study.</p>
             <pre>
 [Zip]
 ZIP_MAF = &lt; boolean &gt;
-ZIP_SNV_FILTERED = &lt; boolean &gt;
 COPY_MAF = &lt; boolean &gt;
             </pre>
             <h6>Annotations</h6>
