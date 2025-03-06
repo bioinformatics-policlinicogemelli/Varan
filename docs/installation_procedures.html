@@ -24,9 +24,9 @@
             color: white;
             padding: 20px;
             width: 100%;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
+            display: flex; /* Impostiamo il contenitore come flexbox */
+            justify-content: flex-start; /* Allinea gli elementi a sinistra (vicino tra loro) */
+            align-items: center; /* Centra verticalmente gli elementi */
             z-index: 10;
         }
 
@@ -43,7 +43,7 @@
             background-color: #003366;
             border: none;
             padding: 10px;
-            margin: 0;
+            margin: 0; /* Rimuovi margine */
         }
 
         /* Contenitore principale con barra laterale e contenuto */
@@ -60,24 +60,22 @@
             background-color: #e6f0ff;
             padding-top: 20px;
             padding-right: 7px;
-            padding-left: 7px;
-            color: white;
+            padding-left: 15px;
             font-family: Arial, sans-serif;
             font-size: 1.1em;
             overflow-y: auto;
-            padding-left: 15px;
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            display: none;
+            display: none; /* Nascondi la sidebar per default */
         }
 
         .sidebar.active {
-            display: block;
+            display: block; /* Mostra la sidebar quando è attiva */
         }
 
         .sidebar h2 {
             margin-bottom: 13px;
             font-size: 1.3em;
-            color: white;
+            color: #003366; /* Testo in blu scuro */
             text-align: left;
         }
 
@@ -92,15 +90,21 @@
 
         .sidebar ul li a {
             text-decoration: none;
-            color: white;
+            color: #003366; /* Testo in blu scuro */
             display: block;
             padding-left: 8px;
             font-size: 1.1em;
         }
 
         .sidebar ul li a:hover {
-            color: #ddd;
+            color: #336699; /* Hover in una tonalità più chiara di blu */
         }
+
+        .sidebar ul li ul {
+            margin-left: 15px;
+            font-size: 0.9em;
+        }
+
 
         /* Contenuto Principale */
         .content {
@@ -112,6 +116,11 @@
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             overflow-y: scroll;
+            scrollbar-width: none; /* per Firefox */
+        }
+        
+        .content::-webkit-scrollbar {
+            display: none; /* per Chrome, Safari, Edge */
         }
 
         /* Titoli */
@@ -141,6 +150,7 @@
         h5 {
             font-size: 1.2em;
             color: #003366;
+            margin-bottom: px;
         }
 
         /* Code Blocks */
@@ -189,7 +199,7 @@
             }
 
             .content {
-                margin-top: 120px;
+                margin-top: 20px;
                 width: 100%;
                 padding-top: 20px;
             }
@@ -215,7 +225,7 @@
             }
 
             .menu-icon {
-                display: block;
+                display: block; /* Mostra l'icona del menu a tendina sui dispositivi mobili */
             }
         }
     </style>
