@@ -2,50 +2,130 @@
 body {
     font-family: Arial, sans-serif;
     background-color: #e6f0ff;
+    color: #333; /* Colore del testo base */
     margin: 0;
     padding: 0;
+    text-align: left; /* Default: testo allineato a sinistra */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
 }
 
-/* Barra Superiore */
 header {
     background-color: #003366;
     color: white;
     padding: 20px;
     width: 100%;
-    position: fixed;
-    top: 0;
-    left: 0;
+    display: flex; /* Flexbox per l'allineamento orizzontale */
+    justify-content: flex-start;
+    align-items: center;
     z-index: 10;
-    text-align: left;
 }
 
 header h1 {
     font-size: 3em;
     margin: 0;
+    text-transform: uppercase; /* Testo maiuscolo */
+}
+
+h2 {
+    font-size: 1.6em;
+    margin: 5px 0;
+    color: #003366;
+    font-weight: bold;
+    text-align: left; /* Allineamento del titolo h2 */
+}
+
+h3 {
+    font-size: 1.8em;
+    color: #003366;
+    margin-bottom: 15px;
+}
+
+h4 {
+    font-size: 1.4em;
+    color: #003366;
+    margin-bottom: 7px;
+}
+
+h5 {
+    font-size: 1.2em;
+    color: #003366;
+}
+
+/* Container centrale */
+.container {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: left; /* Allineamento del contenuto a sinistra */
+}
+
+/* Content - Testo principale */
+.content {
+    flex: 1;
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    padding: 25px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow-y: scroll;
+    scrollbar-width: none; /* Disabilita scrollbar per Firefox */
+}
+
+.content::-webkit-scrollbar {
+    display: none; /* Disabilita scrollbar per Chrome, Safari, Edge */
+}
+
+.blue-text {
+    color: #003366;
+}
+
+a {
+    color: #003366;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
 }
 
 /* Sidebar */
 .sidebar {
     height: 100vh;
     width: 220px;
-    position: fixed;
-    top: 80px; /* Inizia sotto la barra superiore */
-    left: 0;
-    background-color: #335577;
+    background-color: #e6f0ff;
     padding-top: 20px;
+    padding-right: 7px;
+    padding-left: 7px;
     color: white;
     font-family: Arial, sans-serif;
     font-size: 1.1em;
     overflow-y: auto;
     padding-left: 15px;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    display: none; /* Nascondi la sidebar per default */
+}
+
+.sidebar.active {
+    display: block; /* Mostra la sidebar quando è attiva */
 }
 
 .sidebar h2 {
-    text-align: left;
-    margin-bottom: 15px;
-    font-size: 1.5em;
+    margin-bottom: 13px;
+    font-size: 1.3em;
     color: white;
+    text-align: left;
 }
 
 .sidebar ul {
@@ -74,34 +154,6 @@ header h1 {
     font-size: 0.9em;
 }
 
-/* Content */
-.content {
-    margin-left: 250px; /* Per far partire il contenuto dopo il menu laterale */
-    padding: 20px;
-    padding-top: 100px; /* Per compensare la barra superiore */
-    width: calc(100% - 250px); /* Assicurarsi che la larghezza sia corretta */
-    text-align: left;
-}
-
-/* Heading Styles */
-.centered-heading {
-    text-align: left;
-    font-size: 2.5em;
-    margin-bottom: 10px;
-}
-
-h2 {
-    font-size: 2em;
-    color: #003366;
-    margin-bottom: 15px;
-}
-
-h3 {
-    font-size: 1.5em;
-    color: #005599;
-    margin-bottom: 10px;
-}
-
 /* Code Blocks */
 pre {
     background-color: #1e1e1e;
@@ -119,49 +171,51 @@ pre {
     color: #003366;
     font-weight: bold;
 }
-/* Links */
-a {
-    color: #003366;
-    text-decoration: none;
-}
 
-a:hover {
-    text-decoration: underline;
-}
-
-/* Step 4 Sub-Steps (4.1, 4.2, etc.) */
-h3#step-4-1, h3#step-4-2, h3#step-4-3 {
-    font-size: 1.6em; /* Più piccolo rispetto agli altri h3 */
-    font-weight: normal;
-    margin-left: 20px;
-}
 /* Responsiveness */
 @media screen and (max-width: 768px) {
-    .sidebar {
-        width: 100%;
-        position: relative;
-        top: 0;
-    }
-
-    .content {
-        margin-left: 0;
-        width: 100%;
-        padding-top: 120px;
-    }
-
     header h1 {
         font-size: 2.5em;
     }
-    
+
+    .main-container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        padding: 10px;
+    }
+
+    .content {
+        margin-top: 120px;
+        width: 100%;
+        padding-top: 20px;
+    }
+
     .centered-heading {
         font-size: 2em;
     }
-    
+
     h2 {
         font-size: 1.8em;
     }
 
     h3 {
         font-size: 1.3em;
+    }
+
+    h4 {
+        font-size: 1.2em;
+    }
+
+    h5 {
+        font-size: 1.1em;
+    }
+
+    .menu-icon {
+        display: block; /* Mostra l'icona del menu a tendina sui dispositivi mobili */
     }
 }

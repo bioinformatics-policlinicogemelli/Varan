@@ -1,13 +1,271 @@
-#######################################
-#  INPUT PREPARATION                  #
-#######################################
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Varan User Guide</title>
+    <style>
+        /* Global Styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e6f0ff;
+            margin: 0;
+            padding: 0;
+            color: #000000;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden; /* Aggiungi per evitare overflow fuori dalla pagina */
+        }
 
-<summary><b>Input type</b></summary>
-<summary><ins>Folder</ins></summary>
+        /* Barra Superiore */
+        header {
+            background-color: #003366;
+            color: white;
+            padding: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            z-index: 10;
+        }
 
-User must organize an input folder containing all of the vcf and tsv files requested following the structure reported below:
+        header h1 {
+            font-size: 3em;
+            margin: 0;
+        }
 
-```
+        header a {
+            color: white;
+            text-decoration: none;
+        }
+
+        /* Contenitore principale con barra laterale e contenuto */
+        .main-container {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        .menu-icon {
+            cursor: pointer;
+            font-size: 30px;
+            color: white;
+            background-color: #003366;
+            border: none;
+            padding: 10px;
+            margin: 0; /* Rimuovi margine */
+        }
+
+        /* Contenuto Principale */
+        .content {
+            flex: 1;
+            margin: 20px;
+            padding: 25px;
+            background-color: #ffffff; /* Colore di sfondo bianco */
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 200px; /* Imposta una minima altezza per il contenitore */
+            overflow-y: auto; /* Aggiunto per il contenuto che si estende oltre */
+        }
+
+        /* Sidebar */
+
+        .sidebar {
+            height: 100vh;
+            width: 220px;
+            background-color: #e6f0ff;
+            padding-top: 20px;
+            padding-right: 7px;
+            padding-left: 7px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 1.1em;
+            overflow-y: auto;
+            padding-left: 15px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            display: none; /* Nascondi la sidebar per default */
+        }
+
+        .sidebar.active {
+            display: block; /* Mostra la sidebar quando è attiva */
+        }
+
+        .sidebar h2 {
+            margin-bottom: 13px;
+            font-size: 1.3em;
+            color: white;
+            text-align: left;
+        }
+
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .sidebar ul li {
+            margin: 5px 0;
+        }
+
+        .sidebar ul li a {
+            text-decoration: none;
+            color: white;
+            display: block;
+            padding-left: 8px;
+            font-size: 1.1em;
+        }
+
+        .sidebar ul li a:hover {
+            color: #ddd;
+        }
+
+        .sidebar ul li ul {
+            margin-left: 15px;
+            font-size: 0.9em;
+        }
+
+        /* Titoli */
+        h2 {
+            font-size: 2.5em;
+            color: #003366;
+            margin-bottom: 15px;
+        }
+
+        h3 {
+            font-size: 1.8em;
+            color: #003366;
+            margin-bottom: 15px;
+        }
+
+        h4 {
+            font-size: 1.4em;
+            color: #003366;
+            margin-bottom: 7px;
+        }
+
+        h5 {
+            font-size: 1.2em;
+            color: #003366;
+            margin-bottom: 7px;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-x: auto;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 1em;
+            margin-bottom: 20px;
+        }
+
+        /* Highlight Text */
+        .highlight {
+            color: #003366;
+            font-weight: bold;
+        }
+
+        /* Links */
+        a {
+            color: #003366;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsiveness */
+        @media screen and (max-width: 768px) {
+            header h1 {
+                font-size: 2.5em;
+            }
+
+            .main-container {
+                flex-direction: column;
+            }
+
+            .content {
+                margin-top: 20px;
+                padding-top: 20px;
+            }
+
+            h2 {
+                font-size: 1.8em;
+            }
+
+            h3 {
+                font-size: 1.3em;
+            }
+
+            h4 {
+                font-size: 1.2em;
+            }
+
+            h5 {
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+      <button class="menu-icon" onclick="toggleMenu()">&#9776;</button>
+      <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
+    </header>
+
+    <div class="sidebar">
+      <ul>
+          <li><a href="#input-preparation">Input Preparation</a>
+              <ul>
+                  <li><a href="#folder">Folder</a></li>
+                  <li><a href="#file">File</a></li>
+                  <li><a href="#file">Templates</a></li>
+                  <ul>
+                    <li><a href="#sample.tsv">sample.tsv</a></li>
+                    <li><a href="#patient.tsv">patient.tsv</a></li>
+                    <li><a href="#fusion.tsv">fusion.tsv</a></li>
+                  </ul>
+              </ul>
+          </li>
+          <li><a href="#configuration-file">Configuration file</a>
+              <ul>
+                  <li><a href="#paths">Paths</a></li>
+                  <li><a href="#multiple">Multiple</a></li>
+                  <li><a href="#zip">Zip</a></li>
+                  <li><a href="#oncokb">OncoKB</a></li>
+                  <li><a href="#project">Project</a></li>
+                  <li><a href="#filters">Filters</a></li>
+                  <li><a href="#cna">Cna</a></li>
+                  <li><a href="#tmb">TMB</a></li>
+                  <li><a href="#msi">MSI</a></li>
+                  <li><a href="#fusion">FUSION</a></li>
+                  <li><a href="#clinicalsample">ClinicalSample</a></li>
+                  <li><a href="#clinicalpatient">ClinicalPatient</a></li>
+                  <li><a href="#annotation">Annotation</a></li>
+              </ul>
+          </li>
+      </ul>
+  </div>
+
+    <div class="main-container">
+        <div class="content">
+            <h2>User guide</h2>
+            
+            <h3 id="#input-preparation">Input Preparation</h3>
+            <p>Varan accepts two types of input:</p>
+            <ol>
+                <li><span class="highlight"></span>Folder Input</span>: A folder containing all the necessary data files.</li>
+                <li><span class="highlight"></span>File Input</span>: A file that contains the paths to the data files.</li>
+            </ol>
+            <p>Both formats are supported for processing, and you can choose the one that best suits your workflow.</p>
+            <h4 id="#folder">Folder</h4>
+            <p>User must organize an input folder containing all of the vcf and tsv files requested following the structure reported below:</p>
+            <pre>
 input_folder/
 ├── CNV
 │   ├── 001.vcf
@@ -18,481 +276,420 @@ input_folder/
 │   ├── 002.vcf
 │   └── 003.vcf
 ├── CombinedOutput
-│   ├── 001_CombinedVariantOutput.tsv
-│   ├── 002_CombinedVariantOutput.tsv
-│   └── 003_CombinedVariantOutput.tsv
+│   ├── 111_CombinedVariantOutput.tsv
+│   ├── 222_CombinedVariantOutput.tsv
+│   └── 333_CombinedVariantOutput.tsv
 ├── FUSIONS
 │   └── Fusions.tsv
 ├── sample.tsv   
 └── patient.tsv
-```
+            </pre>
 
-Where:
+            <p>Where:</p>
+            <ul>
+                <li><b>SNV</b> folder contains all vcf files related to single nucleotide variants.</li>
+                <li><b>CNV</b> folder contains all vcf files related to copy number variants.</li>
+                <li><b>CombinedVariantOutput</b> folder contains all the Combined Variant Output file in tsv format (this kind of files contains info about TMB, MSI and Fusions).</li>
+                <li><b>FUSIONS</b> folder contains the template fusion.tsv, which can filled with fusion data if the Combined Variant Output files are unavailable.</li>
+                <li><b>sample.tsv</b> file is a template for clinical data of the samples.</li>
+                <li><b>patient.tsv</b> file is a template for clinical data of the patients.</li>
+            </ul>
+            
+            <h4 id="#file">File(s)</h4>
+            <p>User must compile several input files (by filling in specific templates):</p>
+            <ul>
+                <li><b>sample.tsv</b> file, a template to fill with samples' clinical info.</li>
+                <li><b>fusions.tsv</b> file, a template to fill with fusions' information.</li>
+                <li><b>patient.tsv</b> file, a template to fill with patients' clinical info.</li>
+            </ul>
+            <p>⚠️ For this input, only the <i>sample.tsv</i> file is mandatory.</p>
 
-* <b>SNV</b> folder contains all vcf files related to single nucleotide variants.
-* <b>CNV</b> folder contains all vcf files related to copy number variants.
-* <b>CombinedVariantOutput</b> folder contains all the Combined Variant Output file in tsv format (this kind of files contains info about TMB, MSI and Fusions).
-* <b>FUSIONS</b> folder contains the template fusion.tsv, which can filled with fusion data if the Combined Variant Output files are unavailable.
-* <b>sample.tsv</b> file is a template for clinical data of the samples.
-* <b>patient.tsv</b> file is a template for clinical data of the patients.
+            <h4 id="#templates">Templates</h4>
+            <p>For both input by folder and by file, template filling by user is requested. Below will be briefly explained the structure of these templates:</p>
 
+            <h5 id="#sample.tsv"><i>sample.tsv</i></h5>
+            <p>This template must be filled by user with all disposable samples' clinical info and will be used to create the <i>data_clinical_sample.txt</i>.</p>
+            <p>⚠️ This file is mandatory for Varan analysis!</p>
 
+          <table border="1" cellpadding="5" cellspacing="0">
+              <thead>
+                  <tr>
+                      <th>SAMPLE_ID</th>
+                      <th>PATIENT_ID</th>
+                      <th>MSI</th>
+                      <th>TMB</th>
+                      <th>MSI_THR</th>
+                      <th>TMB_THR</th>
+                      <th>ONCOTREE_CODE</th>
+                      <th>snv_path</th>
+                      <th>cnv_path</th>
+                      <th>comb_path</th>
+                      <th>...</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <tr>
+                      <td>0000001_DNA</td>
+                      <td>11111111</td>
+                      <td>1</td>
+                      <td>12</td>
+                      <td></td>
+                      <td></td>
+                      <td>BOWEL</td>
+                      <td>path_to_snv</td>
+                      <td>path_to_cnv</td>
+                      <td>path_to_combined_output</td>
+                      <td>...</td>
+                  </tr>
+              </tbody>
+          </table>
 
-<summary><ins>File(s)</ins></summary>
-User must compile several input file (by filling in specific templates):
+            <p>The obligatory fields to keep are:</p>
+            <ul>
+                <li><ins>SAMPLE_ID</ins>: IDs of all samples of interest.</li>
+                <li><ins>PATIENT_ID</ins>: IDs of all patients of interest.</li>
+                <li><ins>MSI</ins>: MSI value for each of the samples.</li>
+                <li><ins>TMB</ins>: TMB value for each of the samples.</li>
+                <li><ins>MSI_THR</ins>: MSI categorization based on the threshold set in the <i>conf.ini</i> file.</li>
+                <li><ins>TMB_THR</ins>: TMB categorization based on the threshold set in the <i>conf.ini</i> file.</li>
+                <li><ins>ONCOTREE_CODE</ins>: code to associate for the oncokb annotation.</li>
+            </ul>
+            <p>⚠️ The user can add new columns starting from the last one.</p>
+            
+            <h5 id="#patient.tsv"><i>patient.tsv</i></h5>
+            <p>This template must be filled by user with all disposable patients' clinical info and will be used to create the <i>data_clinical_patient.txt</i>.</p>
+            <p>⚠️ This file is optional.</p>
+            <table border="1" cellpadding="5" cellspacing="0">
+              <thead>
+                  <tr>
+                      <th>PATIENT_ID</th>
+                      <th>AGE</th>
+                      <th>SEX</th>
+                      <th>...</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <tr>
+                      <td>11111111</td>
+                      <td>45</td>
+                      <td>F</td>
+                      <td>...</td>
+                  </tr>
+              </tbody>
+          </table>
+            <p>The obligatory fields to keep are:</p>
+            <ul>
+                <li><ins>PATIENT_ID</ins>: IDs of all patients of interest.</li>
+            </ul>
+            
+            <h5 id="#fusion.tsv"><i>fusion.tsv</i></h5>
+            <p>This template must be filled by user with all disposable fusion info and will be used to create the <i>data_sv.txt</i>.</p>
+            <p>⚠️ This file is optional.</p>
+            <table border="1" cellpadding="5" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Sample_Id</th>
+                        <th>SV_Status</th>
+                        <th>Site1_Hugo_Symbol</th>
+                        <th>Site2_Hugo_Symbol</th>
+                        <th>...</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0000001_DNA</td>
+                        <td>SOMATIC</td>
+                        <td>APC</td>
+                        <td>BRCA1</td>
+                        <td>...</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <p>The obligatory fields to keep are:</p>
+            <ul>
+                <li><ins>Sample_Id</ins>: IDs of all sample of interest</li>
+                <li><ins>SV_Status</ins>: fusion type</li>
+                <li><ins>Site1_Hugo_Symbol</ins>: first gene involved in fusion</li>
+                <li><ins>Site2_Hugo_Symbol</ins>: second gene involved in fusion</li>
+            </ul>
 
-* <b>sample.tsv</b> file, a template to fill with samples' clinical info.
-* <b>fusions.tsv</b> file, a template to fill with fusions' information.
-* <b>patient.tsv</b> file, a template to fill with patients' clinical info.
+            <h3 id="#configuration-file">Configuration File</h3>
+            <p>The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>.</p>
+            <p>⚠️ In the next subparagraph, for each field the type of variable requested will be inserted between angle brackets &lt;&gt;. For string, two possible entries can be found: &lt; 'string' &gt; and &lt; string &gt;. In the first case, it is requested to insert text inside quotation marks (*i.e. DESCRIPTION='this is the description'*), while on the other one, quotation marks are not requested (*i.e. PROJECT_NAME=study*).</p>
+            <p>⚠️ For Docker, a partially compiled configuration file (<i>docker.ini</i>) is available with vep and clinvar path already set.</p>
+            
+            <h4 id="#paths">Paths</h4>
+            <p>In this section, it's possible to specify the paths for Vep (VEP_PATH) and its cache (VEP_DATA), fasta (REF_FASTA), vcf2maf (VCF2MAF), and ClinVar (CLINV). In CACHE, it is possible to set Ensembl version (i.e. 111)</p>
+            <pre>
+[Paths]
+VCF2MAF = 
+CLINV =
+REF_FASTA = 
+VEP_PATH = 
+VEP_DATA = 
+CACHE =
+            </pre>
+            <p>⚠️ ClinVar database can be downloaded <a href="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/">here</a></p>
 
-⚠️ For this input, only the <i>sample.tsv</i> file is mandatory.
+            <h4 id="#multiple">Multiple</h4>
+            <p>In this section, it's possible to specify the paths in case of multiple SNV, CNV, and/or Combined Variant Output files analysis.</p>
+            <pre>
+[Multiple]
+SNV= &lt; string &gt;
+CNV= &lt; string &gt;
+COMBOUT= &lt; string &gt;
+            </pre>
+            <p>⚠️ This section has to be filled only in case of input by file.</p>
+
+            <h4 id="#zip">Zip</h4>
+            <p>In this section, you can decide how to manage MAF and SNV_FILTERED files.</p>
+            <pre>
+[Zip]
+ZIP_MAF = &lt; boolean &gt;
+ZIP_SNV_FILTERED = &lt; boolean &gt;
+COPY_MAF = &lt; boolean &gt;
+            </pre>
+
+            <h4 id="#oncokb">OncoKB</h4>
+            <p>In this section, it's possible to insert the personal <a href="https://www.oncokb.org/">oncoKB</a> key. This key is mandatory to execute the oncoKB annotation.</p>
+            <pre>
+[OncoKB]
+ONCOKB= &lt; string &gt;
+            </pre>
+            <p>⚠️ The request for the oncoKB key can be done <a href="https://www.oncokb.org/account/register">here</a></p>
+
+            <h4 id="project">Project</h4>
+            <p>In this section, it's possible to specify project info like study name, ID, description, and profile. These info will be inserted in meta files.</p>
+            <pre>
+[Project]
+PROJECT_ID = &lt; string &gt;
+PROJECT_NAME = &lt; string &gt;
+DESCRIPTION = &lt; 'string' &gt;
+PROFILE_MUT = &lt; 'string' &gt;
+PROFILE_CNA = &lt; 'string' &gt;
+PROFILE_CNA_HG19 = &lt; 'string' &gt;
+PROFILE_SV = &lt; 'string' &gt;
+            </pre>
+
+            <h4 id="#filters">Filters</h4>
+            <p>Here, it is possible to specify the filters' threshold to apply to SNV maf files.</p>
+            <pre>
+[Filters]
+CLIN_SIG = &lt; ['string','string',...] &gt;
+CONSEQUENCES = &lt; ['string','string',...] &gt;
+ONCOKB_FILTER = &lt; ['string','string',...] &gt;
+t_VAF_min = &lt; float &gt;
+t_VAF_min_novel = &lt; float &gt;
+t_VAF_max = &lt; float &gt;
+AF = &lt; string &gt; 
+POLYPHEN = &lt; ['string','string',...] &gt;
+IMPACT = &lt; ['string','string',...] &gt;
+SIFT = &lt; ['string','string',...] &gt;
+drop_NA_AF = &lt; boolean &gt;
+            </pre>
+            <p>⚠️ For AF the field can be populated with &lt;/&gt;/&lt;=/&gt;&gt;=val (i.e., AF = &lt;0.003&gt;)</p>
+
+            <h4 id="#cna">Cna</h4>
+            <p>In this section, user can insert CNV genotypes of interest and ploidy.</p>
+            <pre>
+[Cna]
+HEADER_CNV = &lt; ['string','string',...] &gt;
+PLOIDY = &lt; int &gt;
+CNVkit = &lt; boolean &gt;
+            </pre>
+            <p>⚠️ Ploidy will be used to evaluate copy number discretization using <a href="https://cnvkit.readthedocs.io/en/stable/pipeline.html">cnvkit formula</a>.</p>
+            <h4 id="#tmb">TMB</h4>
+            <p>Here TMB thresholds can be specified.</p>
+            <pre>[TMB]
+THRESHOLD_TMB = &lt; {'string':'string', 'string':'string', ...} &gt;
+            </pre>
+            i.e. THRESHOLD = {'Low':'&lt;=5','Medium':'&lt;10','High':'&gt;=10'} where the string before : is the label assigned to TMB value, while the other is the specific threshold (i.e. for a sample with TMB=15, a label 'High' will be reported in the clinical sample data).
+
+            <h4 id="#msi">MSI</h4>
+            <p>Here MSI thresholds for sites and values can be specified.</p>
+            <pre>[MSI]
+THRESHOLD_SITES = &lt; string &gt;
+THRESHOLD_MSI = &lt; string &gt;
+            </pre> 
+            ⚠️ THRESHOLD_SITES value will be used only if MSI information is extracted from Combined Variant Output files. If MSI is directly reported as a value inside the input tsv, only THRESHOLD_MSI will be applied.
+
+            ⚠️ Both THRESHOLD_SITES and THRESHOLD_MSI can be populated with &lt;/>/&lt;=/&gt;=val (i.e., THRESHOLD = &lt;20).
+
+            <h4>FUSION</h4>
+            <p>Here Fusions thresholds can be specified.</p>
+            <pre>[FUSION]
+THRESHOLD_FUSION = &lt; string &gt;
+            </pre>
+            ⚠️ THRESHOLD can be populated with &lt;/&gt;/&lt;=/&gt;=val (i.e., THRESHOLD = &gt;=15).
+
+            <h4>ClinicalSample</h4>
+            <p>Users can customize column names and data types for the data_clinical_sample.txt file.</p>
+            <pre>[ClinicalSample]
+HEADER_SAMPLE_SHORT = &lt; ['string','string',...] &gt;
+HEADER_SAMPLE_LONG = &lt; ['string','string',...] &gt;
+HEADER_SAMPLE_TYPE = &lt; ['string','string',...] &gt;
+            </pre>
+            ⚠️ HEADER_SAMPLE_TYPE accepts only STRING, NUMBER, BOOLEAN. If a different type is inserted, an error will be raised by Varan.
+
+            ⚠️ If these fields are left empty, a default Header will be produced.
+
+            <h4>ClinicalPatient</h4>
+            <p>Users can customize column names and data types for the data_clinical_patient.txt file.</p>
+            <pre>[ClinicalPatient]
+HEADER_PATIENT_SHORT = &lt; ['string','string',...] &gt;
+HEADER_PATIENT_LONG = &lt; ['string','string',...] &gt;
+HEADER_PATIENT_TYPE = &lt; ['string','string',...] &gt;
+            </pre>
+            ⚠️ HEADER_PATIENT_TYPE accepts only STRING, NUMBER, BOOLEAN. If a different type is inserted, an error will be raised by Varan.
+
+            ⚠️ If these fields are left empty, a default Header will be produced.
+
+            <h4>Annotations</h4>
+            <p>In this section, it's possible to insert manual notes that will appear in the report_VARAN.html file.</p>
+            <pre>[Annotations]
+ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
+            
+<h3>2. Launch Varan</h3>
+<p>The possible option to launch varan main for block 1 are:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Options</th>
+      <th>Description</th>
+      <th>Type</th>
+      <th>Required</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="width:130px">-i --input</td>
+      <td style="width:220px"><p align="justify">Add this option to insert the path of the input (folder or file(s))</p></td>
+      <td>string list</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>-o --output_folder</td>
+      <td><p align="justify">Add this option to insert the path where to save the output folder</p></td>
+      <td>string</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>-c --cancer</td>
+      <td><p align="justify">Add this option to specify the cancer type</p></td>
+      <td>string</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>-f --filter</td>
+      <td><p align="justify">Add this option to filter out variants from vcf/maf</p></td>
+      <td>string</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>-k --onocoKB</td>
+      <td><p align="justify">Add this option to annotate with oncoKB</p></td>
+      <td>boolean</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>-t --analysis_type</td>
+      <td><p align="justify">Add this option to specify the type of file (snv/cnv/fus/tab) to analyze. If not specified, all analysis will be done</p></td>
+      <td>string</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>-w --overWrite</td>
+      <td><p align="justify">Add this option to overwrite an already existing output folder</p></td>
+      <td>boolean</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>-R --resume</td>
+      <td><p align="justify">Add this option to resume an already started analysis.<br><br>⚠️This option must be used with caution, because it assumes that the previous VCF to MAF conversion step was successful.</p></td>
+      <td>boolean</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>-m --multiple</td>
+      <td><p align="justify">Add this option to specify that the input is a multi-sample vcf file (a single VCF containing information from multiple patients)</p></td>
+      <td>boolean</td>
+      <td>No</td>
+    </tr>
+  </tbody>
+</table>
 
 <br>
 
-  <summary><b>Templates</b></summary>
 
-For both input by folder and by file, template filling by user is requested.
-Below will be briefly explained the structure of these templates:
+  <summary><i>Examples</i></summary>
 
+    <summary><i>Docker version</i></summary>
 
-  <summary><i>sample.tsv</i></summary>
-This template must be filled by user with all disposable samples' clinical info and will be used to create the <i>data_clinical_sample.txt</i>.
-
-⚠️ This file is mandatory for Varan analysis!
-
-|SAMPLE_ID | PATIENT_ID | MSI | TMB| MSI_THR | TMB_THR| ONCOTREE_CODE| snv_path| cnv_path| comb_path|... |
-|:---:|:---:|:---: |:---:   |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-|0000000_DNA| 00000000  | 1| 12| ||BOWEL |path_to_snv|path_to_cnv|path_to_combined_output|...|
-|0000001_DNA| 00000001  | 8.0| 8.0| ||UTERUS |path_to_snv|path_to_cnv|path_to_combined_output|...|
-|0000003_DNA| 00000003  | 222| 127| ||BOWEL |path_to_snv|path_to_cnv|path_to_combined_output|...|
-|...| ...  | ...| ...| ||... |...|...|...|...|
-
-The obligatory fields to keep are:
-
-* <ins>SAMPLE_ID</ins>: IDs of all samples of interest.
-* <ins>PATIENT_ID</ins>: IDs of all patient of interest.
-* <ins>MSI</ins>: MSI value for each of the samples.
-* <ins>TMB</ins>: TMB value for each of the samples.
-* <ins>MSI_THR</ins>: MSI categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan.
-* <ins>TMB_THR</ins>: TMB categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan.
-* <ins>ONCOTREE_CODE</ins>: code to associate for the oncokb annotation. Check <a href="https://oncotree.mskcc.org/#/home">here</a> for more info.
-* <ins>snv_path</ins>: path to the SNV vcf file. This column has to be filled in case of input by file.
-* <ins>cnv_path</ins>: path to the CNV vcf file. This column has to be filled in case of input by file.
-* <ins>comb_path</ins>: path to the Combined Variant Output file. This column has to be filled in case of input by file.
-
-⚠️ The user can add new columns starting from the last one. Modifying or deleting the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
-⚠️ Both SAMPLE_ID and PATIENT_ID must be filled.<br>
-⚠️ The MSI and TMB columns will be read from this file only if no Combined Variant Output file is provided. If the Combined Variant Output files are available, those values will be prioritized.<br>
-⚠️ ONCOTREECODE column is mandatory to fill for the oncoKB annotation
-
-
-  <summary><i>patient.tsv</i></summary>
-
-This template must be filled by user with all disposable patients' clinical info and will be used to create the <i>data_clinical_patient.txt</i>.
-
-⚠️ This file is optional. If missing, a default <i>data_clinical_patient.txt</i> will be create.
-
-
-|PATIENT_ID | AGE | SEX | ...|
-|:---:|:---:|:---:|:---:|
-|00000000| 45  | F| ...| 
-|00000001| 77  | F| ...| 
-|00000003| 23  | M| ...| 
-|...| ...  | ...|...| 
-
-The obligatory fields to keep are:
-* <ins>PATIENT_ID</ins>: IDs of all patient of interest
-
-⚠️ The user can add new columns starting from PATIENT_ID. Modifying or deleting the default one (even only by changing name) can lead to errors and is strongly not recommended.<br>
-
-
-  <summary><i>fusions.tsv</i></summary>
-
-This template must be filled by user with all disposable fusion info and will be used to create the <i>data_sv.txt</i>.
-
-⚠️ This file is optional.
-
-|Sample_Id | SV_Status | Site1_Hugo_Symbol |Site2_Hugo_Symbol|...|
-|:---:|:---:|:---:|:---:|:---:|
-|0000000_DNA| SOMATIC  | APC| BRCA1|...|
-|0000001_DNA| SOMATIC  | TP53| BRAF|...|
-|0000003_DNA| SOMATIC  | ALK| BRCA2|...|
-|...| ... | ...|...|...|
-
-The obligatory fields to keep are:
-* <ins>Sample_Id</ins>: IDs of all sample of interest
-* <ins>SV_Status</ins>: fusion type
-* <ins>Site1_Hugo_Symbol</ins>: first gene involved in fusion 
-* <ins>Site2_Hugo_Symbol</ins>: second gene involved in fusion 
-
-⚠️ The user can add new columns starting from Site2_Hugo_Symbol. Modifying or deleting the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
-⚠️ All mandatory fields must be filled and cannot be left empty.<br>
-
-
-
-<details open>
-  <summary><b>Configuration file</b></summary>
-The first step to start using Varan is to correctly set the configuration file <i>conf.ini</i>. <br><br>
-
-⚠️ In the next subparagraph, for each field the type of variable requested will be insert between angle brackets <>. For string two possible entry can be find: < 'string' > and < string >. In the first case it is request to insert text inside quotation marks (*i.e. DESCRIPTION='this is the description'*), while on the other one quotation marks are not requested (*i.e. PROJECT_NAME=study*).
-
-This file is divided in 12 subsessions:
-<details close>
-<summary><ins>Paths</ins></summary>
-In this section it's possible to specify the paths for Vep (VEP_PATH) and its cache (VEP_DATA) and fasta (REF_FASTA), vcf2maf (VCF2MAF), and ClinVar (CLINV). In CACHE it is possible to set Ensembl version (i.e. 111)
-
-```
-[Annotations]
-ANNOTATIONS = < '' >
-```
-⚠️ clinvar database can be downloaded <a href="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/">here</a>
-
-</details>
-<details close>
-<summary><ins>Multiple</ins></summary>
-
-In this section it's possible to specify the paths in case of multiple SNV, CNV and/or Combined Variant Output files analysis.   
-```
-[Multiple]
-SNV= < string >
-CNV= < string >
-COMBOUT= < string >
-```
-⚠️ This section has to be filled only in case of input by file.
-
-</details>
-<details close>
-<summary><ins>Zip</ins></summary>
-
-In this section you can decide how to manage MAF and SNV_FILTERED files.
-```
-[Zip]
-ZIP_MAF = < boolean >
-ZIP_SNV_FILTERED = < boolean >
-COPY_MAF = < boolean >
-```
-</details>
-<details close>
-<summary><ins>OncoKB</ins></summary>
-
-In this section is possible to insert the personal <a href="https://www.oncokb.org/">oncoKB</a> key. This key is mandatory to execute the oncoKB annotation.
-
-```
-[OncoKB] ONCOKB
-ONCOKB= < string >
-```
-⚠️ The request for the oncoKB key can be done <a href="https://www.oncokb.org/account/register">here</a>
-
-
-</details>
-<details close>
-<summary><ins>Project</ins></summary>
-
-In this section is possible to specify project info like study name, ID, description and profile. These info will be insert in meta files.
-```
-[Project]
-PROJECT_ID = < string >
-PROJECT_NAME = < string >
-DESCRIPTION = < 'string' >
-PROFILE_MUT = < 'string' >
-PROFILE_CNA = < 'string' >
-PROFILE_CNA_HG19 = < 'string' >
-PROFILE_SV = < 'string' >
-```
-
-</details>
-<details close>
-<summary><ins>Filters</ins></summary>
-
-Here it is possible to specify the filters' threshold to apply to SNV maf files (for more info about filters threshold setting see [Ex 7)](#ex-7-filter-vcfmaf).
-```
-[Filters]
-CLIN_SIG = < ['string','string',...] >
-CONSEQUENCES = < ['string','string',...] >
-ONCOKB_FILTER = < ['string','string',...] >
-t_VAF_min = < float >
-t_VAF_min_novel = < float >
-t_VAF_max = < float >
-AF = < string > 
-POLYPHEN = < ['string','string',...] >
-IMPACT = < ['string','string',...] >
-SIFT = < ['string','string',...] >
-drop_NA_AF = < boolean >
-```
-⚠️ For AF the field can be populate with </>/<=/>=val (i.e. AF = <0.003)
-
-</details close>
-<details>
-<summary><ins>Cna</ins></summary>
-
-In this section user can insert CNV genotypes of interest and ploidy. The latter will be used to evaluate copy number discretization using <a href="https://cnvkit.readthedocs.io/en/stable/pipeline.html">cnvkit formula</a>.
-```
-[Cna]
-HEADER_CNV = < ['string','string',...] >
-PLOIDY = < int >
-CNVkit = < boolean >
-```
-</details close>
-<details>
-<summary><ins>TMB</ins></summary>
-
-Here TMB thresholds can be specified.
-
-```
-[TMB]
-THRESHOLD_TMB = < {'string':'string', 'string':'string', ...} > 
-```
-i.e. THRESHOLD = {'Low':'<=5','Medium':'<10','High':'>=10'} where the string before : is the label assign to TMB value, while the other is the specific threshold (i.e. for a sample with TMB=15 a label 'High' will be reported in the data clinical sample).
-
-</details close>
-<details>
-<summary><ins>MSI</ins></summary>
-
-Here MSI thresholds for sites and values can be specified.
-```
-[MSI]
-THRESHOLD_SITES = < string >
-THRESHOLD_MSI = < string >
-```
-
-⚠️ THRESHOLD_SITES value will be used only if MSI informations are extracted from Combined Variant Output files. If MSI is directly reported as a value inside the input tsv, only THRESHOLD_MSI will be applied.
-
-⚠️ Both THRESHOLD_SITES and THRESHOLD_MSI can be populate with </>/<=/>=val (i.e. THRESHOLD = <20).
-
-</details close>
-<details>
-<summary><ins>FUSION</ins></summary>
-
-Here Fusions thresholds can be specified.
-
-```
-[FUSION]
-THRESHOLD_FUSION = < string >
-```
-⚠️ THRESHOLD can be populate with </>/<=/>=val (i.e. THRESHOLD = >=15)
-</details>
-<details close>
-<summary><ins>ClinicalSample</ins></summary>
-
-Users can customize column names and data types for the data_clinical_sample.txt file.
-```
-[ClinicalSample]
-HEADER_SAMPLE_SHORT = < ['string','string',...] >
-HEADER_SAMPLE_LONG = < ['string','string',...] >
-HEADER_SAMPLE_TYPE = < ['string','string',...] >
-```
-⚠️ HEADER_SAMPLE_TYPE accept only STRING, NUMBER, BOOLEAN. If different type is inserted, an error will be raised by Varan.
-
-⚠️ If these fields are left empty, a default Header will be produced.
-
-</details>
-<details close>
-<summary><ins>ClinicalPatient</ins></summary>
-
-Users can customize column names and data types for the data_clinical_patient.txt file.
-```
-[ClinicalPatient]
-HEADER_PATIENT_SHORT = < ['string','string',...] >
-HEADER_PATIENT_LONG = < ['string','string',...] >
-HEADER_PATIENT_TYPE = < ['string','string',...] >
-```
-⚠️ HEADER_PATIENT_TYPE accept only STRING, NUMBER, BOOLEAN. If different type is inserted, an error will be raised by Varan.
-
-⚠️ If these fields are left empty, a default Header will be produced.
-
-</details>
-<details close>
-<summary><ins>Annotations</ins></summary>
-In this section it's possible to insert manual notes that will appear in report_VARAN.html file.
-
-```
-[Annotations]
-ANNOTATIONS = < ['string','string',...] >
-```
-
-</details>
-<details close>
-<summary><ins>Validation</ins></summary>
-
-If the user has a working cbioportal instance active on his computer, the location (http://localhost:8080) can be insert here. This value will be used for the validation of the output study and will produce a html report with the results.
-```
-[Validation]
-PORT = < string >
-```
-⚠️ If this field is left empty an offline validation will be conducted.
-</details>
-
-⚠️ For Docker a partially compiled configuration file (<i>docker.ini</i>) is available with vep and clinvar path already set.
-</details>
-
-
-
-
-
-#######################################
-#  WORKFLOW                           #
-#######################################
-
-
-<details open>
-    <summary><b>Workflow</b></summary>
-  <br>
+    <p>To launch Varan docker version is mandatory to mount several volumes (-v) for granting a correct functioning.</p>
+    <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan <commands></code></pre>
   
-  <p align="center">
-    <img width="500" height="250" src="workflow.png">
-  </p>
+    <p>Ex 1) <ins>Launch Varan base analysis with input folder</ins>:</p>
+    <p>Launch this command to process the contents of the input folder</p>
+    <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta varan <commands> -v <conf.ini>:/conf.ini varan -i <path_input_folder> -o /output/<output_name> -c <type_of_cancer></code></pre>
   
-  <p align="justify"><br>Varan application can be divided in two distinct main blocks that require different inputs and provide different actions. 
-  <ul>
-    <li>The first block contains the functions to create a new study folder ex-novo.</li>
-    <li>The second one contains the functions to merge studies and to modify (Update/Extract/Remove samples) an existing study folder.</li> 
-  </ul>
-  To keep track of all operations performed, a versioning system and a report file are provided.
-  </details>
+    <p>Ex 2) <ins>Launch Varan base analysis with input file</ins>:</p>
+    <p>Launch one of these commands to process the contents of the input file(s):</p>
+    <ul>
+      <li>If you have sample.tsv and patient.tsv as input:</li>
+      <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i sample.tsv patient.tsv -o /output/<output_name> -c mixed</code></pre>
+      <li>If you have sample.tsv and fusion.tsv as input:</li>
+      <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i sample.tsv "" fusion.tsv -o /output/<output_name> -c mixed</code></pre>
+      <li>If you have sample.tsv, patient.tsv and fusion.tsv as input:</li>
+      <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i sample.tsv patient.tsv fusion.tsv -o /output/<output_name> -c mixed</code></pre>
+    </ul>
   
-  ### Block One: STUDY CREATION
+    <p>Ex 3) <ins>Multiple vcf analysis</ins>:</p>
+    <p>Launch this command to specify that your input is a multi-vcf file or folder:</p>
+    <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i <input_folder> -o /output/<output_name> -c <type_of_cancer> -m</code></pre>
   
-  <br>
+    <p>Ex 4) <ins>Overwrite analysis</ins>:</p>
+    <p>Launch this command to overwrite the output folder:</p>
+    <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i <input_folder> -o /output/<output_name> -c <type_of_cancer> -w</code></pre>
   
-  <p align="center">
-    <img width="600" height="300" src="block1.png">
-  </p>
+    <p>Ex 5) <ins>Resume analysis</ins>:</p>
+    <p>Launch this command to resume an already started analysis:</p>
+    <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i <input_folder> -o /output/<output_name> -c <type_of_cancer> -R</code></pre>
   
-  #### 1. Preparing Input
+    <p>Ex 6) <ins>Specify analysis</ins>:</p>
+    <p>Launch one of these commands to specify the analysis' type:</p>
+    <ul>
+      <li>snv -> only snv analysis.</li>
+      <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i <input_folder> -o /output/<output_name> -c <type_of_cancer> -t snv</code></pre>
+      <li>cnv -> only cnv analysis.</li>
+      <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i <input_folder> -o /output/<output_name> -c <type_of_cancer> -t cnv</code></pre>
+      <li>fus -> only fusion analysis.</li>
+      <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i <input_folder> -o /output/<output_name> -c <type_of_cancer> -t fus</code></pre>
+      <li>tab -> only meta file creation.</li>
+      <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i <input_folder> -o /output/<output_name> -c <type_of_cancer> -t tab</code></pre>
+    </ul>
   
-  <p align="justify">
-  To create a new study folder, Varan requires vcf files as input. Varan can process two types of input: A) <b>Folder</b>; B) <b>File(s)</b>
-  
-  <details close>
-    <summary><ins>Folder</ins></summary>
-  
-  User must organize an input folder containing all of the vcf and tsv files requested following the structure reported below:
-  
-  ```
-  input_folder/
-  ├── CNV
-  │   ├── 001.vcf
-  │   ├── 002.vcf
-  │   └── 003.vcf
-  ├── SNV
-  │   ├── 001.vcf
-  │   ├── 002.vcf
-  │   └── 003.vcf
-  ├── CombinedOutput
-  │   ├── 001_CombinedVariantOutput.tsv
-  │   ├── 002_CombinedVariantOutput.tsv
-  │   └── 003_CombinedVariantOutput.tsv
-  ├── FUSIONS
-  │   └── Fusions.tsv
-  ├── sample.tsv   
-  └── patient.tsv
-  ```
-  
-  Where:
-  
-  * <b>SNV</b> folder contains all vcf files related to single nucleotide variants.
-  * <b>CNV</b> folder contains all vcf files related to copy number variants.
-  * <b>CombinedVariantOutput</b> folder contains all the Combined Variant Output file in tsv format (this kind of files contains info about TMB, MSI and Fusions).
-  * <b>FUSIONS</b> folder contains the template fusion.tsv, which can filled with fusion data if the Combined Variant Output files are unavailable.
-  * <b>sample.tsv</b> file is a template for clinical data of the samples.
-  * <b>patient.tsv</b> file is a template for clinical data of the patients.
-  </details>
-  <details close>
-  <summary><ins>File(s)</ins></summary>
-  User must compile several input file (by filling in specific templates):
-  
-  * <b>sample.tsv</b> file, a template to fill with samples' clinical info.
-  * <b>fusions.tsv</b> file, a template to fill with fusions' information.
-  * <b>patient.tsv</b> file, a template to fill with patients' clinical info.
-  
-  ⚠️ For this input, only the <i>sample.tsv</i> file is mandatory.
-  </details>
-  <br>
-  <details open>
-    <summary><b>Templates</b></summary>
-  
-  For both input by folder and by file, template filling by user is requested.
-  Below will be briefly explained the structure of these templates:
-  
-  <details close>
-    <summary><i>sample.tsv</i></summary>
-  This template must be filled by user with all disposable samples' clinical info and will be used to create the <i>data_clinical_sample.txt</i>.
-  
-  ⚠️ This file is mandatory for Varan analysis!
-  
-  |SAMPLE_ID | PATIENT_ID | MSI | TMB| MSI_THR | TMB_THR| ONCOTREE_CODE| snv_path| cnv_path| comb_path|... |
-  |:---:|:---:|:---: |:---:   |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-  |0000000_DNA| 00000000  | 1| 12| ||BOWEL |path_to_snv|path_to_cnv|path_to_combined_output|...|
-  |0000001_DNA| 00000001  | 8.0| 8.0| ||UTERUS |path_to_snv|path_to_cnv|path_to_combined_output|...|
-  |0000003_DNA| 00000003  | 222| 127| ||BOWEL |path_to_snv|path_to_cnv|path_to_combined_output|...|
-  |...| ...  | ...| ...| ||... |...|...|...|...|
-  
-  The obligatory fields to keep are:
-  
-  * <ins>SAMPLE_ID</ins>: IDs of all samples of interest.
-  * <ins>PATIENT_ID</ins>: IDs of all patient of interest.
-  * <ins>MSI</ins>: MSI value for each of the samples.
-  * <ins>TMB</ins>: TMB value for each of the samples.
-  * <ins>MSI_THR</ins>: MSI categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan.
-  * <ins>TMB_THR</ins>: TMB categorization based on the threshold set in the <i>conf.ini</i> file. This field has to be left empty and will be filled by Varan.
-  * <ins>ONCOTREE_CODE</ins>: code to associate for the oncokb annotation. Check <a href="https://oncotree.mskcc.org/#/home">here</a> for more info.
-  * <ins>snv_path</ins>: path to the SNV vcf file. This column has to be filled in case of input by file.
-  * <ins>cnv_path</ins>: path to the CNV vcf file. This column has to be filled in case of input by file.
-  * <ins>comb_path</ins>: path to the Combined Variant Output file. This column has to be filled in case of input by file.
-  
-  ⚠️ The user can add new columns starting from the last one. Modifying or deleting the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
-  ⚠️ Both SAMPLE_ID and PATIENT_ID must be filled.<br>
-  ⚠️ The MSI and TMB columns will be read from this file only if no Combined Variant Output file is provided. If the Combined Variant Output files are available, those values will be prioritized.<br>
-  ⚠️ ONCOTREECODE column is mandatory to fill for the oncoKB annotation
-  
-  </details>
-  <details close>
-    <summary><i>patient.tsv</i></summary>
-  
-  This template must be filled by user with all disposable patients' clinical info and will be used to create the <i>data_clinical_patient.txt</i>.
-  
-  ⚠️ This file is optional. If missing, a default <i>data_clinical_patient.txt</i> will be create.
-  
-  
-  |PATIENT_ID | AGE | SEX | ...|
-  |:---:|:---:|:---:|:---:|
-  |00000000| 45  | F| ...| 
-  |00000001| 77  | F| ...| 
-  |00000003| 23  | M| ...| 
-  |...| ...  | ...|...| 
-  
-  The obligatory fields to keep are:
-  * <ins>PATIENT_ID</ins>: IDs of all patient of interest
-  
-  ⚠️ The user can add new columns starting from PATIENT_ID. Modifying or deleting the default one (even only by changing name) can lead to errors and is strongly not recommended.<br>
-  
-  </details>
-  
-  <details close>
-    <summary><i>fusions.tsv</i></summary>
-  
-  This template must be filled by user with all disposable fusion info and will be used to create the <i>data_sv.txt</i>.
-  
-  ⚠️ This file is optional.
-  
-  |Sample_Id | SV_Status | Site1_Hugo_Symbol |Site2_Hugo_Symbol|...|
-  |:---:|:---:|:---:|:---:|:---:|
-  |0000000_DNA| SOMATIC  | APC| BRCA1|...|
-  |0000001_DNA| SOMATIC  | TP53| BRAF|...|
-  |0000003_DNA| SOMATIC  | ALK| BRCA2|...|
-  |...| ... | ...|...|...|
-  
-  The obligatory fields to keep are:
-  * <ins>Sample_Id</ins>: IDs of all sample of interest
-  * <ins>SV_Status</ins>: fusion type
-  * <ins>Site1_Hugo_Symbol</ins>: first gene involved in fusion 
-  * <ins>Site2_Hugo_Symbol</ins>: second gene involved in fusion 
-  
-  ⚠️ The user can add new columns starting from Site2_Hugo_Symbol. Modifying or deleting the default ones (even only by changing names) can lead to errors and is strongly not recommended.<br>
-  ⚠️ All mandatory fields must be filled and cannot be left empty.<br>
-  </details>
-  </details>
-  
+    <p>Ex 7) <ins>OncoKB annotation</ins>:</p>
+    <p>Launch this command to use OncoKB annotation:</p>
+    <pre><code>docker run --rm -it -v <input_folder>:/input -v <output_folder>:/output -v <vep_cache_path>:/vep_cache -v <genomes_folder>:/ref_fasta -v <conf.ini>:/conf.ini varan -i <input_folder> -o /output/<output_name> -c <type_of_cancer> -k</code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   #### 2. Launch Varan
   
   The possible option to launch varan main for block 1 are:
@@ -803,6 +1000,12 @@ PORT = < string >
   python varan.py -r -p <path_to_study_folder> -s <path_to_sample_list_file> -o <path_to_output_folder> -N <new_studyID_in_meta>
   ```
   </details>
+
+
+
+
+
+
 
 
 
