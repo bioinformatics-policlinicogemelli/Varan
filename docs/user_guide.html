@@ -68,7 +68,8 @@
                 
                 <li><span class="highlight">Detailed Reports</span>: For each version, a comprehensive report is generated, which includes the filters applied, the configuration used in the study, the number of samples and patients, and a comparison with previous versions to track the study's evolution.</li>
                 
-                <li><span class="highlight">Validation Check</span>: Before uploading a study to cBioPortal, the system performs a validation to confirm the upload can be executed successfully. <strong>Be warned that files succeeding this validation may still fail to load (correctly).</strong></li>
+                <li><span class="highlight">Validation Check</span>: Before uploading a study to cBioPortal, the system performs a validation to confirm the upload can be executed successfully.<br>
+                    <span class="highlight">Be warned that files succeeding this validation may still fail to load (correctly).</span></li>
             </ul>
 
             <h3 id="study-creation">Study Creation</h3>
@@ -80,8 +81,8 @@
             <h4 id="input-preparation1">Input Preparation</h4>
             <p>To create a new study, Varan accepts two types of input:</p>
             <ol>
-                <li><span class="highlight">Folder Input</span>: A folder containing all the necessary data files.</li>
-                <li><span class="highlight">File Input</span>: A file that contains the paths to the data files.</li>
+                <li><span class="highlight">Folder Input</span>: a folder containing all the necessary data files.</li>
+                <li><span class="highlight">File Input</span>: a file containing the paths to the data files.</li>
             </ol>
             <p>Both formats are supported for processing, and you can choose the one that best suits your workflow.</p>
             <h5 id="folder1">Folder</h5>
@@ -268,7 +269,7 @@ COMBOUT= &lt; string &gt;</pre>
             <p>In this section, you can decide how to manage MAF and SNV_FILTERED files.</p>
             <pre>[Zip]
 ZIP_MAF = &lt; boolean &gt;
-ZIP_SNV_FILTERED = &lt; boolean &gt;
+ZIP_SNV_FILTERED = &lt; boolean &gt;</pre>
 
 
             <h6>OncoKB</h6>
@@ -587,60 +588,64 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <p>The possible options to launch Varan main for block 2 are:</p>
 
             <table style="width: 75%; margin: 0 auto;">
-            <tr>
-                <th>Options</th>
-                <th>Input</th>
-                <th>Type</th>
-                <th>Required</th>
-            </tr>
-            <tr>
-                <td style="width:150px">-u <br> --Update</td>
-                <td><p align="justify">Add this option if you want to update an existing study folder or merge two studies.</p></td>
-                <td>boolean</td>
-                <td>One between -u, -e or -r is required</td>
-            </tr>
-            <tr>
-                <td>-e <br> --Extract</td>
-                <td><p align="justify">Add this option if you want to extract samples from an existing study folder.</p></td>
-                <td>boolean</td>
-                <td>One between -u, -e or -r is required</td>
-            </tr>
-            <tr>
-                <td>-r <br> --Remove</td>
-                <td><p align="justify">Add this option if you want to remove samples from an existing study folder.</p></td>
-                <td>boolean</td>
-                <td>One between -u, -e or -r is required</td>
-            </tr>
-            <tr>
-                <td>-p <br> --Path</td>
-                <td><p align="justify">Add this option to specify the path of the existing study folder to update, or from which to remove/extract samples.</p></td>
-                <td>string</td>
-                <td>Yes</td>
-            </tr>
-            <tr>
-                <td>-n <br> --NewPath</td>
-                <td><p align="justify">Add this option to specify the path of the study folder containing updated/new information.</p></td>
-                <td>string</td>
-                <td>Only if the -u option is selected</td>
-            </tr>
-            <tr>
-                <td>-s <br> --SampleList</td>
-                <td><p align="justify">Add this option to insert the path of the .txt file containing the list of samples to remove/extract from the study folder.</p></td>
-                <td>string</td>
-                <td>Only if the -e or -r option is selected</td>
-            </tr>
-            <tr>
-                <td>-N <br> --Name</td>
-                <td><p align="justify">Add this option if you want to customize the study name (studyID).</p></td>
-                <td>string</td>
-                <td>No</td>
-            </tr>
-            <tr>
-                <td>-o <br> --output_folder</td>
-                <td><p align="justify">Add this option to specify the path where to save the output folder. If not provided, a new version of the existing study will be created.</p></td>
-                <td>string</td>
-                <td>Only if the -N option is selected</td>
-            </tr>
+            <thead>
+                <tr>
+                    <th>Options</th>
+                    <th>Input</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="width:150px">-u <br> --Update</td>
+                    <td><p align="justify">Add this option if you want to update an existing study folder or merge two studies.</p></td>
+                    <td>boolean</td>
+                    <td>One between -u, -e or -r is required</td>
+                </tr>
+                <tr>
+                    <td>-e <br> --Extract</td>
+                    <td><p align="justify">Add this option if you want to extract samples from an existing study folder.</p></td>
+                    <td>boolean</td>
+                    <td>One between -u, -e or -r is required</td>
+                </tr>
+                <tr>
+                    <td>-r <br> --Remove</td>
+                    <td><p align="justify">Add this option if you want to remove samples from an existing study folder.</p></td>
+                    <td>boolean</td>
+                    <td>One between -u, -e or -r is required</td>
+                </tr>
+                <tr>
+                    <td>-p <br> --Path</td>
+                    <td><p align="justify">Add this option to specify the path of the existing study folder to update, or from which to remove/extract samples.</p></td>
+                    <td>string</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td>-n <br> --NewPath</td>
+                    <td><p align="justify">Add this option to specify the path of the study folder containing updated/new information.</p></td>
+                    <td>string</td>
+                    <td>Only if the -u option is selected</td>
+                </tr>
+                <tr>
+                    <td>-s <br> --SampleList</td>
+                    <td><p align="justify">Add this option to insert the path of the .txt file containing the list of samples to remove/extract from the study folder.</p></td>
+                    <td>string</td>
+                    <td>Only if the -e or -r option is selected</td>
+                </tr>
+                <tr>
+                    <td>-N <br> --Name</td>
+                    <td><p align="justify">Add this option if you want to customize the study name (studyID).</p></td>
+                    <td>string</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td>-o <br> --output_folder</td>
+                    <td><p align="justify">Add this option to specify the path where to save the output folder. If not provided, a new version of the existing study will be created.</p></td>
+                    <td>string</td>
+                    <td>Only if the -N option is selected</td>
+                </tr>
+            </tbody>
             </table>
 
             <br>
