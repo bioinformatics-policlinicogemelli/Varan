@@ -54,7 +54,6 @@ header h1 {
 .main-container {
     display: flex;
     flex: 1;
-    width: 100%;
     overflow: hidden;
 }
 
@@ -165,6 +164,10 @@ h6 {
     font-size: 1.0em;
     color: #003366;
     margin-bottom: 5px;
+}
+
+* {
+    box-sizing: border-box;
 }
 
 /* Code Blocks */

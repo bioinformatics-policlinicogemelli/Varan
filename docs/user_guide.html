@@ -168,13 +168,13 @@ input_folder/
 
             <p>The obligatory fields to keep are:</p>
             <ul>
-                <li><ins>SAMPLE_ID</ins>: IDs of all samples of interest.</li>
-                <li><ins>PATIENT_ID</ins>: IDs of all patients of interest.</li>
-                <li><ins>MSI</ins>: MSI value for each of the samples.</li>
-                <li><ins>TMB</ins>: TMB value for each of the samples.</li>
-                <li><ins>MSI_THR</ins>: MSI categorization based on the threshold set in the <i>conf.ini</i> file.</li>
-                <li><ins>TMB_THR</ins>: TMB categorization based on the threshold set in the <i>conf.ini</i> file.</li>
-                <li><ins>ONCOTREE_CODE</ins>: code to associate for the oncoKB annotation.</li>
+                <li><span class="highlight">SAMPLE_ID</span>: IDs of all samples of interest.</li>
+                <li><span class="highlight">PATIENT_ID</span>: IDs of all patients of interest.</li>
+                <li><span class="highlight">MSI</span>: MSI value for each of the samples.</li>
+                <li><span class="highlight">TMB</span>: TMB value for each of the samples.</li>
+                <li><span class="highlight">MSI_THR</span>: MSI categorization based on the threshold set in the <i>conf.ini</i> file.</li>
+                <li><span class="highlight">TMB_THR</span>: TMB categorization based on the threshold set in the <i>conf.ini</i> file.</li>
+                <li><span class="highlight">ONCOTREE_CODE</span>: code to associate for the oncoKB annotation.</li>
             </ul>
             <p>⚠️ The user can add new columns starting from the last one.</p>
             
@@ -201,9 +201,9 @@ input_folder/
           </table>
             <p>The obligatory fields to keep are:</p>
             <ul>
-                <li><ins>PATIENT_ID</ins>: IDs of all patients of interest.</li>
-                <li><ins>AGE</ins>: Age all patients of interest.</li>
-                <li><ins>SEX</ins>: Sex all patients of interest.</li>
+                <li><span class="highlight">PATIENT_ID</span>: IDs of all patients of interest.</li>
+                <li><span class="highlight">AGE</span>: Age all patients of interest.</li>
+                <li><span class="highlight">SEX</span>: Sex all patients of interest.</li>
             </ul>
             
             <h6 id="fusion.tsv"><i>fusion.tsv</i></h6>
@@ -232,73 +232,65 @@ input_folder/
             
             <p>The obligatory fields to keep are:</p>
             <ul>
-                <li><ins>Sample_Id</ins>: IDs of all sample of interest</li>
-                <li><ins>SV_Status</ins>: fusion type</li>
-                <li><ins>Site1_Hugo_Symbol</ins>: first gene involved in fusion</li>
-                <li><ins>Site2_Hugo_Symbol</ins>: second gene involved in fusion</li>
+                <li><span="highlight">Sample_Id</span>: IDs of all sample of interest</li>
+                <li><span="highlight">SV_Status</span>: fusion type</li>
+                <li><span="highlight">Site1_Hugo_Symbol</span>: first gene involved in fusion</li>
+                <li><span="highlight">Site2_Hugo_Symbol</span>: second gene involved in fusion</li>
             </ul>
 
             <h5 id="configuration-file1">Configuration File</h5>
             <p>The first step to using Varan is to properly configure the <i>conf.ini</i> file.</p>
             <p>⚠️ In the next subparagraph, for each field the type of variable requested will be inserted between angle brackets &lt;&gt;. For string, two possible entries can be found: &lt; 'string' &gt; and &lt; string &gt;. In the first case, it is requested to insert text inside quotation marks (*i.e. DESCRIPTION='this is the description'*), while on the other one, quotation marks are not requested (*i.e. PROJECT_NAME=study*).</p>
             <p>⚠️ For Docker, a partially pre-filled <i>conf.ini</i> file is provided, with some paths already configured.</p>
+            <p>⚠️ Only the fields from the <i>conf.ini</i> file that are actively used for this functionality will be displayed below.</p>
 
             <h6>Paths</h6>
             <p>This section allows you to specify the paths for vcf2maf (VCF2MAF), ClinVar (CLINV), fasta (REF_FASTA), VEP (VEP_PATH), and its cache (VEP_DATA). In the CACHE section, you can set the Ensembl version (e.g., 111).</p>
-            <pre>
-[Paths]
+            <pre>[Paths]
 VCF2MAF = &lt; string &gt;
 CLINV = &lt; string &gt;
 REF_FASTA = &lt; string &gt;
 VEP_PATH = &lt; string &gt;
 VEP_DATA = &lt; string &gt;
-CACHE = &lt; string &gt;
-            </pre>
+CACHE = &lt; string &gt;</pre>
+            
+            <p>The reference genome must be the same used for the VCFs annotation.</p>
 
             <h6>Multiple</h6>
             <p>In this section, it's possible to specify the paths in case of multiple SNV, CNV, and/or Combined Variant Output files analysis.</p>
-            <pre>
-[Multiple]
+            <pre>[Multiple]
 SNV= &lt; string &gt;
 CNV= &lt; string &gt;
-COMBOUT= &lt; string &gt;
-            </pre>
+COMBOUT= &lt; string &gt;</pre>
             <p>⚠️ This section has to be filled only in case of input by file.</p>
 
             <h6>Zip</h6>
             <p>In this section, you can decide how to manage MAF and SNV_FILTERED files.</p>
-            <pre>
-[Zip]
+            <pre>[Zip]
 ZIP_MAF = &lt; boolean &gt;
 ZIP_SNV_FILTERED = &lt; boolean &gt;
-COPY_MAF = &lt; boolean &gt;
-            </pre>
+
 
             <h6>OncoKB</h6>
             <p>In this section, it's possible to insert the personal <a href="https://www.oncokb.org/">oncoKB</a> key. This key is required to execute the oncoKB annotation.</p>
-            <pre>
-[OncoKB]
-ONCOKB= &lt; string &gt;
-            </pre>
+            <pre>[OncoKB]
+ONCOKB= &lt; string &gt;</pre>
             <p>⚠️ You can request the oncoKB key <a href="https://www.oncokb.org/account/register">here</a></p>
 
             <h6>Project</h6>
             <p>In this section, it's possible to specify project info like study name, ID, description, and profile. These info will be inserted in meta files.</p>
-            <pre>
-[Project]
+            <pre>[Project]
 PROJECT_ID = &lt; string &gt;
 PROJECT_NAME = &lt; string &gt;
 DESCRIPTION = &lt; 'string' &gt;
 PROFILE_MUT = &lt; 'string' &gt;
 PROFILE_CNA = &lt; 'string' &gt;
 PROFILE_CNA_HG19 = &lt; 'string' &gt;
-PROFILE_SV = &lt; 'string' &gt;
-            </pre>
+PROFILE_SV = &lt; 'string' &gt;</pre>
 
             <h6>Filters</h6>
             <p>Here, it is possible to specify the filters' threshold to apply to SNV maf files. For more information, refer to <a href="#filters"> filters section</a>.</p>
-            <pre>
-[Filters]
+            <pre>[Filters]
 t_VAF_min = &lt; float &gt;
 t_VAF_max = &lt; float &gt;
 t_VAF_min_novel = &lt; float &gt;
@@ -309,33 +301,32 @@ CLIN_SIG = &lt; ['string','string',...] &gt;
 CONSEQUENCES = &lt; ['string','string',...] &gt;
 POLYPHEN = &lt; ['string','string',...] &gt;
 IMPACT = &lt; ['string','string',...] &gt;
-SIFT = &lt; ['string','string',...] &gt;
+SIFT = &lt; ['string','string',...] &gt;</pre>
 
-            </pre>
             <p>⚠️ The AF field can be populated with &lt;/&gt;/&lt;=/&gt;&gt;=val (i.e., AF = &lt;0.003&gt;)</p>
 
             <h6>Cna</h6>
             <p>In this section, the user can insert CNV genotypes of interest and ploidy.</p>
-            <pre>
-[Cna]
+            <pre>[Cna]
 HEADER_CNV = &lt; ['string','string',...] &gt;
 PLOIDY = &lt; int &gt;
-CNVkit = &lt; boolean &gt;
-            </pre>
+CNVkit = &lt; boolean &gt;</pre>
+
             <p>⚠️ Ploidy will be used to evaluate copy number discretization using <a href="https://cnvkit.readthedocs.io/en/stable/pipeline.html">cnvkit formula</a>.</p>
+
             <h6>TMB</h6>
             <p>Here TMB thresholds can be specified.</p>
             <pre>[TMB]
-THRESHOLD_TMB = &lt; {'string':'string', 'string':'string', ...} &gt;
-            </pre>
+THRESHOLD_TMB = &lt; {'string':'string', 'string':'string', ...} &gt;</pre>
+
             i.e. THRESHOLD = {'Low':'&lt;=5', 'Medium':'&lt;10', 'High':'&gt;=10'} where the string before ':' is the label assigned to TMB value, while the other is the specific threshold (i.e. for a sample with TMB=15, a label 'High' will be reported in the clinical sample data).
 
             <h6>MSI</h6>
             <p>Here MSI thresholds for sites and values can be specified.</p>
             <pre>[MSI]
 THRESHOLD_SITES = &lt; string &gt;
-THRESHOLD_MSI = &lt; string &gt;
-            </pre> 
+THRESHOLD_MSI = &lt; string &gt;</pre>
+
             ⚠️ THRESHOLD_SITES value will be used only if MSI information is extracted from Combined Variant Output files. If MSI is directly reported as a value inside the input tsv, only THRESHOLD_MSI will be applied.
 
             ⚠️ Both THRESHOLD_SITES and THRESHOLD_MSI can be populated with &lt;/>/&lt;=/&gt;=val (i.e., THRESHOLD = &lt;20).
@@ -343,8 +334,8 @@ THRESHOLD_MSI = &lt; string &gt;
             <h6>FUSION</h6>
             <p>Here Fusions thresholds can be specified.</p>
             <pre>[FUSION]
-THRESHOLD_FUSION = &lt; string &gt;
-            </pre>
+THRESHOLD_FUSION = &lt; string &gt;</pre>
+
             ⚠️ THRESHOLD can be populated with &lt;/&gt;/&lt;=/&gt;=val (i.e., THRESHOLD = &gt;=15).
 
             <h6>ClinicalSample</h6>
@@ -352,8 +343,8 @@ THRESHOLD_FUSION = &lt; string &gt;
             <pre>[ClinicalSample]
 HEADER_SAMPLE_SHORT = &lt; ['string','string',...] &gt;
 HEADER_SAMPLE_LONG = &lt; ['string','string',...] &gt;
-HEADER_SAMPLE_TYPE = &lt; ['string','string',...] &gt;
-            </pre>
+HEADER_SAMPLE_TYPE = &lt; ['string','string',...] &gt;</pre>
+
             ⚠️ HEADER_SAMPLE_TYPE accepts only STRING, NUMBER, BOOLEAN. If a different type is inserted, an error will be raised by Varan.
 
             ⚠️ If these fields are left empty, a default Header will be produced.
@@ -363,8 +354,8 @@ HEADER_SAMPLE_TYPE = &lt; ['string','string',...] &gt;
             <pre>[ClinicalPatient]
 HEADER_PATIENT_SHORT = &lt; ['string','string',...] &gt;
 HEADER_PATIENT_LONG = &lt; ['string','string',...] &gt;
-HEADER_PATIENT_TYPE = &lt; ['string','string',...] &gt;
-            </pre>
+HEADER_PATIENT_TYPE = &lt; ['string','string',...] &gt;</pre>
+
             ⚠️ HEADER_PATIENT_TYPE accepts only STRING, NUMBER, BOOLEAN. If a different type is inserted, an error will be raised by Varan.
 
             ⚠️ If these fields are left empty, a default Header will be produced.
@@ -457,10 +448,10 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
                         <th>Letter</th>
                         <th>Description</th>
                     </tr>
-                </thead>
+                </thead> 
                 <tbody>
                     <tr>
-                        <td><span class="highlight">d</span></td>
+                        <td align="center"><span class="highlight">d</span></td>
                         <td>Filters SNV mutations with ALT="." and FILTER ≠"PASS".</td>
                     </tr>
                     <tr>
@@ -558,17 +549,11 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
 
             <p>Ex 8) <ins>Filter VCF/MAF</ins>:</p>
 
-            <pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f q
-            </pre>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f q</pre>
 
-            <pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f cav
-            </pre>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -f cav</pre>
 
-            <pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k -f divo
-            </pre>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output -v &lt;vep_cache_path&gt;:/vep_cache -v &lt;genomes_folder&gt;:/ref_fasta -v &lt;conf.ini&gt;:/conf.ini varan -i &lt;input_folder&gt; -o /output/&lt;output_name&gt; -c &lt;type_of_cancer&gt; -k -f divo</pre>
 
             <h3 id="study-manipulation">Study Manipulation</h3>
             <br>
@@ -588,11 +573,10 @@ docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/out
 
             <h6>Zip</h6>
             <p>In this section, you can decide if you want to copy and zip MAF from the original study.</p>
-            <pre>
-[Zip]
+            <pre>[Zip]
 ZIP_MAF = &lt; boolean &gt;
-COPY_MAF = &lt; boolean &gt;
-            </pre>
+COPY_MAF = &lt; boolean &gt;</pre>
+
             <h6>Annotations</h6>
             <p>In this section, it's possible to insert manual notes that will appear in the report_VARAN.html file.</p>
             <pre>[Annotations]
@@ -602,7 +586,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
             <h5 id="options2">Options</h5>
             <p>The possible options to launch Varan main for block 2 are:</p>
 
-            <table>
+            <table style="width: 75%; margin: 0 auto;">
             <tr>
                 <th>Options</th>
                 <th>Input</th>
@@ -610,7 +594,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
                 <th>Required</th>
             </tr>
             <tr>
-                <td>-u <br> --Update</td>
+                <td style="width:150px">-u <br> --Update</td>
                 <td><p align="justify">Add this option if you want to update an existing study folder or merge two studies.</p></td>
                 <td>boolean</td>
                 <td>One between -u, -e or -r is required</td>
@@ -665,30 +649,22 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
 
             <p>To launch Varan Docker version, it is required to mount at least the input and the output folder for correct functioning.</p>
 
-            <pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan &lt;commands&gt;
-            </pre>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan &lt;commands&gt;</pre>
 
             <p>Ex 1) <ins>Update a study folder</ins>: <p>
             <p align="justify">Run this command to update a study folder:</p>
 
-            <pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -u -p /input/&lt;path_to_old_study_folder&gt; -n /input/&lt;path_to_new_study_folder&gt; -o /output/&lt;path_to_output_folder&gt;
-            </pre>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -u -p /input/&lt;path_to_old_study_folder&gt; -n /input/&lt;path_to_new_study_folder&gt; -o /output/&lt;path_to_output_folder&gt;</pre>
 
             <p>Ex 2) <ins>Extract a study with a subset of samples</ins>: </p>
             <p align="justify">Run this command to extract a list of samples from a study folder and create a new study containing only these samples in the output path:</p>
 
-            <pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -e -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt;
-            </pre>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -e -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt;</pre>
 
             <p>Ex 3) <ins>Remove samples from a study</ins>:</p>
             <p align="justify">Run this command to remove a list of samples from a study folder and save a new study without them in the output path, assigning a customized study name:</p>
 
-            <pre>
-docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -r -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt; -N &lt;new_studyID_in_meta&gt;
-            </pre>
+            <pre>docker run --rm -it -v &lt;input_folder&gt;:/input -v &lt;output_folder&gt;:/output varan -r -p /input/&lt;path_to_study_folder&gt; -s /input/&lt;path_to_sample_list_file&gt; -o /output/&lt;path_to_output_folder&gt; -N &lt;new_studyID_in_meta&gt;</pre>
 
             <h3 id="output">Output</h3>
 
@@ -719,8 +695,7 @@ study_name
 ├── meta_study.txt
 ├── meta_sv.txt
 ├── report_validate.html
-└── report_VARAN.html
-            </pre>
+└── report_VARAN.html</pre>
 
             <p>(*) Filtered MAF files will be stored in the MAF_Onco_filtered or MAF_Filtered folders, depending on whether the MAFs were annotated with OncoKB.</p>
             <p>(**) MAF_OncoKB folder will be created only if the <code>-k</code> option is set and will contain all the MAF with OncoKB annotations.</p>

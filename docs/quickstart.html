@@ -57,12 +57,19 @@
             <p>We will guide you through a comprehensive tutorial that covers everything from installing Varan using Docker (for instructions on local installation, please refer to <a href="installation_procedures.html">this guide</a>), to creating and managing studies, offering a practical introduction to the core functionalities of the tool.</p>
             <h4 class="subsection-title" id="step-1">Step 1: Clone Varan repository</h4>
             <p>Follow the steps below to clone and set up the Varan repository:</p>
+            <ol>
+                <li>Open a terminal on your system.</li> 
+                <li>Navigate to the directory where you would like to install the repository. You can do so by using the <code>cd</code> command followed by the desired path.</li>
+            </ol>
+            <p>Once you're in the desired directory, you can proceed by running the following commands:</p>
             <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
-            <p>Navigate to the repository and build the Docker container:</p>
+            <p>Before proceeding, ensure that Docker is running on your system. You can verify this by checking if the Docker service is active. If Docker is not running, start the Docker service before continuing.</p>
+            <p>Once Docker is running, navigate to the repository and build the Docker container:</p>
             <pre>cd Varan-Pub</pre>
             <pre>docker build -t varan .</pre>
-            <p>Test the installation with:</p>
+            <p>Test the installation with the following command:</p>
             <pre>docker run --rm -it varan -h</pre>
+            <p>If the installation was successful, you should see the help output for the Varan container. This confirms that the container is correctly set up and running.</p>
             <p><span class="highlight">⚠️ For Windows users:</span> Some issues with Git Bash have been reported. It is recommended to launch the docker command through <a href="https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4">Powershell</a>.</p>
 
             <h4 class="subsection-title" id="step-2">Step 2: Download the example data</h4>
@@ -78,8 +85,7 @@
 
             <h4 class="subsection-title" id="step-3">Step 3: Create a new study</h4>
             <p>To create your first study, run the following command:</p>
-            <pre>python varan.py</pre>
-            <pre>docker run --rm -it -v TEST:/test_folder varan -i test_folder/Input -o test_folder/Output/output_test -c mixed</pre>
+            <pre>docker run --rm -it -v ./TEST:/test_folder -v ./conf.ini:/conf.ini  varan -i test_folder/Input -o test_folder/Output/output_test -c mixed</pre>
             <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready.</p>
             <p>Congratulations on completing your first Varan study! You can take some time to explore the output files.</p>
 
@@ -90,35 +96,35 @@
             <p>You can create a new study by extracting specific samples from an existing study.</p>
 
             <p>Create a list of the desired samples:</p>
-            <pre>nano extract_list.tsv</pre>
+            <pre>nano TEST/Input/extract_list.tsv</pre>
             <p>In the editor, type the sample IDs:</p>
             <pre>0000001_DNA
 0000002_DNA</pre>
-            <p>To save and close the file, press <strong>Ctrl + X</strong> (or <strong>Cmd + X</strong> on Mac), then press <strong>Y</strong> to confirm saving the changes.</p>
+            <p>To save and close the file, press <strong>Ctrl + X</strong> (or <strong>control + X</strong> on Mac). When prompted to save changes, press <strong>Y</strong> to confirm. Finally, press <strong>Enter</strong> to save the file and exit the editor.</p>
             <p>Extract the samples using:</p>
-            <pre>docker run --rm -it -v TEST:/test_folder varan -e -p test_folder/Output/output_test_v1 -s test_folder/extract_list.tsv -o test_folder/Output/extract_study</pre>
+            <pre>docker run --rm -it -v ./TEST:/test_folder -v ./conf.ini:/conf.ini  varan -e -p test_folder/Output/output_test_v1 -s test_folder/Input/extract_list.tsv -o test_folder/Output/extract_study</pre>
             <p>The new <i>extract_study_v1</i> folder contains a study with the selected samples.</p>
 
             <h5 id="step-4-2">Step 4.2: Remove samples from an existing study</h5>
             <p>You can create a new study by removing specific samples from an existing study.</p>
 
             <p>Create a list of the samples to remove:</p>
-            <pre>nano remove_list.tsv</pre>
+            <pre>nano TEST/Input/remove_list.tsv</pre>
             <p>In the editor, type the sample IDs:</p>
             <pre>0000001_DNA
 0000002_DNA
 0000003_DNA</pre>
-            <p><p>To save and close the file, press <strong>Ctrl + X</strong> (or <strong>Cmd + X</strong> on Mac), then press <strong>Y</strong> to confirm saving the changes.</p>
+            <p>To save and close the file, press <strong>Ctrl + X</strong> (or <strong>control + X</strong> on Mac). When prompted to save changes, press <strong>Y</strong> to confirm. Finally, press <strong>Enter</strong> to save the file and exit the editor.</p>
             <p>Remove the samples using:</p>
-            <pre>docker run --rm -it -v TEST:/test_folder varan -r -p test_folder/Output/output_test_v1 -s test_folder/remove_list.tsv -o test_folder/Output/remove_study</pre>
+            <pre>docker run --rm -it -v ./TEST:/test_folder -v ./conf.ini:/conf.ini  varan -r -p test_folder/Output/output_test_v1 -s test_folder/Input/remove_list.tsv -o test_folder/Output/remove_study</pre>
             <p>The new <i>remove_study_v1</i> folder contains a study with the original samples, excluding the ones that were removed</p>
 
             <h5 id="step-4-3">Step 4.3: Merge two existing studies</h5>
             <p>You can create a new study by merging two existing studies and updating the information.</p>
             
             <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
-            <pre>docker run --rm -it -v TEST:/test_folder varan -u -p test_folder/Output/extract_study_v1 -n test_folder/Output/remove_study_v1 -o test_folder/Output/output_test</pre>
-            <p>This will create the <i>output_test_v2</i> folder with the samples from both input studies.</p>
+            <pre>docker run --rm -it -v ./TEST:/test_folder -v ./conf.ini:/conf.ini varan -u -p test_folder/Output/extract_study_v1 -n test_folder/Output/remove_study_v1 -o test_folder/Output/output_test</pre>
+            <p>Since the output folder name <i>output_test</i> coincides with an already existing folder, a new version of the folder will be created automatically. The resulting folder will be named <i>output_test_v2</i>, containing the merged samples from both input studies.</p>
 
             <p>Now that you've completed the quickstart tutorial, you can explore advanced features in the full <a href="user_guide.html">user guide</a>.</p>
         </div>
