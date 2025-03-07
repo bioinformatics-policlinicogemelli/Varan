@@ -122,7 +122,8 @@ header h1 {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     overflow-y: scroll;
     scrollbar-width: none; /* for Firefox */
-    width: 80%; 
+    width: 80%;
+    box-sizing: border-box;
 }
 
 
@@ -261,8 +262,11 @@ a:hover {
     .content {
         margin-top: 20px;
         width: 100%;
-        padding-top: 20px;
-        box-sizing: border-box; 
+        padding: 20px;
+        box-sizing: border-box;
+        margin-left: 0;
+        margin-right: 0;
+        word-wrap: break-word;
     }
 
     .centered-heading {
