@@ -728,13 +728,13 @@ study_name
             alert("Text copied to clipboard!");
         }
 
-        document.querySelectorAll('.code-container').forEach(function(container) {
-            var button = document.createElement('button');
-            button.classList.add('copy-btn');
-            button.textContent = 'Copy';
-            button.onclick = copyToClipboard;
-            container.appendChild(button);
-        });
+        document.querySelectorAll('pre').forEach(function(container) {
+        var button = document.createElement('button');        
+        button.classList.add('copy-btn');                      
+        button.textContent = 'Copy';                          
+        button.onclick = copyToClipboard;                     
+        container.appendChild(button);
+    });
     </script>
 </body>
 </html>

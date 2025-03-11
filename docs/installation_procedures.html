@@ -42,21 +42,18 @@
             <ol>
                 <li>Open a terminal</li>
                 <li>Type the following command to clone the repository folder:
-                    <pre class="code-container">git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
-                    <button class="copy-btn">Copy</button>
+                    <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
                 </li>
                 <li>Navigate to the Varan directory and install all the required packages (cbioimporter and oncokb-annotator):
-                    <pre class="code-container">cd &lt;varan_folder_path&gt;/Varan-Pub
+                    <pre>cd &lt;varan_folder_path&gt;/Varan-Pub
 bash installer.sh</pre>
-                    <button class="copy-btn">Copy</button>
                 </li>
             </ol>
 
-            <p>⚠️ <i>Depending on your Python version, you may need to modify the <i>installer.sh</i> script to replace <code>pip</code> with <code>pip3</code>, if necessary.</i></p>
+            <p>⚠️ <i>Depending on your Python version, you may need to modify the <i>installer.sh</i> script to replace <code>pip</code> with <code>pip3</code>, if necessary.</p>
 
             <p>To test the installation and verify that everything is functioning correctly, run the main script <i>varan.py</i> with the following command: 
-                <pre class="code-container">python varan.py -h</pre>
-                <button class="copy-btn">Copy</button>
+                <pre>python varan.py -h</pre>
             </p>
 
             <p>⚠️ <i>If any errors occur when running <i>varan.py</i>, please ensure that all previous steps were completed successfully without issues.</i></p>
@@ -80,9 +77,13 @@ bash installer.sh</pre>
             alert("Text copied to clipboard!");
         }
 
-        document.querySelectorAll('.copy-btn').forEach(function(button) {
-            button.onclick = copyToClipboard;
-        });
+        document.querySelectorAll('pre').forEach(function(container) {
+        var button = document.createElement('button');        
+        button.classList.add('copy-btn');                      
+        button.textContent = 'Copy';                          
+        button.onclick = copyToClipboard;                     
+        container.appendChild(button);
+    });
     </script>
 </body>
 </html>
