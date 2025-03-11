@@ -189,7 +189,7 @@ pre {
     position: relative;
     display: inline-block;
     width: 100%;
-    background-color: #f7f7f7;
+    background-color: transparent;
     border-radius: 8px;
 }
 
@@ -204,10 +204,16 @@ pre {
     cursor: pointer;
     border-radius: 5px;
     font-size: 14px;
+    z-index: 10;
 }
 
 .copy-btn:hover {
     background-color: #0056b3;
+}
+
+.copy-btn {
+    display: inline-block;
+    visibility: visible; 
 }
 
 table {
