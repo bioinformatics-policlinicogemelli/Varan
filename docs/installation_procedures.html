@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="readme_style.css">
+    <title>VARAN - Local Installation Procedure</title>
+</head>
+
+<body>
+    <header>
+        <button class="menu-icon" onclick="toggleMenu()">&#9776;</button>
+        <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
+    </header>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <ul>
+                <li><a href="#prerequisites">Prerequisites</a></li>
+                <li><a href="#procedure">Procedure</a></li>
+            </ul>
+        </div>
+
+        <div class="content">
+            <h2 class="centered-heading">Local Installation Procedures</h2>
+
+            <h3 id="prerequisites">Prerequisites</h3>
+            <ul>
+                <li><h4>Variant Effect Predictor (VEP)</h4>
+                    <p><a href="https://www.ensembl.org/info/docs/tools/vep/index.html">VEP</a> is a tool used to determine the effect of variants (SNPs, insertions, deletions, CNVs, or structural variants) on genes, transcripts, and protein sequence, as well as regulatory regions. <br>The steps to install VEP can be found <a href="https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html">here</a>, while DB and FASTA files can be downloaded <a href="http://www.ensembl.org/info/docs/tools/vep/script/vep_cache.html#cache">here</a>.</p>
+                </li>
+                <li><h4>vcf2maf</h4>
+                    <p>vcf2maf is the tool required to convert vcf files into maf format. <br>All the installation info can be found <a href="https://github.com/mskcc/vcf2maf/tree/main">here</a>.</p>
+                </li>
+                <li><h4>Samtools</h4>
+                    <p><a href="https://www.htslib.org/">Samtools</a> is a suite of programs for interacting with high-throughput sequencing data. <br>All the installation info can be found <a href="https://www.htslib.org/download/">here</a>.</p>
+                </li>
+            </ul>
+
+            <h3 id="procedure">Procedure</h3>
+            <p>Follow these steps to correctly install and use Varan:</p>
+            <ol>
+                <li>Open a terminal</li>
+                <li>Type the following command to clone the repository folder:
+                    <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
+                </li>
+                <li>Navigate to the Varan directory and install all the required packages (cbioimporter and oncokb-annotator):
+                    <pre>cd &lt;varan_folder_path&gt;/Varan-Pub
+bash installer.sh</pre>
+                </li>
+            </ol>
+
+            <p>⚠️ Depending on your Python version, you may need to modify the <i>installer.sh</i> script to replace <code>pip</code> with <code>pip3</code>, if necessary.</p>
+
+            <p>To test the installation and verify that everything is functioning correctly, run the main script <i>varan.py</i> with the following command: 
+                <pre>python varan.py -h</pre>
+            </p>
+
+            <p>⚠️ <i>If any errors occur when running <i>varan.py</i>, please ensure that all previous steps were completed successfully without issues.</i></p>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            const mainContainer = document.querySelector('.main-container');
+            sidebar.classList.toggle('active');
+            mainContainer.classList.toggle('sidebar-active');
+        }
+
+        document.querySelectorAll('.sidebar a').forEach(link => {
+            link.addEventListener('click', function(event) {
+                event.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 100,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

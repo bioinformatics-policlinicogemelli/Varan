@@ -1,5 +1,16 @@
-version = "1.0"
-# ===============================================
+#Copyright 2025 bioinformatics-policlinicogemelli
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 
 import os 
 import sys
@@ -14,6 +25,23 @@ from Update_script import update_main
 from Delete_script import delete_main 
 from ExtractSamples_script import extract_main
 
+def logo():    
+    print(r"""
+__| |_______________________________________________________________________| |__
+__   _______________________________________________________________________   __
+  | |                                                                       | |  
+  | | █████   █████   █████████   ███████████     █████████   ██████   █████| |  
+  | |░░███   ░░███   ███░░░░░███ ░░███░░░░░███   ███░░░░░███ ░░██████ ░░███ | |  
+  | | ░███    ░███  ░███    ░███  ░███    ░███  ░███    ░███  ░███░███ ░███ | |  
+  | | ░███    ░███  ░███████████  ░██████████   ░███████████  ░███░░███░███ | |  
+  | | ░░███   ███   ░███░░░░░███  ░███░░░░░███  ░███░░░░░███  ░███ ░░██████ | |  
+  | |  ░░░█████░    ░███    ░███  ░███    ░███  ░███    ░███  ░███  ░░█████ | |  
+  | |    ░░███      █████   █████ █████   █████ █████   █████ █████  ░░█████| |  
+  | |     ░░░      ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░    ░░░░░ | |  
+__| |_______________________________________________________________________| |__
+__   _______________________________________________________________________   __
+  | |                                                                       | |  
+""")    
 
 def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, overwrite_output=False, resume=False, multiple=False, update=False, extract=False, remove=False):
     
@@ -118,7 +146,10 @@ if __name__ == '__main__':
     logger.level("INFO", color="<green>")
     logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}", colorize=True, catch=True)
     logger.add(os.path.join('Logs',logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
-    logger.info("Welcome to VARAN")
+    
+    logo()
+    
+    logger.info("Welcome to VARAN 🦎\n")
 
     parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description='Argument of Varan script')
     

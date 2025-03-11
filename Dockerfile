@@ -52,5 +52,4 @@ RUN rm -r cbioportal-core
 
 COPY . /
 
-#CMD ["bash"]
 ENTRYPOINT [ "python3", "/varan.py"]

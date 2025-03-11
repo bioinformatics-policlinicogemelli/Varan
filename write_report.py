@@ -1,8 +1,16 @@
-#####################################
-# NAME: write_report.py
-# Date: 12/12/2024
-version = "1.0"
-# ===================================
+#Copyright 2025 bioinformatics-policlinicogemelli
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 
 from operator import index
 import pandas as pd
@@ -63,7 +71,6 @@ def get_samples(file, sample_list, output_folder):
         sample_list = sample_list.union(samples)
 
     return sample_list
-
 
 
 ###########################
@@ -507,8 +514,8 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         html_content += f"""
             <div class="content">
             <p><strong>UPDATED:</strong></p>
-            <p>&emsp;<strong>Patients:</strong> {", ".join(updated_clin_pat)}</p>
-            <p>&emsp;<strong>Samples:</strong> {", ".join(updated_clin_sample)}</p>
+            <p>&emsp;<strong>{len(updated_clin_pat)} Patients:</strong> {", ".join(updated_clin_pat)}</p>
+            <p>&emsp;<strong>{len(updated_clin_sample)}Samples:</strong> {", ".join(updated_clin_sample)}</p>
             </div>
             """
 
@@ -516,8 +523,8 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         html_content += f"""
             <div class="content">
             <p><strong>ADDED:</strong></p>
-            <p>&emsp;<strong>Patients:</strong> {", ".join(added_clin_pat)}</p>
-            <p>&emsp;<strong>Samples:</strong> {", ".join(added_clin_sample)}</p>
+            <p>&emsp;<strong>{len(added_clin_pat)} Patients:</strong> {", ".join(added_clin_pat)}</p>
+            <p>&emsp;<strong>{len(added_clin_pat)} Samples:</strong> {", ".join(added_clin_sample)}</p>
             </div>
             """
 
@@ -589,11 +596,11 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
                 <p><strong>AF</strong>: {filters1["AF"]}</p>
             </div>"""
 
-    if any(filter in common_filters for filter in ["ONCOKB_FILTER", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
+    if any(filter in common_filters for filter in ["ONCOKB", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
         html_content += f"""
             <div class="subtitle">MAF Filters</div>"""
 
-    if "ONCOKB_FILTER" in common_filters:
+    if "ONCOKB" in common_filters:
         html_content += f"""
                 <div class="content">
                 <p><strong>ONCOKB</strong>: {filters1["ONCOKB"]}</p>
@@ -931,11 +938,11 @@ def write_report_extract(original_study, new_study, number_for_graph):
                 <p><strong>AF</strong>: {filters["AF"]}</p>
             </div>"""
     
-    if any(filter in filters.keys() for filter in ["ONCOKB_FILTER", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
+    if any(filter in filters.keys() for filter in ["ONCOKB", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
         html_content += f"""
             <div class="subtitle">MAF Filters</div>"""
 
-    if "ONCOKB_FILTER" in filters.keys():
+    if "ONCOKB" in filters.keys():
         html_content += f"""
                 <div class="content">
                 <p><strong>ONCOKB</strong>: {filters["ONCOKB"]}</p>
@@ -1233,11 +1240,11 @@ def write_report_remove(original_study, new_study, number_for_graph):
                 <p><strong>AF</strong>: {filters["AF"]}</p>
             </div>"""
     
-    if any(filter in filters.keys() for filter in ["ONCOKB_FILTER", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
+    if any(filter in filters.keys() for filter in ["ONCOKB", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
         html_content += f"""
             <div class="subtitle">MAF Filters</div>"""
 
-    if "ONCOKB_FILTER" in filters.keys():
+    if "ONCOKB" in filters.keys():
         html_content += f"""
                 <div class="content">
                 <p><strong>ONCOKB</strong>: {filters["ONCOKB"]}</p>

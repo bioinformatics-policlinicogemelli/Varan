@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VARAN - Data Management Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e6f0ff;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        header {
+            background-color: #003366;
+            color: white;
+            padding: 20px;
+            text-align: left;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            font-size: 1.6em;
+            margin: 5px 0;
+            color: #003366;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+
+        .content {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .blue-text {
+            color: #003366;
+        }
+
+        a {
+            color: #003366;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1><a href="index.html" style="color: white; text-decoration: none;">VARAN</a></h1>
+</header>
+
+<div class="container">
+
+    <a href="https://zenodo.org/doi/10.5281/zenodo.12806060">
+        <img src="https://zenodo.org/badge/788270006.svg" alt="DOI Badge">
+    </a>
+
+    <p align="center">
+        <img src="img/logo_VARAN.png" alt="Varan logo" style="height: 350px; width: 350px;">
+    </p>
+
+    <h2>Overview</h2>
+    <p class="content">Varan is a Python-based application that provides a pipeline to prepare and manipulate cancer genomics data for <a href="https://www.cbioportal.org/" target="_blank">cBioPortal</a>.</p>
+
+    <h2>Features</h2>
+    <ul class="content">
+        <li><b>Study Creation</b>: Generates a validated study folder from raw VCF files, ready for upload to cBioPortal.</li>
+        <li><b>Study Manipulation</b>: Enables study modification by merging studies or extracting/removing samples.</li>
+    </ul>
+
+    <a href="quickstart.html"><h2>Quick Start</h2></a>
+    <p class="content">Deploy Varan from raw data to analysis pipelines in under 30 minutes using a Docker container.</p>
+
+    <a href="user_guide.html"><h2>User Guide</h2></a>
+    <p class="content">Detailed descriptions of Varan's usage, functions, and workflows.</p>
+
+    <h2>Issue Reporting</h2>
+    <p class="content">Open an <a href="https://github.com/bioinformatics-policlinicogemelli/Varan-Pub/issues" target="_blank">issue on GitHub</a> if you encounter problems not covered in the documentation.</p>
+
+    <h2>Citing Varan</h2>
+    <p class="content">For citation, use the DOI: <a href="https://zenodo.org/doi/10.5281/zenodo.12806060" target="_blank">https://zenodo.org/doi/10.5281/zenodo.12806060</a>.</p>
+
+</div>
+
+</body>
+</html>
