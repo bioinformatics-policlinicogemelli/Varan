@@ -52,16 +52,16 @@ header h1 {
 
 
 .main-container {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
+    margin-left: 0; /* Il contenuto non deve essere spostato dalla sidebar */
+    transition: margin-left 0.3s ease-in-out;
 }
+
 
 /* Sidebar */
 .sidebar {
     position: fixed;
+    left: -220px;
     top: 0;
-    left: 0;
     height: 100vh;
     width: 220px;
     background-color: #e6f0ff;
@@ -70,13 +70,12 @@ header h1 {
     padding-left: 15px;
     font-family: Arial, sans-serif;
     font-size: 1.1em;
-    overflow-y: auto;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    display: block; 
+    transition: left 0.3s ease-in-out;
 }
 
 .sidebar.active {
-    display: block; 
+    left: 0; 
 }
 
 .sidebar h2 {
@@ -110,6 +109,10 @@ header h1 {
 .sidebar ul li ul {
     margin-left: 15px;
     font-size: 0.9em;
+}
+
+.sidebar.active + .main-container {
+    margin-left: 220px; /* Sposta il contenuto quando la sidebar è visibile */
 }
 
 
