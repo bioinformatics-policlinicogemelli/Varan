@@ -1,9 +1,16 @@
-###############################################
-# NAME : vcf2tab_cnv.py
-# Date: 11/10/2023
-version = "1.0"
-###############################################
+#Copyright 2025 bioinformatics-policlinicogemelli
 
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 
 import argparse
 import math
@@ -13,10 +20,7 @@ import os
 from loguru import logger
 
 def is_positive(number, SAMPLE):
-	"""
-	Questa funzione prende in input un numero 
-	e restituisce True se il numero è positivo, False altrimenti.
-	"""
+
 	if number >= 0:
 		return True
 	else:
@@ -37,14 +41,13 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 			pass
 		else:
 			table.write('ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\n')
-		SAMPLE=SAMPLE.split(".")[0] #remove .bam
+		SAMPLE=SAMPLE.split(".")[0]
 
 		for line in vcf:
 
 			if line.startswith("##fileformat"):
 				version = (line.split("=")[-1]).strip()
-				#logger.info(f"Analyzing {version} version")
-
+			
 			# Skip commented lines
 			if line.startswith('##'):
 				continue
@@ -71,24 +74,6 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 			qual = fields[qual_position]
 			info = fields[format_position]
 		
-
-			# Id = fields[2]
-			# position=Id.split(":")[-1]
-			# start=position.split("-")[0]
-			# end=position.split("-")[1]
-
-			
-			# info = fields[7].split(';')
-			# if len(info) == 2:
-			# # 	end = info[0].split('=')[1]
-			#  	gene =info[1].split('=')[1]
-			# else:
-			# # 	end = info[1].split('=')[1]
-			# 	gene =info[2].split('=')[1]
-				
-			#fc = float(fields[9])
-
-############### CASISTICHE POSSIBILI DA RICONTROLLARE CON LUCIANO ################################
 			format = fields[format_infos_position]
 			if version == "VCFv4.1":
 				if format == "FC":
@@ -112,21 +97,8 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 					log2fc = math.log(fc,2)
 			else:
 				continue
-################ CHIEDERE A LUCIANO COSA FARE SE FC = . ############################
 
-			# check negative Fold change values
-			# if a negative fold chenge is found
-			# the Fold change value is changed in 0.0001
-			# if is_positive(fc, SAMPLE):
-			# 	log2fc = math.log(fc,2)
-			# else:
-			# 	fc = 0.0001
-			# 	log2fc = math.log(fc,2)
-			# Write the data to the table file
-			# segmentated data example
-			# ID<TAB>chrom<TAB>loc.start<TAB>loc.end<TAB>num.mark<TAB>seg.mean
 			table.write(f'{SAMPLE}\t{chrom}\t{start}\t{end}\t{qual}\t{log2fc}\n')
-			#print(f'{SAMPLE}\t{chrom}\t{start}\t{end}\t{qual}\t{fc}\n')
 
 
 def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
@@ -144,7 +116,6 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 		for line in vcf:
 			if line.startswith("##fileformat"):
 				version = (line.split("=")[-1]).strip()
-				#logger.info(f"Analyzing {version} version")
 
 			if line.startswith('##'):
 				continue
@@ -229,34 +200,3 @@ def main(INPUT, OUTPUT, SAMPLE, MODE):
 	vcf_to_table(INPUT, OUTPUT, SAMPLE, MODE)
 	vcf_to_table_fc(INPUT, OUTPUT, SAMPLE, MODE)
 
-if __name__ == '__main__':
-
-	# parse arguments
-	parser = argparse.ArgumentParser(description="Get a vcf file, generate a table",
-											epilog="Version: 1.0\n\
-											Author: Luciano Giaco'\n\
-											email: luciano.giaco@policlinicogemelli.it")
-
-    # arguments
-	parser.add_argument('-i', '--input', help="<input.vcf>\
-											VCF file for CNV",
-											required=True)
-	parser.add_argument('-o', '--output', help="<output-file.tab>\
-											file path of the Table output",
-											required=True)
-
-	parser.add_argument('-s', '--sample', help="<sample name>\
-											Name of the sample",
-											required=True)
-	parser.add_argument('-m', '--mode', help="Select the writing mode: write or append",
-											choices=['w', 'a'],
-											default='w')
-
-
-	args = parser.parse_args()
-	INPUT = args.input
-	OUTPUT = args.output
-	SAMPLE = args.sample
-	MODE = args.mode
-
-	main(INPUT, OUTPUT, SAMPLE, MODE)
