@@ -108,7 +108,7 @@
             <h5 id="step-4-2">Step 4.2: Remove samples from an existing study</h5>
             <p>You can create a new study by removing specific samples from an existing study.</p>
 
-            <p id="step-4-3">Create a list of the samples to remove:</p>
+            <p>Create a list of the samples to remove:</p>
             <pre>nano TEST/Input/remove_list.tsv</pre>
             <p>In the editor, type the sample IDs:</p>
             <pre>0000001_DNA
@@ -119,7 +119,7 @@
             <pre>docker run --rm -it -v ./TEST:/test_folder -v ./conf.ini:/conf.ini  varan -r -p test_folder/Output/output_test_v1 -s test_folder/Input/remove_list.tsv -o test_folder/Output/remove_study</pre>
             <p>The new <i>remove_study_v1</i> folder contains a study with the original samples, excluding the ones that were removed</p>
 
-            <h5>Step 4.3: Merge two existing studies</h5>
+            <h5 id="step-4-3">Step 4.3: Merge two existing studies</h5>
             <p>You can create a new study by merging two existing studies and updating the information.</p>
             
             <p>To merge the <i>remove_study_v1</i> and <i>extract_study_v1</i> studies, use the following command:</p>
@@ -145,7 +145,7 @@
                 const targetElement = document.getElementById(targetId);
                 if (targetElement) {
                     window.scrollTo({
-                        top: targetElement.offsetTop - 20,
+                        top: targetElement.offsetTop - 100,
                         behavior: 'smooth'
                     });
                 }
