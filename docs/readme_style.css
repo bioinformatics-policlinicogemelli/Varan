@@ -24,6 +24,9 @@ body {
 }
 
 header {
+    position: fixed;
+    top: 0;
+    left: 0;
     background-color: #003366;
     color: white;
     padding: 20px;
@@ -47,12 +50,13 @@ header h1 {
     background-color: #003366;
     border: none;
     padding: 10px;
-    margin: 0; /* Rimuovi margine */
+    margin: 0; 
 }
 
 
 .main-container {
-    margin-left: 0; /* Il contenuto non deve essere spostato dalla sidebar */
+    margin-left: 0;
+    margin-top: 80px;
     transition: margin-left 0.3s ease-in-out;
 }
 
@@ -61,8 +65,8 @@ header h1 {
 .sidebar {
     position: fixed;
     left: -220px;
-    top: 0;
-    height: 100vh;
+    top: 80px;
+    height: calc(100vh - 80px);
     width: 220px;
     background-color: #e6f0ff;
     padding-top: 20px;
@@ -111,10 +115,9 @@ header h1 {
     font-size: 0.9em;
 }
 
-.sidebar.active + .main-container {
-    margin-left: 220px; /* Sposta il contenuto quando la sidebar è visibile */
+.main-container.sidebar-active {
+    margin-left: 220px; 
 }
-
 
 /* Main Content */
 .content {

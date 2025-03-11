@@ -133,7 +133,9 @@
     <script>
         function toggleMenu() {
             const sidebar = document.querySelector('.sidebar');
+            const mainContainer = document.querySelector('.main-container');
             sidebar.classList.toggle('active');
+            mainContainer.classList.toggle('sidebar-active');
         }
 
         document.querySelectorAll('.sidebar a').forEach(link => {
