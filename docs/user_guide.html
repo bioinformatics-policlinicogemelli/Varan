@@ -716,25 +716,6 @@ study_name
             const sidebar = document.querySelector('.sidebar');
             sidebar.classList.toggle('active');
         }
-
-        function copyToClipboard(event) {
-            var text = event.target.previousElementSibling.innerText;
-            var tempInput = document.createElement("input");
-            document.body.appendChild(tempInput);
-            tempInput.value = text;
-            tempInput.select();
-            document.execCommand("copy");
-            document.body.removeChild(tempInput);
-            alert("Text copied to clipboard!");
-        }
-
-        document.querySelectorAll('pre').forEach(function(container) {
-        var button = document.createElement('button');        
-        button.classList.add('copy-btn');                      
-        button.textContent = 'Copy';                          
-        button.onclick = copyToClipboard;                     
-        container.appendChild(button);
-    });
     </script>
 </body>
 </html>

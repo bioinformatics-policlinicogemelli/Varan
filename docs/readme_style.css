@@ -28,9 +28,9 @@ header {
     color: white;
     padding: 20px;
     width: 100%;
-    display: flex; /* Impostiamo il contenitore come flexbox */
-    justify-content: flex-start; /* Allinea gli elementi a sinistra (vicino tra loro) */
-    align-items: center; /* Centra verticalmente gli elementi */
+    display: flex;
+    justify-content: flex-start; 
+    align-items: center;
     z-index: 10;
 }
 
@@ -69,7 +69,7 @@ header h1 {
     font-size: 1.1em;
     overflow-y: auto;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    display: scroll; 
+    display: block; 
 }
 
 .sidebar.active {
@@ -183,37 +183,6 @@ pre {
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: break-word;
-}
-
-.code-container {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-    background-color: transparent;
-    border-radius: 8px;
-}
-
-.copy-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    cursor: pointer;
-    border-radius: 5px;
-    font-size: 14px;
-    z-index: 10;
-}
-
-.copy-btn:hover {
-    background-color: #0056b3;
-}
-
-.copy-btn {
-    display: inline-block;
-    visibility: visible; 
 }
 
 table {
