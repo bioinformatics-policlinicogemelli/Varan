@@ -62,10 +62,10 @@
                 <li>Navigate to the directory where you would like to install the repository. You can do so by using the <code>cd</code> command followed by the desired path.</li>
             </ol>
             <p>Once you're in the desired directory, you can proceed by running the following commands:</p>
-            <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan-Pub.git</pre>
+            <pre>git clone https://github.com/bioinformatics-policlinicogemelli/Varan.git</pre>
             <p>Before proceeding, ensure that Docker is running on your system. You can verify this by checking if the Docker service is active. If Docker is not running, start the Docker service before continuing.</p>
             <p>Once Docker is running, navigate to the repository and build the Docker container:</p>
-            <pre>cd Varan-Pub</pre>
+            <pre>cd Varan</pre>
             <pre>docker build -t varan .</pre>
             <p>Test the installation with the following command:</p>
             <pre>docker run --rm -it varan -h</pre>
@@ -76,7 +76,7 @@
             <p> To download test data follow the steps below:
                 <ol>
                     <li>Download all the necessary files at this <a href="https://mega.nz/file/AhQSxCIa#WoU8-v0e8Ra9zlhSMUAm2MmPz6p6OPNbRSRUXD88HHM">link</a>.</li> 
-                    <li>Move <i>TEST.zip</i> folder in Varan-Pub folder.</li>
+                    <li>Move <i>TEST.zip</i> folder in Varan folder.</li>
                     <li>Unzip <i>TEST.zip</i>.</li>
                 </ol>
             </p>
