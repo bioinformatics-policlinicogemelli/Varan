@@ -69,7 +69,7 @@
                 <li><span class="highlight">Detailed Reports</span>: For each version, a comprehensive report is generated, which includes the filters applied, the configuration used in the study, the number of samples and patients, and a comparison with previous versions to track the study's evolution.</li>
                 
                 <li><span class="highlight">Validation Check</span>: Before uploading a study to cBioPortal, the system performs a validation to confirm the upload can be executed successfully.<br>
-                    <span class="highlight">Be warned that files succeeding this validation may still fail to load (correctly).</span></li>
+                    <p>⚠️ Be warned that files succeeding this validation may still fail to load (correctly).</p></li>
             </ul>
 
             <h3 id="study-creation">Study Creation</h3>
@@ -111,7 +111,7 @@ input_folder/
             <ul>
                 <li><span class="highlight">SNV</span> folder contains all VCF files related to single nucleotide variants.</li>
                 <li><span class="highlight">CNV</span> folder contains all VCF files related to copy number variants.</li>
-                <li><span class="highlight">CombinedVariantOutput</span> folder contains all the Combined Variant Output files in TSV format, named based on the patient ID. These files include information about TMB, MSI, and Fusions.</li>
+                <li><span class="highlight">CombinedOutput</span> folder contains all the Combined Variant Output files in TSV format, named based on the patient ID. These files include information about TMB, MSI, and Fusions.</li>
                 <li><span class="highlight">FUSIONS</span> folder contains the template fusion.tsv, which can be filled with fusion data if the Combined Variant Output files are unavailable.</li>
                 <li><span class="highlight">sample.tsv</span> file is a template for clinical data of the samples.</li>
                 <li><span class="highlight">patient.tsv</span> file is a template for clinical data of the patients.</li>
@@ -120,18 +120,16 @@ input_folder/
             <h5 id="file">File(s)</h5>
             <p>The user must compile several input files (by filling in specific templates):</p>
             <ul>
-                <li><span class="highlight">sample.tsv</span> file is a template for clinical data of the samples.</li>
-                <li><span class="highlight">patient.tsv</span> file is a template for clinical data of the patients.</li>
-                <li><span class="highlight">fusions.tsv</span> file is a template for fusions' information.</li>
+                <li><span class="highlight">sample.tsv</span> file is a template for clinical data of the samples; ⚠️ mandatory.</li>
+                <li><span class="highlight">patient.tsv</span> file is a template for clinical data of the patients; optional.</li>
+                <li><span class="highlight">fusions.tsv</span> file is a template for fusions' information; optional.</li>
             </ul>
-            
-            <p>⚠️ For this kind of input, only the <i>sample.tsv</i> file is required.</p>
 
             <h5 id="templates">Templates</h5>
             <p>For both folder-based and file-based input, users are required to complete the provided templates. The following section outlines the structure of these templates:</p>
 
             <h6 id="sample.tsv"><i>sample.tsv</i></h6>
-            <p>The following table shows the required fields for the sample clinical data (this will generate the <i>data_clinical_sample.txt</i> file).</p>
+            <p>The table below lists the required fields for the clinical data from samples, which will be used to generate the <i>data_clinical_sample.txt</i> file.</p>
             <p>⚠️ This file is required for Varan analysis!</p>
 
           <table>
@@ -180,7 +178,7 @@ input_folder/
             <p>⚠️ The user can add new columns starting from the last one.</p>
             
             <h6 id="patient.tsv"><i>patient.tsv</i></h6>
-            <p>This template must be filled by the user with all disposable patients' clinical info and will be used to create the <i>data_clinical_patient.txt</i>.</p>
+            <p>This template must be completed by the user with all relevant clinical information for the patients, and it will be used to generate the <i>data_clinical_patient.txt</i> file.</p>
             <p>⚠️ This file is optional.</p>
             <table>
               <thead>
@@ -208,7 +206,7 @@ input_folder/
             </ul>
             
             <h6 id="fusion.tsv"><i>fusion.tsv</i></h6>
-            <p>This template must be filled by the user with all disposable fusion info and will be used to create the <i>data_sv.txt</i>.</p>
+            <p>This template must be completed by the user with all relevant fusion data, and it will be used to generate the <i>data_sv.txt</i> file.</p>
             <p>⚠️ This file is optional.</p>
             <table>
                 <thead>
@@ -233,15 +231,15 @@ input_folder/
             
             <p>The obligatory fields to keep are:</p>
             <ul>
-                <li><span="highlight">Sample_Id</span>: IDs of all sample of interest</li>
-                <li><span="highlight">SV_Status</span>: fusion type</li>
-                <li><span="highlight">Site1_Hugo_Symbol</span>: first gene involved in fusion</li>
-                <li><span="highlight">Site2_Hugo_Symbol</span>: second gene involved in fusion</li>
+                <li><span class="highlight">Sample_Id</span>: IDs of all sample of interest</li>
+                <li><span class="highlight">SV_Status</span>: fusion type</li>
+                <li><span class="highlight">Site1_Hugo_Symbol</span>: first gene involved in fusion</li>
+                <li><span class="highlight">Site2_Hugo_Symbol</span>: second gene involved in fusion</li>
             </ul>
 
             <h5 id="configuration-file1">Configuration File</h5>
-            <p>The first step to using Varan is to properly configure the <i>conf.ini</i> file.</p>
-            <p>⚠️ In the next subparagraph, for each field the type of variable requested will be inserted between angle brackets &lt;&gt;. For string, two possible entries can be found: &lt; 'string' &gt; and &lt; string &gt;. In the first case, it is requested to insert text inside quotation marks (*i.e. DESCRIPTION='this is the description'*), while on the other one, quotation marks are not requested (*i.e. PROJECT_NAME=study*).</p>
+            <p>The next step to using Varan is to properly configure the <i>conf.ini</i> file.</p>
+            <p>⚠️ In the next subparagraph, for each field the type of variable requested will be inserted between angle brackets &lt;&gt;. For string, two possible entries can be found: &lt; 'string' &gt; and &lt; string &gt;. In the first case, it is requested to insert text inside quotation marks (i.e. DESCRIPTION='this is the description'), while on the other one, quotation marks are not requested (i.e. PROJECT_NAME=study).</p>
             <p>⚠️ For Docker, a partially pre-filled <i>conf.ini</i> file is provided, with some paths already configured.</p>
             <p>⚠️ Only the fields from the <i>conf.ini</i> file that are actively used for this functionality will be displayed below.</p>
 
@@ -255,7 +253,7 @@ VEP_PATH = &lt; string &gt;
 VEP_DATA = &lt; string &gt;
 CACHE = &lt; string &gt;</pre>
             
-            <p>The reference genome must be the same used for the VCFs annotation.</p>
+            <p>⚠️ The reference genome must be the same used for the VCFs annotation.</p>
 
             <h6>Multiple</h6>
             <p>In this section, it's possible to specify the paths in case of multiple SNV, CNV, and/or Combined Variant Output files analysis.</p>
@@ -290,7 +288,7 @@ PROFILE_CNA_HG19 = &lt; 'string' &gt;
 PROFILE_SV = &lt; 'string' &gt;</pre>
 
             <h6>Filters</h6>
-            <p>Here, it is possible to specify the filters' threshold to apply to SNV maf files. For more information, refer to <a href="#filters"> filters section</a>.</p>
+            <p>Here, it is possible to specify the filters' threshold to apply to SNV maf files. For more information, refer to <a href="#filtering"> filters section</a>.</p>
             <pre>[Filters]
 t_VAF_min = &lt; float &gt;
 t_VAF_max = &lt; float &gt;
@@ -304,10 +302,10 @@ POLYPHEN = &lt; ['string','string',...] &gt;
 IMPACT = &lt; ['string','string',...] &gt;
 SIFT = &lt; ['string','string',...] &gt;</pre>
 
-            <p>⚠️ The AF field can be populated with &lt;/&gt;/&lt;=/&gt;&gt;=val (i.e., AF = &lt;0.003&gt;)</p>
+            <p>⚠️ The AF field can be populated with &lt;/&gt;/&lt;=/&gt;= val (i.e., AF = &lt;0.003)</p>
 
             <h6>Cna</h6>
-            <p>In this section, the user can insert CNV genotypes of interest and ploidy.</p>
+            <p>In this section, the user can insert CNV genotypes of interest, ploidy and In this section, the user can input the CNV genotypes of interest, ploidy, and choose whether or not to apply copy number discretization using the cnvkit formula</a> .</p>
             <pre>[Cna]
 HEADER_CNV = &lt; ['string','string',...] &gt;
 PLOIDY = &lt; int &gt;
@@ -340,7 +338,7 @@ THRESHOLD_FUSION = &lt; string &gt;</pre>
             ⚠️ THRESHOLD can be populated with &lt;/&gt;/&lt;=/&gt;=val (i.e., THRESHOLD = &gt;=15).
 
             <h6>ClinicalSample</h6>
-            <p>Users can customize column names and data types for the data_clinical_sample.txt file.</p>
+            <p>Users can customize column names and data types for the <i>data_clinical_sample.txt</i> file.</p>
             <pre>[ClinicalSample]
 HEADER_SAMPLE_SHORT = &lt; ['string','string',...] &gt;
 HEADER_SAMPLE_LONG = &lt; ['string','string',...] &gt;
