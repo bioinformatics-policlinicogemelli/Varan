@@ -16,36 +16,39 @@
     <div class="main-container">
         <div class="sidebar">
             <ul>
-                <li><a href="#study-creation">Study Creation</a>
+                <li><a href="index.html">Home</a></li>
                 <ul>
-                    <a href="#input-preparation1">Input Preparation</a>
+                    <li><a href="#study-creation">Study Creation</a>
                     <ul>
-                        <li><a href="#folder1">Folder</a></li>
-                        <li><a href="#file">File(s)</a></li>
-                        <li><a href="#templates">Templates</a></li>
-                        <li><a href="#configuration-file1">Configuration File</a></li>
+                        <a href="#input-preparation1">Input Preparation</a>
+                        <ul>
+                            <li><a href="#folder1">Folder</a></li>
+                            <li><a href="#file">File(s)</a></li>
+                            <li><a href="#templates">Templates</a></li>
+                            <li><a href="#configuration-file1">Configuration File</a></li>
+                        </ul>
+                        <a href="#launch-varan1">Launch Varan</a>
+                        <ul>
+                            <li><a href="#options1">Options</a></li>
+                            <li><a href="#filtering">Filtering</a></li>
+                            <li><a href="#examples1">Examples</a></li>
+                        </ul>
                     </ul>
-                    <a href="#launch-varan1">Launch Varan</a>
+                    <li><a href="#study-manipulation">Study Manipulation</a>
                     <ul>
-                        <li><a href="#options1">Options</a></li>
-                        <li><a href="#filtering">Filtering</a></li>
-                        <li><a href="#examples1">Examples</a></li>
+                        <a href="#input-preparation2">Input Preparation</a>
+                        <ul>
+                            <li><a href="#folder2">Folder</a></li>
+                            <li><a href="#configuration-file2">Configuration File</a></li>
+                        </ul>
+                        <a href="#launch-varan2">Launch Varan</a>
+                        <ul>
+                            <li><a href="#options2">Options</a></li>
+                            <li><a href="#examples2">Examples</a></li>
+                        </ul>
                     </ul>
+                    <li><a href="#output">Output</a>
                 </ul>
-                <li><a href="#study-manipulation">Study Manipulation</a>
-                <ul>
-                    <a href="#input-preparation2">Input Preparation</a>
-                    <ul>
-                        <li><a href="#folder2">Folder</a></li>
-                        <li><a href="#configuration-file2">Configuration File</a></li>
-                    </ul>
-                    <a href="#launch-varan2">Launch Varan</a>
-                    <ul>
-                        <li><a href="#options2">Options</a></li>
-                        <li><a href="#examples2">Examples</a></li>
-                    </ul>
-                </ul>
-                <li><a href="#output">Output</a>
             </ul>
         </div>
 
@@ -85,6 +88,7 @@
                 <li><span class="highlight">File Input</span>: a file containing the paths to the data files.</li>
             </ol>
             <p>Both formats are supported for processing, and you can choose the one that best suits your workflow.</p>
+            <p>Varan currently accept Mutations and CNA data as input.</p>
             <h5 id="folder1">Folder</h5>
             <p>The user must organize an input folder containing all of the vcf and tsv files requested following the structure reported below:</p>
             <pre>
@@ -253,7 +257,7 @@ VEP_PATH = &lt; string &gt;
 VEP_DATA = &lt; string &gt;
 CACHE = &lt; string &gt;</pre>
             
-            <p>⚠️ The reference genome must be the same used for the VCFs annotation.</p>
+            <p>⚠️ The reference genome must be the same used for the secondary analysis and the VCFs annotation.</p>
 
             <h6>Multiple</h6>
             <p>In this section, it's possible to specify the paths in case of multiple SNV, CNV, and/or Combined Variant Output files analysis.</p>
