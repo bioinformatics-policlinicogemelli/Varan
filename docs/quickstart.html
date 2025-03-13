@@ -94,6 +94,8 @@
             <h4 class="subsection-title" id="step-3">Step 3: Create a new study</h4>
             <p>To create your first study, run the following command:</p>
             <pre>docker run --rm -it -v ./TEST:/test_folder -v ./conf.ini:/conf.ini  varan -i test_folder/Input -o test_folder/Output/output_test -c mixed</pre>
+            <p><span class="highlight">⚠️ Watch out for paths!</span> Depending on your Docker version, you may need to use absolute paths instead of relative ones in the volume mapping. Using relative paths might result in an error when mounting directories.</p>
+            
             <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready.</p>
             <p>Congratulations on completing your first Varan study! You can take some time to explore the output files.</p>
 
