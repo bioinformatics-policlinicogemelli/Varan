@@ -1,4 +1,17 @@
-# cBioportal metafile
+#Copyright 2025 bioinformatics-policlinicogemelli
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
+
 import argparse
 import os
 from configparser import ConfigParser
@@ -45,7 +58,6 @@ def create_meta_study(cancer, project_name, project_id, description, output_dir,
     meta_file = open(os.path.join(output_dir, "meta_study.txt"), "w")
     logger.info("Writing meta_study.txt file...")
     for key, value in dictionary_file.items():
-        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
     logger.info("meta_study.txt created!")
@@ -74,7 +86,6 @@ def create_meta_clinical_patient(project_id, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_clinical_patient.txt"), "w")
     logger.info("Writing meta_clinical_patient.txt file...")
     for key, value in dictionary_file.items():
-        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -100,7 +111,6 @@ def create_meta_clinical_sample(project_id, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_clinical_sample.txt"), "w")
     logger.info("Writing meta_clinical_sample.txt file...")
     for key, value in dictionary_file.items():
-        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -139,7 +149,6 @@ def create_meta_mutations(cancer, project_id, profile, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_mutations_extended.txt"), "w")
     logger.info("Writing meta_mutations_extended.txt file...")
     for key, value in dictionary_file.items():
-        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -178,7 +187,6 @@ def create_meta_sv(project_id, profile, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_sv.txt"), "w")
     logger.info("Writing meta_sv.txt file...")
     for key, value in dictionary_file.items():
-        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -217,7 +225,6 @@ def create_meta_cna(cancer, project_id, profile, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_cna.txt"), "w")
     logger.info("Writing meta_cna.txt file...")
     for key, value in dictionary_file.items():
-        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -250,7 +257,6 @@ def create_meta_cna_hg19(project_id, profile, output_dir):
     meta_file = open(os.path.join(output_dir, "meta_cna_hg19_seg.txt"), "w")
     logger.info("Writing meta_cna_hg19_seg.txt file...")
     for key, value in dictionary_file.items():
-        #logger.info(f"{key}: {value}", file=meta_file)
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
 
@@ -281,7 +287,6 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
             
     elif len(old_study_info)>0 and old_study_info[-1]:
         version = extract_version_str(output_folder)
-        #version=re.search(r'_v(\d+)$', version).group(0)
         project_id = old_study_info[0]+version
         project_name = old_study_info[1]+version.replace("_"," ")
         
@@ -294,12 +299,9 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     logger.info("Creating case list folder...")
     cases_list_dir = os.path.join(output_folder, "case_lists")
     if os.path.exists(cases_list_dir):
-        # logger.info("It seemps that this folder already exists")
         pass
     else:
         os.mkdir(cases_list_dir)
-
-    # output_folder = output_folder.split("_v")[0]
 
     ###########  METAFILE FUNCTIONS ###########
     project_id = create_meta_study(cancer, project_name, project_id, description, output_folder, version)
@@ -340,12 +342,6 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     check_cases(output_folder)
     logger.success("Make_meta_and_cases script completed!\n")
 
-class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
-  def error(self, message):
-    raise ValueError(message)
-
-
 
 def check_cases(output_folder):
     cases_path = os.path.join(output_folder,"case_lists")
@@ -355,40 +351,3 @@ def check_cases(output_folder):
             if lines[-1].strip() == "case_list_ids:":
                 os.remove(os.path.join(cases_path, case_file))
                 logger.info(f"No samples found in {case_file}. This file will not be created")
-
-
-
-if __name__=="__main__":
-    
-    parser = MyArgumentParser(add_help=False, exit_on_error=False, usage=None, description='cBioportal arguments')
-
-    parser.add_argument('-c', '--Cancer', required=False,
-                        help='Cancer Name')
-    parser.add_argument('-o', '--Output', required=False,
-                        help='Output path')
-
-    try:
-        args = parser.parse_args()
-    except Exception as err:
-        logger.remove()
-        logfile = "make_meta_and_cases_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
-        logger.level("INFO", color="<green>")
-        logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}", colorize=True, catch=True)
-        logger.add(os.path.join('Logs', logfile), format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}", mode="w")
-        logger.critical(f"error: {err}", file=sys.stderr)
-  
-    cancer = args.Cancer
-    output = args.Output
-    
-    # config = ConfigParser()
-
-    # parse existing file
-    # read config file
-    # configFile = config.read("conf.ini")
-    # project = config.get("Project","PROJECT_NAME")
-    # project_name = "_" + project
-    # description = config.get("Project","DESCRIPTION")
-    # profile = config.get("Project","PROFILE")
-
-
-    meta_case_main(cancer,output)

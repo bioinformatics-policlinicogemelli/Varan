@@ -1,3 +1,17 @@
+#Copyright 2025 bioinformatics-policlinicogemelli
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
+
 import os
 import sys
 import argparse
@@ -8,13 +22,10 @@ from ValidateFolder import validateOutput, copy_maf
 from versioning import *
 from loguru import logger
 from write_report import *
-
+from filter_clinvar import check_bool
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
-
-ZIP_MAF = config.getboolean('Zip', 'ZIP_MAF')
-COPY_MAF = config.getboolean('Zip', 'COPY_MAF')
 
 
 def delete_main(oldpath, removepath, output, study_id, overwrite):
@@ -114,11 +125,11 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
     study_info.append(no_out)
     
     meta_case_main(cancer, output, study_info, study_id)
-    
-    # if len(old_versions)>=1:
-    #     old_version=old_versions[-1]
-    #     compare_version(output, old_version, "delete", output)
 
+    ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+    ZIP_MAF = check_bool(ZIP_MAF)
+    COPY_MAF = config.get('Zip', 'COPY_MAF')
+    COPY_MAF = check_bool(COPY_MAF)
     copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
 
     logger.info("Starting Validation Folder...")

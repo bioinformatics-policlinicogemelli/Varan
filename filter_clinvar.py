@@ -1,9 +1,16 @@
-#####################################
-# NAME: filter_clinvar.py
-# AUTHOR: Luciano Giaco'
-# Date: 23/01/2023
-version = "1.0"
-# ===================================
+#Copyright 2025 bioinformatics-policlinicogemelli
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 
 import os
 import ast
@@ -18,6 +25,18 @@ import numpy as np
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
+def check_bool(key_value):
+    bool_key_value = key_value
+    if bool_key_value.strip() in ["True", "true", "T"]:
+        bool_key_value = True
+    elif bool_key_value.strip() in ["False", "false", "F", ""]:
+        bool_key_value = False
+    else:
+        logger.critical(f"Please insert a boolean value in {bool_key_value} section of conf.ini: accepted values are [\"True\", \"true\", \"T\", \"False\", \"false\", \"F\", \"\"]")
+        raise ValueError("Check again the compilation conf.ini")
+    return bool_key_value
+
+
 def print_unique_clin_sig(df):
     unique_clin_sig = df['CLIN_SIG'].unique()
     print(unique_clin_sig)
@@ -28,12 +47,6 @@ def filter_OncoKB(df):
     df_filtered=df[df["ONCOGENIC"].isin(oncokb_filter)]
     return df_filtered
 
-def filter_benign(df):
-    benign_filter = ~df['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
-            , case=False
-            , na=False
-            , regex=True)
-    return df[benign_filter]
 
 def check_CLIN_SIG(row):
     clin_sig=ast.literal_eval(config.get('Filters', 'CLIN_SIG'))
@@ -72,17 +85,6 @@ def check_sift(row):
     else:
         output.append(False)
     return any(output)
-
-
-# NON VIENE USATA??????????????????
-# def keep_risk_factors(df):
-#     benign_filter = ~df['CLIN_SIG'].str.contains(config.get('Filters', 'BENIGN')
-#         , case=False
-#         , na=False
-#         , regex=True)
-#     df=df[benign_filter]
-#     df = df[df.apply(check_CLIN_SIG,axis=1)|df.apply(check_consequences,axis=1)]
-#     return df
 
 
 def write_csv_with_info(df, file_path):
@@ -195,9 +197,10 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                 else:
                     file_to_filter = file_to_filter[(file_to_filter[vaf_colname] > t_VAF_min) & (file_to_filter[vaf_colname] <= t_VAF_max)]
             
-            if "a" in filters: # for intronic variants   
+            if "a" in filters:
                 af=config.get('Filters', 'AF')
-                drop_NA = ast.literal_eval(config.get('Filters', 'drop_NA_AF'))
+                drop_NA = config.get('Filters', 'drop_NA_AF')
+                drop_NA = check_bool(drop_NA)
                 file_to_filter['AF'] = pd.to_numeric(file_to_filter['AF'], errors='coerce')
                 na_file_to_filter = file_to_filter[~file_to_filter.index.isin(file_to_filter["AF"].dropna().index)]
                 
@@ -209,7 +212,6 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
 
             if "c" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_CLIN_SIG,axis=1)]
-                #file_to_filter = file_to_filter[file_to_filter.apply(filter_benign,axis=1)]
                     
             if "q" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_consequences,axis=1)]

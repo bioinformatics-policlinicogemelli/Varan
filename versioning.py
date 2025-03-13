@@ -1,3 +1,17 @@
+#Copyright 2025 bioinformatics-policlinicogemelli
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
+
 import os 
 import re 
 from loguru import logger
@@ -72,7 +86,6 @@ def create_newest_version_folder(outputfolder):
 
 def extract_info_from_meta(folder):
     file_meta = os.path.join(folder, "meta_study.txt")
-    #vus = False
     with open(file_meta, 'r') as meta:
         for line in meta:
             if line.startswith("type_of_cancer"):
@@ -82,4 +95,4 @@ def extract_info_from_meta(folder):
             if line.startswith("name"):
                 study_name = re.split(r'V[0-9]$',line.split(":")[1].split("(")[0].strip())[0].strip()  
  
-    return cancer, [study_id, study_name]#, vus 
+    return cancer, [study_id, study_name]

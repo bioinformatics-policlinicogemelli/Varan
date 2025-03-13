@@ -1,3 +1,17 @@
+#Copyright 2025 bioinformatics-policlinicogemelli
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
+
 import os
 from Update_functions import *
 from loguru import logger
@@ -7,12 +21,10 @@ from Make_meta_and_cases import meta_case_main
 import shutil
 import sys
 from write_report import *
+from filter_clinvar import check_bool
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
-
-ZIP_MAF = config.getboolean('Zip', 'ZIP_MAF')
-COPY_MAF = config.getboolean('Zip', 'COPY_MAF')
 
 
 def update_main(oldpath, newpath, output, study_id, overwrite):
@@ -81,6 +93,10 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
 
     meta_case_main(cancer, output, study_info, study_id)
 
+    COPY_MAF = config.get('Zip', 'COPY_MAF')
+    COPY_MAF = check_bool(COPY_MAF)
+    ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+    ZIP_MAF = check_bool(ZIP_MAF)
     copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
     copy_maf(newpath, output, COPY_MAF, ZIP_MAF)
     
