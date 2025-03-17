@@ -16,26 +16,29 @@
     <div class="main-container">
         <div class="sidebar">
             <ul>
-                <li><a href="#requirements">Requirements</a>
-                    <ul>
-                        <li><a href="#software-requirements">Software Requirements</a></li>
-                        <li><a href="#hardware-requirements">Hardware Requirements</a></li>
-                    </ul>
-                </li>
-                <li><a href="#getting-started">Getting Started with Varan</a>
-                    <ul>
-                        <li><a href="#step-1">Step 1: Clone Varan repository</a></li>
-                        <li><a href="#step-2">Step 2: Download the example data</a></li>
-                        <li><a href="#step-3">Step 3: Create a new study</a></li>
-                        <li><a href="#step-4">Step 4: Modify an existing study</a>
-                            <ul>
-                                <li><a href="#step-4-1">Step 4.1: Extract samples from an existing study</a></li>
-                                <li><a href="#step-4-2">Step 4.2: Remove samples from an existing study</a></li>
-                                <li><a href="#step-4-3">Step 4.3: Merge two existing studies</a></li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
+                <li><a href="index.html">Home</a></li>
+                <ul>
+                    <li><a href="#requirements">Requirements</a>
+                        <ul>
+                            <li><a href="#software-requirements">Software Requirements</a></li>
+                            <li><a href="#hardware-requirements">Hardware Requirements</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#getting-started">Getting Started with Varan</a>
+                        <ul>
+                            <li><a href="#step-1">Step 1: Clone Varan repository</a></li>
+                            <li><a href="#step-2">Step 2: Download the example data</a></li>
+                            <li><a href="#step-3">Step 3: Create a new study</a></li>
+                            <li><a href="#step-4">Step 4: Modify an existing study</a>
+                                <ul>
+                                    <li><a href="#step-4-1">Step 4.1: Extract samples from an existing study</a></li>
+                                    <li><a href="#step-4-2">Step 4.2: Remove samples from an existing study</a></li>
+                                    <li><a href="#step-4-3">Step 4.3: Merge two existing studies</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
             </ul>
         </div>
 
@@ -75,7 +78,7 @@
             <h4 class="subsection-title" id="step-2">Step 2: Download the example data</h4>
             <p> To download test data follow the steps below:
                 <ol>
-                    <li>Download all the necessary files at this <a href="https://mega.nz/file/AhQSxCIa#WoU8-v0e8Ra9zlhSMUAm2MmPz6p6OPNbRSRUXD88HHM">link</a>.</li> 
+                    <li>Download all the necessary files at this <a href="https://drive.google.com/file/d/16PuHszwmw8e9ERhM1xrQ9hm1rBJME8FO/view?usp=sharing">link</a>.</li> 
                     <li>Move <i>TEST.zip</i> folder in Varan folder.</li>
                     <li>Unzip <i>TEST.zip</i>.</li>
                 </ol>
@@ -91,6 +94,8 @@
             <h4 class="subsection-title" id="step-3">Step 3: Create a new study</h4>
             <p>To create your first study, run the following command:</p>
             <pre>docker run --rm -it -v ./TEST:/test_folder -v ./conf.ini:/conf.ini  varan -i test_folder/Input -o test_folder/Output/output_test -c mixed</pre>
+            <p><span class="highlight">⚠️ Watch out for paths!</span> Depending on your Docker version, you may need to use absolute paths instead of relative ones in the volume mapping. Using relative paths might result in an error when mounting directories.</p>
+            
             <p>After about 2 minutes, the <i>output_test_v1</i> folder will be ready.</p>
             <p>Congratulations on completing your first Varan study! You can take some time to explore the output files.</p>
 
@@ -145,15 +150,19 @@
 
         document.querySelectorAll('.sidebar a').forEach(link => {
             link.addEventListener('click', function(event) {
-                event.preventDefault();
-                const targetId = this.getAttribute('href').substring(1);
-                const targetElement = document.getElementById(targetId);
-                if (targetElement) {
-                    window.scrollTo({
-                        top: targetElement.offsetTop - 100,
-                        behavior: 'smooth'
-                    });
-                }
+                const href = this.getAttribute('href');
+
+                if (href.startsWith('#')) {
+                    event.preventDefault();
+                    const targetId = href.substring(1);
+                    const targetElement = document.getElementById(targetId);
+                    if (targetElement) {
+                        window.scrollTo({
+                            top: targetElement.offsetTop - 100,
+                            behavior: 'smooth'
+                        });
+                    }
+                } 
             });
         });
     </script>
