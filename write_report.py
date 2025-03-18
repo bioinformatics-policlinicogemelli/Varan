@@ -515,7 +515,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
             <div class="content">
             <p><strong>UPDATED:</strong></p>
             <p>&emsp;<strong>{len(updated_clin_pat)} Patients:</strong> {", ".join(updated_clin_pat)}</p>
-            <p>&emsp;<strong>{len(updated_clin_sample)}Samples:</strong> {", ".join(updated_clin_sample)}</p>
+            <p>&emsp;<strong>{len(updated_clin_sample)} Samples:</strong> {", ".join(updated_clin_sample)}</p>
             </div>
             """
 

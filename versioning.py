@@ -93,6 +93,6 @@ def extract_info_from_meta(folder):
             if line.startswith("cancer_study_identifier"):
                 study_id = re.split(r'_v[0-9]+$',line.split(" ")[1])[0].strip()
             if line.startswith("name"):
-                study_name = re.split(r'V[0-9]$',line.split(":")[1].split("(")[0].strip())[0].strip()  
+                study_name = re.split(r'V[0-9]+$',line.split(":")[1].split("(")[0].strip())[0].strip()  
  
     return cancer, [study_id, study_name]
