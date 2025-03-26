@@ -200,46 +200,49 @@ def copy_maf(oldpath, output, COPY_MAF, ZIP_MAF):
             with zipfile.ZipFile(maf_zip_path, 'r') as zip_maf:
                 zip_maf.extractall(maf_dir)
 
-        ZIP_MAF = config.get('Zip', 'ZIP_MAF')
-        ZIP_MAF = check_bool(ZIP_MAF)
-        if ZIP_MAF and os.path.exists(final_zip):
-            os.makedirs(output_maf_dir, exist_ok=True)
-            with zipfile.ZipFile(final_zip, 'r') as zip_existing:
-                zip_existing.extractall(output_maf_dir)
+        if not os.path.exists(maf_dir):
+            logger.warning(f"Unable to locate the MAF folder in {oldpath}. MAF files will not be copied.")
+        
         else:
-            os.makedirs(output_maf_dir, exist_ok=True)
+            ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+            ZIP_MAF = check_bool(ZIP_MAF)
+            if ZIP_MAF and os.path.exists(final_zip):
+                os.makedirs(output_maf_dir, exist_ok=True)
+                with zipfile.ZipFile(final_zip, 'r') as zip_existing:
+                    zip_existing.extractall(output_maf_dir)
+            else:
+                os.makedirs(output_maf_dir, exist_ok=True)
 
 
-        sorted_samples = sorted(sample_IDs, key=len, reverse=True)
-        suffix_counter = collections.Counter()
+            sorted_samples = sorted(sample_IDs, key=len, reverse=True)
+            suffix_counter = collections.Counter()
 
-        for file_name in os.listdir(maf_dir):
-            for sample in sorted_samples:
-                if file_name.startswith(sample):
-                    candidate = file_name[len(sample):]
-                    if candidate:
-                        suffix_counter[candidate] += 1
-                    break
+            for file_name in os.listdir(maf_dir):
+                for sample in sorted_samples:
+                    if file_name.startswith(sample):
+                        candidate = file_name[len(sample):]
+                        if candidate:
+                            suffix_counter[candidate] += 1
+                        break
 
-        common_suffix, count = suffix_counter.most_common(1)[0]
+            common_suffix, count = suffix_counter.most_common(1)[0]
 
-        for sample in sample_IDs:
-            file_name = f"{sample}{common_suffix}"
-            old_file = os.path.join(maf_dir, file_name)
-            new_file = os.path.join(output_maf_dir, file_name)
-            if os.path.exists(old_file):
-                shutil.copy2(old_file, new_file)
+            for sample in sample_IDs:
+                file_name = f"{sample}{common_suffix}"
+                old_file = os.path.join(maf_dir, file_name)
+                new_file = os.path.join(output_maf_dir, file_name)
+                if os.path.exists(old_file):
+                    shutil.copy2(old_file, new_file)
 
-        if os.path.exists(maf_zip_path):
-            shutil.rmtree(maf_dir)
+            if os.path.exists(maf_zip_path):
+                shutil.rmtree(maf_dir)
 
-        if ZIP_MAF:
-            logger.info("Zipping MAF files...")
-            maf_zip_path = os.path.join(output, "maf.zip")
-            with zipfile.ZipFile(maf_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
-                for root, _, files in os.walk(output_maf_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        zip_ref.write(file_path, os.path.relpath(file_path, output_maf_dir))
-            shutil.rmtree(output_maf_dir)
-
+            if ZIP_MAF:
+                logger.info(f"Zipping MAF files from {oldpath}...")
+                maf_zip_path = os.path.join(output, "maf.zip")
+                with zipfile.ZipFile(maf_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
+                    for root, _, files in os.walk(output_maf_dir):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            zip_ref.write(file_path, os.path.relpath(file_path, output_maf_dir))
+                shutil.rmtree(output_maf_dir)
