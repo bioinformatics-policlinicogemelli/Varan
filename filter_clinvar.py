@@ -152,7 +152,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
         os.makedirs(out_filter, exist_ok=True)
         
         for file in file_list:
-            file_to_filter=pd.read_csv(file, sep="\t", dtype=object)
+            file_to_filter=pd.read_csv(file, sep="\t", comment="#", dtype=object)
         
             if "i" in filters:
                 file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get('Filters',"IMPACT")))]    
