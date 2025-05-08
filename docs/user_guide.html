@@ -48,6 +48,9 @@
                         </ul>
                     </ul>
                     <li><a href="#output">Output</a>
+                        <ul>
+                            <a href="#varan-report">Input Preparation</a>
+                        </ul>
                 </ul>
             </ul>
         </div>
@@ -717,7 +720,31 @@ study_name
             <p>(**) MAF_OncoKB folder will be created only if the <code>-k</code> option is set and will contain all the MAF with OncoKB annotations.</p>
             <p>(***) A folder containing MAF files. It will be zipped if <code>ZIP_MAF</code> is set as True in <i>conf.ini</i>.</p>
             <p><i>report_validate.html</i> is an automatically generated file that provides a report on the cBioPortal validation, highlighting any errors or warnings encountered during the validation process.</p>
-            <p><i>report_VARAN.html</i> is an automatically generated file that provides a summary of the study, including the filters applied, the configuration used, and a comparison with previous versions of the same study.</p>
+            
+            <h4 id="varan-report">Varan Report</h4>
+            <p><i>report_VARAN.html</i> is an automatically generated file that provides a summary of the study.</p>
+            <p>The report is structured into several sections depending on how the study was created or modified (e.g., new creation, update, extraction, or removal of samples).</p>
+
+            <h5>General Information</h5>
+            <p>>This section provides essential details about the study such as:</p>
+            <ul>
+                <li><b>Command line</b>: Full command used to generate or modify the study, including all relevant parameters.</li>
+                <li><b>Study identifiers</b>: Names associated with the study, which may include the current study, references to existing studies, or intermediate datasets depending on the workflow.</li>
+                <li><b>Operation details</b>: Additional contextual information, when available, such as added or removed elements during study transformation.</li>
+                <li><b>Cancer type</b>: Specified when relevant to the study configuration.</li>
+                <li><b>Sample and patient count</b>: Number of samples and patients included in the resulting dataset.</li>
+            </ul>
+            <p><span class="highlight">Note:</span> While the structure remains consistent, not all fields appear in every report. Their presence depends on the specific action taken (e.g., creation, update, extraction, or removal).</p>
+
+
+
+            
+            <h5>General Information</h5>
+            <p>It contains various informations about the used command line, the names of the studies </p>
+                
+                , including the filters applied, the configuration used, and a comparison with previous versions of the same study.
+            
+
 
         </div>
     </div>
