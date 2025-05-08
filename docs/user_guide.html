@@ -730,14 +730,13 @@ study_name
             <ul>
                 <li><span class="highlight">Command line</span>: Full command used to generate or modify the study, including all relevant parameters.</li>
                 <li><span class="highlight">Study identifiers</span>: Names associated with the study, which may include the current study, references to existing studies, or intermediate datasets depending on the workflow.</li>
-                <li><span class="highlight">Operation details</span>: Additional contextual information, when available, such as added or removed elements during study transformation.</li>
                 <li><span class="highlight">Cancer type</span>: Specified when relevant to the study configuration.</li>
                 <li><span class="highlight">Sample and patient count</span>: Number of samples and patients included in the resulting dataset.</li>
             </ul>
             <p><span class="highlight">Note:</span> While the structure remains consistent, not all fields appear in every report. Their presence depends on the specific action taken (e.g., creation, update, extraction, or removal).</p>
 
             <h5>Detailed Overview</h5>
-            <p>This section is included only for <code>extract</code> and <code>remove</code> operations. It provides a breakdown of sample-level changes applied to cases_cna, cases_sequenced and cases_sv.</p>
+            <p>This section provides a breakdown of sample-level changes applied to cases_cna, cases_sequenced and cases_sv and on added/updated patients and samples.</p>
             <p>For each dataset, the report indicates:</p>
             <ul>
                 <li>Which samples were extracted or removed.</li>
