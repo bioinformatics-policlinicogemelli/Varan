@@ -726,25 +726,40 @@ study_name
             <p>The report is structured into several sections depending on how the study was created or modified (e.g., new creation, update, extraction, or removal of samples).</p>
 
             <h5>General Information</h5>
-            <p>>This section provides essential details about the study such as:</p>
+            <p>This section provides essential details about the study such as:</p>
             <ul>
-                <li><b>Command line</b>: Full command used to generate or modify the study, including all relevant parameters.</li>
-                <li><b>Study identifiers</b>: Names associated with the study, which may include the current study, references to existing studies, or intermediate datasets depending on the workflow.</li>
-                <li><b>Operation details</b>: Additional contextual information, when available, such as added or removed elements during study transformation.</li>
-                <li><b>Cancer type</b>: Specified when relevant to the study configuration.</li>
-                <li><b>Sample and patient count</b>: Number of samples and patients included in the resulting dataset.</li>
+                <li><span class="highlight">Command line</span>: Full command used to generate or modify the study, including all relevant parameters.</li>
+                <li><span class="highlight">Study identifiers</span>: Names associated with the study, which may include the current study, references to existing studies, or intermediate datasets depending on the workflow.</li>
+                <li><span class="highlight">Operation details</span>: Additional contextual information, when available, such as added or removed elements during study transformation.</li>
+                <li><span class="highlight">Cancer type</span>: Specified when relevant to the study configuration.</li>
+                <li><span class="highlight">Sample and patient count</span>: Number of samples and patients included in the resulting dataset.</li>
             </ul>
             <p><span class="highlight">Note:</span> While the structure remains consistent, not all fields appear in every report. Their presence depends on the specific action taken (e.g., creation, update, extraction, or removal).</p>
 
+            <h5>Detailed Overview</h5>
+            <p>This section is included only for <code>extract</code> and <code>remove</code> operations. It provides a breakdown of sample-level changes applied to cases_cna, cases_sequenced and cases_sv.</p>
+            <p>For each dataset, the report indicates:</p>
+            <ul>
+                <li>Which samples were extracted or removed.</li>
+                <li>The number and identifiers of affected samples.</li>
+                <li>The resulting size of each dataset after the operation, if applicable.</li>
+            </ul>
 
+            <h5>Filters & Configuration</h5>
+            <p>This section displays the filters and configuration settings used for the study. These settings govern how data is interpreted and thresholds are applied across different molecular features such as CNA, TMB, MSI, and fusions.</p>
+            <ul>
+                <li>For <code>create</code> operations, the section shows all filters and configurations explicitly defined for the newly created study.</li>
+                <li>For <code>update</code> operations, only filters and configurations shared between the two studies are shown here. Any differences — including parameters present in one study but not the other — are listed separately under the section <b>Differences in Filters & Configurations</b>.</li>
+                <li>For <code>extract</code> and <code>remove</code> operations, this section reports the filters and configuration settings from the original study used as the basis for extraction or removal.</li>
+            </ul>
 
-            
-            <h5>General Information</h5>
-            <p>It contains various informations about the used command line, the names of the studies </p>
-                
-                , including the filters applied, the configuration used, and a comparison with previous versions of the same study.
-            
-
+            <h5>Graphical Overview</h5>
+            <p>This section provides a visual summary of the study history over time. It includes two main plots:</p>
+            <ul>
+                <li>A plot showing the number of samples and patients across different study versions.</li>
+                <li>A plot showing the total number of SNVs, CNVs, and fusions detected in each version.</li>
+            </ul>
+            <p>The number of versions displayed depends on the version of the current study. Up to the last 5 versions are shown to highlight the evolution of the dataset over time.</p>
 
         </div>
     </div>
