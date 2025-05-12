@@ -402,7 +402,7 @@ def extract_key_value(filters, key_name):
 
 def write_report_update(original_study, updating_with, new_study, number_for_graph):
 
-    old_img_path = os.path.join("readme_content", "img", "logo_VARAN.png")
+    old_img_path = os.path.join("img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
 
@@ -782,7 +782,7 @@ def compare_sample_file_update(file1, file2, outputfolder):
 
 def write_report_extract(original_study, new_study, number_for_graph):
 
-    old_img_path = os.path.join("readme_content", "img", "logo_VARAN.png")
+    old_img_path = os.path.join("img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
 
@@ -1090,7 +1090,7 @@ def compare_sample_file_extract(file1, file2, input_folder, outputfolder):
 
 def write_report_remove(original_study, new_study, number_for_graph):
 
-    old_img_path = os.path.join("readme_content", "img", "logo_VARAN.png")
+    old_img_path = os.path.join("img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
 
