@@ -449,12 +449,20 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
     updated_samples_sequenced, added_samples_sequenced, _, _ = compare_sample_file_update(sequenced_1, sequenced_2, new_study)
     updated_samples_sv, added_samples_sv, _, _ = compare_sample_file_update(sv_1, sv_2, new_study)
 
-    if os.path.exists(os.path.join(original_study, "report_VARAN.html")) and os.path.exists(os.path.join(updating_with, "report_VARAN.html")):
-        filters1 = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
-        filters2 = extract_filters_from_html(os.path.join(updating_with, "report_VARAN.html"))
+
+    old_report = os.path.join(original_study, "report_VARAN.html")
+    updating_report = os.path.join(updating_with, "report_VARAN.html")
+
+    if os.path.exists(old_report) and os.path.exists(updating_report):
+        filters1 = extract_filters_from_html(old_report)
+        filters2 = extract_filters_from_html(updating_report)
+        cancer_type1 = extract_cancer_type_from_html(old_report)
+        cancer_type2 = extract_cancer_type_from_html(updating_report)
     else:
         filters1 = dict()
         filters2 = dict()
+        cancer_type1 = None
+        cancer_type2 = None
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT", "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", \
     "HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
@@ -495,12 +503,19 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
                     <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
                     <p><strong>ORIGINAL STUDY:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
                     <p><strong>UPDATING WITH:</strong> {os.path.basename(os.path.normpath(updating_with))}</p>
-                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
+                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>"""
+    
+    
+    if (cancer_type1 == cancer_type2) and (cancer_type1 != None):
+        html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type1}</p>"""
+    elif (cancer_type1.upper() == "MIXED") or (cancer_type2.upper() == "MIXED"):
+        html_content += f"""<p><strong>CANCER TYPE:</strong> Mixed</p>"""
+
+    html_content += f"""
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
                     <p><strong>Total Samples:</strong> {total_samples}</p>
                 </div>
-
     """
 
     if ghosts:
@@ -528,7 +543,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
             </div>
             """
 
-    if updated_samples_cna or updated_samples_sequenced or updated_samples_sv:
+    if updated_samples_cna or updated_samples_sequenced or updated_samples_sv or added_samples_cna or added_samples_sequenced or added_samples_sv:
         html_content += f"""
         <div class="section-title">Detailed Overview</div>
             <div class="content">"""
@@ -551,7 +566,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         <p>&emsp;<strong>Updated:</strong> {len(updated_samples_sv)} samples ({", ".join(updated_samples_sv)})</p>
         <p>&emsp;<strong>Added:</strong> {len(added_samples_sv)} samples ({", ".join(added_samples_sv)})</p>"""
 
-    if updated_samples_cna or updated_samples_sequenced or updated_samples_sv:
+    if updated_samples_cna or updated_samples_sequenced or updated_samples_sv or added_samples_cna or added_samples_sequenced or added_samples_sv:
         html_content += f"""
         </div>
         """
@@ -806,10 +821,13 @@ def write_report_extract(original_study, new_study, number_for_graph):
 
     ghosts = ghost_sample(new_study)
 
-    if os.path.exists(os.path.join(original_study, "report_VARAN.html")):
-        filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    old_report = os.path.join(original_study, "report_VARAN.html")
+    if os.path.exists(old_report):
+        filters = extract_filters_from_html(old_report)
+        cancer_type = extract_cancer_type_from_html(old_report)
     else:
         filters = dict()
+        cancer_type = None
 
     case_list1 = os.path.join(original_study, "case_lists")
     case_list2 = os.path.join(new_study, "case_lists")
@@ -846,7 +864,13 @@ def write_report_extract(original_study, new_study, number_for_graph):
                 <div class="content">
                     <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
                     <p><strong>ORIGINAL STUDY:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
-                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
+                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>"""
+
+    if cancer_type:
+        html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type}</p>"""
+
+
+    html_content += f""" 
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
                     <p><strong>Total Samples:</strong> {total_samples}</p>
@@ -1113,11 +1137,14 @@ def write_report_remove(original_study, new_study, number_for_graph):
         graph_expression = f"(last {number_for_graph} versions)"
 
     ghosts = ghost_sample(new_study)
-
-    if os.path.exists(os.path.join(original_study, "report_VARAN.html")):
-        filters = extract_filters_from_html(os.path.join(original_study, "report_VARAN.html"))
+    
+    old_report = os.path.join(original_study, "report_VARAN.html")
+    if os.path.exists(old_report):
+        filters = extract_filters_from_html(old_report)
+        cancer_type = extract_cancer_type_from_html(old_report)
     else:
         filters = dict()
+        cancer_type = None
 
     case_list1 = os.path.join(original_study, "case_lists")
     case_list2 = os.path.join(new_study, "case_lists")
@@ -1154,7 +1181,12 @@ def write_report_remove(original_study, new_study, number_for_graph):
                 <div class="content">
                     <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
                     <p><strong>ORIGINAL STUDY:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
-                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>
+                    <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>"""
+
+    if cancer_type:
+        html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type}</p>"""
+
+    html_content += f"""
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
                     <p><strong>Total Samples:</strong> {total_samples}</p>
@@ -1410,3 +1442,22 @@ def extract_filters_from_html(report):
             filters['ALT'] = '!="{}"'.format(alt_val)
 
     return filters
+
+
+
+def extract_cancer_type_from_html(report):
+    cancer_type = None
+    
+    with open(report, "r", encoding="utf-8") as file:
+        html_content = file.read()
+
+    general_info_match = re.search(r'<section class="general-info">.*?</section>', html_content, re.DOTALL)
+    
+    if general_info_match:
+        section_text = general_info_match.group()
+        cancer_type_match = re.search(r'<p><strong>\s*CANCER TYPE:\s*</strong>\s*(.*?)\s*</p>', section_text, re.DOTALL | re.IGNORECASE)
+        
+        if cancer_type_match:
+            cancer_type = cancer_type_match.group(1).strip()
+
+    return cancer_type

@@ -18,38 +18,39 @@
             <ul>
                 <li><a href="https://bioinformatics-policlinicogemelli.github.io/Varan/index.html">Home</a></li>
                 <ul>
-                    <li><a href="#study-creation">Study Creation</a>
+                    <li><a href="#installation-procedures">Installation Procedures</a></li>
+                    <li><a href="#study-creation">Study Creation</a></li>
                     <ul>
-                        <a href="#input-preparation1">Input Preparation</a>
+                        <li><a href="#input-preparation1">Input Preparation</a></li>
                         <ul>
                             <li><a href="#folder1">Folder</a></li>
                             <li><a href="#file">File(s)</a></li>
                             <li><a href="#templates">Templates</a></li>
                             <li><a href="#configuration-file1">Configuration File</a></li>
                         </ul>
-                        <a href="#launch-varan1">Launch Varan</a>
+                        <li><a href="#launch-varan1">Launch Varan</a></li>
                         <ul>
                             <li><a href="#options1">Options</a></li>
                             <li><a href="#filtering">Filtering</a></li>
                             <li><a href="#examples1">Examples</a></li>
                         </ul>
                     </ul>
-                    <li><a href="#study-manipulation">Study Manipulation</a>
+                    <li><a href="#study-manipulation">Study Manipulation</a></li>
                     <ul>
-                        <a href="#input-preparation2">Input Preparation</a>
+                        <li><a href="#input-preparation2">Input Preparation</a></li>
                         <ul>
                             <li><a href="#folder2">Folder</a></li>
                             <li><a href="#configuration-file2">Configuration File</a></li>
                         </ul>
-                        <a href="#launch-varan2">Launch Varan</a>
+                        <li><a href="#launch-varan2">Launch Varan</a></li>
                         <ul>
                             <li><a href="#options2">Options</a></li>
                             <li><a href="#examples2">Examples</a></li>
                         </ul>
                     </ul>
-                    <li><a href="#output">Output</a>
+                    <li><a href="#output">Output</a></li>
                         <ul>
-                            <a href="#varan-reports">Varan Report</a>
+                            <li><a href="#varan-reports">Varan Report</a></li>
                         </ul>
                 </ul>
             </ul>
@@ -74,10 +75,19 @@
                 
                 <li><span class="highlight">Detailed Reports</span>: For each version, a comprehensive report is generated, which includes the filters applied, the configuration used in the study, the number of samples and patients, and a comparison with previous versions to track the study's evolution.</li>
                 
-                <li><span class="highlight">Validation Check</span>: Before uploading a study to cBioPortal, the system performs a validation to confirm the upload can be executed successfully.<br>
+                <li><span class="highlight">Validation Check</span>: Before uploading a study to cBioPortal, the system performs a validation to confirm that the upload can be executed successfully.<br>
                     <p>⚠️ Be warned that files succeeding this validation may still fail to load (correctly).</p></li>
             </ul>
 
+
+            <h3 id="installation-procedures">Installation Procedures</h3>
+            <p>Varan can be installed either via Docker or through a local setup. Please refer to the appropriate section below based on your preferred installation method:</p>
+            <ul>
+                <li><span class="highlight">Docker Installation:</span> Follow the step-by-step instructions provided in the <a href="https://bioinformatics-policlinicogemelli.github.io/Varan/quickstart.html">Quickstart Guide</a>.</li>
+                <li><span class="highlight">Local Installation:</span> Detailed procedures for installing Varan locally are available <a href="https://bioinformatics-policlinicogemelli.github.io/Varan/installation_procedures.html">here</a>.</li>
+            </ul>
+
+            
             <h3 id="study-creation">Study Creation</h3>
 
             <p align="center">
@@ -144,14 +154,14 @@ input_folder/
                   <tr>
                       <th>SAMPLE_ID</th>
                       <th>PATIENT_ID</th>
-                      <th>MSI</th>
-                      <th>TMB</th>
-                      <th>MSI_THR</th>
-                      <th>TMB_THR</th>
                       <th>ONCOTREE_CODE</th>
                       <th>snv_path</th>
                       <th>cnv_path</th>
                       <th>comb_path</th>
+                      <th>MSI</th>
+                      <th>TMB</th>
+                      <th>MSI_THR</th>
+                      <th>TMB_THR</th>
                       <th>...</th>
                   </tr>
               </thead>
@@ -159,14 +169,14 @@ input_folder/
                   <tr>
                       <td>0000001_DNA</td>
                       <td>11111111</td>
-                      <td>1</td>
-                      <td>12</td>
-                      <td></td>
-                      <td></td>
                       <td>BOWEL</td>
                       <td>path_to_snv</td>
                       <td>path_to_cnv</td>
                       <td>path_to_combined_output</td>
+                      <td>1</td>
+                      <td>12</td>
+                      <td></td>
+                      <td></td>
                       <td>...</td>
                   </tr>
               </tbody>
@@ -176,11 +186,14 @@ input_folder/
             <ul>
                 <li><span class="highlight">SAMPLE_ID</span>: IDs of all samples of interest.</li>
                 <li><span class="highlight">PATIENT_ID</span>: IDs of all patients of interest.</li>
-                <li><span class="highlight">MSI</span>: MSI value for each of the samples.</li>
-                <li><span class="highlight">TMB</span>: TMB value for each of the samples.</li>
+                <li><span class="highlight">ONCOTREE_CODE</span>: code to associate for the oncoKB annotation.</li>
+                <li><span class="highlight">snv_path</span>: path to SNV file for every sample.</li>
+                <li><span class="highlight">cnv_path</span>: path to CNV file for every sample.</li>
+                <li><span class="highlight">cnv_path</span>: path to Combined Variant Output file for every sample.</li>
+                <li><span class="highlight">MSI</span>: MSI value for every sample.</li>
+                <li><span class="highlight">TMB</span>: TMB value for every sample.</li>
                 <li><span class="highlight">MSI_THR</span>: MSI categorization based on the threshold set in the <i>conf.ini</i> file.</li>
                 <li><span class="highlight">TMB_THR</span>: TMB categorization based on the threshold set in the <i>conf.ini</i> file.</li>
-                <li><span class="highlight">ONCOTREE_CODE</span>: code to associate for the oncoKB annotation.</li>
             </ul>
             <p>⚠️ The user can add new columns starting from the last one.</p>
             
@@ -764,7 +777,9 @@ study_name
                 <li>A plot showing the total number of SNVs, CNVs, and fusions detected in each version.</li>
             </ul>
             <p>The number of versions displayed depends on the version of the current study. Up to the last 5 versions are shown to highlight the evolution of the dataset over time.</p>
-
+            
+            <h6>Annotations</h6>
+            <p>In this section you can find the manual annotations added in the specific section of the <i>conf.ini</i> file</p>
         </div>
     </div>
 
