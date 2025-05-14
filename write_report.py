@@ -402,7 +402,7 @@ def extract_key_value(filters, key_name):
 
 def write_report_update(original_study, updating_with, new_study, number_for_graph):
 
-    old_img_path = os.path.join("img", "logo_VARAN.png")
+    old_img_path = os.path.join(original_study, "img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
 
@@ -410,7 +410,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         img_output_dir = os.path.join(new_study, "img")
         os.makedirs(img_output_dir, exist_ok=True)
         new_img_path = os.path.join(img_output_dir, "logo_VARAN.png")
-        shutil.copy(old_img_path, new_img_path)   
+        shutil.copy(old_img_path, new_img_path)
 
     os.system("cp " + "styles.css" + " " + os.path.join(new_study, "img", "styles.css"))
 
@@ -505,10 +505,9 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
                     <p><strong>UPDATING WITH:</strong> {os.path.basename(os.path.normpath(updating_with))}</p>
                     <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>"""
     
-    
     if (cancer_type1 == cancer_type2) and (cancer_type1 != None):
         html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type1}</p>"""
-    elif (cancer_type1.upper() == "MIXED") or (cancer_type2.upper() == "MIXED"):
+    else:
         html_content += f"""<p><strong>CANCER TYPE:</strong> Mixed</p>"""
 
     html_content += f"""
@@ -797,7 +796,7 @@ def compare_sample_file_update(file1, file2, outputfolder):
 
 def write_report_extract(original_study, new_study, number_for_graph):
 
-    old_img_path = os.path.join("img", "logo_VARAN.png")
+    old_img_path = os.path.join(original_study, "img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
 
@@ -1114,7 +1113,7 @@ def compare_sample_file_extract(file1, file2, input_folder, outputfolder):
 
 def write_report_remove(original_study, new_study, number_for_graph):
 
-    old_img_path = os.path.join("img", "logo_VARAN.png")
+    old_img_path = os.path.join(original_study, "img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
 
@@ -1451,13 +1450,13 @@ def extract_cancer_type_from_html(report):
     with open(report, "r", encoding="utf-8") as file:
         html_content = file.read()
 
-    general_info_match = re.search(r'<section class="general-info">.*?</section>', html_content, re.DOTALL)
-    
-    if general_info_match:
-        section_text = general_info_match.group()
-        cancer_type_match = re.search(r'<p><strong>\s*CANCER TYPE:\s*</strong>\s*(.*?)\s*</p>', section_text, re.DOTALL | re.IGNORECASE)
-        
-        if cancer_type_match:
-            cancer_type = cancer_type_match.group(1).strip()
+    cancer_type_match = re.search(
+        r'<p><strong>\s*CANCER TYPE:\s*</strong>\s*(.*?)\s*</p>',
+        html_content,
+        re.DOTALL | re.IGNORECASE
+    )
+
+    if cancer_type_match:
+        cancer_type = cancer_type_match.group(1).strip()
 
     return cancer_type
