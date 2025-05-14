@@ -262,7 +262,7 @@ input_folder/
             </ul>
 
             <h5 id="configuration-file1">Configuration File</h5>
-            <p>The next step to start using Varan is to correctly configure the <i>conf.ini</i> file.</p>
+            <p>The next step to start using Varan is to correctly configure the <i>conf.ini</i> file. It is possible to download an empty version of the <i>conf.ini</i> <a href="https://raw.githubusercontent.com/bioinformatics-policlinicogemelli/Varan/readme/Templates/conf.ini" download>here</a></p>
             <p>⚠️ In the next subparagraph, for each field the type of variable requested will be inserted between angle brackets &lt;&gt;. For string, two possible entries can be found: &lt; 'string' &gt; and &lt; string &gt;. In the first case, it is requested to insert text inside quotation marks (i.e. DESCRIPTION='this is the description'), while on the other one, quotation marks are not requested (i.e. PROJECT_NAME=study).</p>
             <p>⚠️ For Docker, a partially pre-filled <i>conf.ini</i> file is provided, with some paths already configured.</p>
             <p>⚠️ Only the fields from the <i>conf.ini</i> file that are relevant to this functionality will be displayed below.</p>
@@ -599,7 +599,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
 
 
             <h5 id="configuration-file2">Configuration File</h5>
-            <p>The next step to start using Varan is to correctly configure the <i>conf.ini</i> file.</p>
+            <p>The next step to start using Varan is to correctly configure the <i>conf.ini</i> file. It is possible to download an empty version of the <i>conf.ini</i> <a href="https://raw.githubusercontent.com/bioinformatics-policlinicogemelli/Varan/readme/Templates/conf.ini" download>here</a></p>
             <p>⚠️ Only the fields from the <i>conf.ini</i> file that are relevant to this functionality will be displayed below.</p>
 
             <h6>Zip</h6>
@@ -764,7 +764,7 @@ study_name
             <div style="text-align: center;">
                 <img src="img/Report - Detailed Overview.png" style="width: 600px; max-width: 80%; height: auto;" alt="General Information Section">
             </div>
-            <p>This section provides a breakdown of sample-level changes applied to cases_cna, cases_sequenced and cases_sv and on added/updated patients and samples.</p>
+            <p>This section provides a breakdown of sample-level changes applied to cases_cna, cases_sequenced and cases_sv.</p>
             <p>For each dataset, the report indicates:</p>
             <ul>
                 <li>Which samples were extracted or removed.</li>
@@ -776,10 +776,10 @@ study_name
             <div style="text-align: center;">
                 <img src="img/Report - Filters & Configuration.png" style="width: 600px; max-width: 80%; height: auto;" alt="General Information Section">
             </div>
-            <p>This section displays the filters and configuration settings used for the study. These settings govern how data is interpreted and thresholds are applied across different molecular features such as CNA, TMB, MSI, and fusions.</p>
+            <p>This section summarizes the filters and configuration settings applied to the study. Filters control which data are included in the analysis. Configuration parameters define how molecular features like CNA, TMB, MSI, and gene fusions are processed and interpreted.</p>
             <ul>
                 <li>For <code>create</code> operations, the section shows all filters and configurations explicitly defined for the newly created study.</li>
-                <li>For <code>update</code> operations, only filters and configurations shared between the two studies are shown here. Any differences — including parameters present in one study but not the other — are listed separately under the section <span class="highlight">Differences in Filters & Configurations</span>.</li>
+                <li>For <code>update</code> operations, only filters and configurations shared between the two studies are shown here. Any differences, including parameters present in one study but not the other, are listed separately under the section <span class="highlight">Differences in Filters & Configurations</span>.</li>
                 <li>For <code>extract</code> and <code>remove</code> operations, this section reports the filters and configuration settings from the original study used as the basis for extraction or removal.</li>
             </ul>
 
