@@ -29,17 +29,78 @@ Each versioned folder (e.g., 'project_v1', 'project_v2') should contain:
 
 Plots are saved in an `img` subdirectory under the specified output folder.
 
-
 """
+
 import re
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
-from pathlib import Path
 
+
+def load_clinical_data(outputfolderpath: Path, folder: str) -> tuple:
+    """Load clinical data and return counts for unique samples and patients."""
+    clin_sam_path = outputfolderpath / folder / "data_clinical_sample.txt"
+    if clin_sam_path.exists():
+        clin_sam_df = pd.read_csv(clin_sam_path, sep="\t", header=4)
+        unique_sam = len(set(clin_sam_df.iloc[:, 0]))
+        unique_pat = len(set(clin_sam_df.iloc[:, 1]))
+    else:
+        unique_sam = unique_pat = 0
+    return unique_sam, unique_pat
+
+def load_genomic_data(outputfolderpath: Path, folder: str) -> tuple:
+    """Load genomic data (SNV, CNV, SV) and return counts."""
+    snv_number = cnv_number = sv_number = 0
+
+    # Load SNV data
+    data_snv_path = outputfolderpath / folder / "data_mutations_extended.txt"
+    if data_snv_path.exists():
+        data_snv_df = pd.read_csv(data_snv_path, sep="\t", header=0, low_memory=False)
+        snv_number = len(data_snv_df)
+
+    # Load CNV data
+    data_cnv_path = outputfolderpath / folder / "data_cna.txt"
+    if data_cnv_path.exists():
+        data_cnv_df = pd.read_csv(data_cnv_path, sep="\t", header=0, index_col=0)
+        cnv_number = (data_cnv_df != 0).sum().sum()
+
+    # Load SV data
+    data_sv_path = outputfolderpath / folder / "data_sv.txt"
+    if data_sv_path.exists():
+        data_sv_df = pd.read_csv(data_sv_path, sep="\t", header=0)
+        sv_number = len(data_sv_df)
+
+    return snv_number, cnv_number, sv_number
+
+def create_general_plot(limited_dic: dict, output_folder: str) -> None:
+    """Generate and save the general plot for samples and patients."""
+    values = list(limited_dic.values())
+    keys = list(limited_dic.keys())
+    samples = [count[0] for count in values]
+    patients = [count[1] for count in values]
+
+    x = np.arange(len(keys))
+    width = 0.3
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    rects1 = ax.bar(x - width/2, samples, width, label="Samples", color="#008080")
+    rects2 = ax.bar(x + width/2, patients, width, label="Patients", color="#FF6F61")
+
+    ax.set_ylabel("Count")
+    ax.set_xticks(x)
+    ax.set_xticklabels(keys, rotation=45, ha="right")
+    ax.legend()
+
+    autolabel_ver(ax, rects1)
+    autolabel_ver(ax, rects2)
+
+    fig.tight_layout()
+    plt.show()
+    plt.savefig(Path(output_folder) / "img" / "general.png")
 
 def create_barplots(output_folder: str) -> int:
     """Generate bar plots of clinical and genomic data from multiple dataset versions.
@@ -66,16 +127,7 @@ def create_barplots(output_folder: str) -> int:
     total_dic = {}
 
     for folder in old_versions:
-        clin_sam_path = Path(outputfolderpath).resolve() \
-            / folder / "data_clinical_sample.txt"
-        if clin_sam_path.exists():
-            clin_sam_df = pd.read_csv(clin_sam_path, sep="\t", header = 4)
-            unique_sam = len(set(clin_sam_df.iloc[:, 0]))
-            unique_pat = len(set(clin_sam_df.iloc[:, 1]))
-        else:
-            unique_sam = 0
-            unique_pat = 0
-
+        unique_sam, unique_pat = load_clinical_data(outputfolderpath, folder)
         total_dic[folder] = [unique_sam, unique_pat]
 
     n = 5
@@ -83,63 +135,12 @@ def create_barplots(output_folder: str) -> int:
         int(re.search(r"_v(\d+)$", item[0]).group(1))))
     limited_dic = dict(list(sorted_total.items())[-n:])
 
-    values = list(limited_dic.values())
-    keys = [*limited_dic]
-    samples = [count[0] for count in values]
-    patients = [count[1] for count in values]
-
-    x = np.arange(len(keys))
-    width = 0.3
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    rects1 = ax.bar(x - width/2, samples, width, label="Samples", color="#008080")
-    rects2 = ax.bar(x + width/2, patients, width, label="Patients", color="#FF6F61")
-
-    ax.set_ylabel("Count")
-    ax.set_xticks(x)
-    ax.set_xticklabels(keys, rotation=45, ha="right")
-    ax.legend()
-
-    autolabel_ver(ax, rects1)
-    autolabel_ver(ax, rects2)
-
-    fig.tight_layout()
-
-    plt.show()
-    plt.savefig(Path(output_folder) / "img" / "general.png")
-
+    create_general_plot(limited_dic, output_folder)
 
     total_genes = {}
 
     for folder in old_versions:
-        data_snv_path = Path(outputfolderpath).resolve() \
-            / folder / "data_mutations_extended.txt"
-        data_cnv_path = Path(outputfolderpath).resolve() \
-            / folder / "data_cna.txt"
-        data_sv_path = Path(outputfolderpath).resolve() \
-            / folder / "data_sv.txt"
-
-        if data_snv_path.exists():
-            data_snv_df = pd.read_csv(data_snv_path, \
-                sep="\t", header=0, low_memory=False)
-            snv_number = len(data_snv_df)
-        else:
-            snv_number = 0
-
-        if data_cnv_path.exists():
-            data_cnv_df = pd.read_csv(data_cnv_path, \
-                sep="\t", header=0, index_col=0)
-            cnv_number = (data_cnv_df != 0).sum().sum()
-        else:
-            cnv_number = 0
-
-        if data_sv_path.exists():
-            data_sv_df = pd.read_csv(data_sv_path, \
-                sep="\t", header=0)
-            sv_number = len(data_sv_df)
-        else:
-            sv_number = 0
-
+        snv_number, cnv_number, sv_number = load_genomic_data(outputfolderpath, folder)
         total_genes[folder] = [snv_number, cnv_number, sv_number]
 
 
