@@ -31,7 +31,7 @@ configFile = config.read("conf.ini")
 
 def extract_main(oldpath, extract_path, output, study_id, overwrite):
 
-    logger.info(f"extract_main args [old_path:{oldpath}, extract_path:{extract_path}, output_folder:{output}]")	
+    logger.info(f"extract_main args [old_path:{oldpath}, extract_path:{extract_path}, output_folder:{output}]")
     logger.info("Checking input...")
     oldpath = oldpath.rstrip("/")
 
@@ -54,11 +54,11 @@ def extract_main(oldpath, extract_path, output, study_id, overwrite):
 
     if len(old_versions)>0 and os.path.exists(old_versions[-1]):
         if overwrite:
-            logger.info(f"Overwrite option set. Start removing folder")
+            logger.info("Overwrite option set. Start removing folder")
             shutil.rmtree(old_versions[-1])
 
     output=create_newest_version_folder(output)
-    logger.info(f"Creating a new folder: {output}")     
+    logger.info(f"Creating a new folder: {output}")
 
     output_caseslists=os.path.join(output, "case_lists")
     os.mkdir(output_caseslists)
@@ -66,7 +66,7 @@ def extract_main(oldpath, extract_path, output, study_id, overwrite):
     logger.info("Great! Everything is ready to start")
     os.system("cp " + oldpath + "/*meta* " + output)
 
-    sampleIds = open(extract_path, "r").readlines()
+    sampleIds = open(extract_path).readlines()
     sampleIds = [sample.strip() for sample in sampleIds]
 
     o_clinical_patient = os.path.join(oldpath,"data_clinical_patient.txt")

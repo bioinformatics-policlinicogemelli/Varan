@@ -12,7 +12,6 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import argparse
 import os
 import shutil
 import sys
@@ -39,7 +38,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
 
     if not os.path.isdir(oldpath):
         logger.critical(f"{oldpath} is not a valid folder!")
-        sys.exit()	
+        sys.exit()
 
     if output!="":
         no_out=False
@@ -56,7 +55,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
 
     if len(old_versions)>0 and os.path.exists(old_versions[-1]):
         if overwrite:
-            logger.info(f"Overwrite option set. Start removing folder")
+            logger.info("Overwrite option set. Start removing folder")
             shutil.rmtree(old_versions[-1])
 
     output = create_newest_version_folder(output)
@@ -73,7 +72,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
         if len(first_line.split("\t")) > 1:
             logger.warning(f"The file {removepath} contains more than a column. It may not be in the correct format!")
 
-    sampleIds = open(removepath,"r").readlines()
+    sampleIds = open(removepath).readlines()
     sampleIds = [sample.strip() for sample in sampleIds]
 
     o_clinical_patient=os.path.join(oldpath,"data_clinical_patient.txt")
@@ -81,41 +80,35 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
         delete_clinical_patient(oldpath,sampleIds,output)
     else:
         logger.warning("data_clinical_patient.txt not found in current folder. Skipping")
-    #
     o_clinical_sample=os.path.join(oldpath,"data_clinical_sample.txt")
     if os.path.exists(o_clinical_sample) :
         delete_clinical_samples(o_clinical_sample,sampleIds,output)
     else:
         logger.warning("data_clinical_sample.txt not found in current folder. Skipping")
-    
-    #
+
     o_cna_hg19=os.path.join(oldpath,"data_cna_hg19.seg")
     if os.path.exists(o_cna_hg19):
         delete_cna_hg19(o_cna_hg19,sampleIds,output)
     else:
         logger.warning("data_cna_hg19.seg not found in current folder. Skipping")
 
-    #
     o_cna_hg19_fc=os.path.join(oldpath,"data_cna_hg19.seg.fc.txt")
     if os.path.exists(o_cna_hg19_fc):
         delete_cna_hg19_fc(o_cna_hg19_fc,sampleIds,output)
     else:
         logger.warning("data_cna_hg19.seg.fc.txt not found in current folder. Skipping")
 
-    #
     o_cna=os.path.join(oldpath,"data_cna.txt")
     if os.path.exists(o_cna):
         delete_cna(o_cna,sampleIds,output)
     else:
         logger.warning("data_cna.txt not found in current folder. Skipping")
-    
-    #
+
     o_mutations=os.path.join(oldpath,"data_mutations_extended.txt")
     if os.path.exists(o_mutations):
         delete_mutations(o_mutations,sampleIds,output)
     else:
         logger.warning("data_mutations_extended.txt not found in current folder. Skipping")
-    #
     o_sv=os.path.join(oldpath,"data_sv.txt")
     if os.path.exists(o_sv):
         delete_sv(o_sv,sampleIds,output)

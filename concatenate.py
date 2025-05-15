@@ -27,14 +27,14 @@ def concatenate_files(file_list, output_file):
                     del lines[0]
                 lines=list(map(lambda x: x.replace(".bam",""),lines))
                 if i > 0:
-                    lines = lines[1:]     
+                    lines = lines[1:]
                 out_file.write("".join(lines))
-                
+
     if not os.path.exists(output_file):
         logger.critical(f"Something went wrong while writing {output_file}.")
-    
+
     logger.info(f"{len(file_list)} maf file(s) concatenated")
-    
+
 def get_files_by_ext(folder, ext):
     file_list = []
     for root, _, files in os.walk(folder):
@@ -53,7 +53,7 @@ def extract_maf_folder(filters, oncoKB):
     elif filters!="d" and filters!="":
         folder="MAF_filtered"
     elif oncoKB:
-        folder="MAF_OncoKB"    
+        folder="MAF_OncoKB"
     else:
         folder="maf"
     return folder
@@ -61,23 +61,23 @@ def extract_maf_folder(filters, oncoKB):
 def concatenate_main(filters, output_folder, ext, oncoKB):
 
     logger.info("Starting concatenate_main script:")
-    logger.info(f"concatenate_main args [filters:{filters}, folder:{output_folder}, extension:{ext}, oncoKB:{oncoKB}]") 
+    logger.info(f"concatenate_main args [filters:{filters}, folder:{output_folder}, extension:{ext}, oncoKB:{oncoKB}]")
 
-    folder = extract_maf_folder(filters, oncoKB)          
+    folder = extract_maf_folder(filters, oncoKB)
     input_folder=os.path.join(output_folder,folder)
     output_file=os.path.join(input_folder,"data_mutations_extended.txt")
-                
+
     if os.path.isdir(output_file):
         logger.critical(f"It seems that the inserted output_file '{output_file}' is not a file, but a folder! Check your '-o/--output_file' field")
         raise Exception("Exiting from filter_clinvar script!")
     if not output_file.endswith("txt"):
         logger.critical(f"It seems that the inserted output_file '{output_file}' has the wrong extension! Output file must be have a .txt extension.")
         raise Exception("Exiting from filter_clinvar script!")
-        
+
     file_list = get_files_by_ext(input_folder, ext)
     concatenate_files(file_list, output_file)
 
-    logger.info(f"Checking data_mutations_extended...")
+    logger.info("Checking data_mutations_extended...")
     with open(output_file) as data_mut:
         all_data_mut = data_mut.readlines()
         if (len(all_data_mut) == 1):
@@ -91,5 +91,5 @@ def concatenate_main(filters, output_folder, ext, oncoKB):
     if os.path.exists(output_file):
         logger.info(f"Extracting data_mutations_extended from {input_folder} folder")
         os.system("mv "+os.path.join(input_folder,"data_mutations_extended.txt")+" "+ output_folder )
-    
+
     logger.success("Concatenate script completed!\n")

@@ -28,7 +28,7 @@ from ValidateFolder import validateOutput
 from walk import walk_folder
 
 
-def logo():    
+def logo():
     print(r"""
 __| |_______________________________________________________________________| |__
 __   _______________________________________________________________________   __
@@ -44,12 +44,12 @@ __   _______________________________________________________________________   _
 __| |_______________________________________________________________________| |__
 __   _______________________________________________________________________   __
   | |                                                                       | |  
-""")    
+""")
 
 
 def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, overwrite_output=False, resume=False, multiple=False, update=False, extract=False, remove=False):
 
-    if not any([update, extract, remove]): 
+    if not any([update, extract, remove]):
 
         logger.info(
             f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, oncoKB:{oncoKB}, "
@@ -69,8 +69,8 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         #       2. FILTER         #
         ###########################
 
-        logger.info("Starting MAF filtering")  
-        if not analysis_type in ["cnv", "fus", "tab"]:
+        logger.info("Starting MAF filtering")
+        if analysis_type not in ["cnv", "fus", "tab"]:
             filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
 
 
@@ -78,7 +78,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         #      3. CONCATENATE      #
         ############################
 
-        if  os.path.exists(os.path.join(output_folder,"maf")) and not analysis_type in ["cnv", "fus", "tab"]:
+        if  os.path.exists(os.path.join(output_folder,"maf")) and analysis_type not in ["cnv", "fus", "tab"]:
             logger.info("Concatenating mutation file")
             concatenate_main(filters, output_folder,"maf", oncoKB)
 
@@ -103,7 +103,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
     #         UPDATE           #
     ############################
 
-    if update: 
+    if update:
         logger.info("Starting Update study")
         oldpath=args.Path
         new=args.NewPath
@@ -142,6 +142,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
 
 class MyArgumentParser(argparse.ArgumentParser):
   """An argument parser that raises an error, instead of quits"""
+
   def error(self, message):
     raise ValueError(message)
 
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description="Argument of Varan script")
 
     # WALK BLOCK
-    parser.add_argument("-c", "--Cancer", required=False, 
+    parser.add_argument("-c", "--Cancer", required=False,
                         help="Cancer Name")
     parser.add_argument("-i", "--input", nargs="+", required=False, type=str,
                         help="list with 1) input folder/sample file tsv (required) 2) patient tsv 3) fusion file")
@@ -172,9 +173,9 @@ if __name__ == "__main__":
                         help="Resume an already started analysis")
 
     # ANNOTATION BLOCK
-    parser.add_argument("-k", "--oncoKB", required=False, action="store_true", 
+    parser.add_argument("-k", "--oncoKB", required=False, action="store_true",
                         help="OncoKB annotation")
-    parser.add_argument("-m", "--multiple", required=False, action="store_true", 
+    parser.add_argument("-m", "--multiple", required=False, action="store_true",
                         help="Multiple sample VCF?")
 
     # FILTER BLOCK
@@ -195,7 +196,7 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--Extract", required=False,action="store_true",
                         help="Add this argument if you want to extract samples from a study")
 
-    # COMMON BLOCK 
+    # COMMON BLOCK
     parser.add_argument("-o", "--output_folder", required=False, default="",
                         help="Output folder")
     parser.add_argument("-s", "--SampleList", required=False,

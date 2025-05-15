@@ -12,7 +12,6 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import argparse
 
 import pandas as pd
 
@@ -28,7 +27,7 @@ def parsing_vcf(file_input,file_output):
 
 
 def write_header_lines(input_vcf, output_vcf):
-    with open(input_vcf, "r") as f_in, open(output_vcf, "w") as f_out:
+    with open(input_vcf) as f_in, open(output_vcf, "w") as f_out:
         for line in f_in:
             if line.startswith("##"):
                 f_out.write(line)

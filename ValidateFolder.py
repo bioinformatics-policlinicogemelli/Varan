@@ -12,12 +12,10 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import argparse
 import collections
 import os
 import shutil
 import subprocess
-import sys
 import zipfile
 from configparser import ConfigParser
 
@@ -75,6 +73,7 @@ def validateFolderlog(folder):
 
     Example:
         >>> validateFolderlog('data_folder/', 'validation_log.txt')
+
     """
     list_files=[]
     for file in os.listdir(folder):
@@ -142,7 +141,7 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
 
     if val != 1:
         number_for_graph = int(create_barplots(folder))
-        if not block2:  
+        if not block2:
             write_report_main(folder, cancer, oncoKB, filters, number_for_graph)
 
             maf_path = os.path.join(folder, "maf")
@@ -156,7 +155,7 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
                     shutil.rmtree(maf_path)
 
                 elif ZIP_MAF:
-                    logger.info("Zipping maf folder...")    
+                    logger.info("Zipping maf folder...")
                     shutil.make_archive(maf_path, "zip", maf_path)
                     logger.info("Deleting unzipped maf folder...")
                     shutil.rmtree(maf_path)
@@ -164,7 +163,7 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
             ZIP_SNV_FILTERED = config.get("Zip", "ZIP_SNV_FILTERED")
             ZIP_SNV_FILTERED = check_bool(ZIP_SNV_FILTERED)
             if os.path.exists(snv_path) and ZIP_SNV_FILTERED:
-                logger.info("Zipping snv_filtered folder...") 
+                logger.info("Zipping snv_filtered folder...")
                 shutil.make_archive(snv_path, "zip", snv_path)
                 logger.info("Deleting unzipped snv_filtered folder...")
                 shutil.rmtree(snv_path)
@@ -181,8 +180,7 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
         logger.success("The study is ready to be uploaded on cBioportal")
         return number_for_graph
 
-    else:
-        raise Exception("Validation Failed!")
+    raise Exception("Validation Failed!")
 
 
 def copy_maf(oldpath, output, COPY_MAF, ZIP_MAF):

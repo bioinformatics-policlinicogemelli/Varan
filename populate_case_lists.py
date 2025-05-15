@@ -12,11 +12,10 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import argparse
 import os
-from configparser import ConfigParser
 
 import pandas as pd
+
 
 def populate_cases_sv(project_id, folder, cases_list_dir, logger):
     """Function to populate cases_sv file

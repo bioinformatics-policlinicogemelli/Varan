@@ -34,6 +34,7 @@ def update_clinical_samples(oldfile_path, newfile_path, output_folder):
     
     Example:
       >>>  update_clinical_samples('old_data_clinical_sample.txt', 'new_data_clinical_sample.txt', 'output_folder/')
+
     """
     #header
     old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
@@ -85,8 +86,8 @@ def update_clinical_patient(oldfile_path, newfile_path, output_folder):
 
     Example:
       >>>  update_clinical_patient('data_clinical_patient.txt', 'new_data_clinical_patient.txt', 'output_folder/')
-    """
 
+    """
     #header
     old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
     old_head.columns = old_head.iloc[4].tolist()
@@ -137,6 +138,7 @@ def update_cna_hg19(oldfile_path, newfile_path, output_folder):
     
     Example:
       >>>  update_cna_hg19('old_data_cna_hg19.seg', 'new_data_cna_hg19.seg', 'output_folder/')
+
     """
     old = pd.read_csv(oldfile_path, sep="\t")
     new = pd.read_csv(newfile_path, sep="\t")
@@ -157,6 +159,7 @@ def update_cna_hg19_fc(oldfile_path, newfile_path, output_folder):
     
     Example:
       >>>  update_cna_hg19_fc('old_data_cna_hg19.seg.fc.txt', 'new_data_cna_hg19.seg.fc.txt', 'output_folder/')
+
     """
     old = pd.read_csv(oldfile_path, sep="\t")
     new = pd.read_csv(newfile_path, sep="\t")
@@ -180,11 +183,12 @@ def update_cna(oldfile_path, newfile_path, output_folder):
 
     Example:
       >>>  update_cna('old_data_cna.txt', 'new_data_cna.txt', 'output_folder/')
+
     """
     old = pd.read_csv(oldfile_path, sep="\t", index_col=0)
     new = pd.read_csv(newfile_path, sep="\t", index_col=0)
 
-    sample_old = old.columns 
+    sample_old = old.columns
     sample_new = new.columns
     to_remove = sample_old.intersection(sample_new)
 
@@ -206,6 +210,7 @@ def update_mutations(oldfile_path, newfile_path, output_folder):
     
     Example:
       >>>  update_mutations('old_data_mutations_extended.txt', 'new_data_mutations_extended.txt', 'output_folder/')
+
     """
     old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
     new = pd.read_csv(newfile_path, sep="\t", dtype=str)
@@ -229,6 +234,7 @@ def update_sv(oldfile_path, newfile_path, output_folder):
 
     Example:
       >>>  update_sv('old_data_sv.txt', 'new_data_sv.txt', 'output_folder/')
+
     """
     df_old = pd.read_csv(oldfile_path, sep="\t")
     df_new = pd.read_csv(newfile_path, sep="\t")
@@ -236,7 +242,7 @@ def update_sv(oldfile_path, newfile_path, output_folder):
     merged_df.drop_duplicates(subset=["Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol", "SV_Status", "Class"], keep="last", inplace=True)
     output_file = os.path.join(output_folder, "data_sv.txt")
     merged_df.to_csv(output_file, sep="\t", index=False)
-    
+
     logger.info("data_sv.txt updated!")
 
 
@@ -253,16 +259,17 @@ def update_caselist_cna(oldfile_path, newfile_path, output_folder):
     
     Example:
       >>>  update_caselist_cna('old_cases_cna.txt', 'new_cases_cna.txt', 'output_folder/')
+
     """
-    with open(oldfile_path, "r") as old:
-        with open(newfile_path, "r") as new:
+    with open(oldfile_path) as old:
+        with open(newfile_path) as new:
             for line in new:
                 line = line.strip()
                 if line.startswith("case_list_ids"):
                     new_samples = line.split(":")[1]
                     len_new_sample = len(new_samples.split("\t"))
 
-        with open(os.path.join(output_folder,"cases_cna.txt"),"w") as updated:           
+        with open(os.path.join(output_folder,"cases_cna.txt"),"w") as updated:
             for line in old:
                 if line.startswith("case_list_description"):
                     n_old_samples = re.findall(r"\d+", line)[0]
@@ -286,16 +293,17 @@ def update_caselist_sequenced(oldfile_path, newfile_path, output_folder):
     
     Example:
       >>>  update_caselist_sequenced('old_cases_sequenced.txt', 'new_cases_sequenced.txt', 'output_folder/')
+
     """
-    with open(oldfile_path, "r") as old:
-        with open(newfile_path, "r") as new:
+    with open(oldfile_path) as old:
+        with open(newfile_path) as new:
             for line in new:
                 line = line.strip()
                 if line.startswith("case_list_ids"):
                     new_samples = line.split(":")[1]
                     len_new_sample = len(new_samples.split("\t"))
 
-        with open(os.path.join(output_folder, "cases_sequenced.txt"), "w") as updated:           
+        with open(os.path.join(output_folder, "cases_sequenced.txt"), "w") as updated:
             for line in old:
                 if line.startswith("case_list_description"):
                     n_old_samples = re.findall(r"\d+", line)[0]
@@ -319,16 +327,17 @@ def update_caselist_sv(oldfile_path, newfile_path, output_folder):
     
     Example:
       >>>  update_caselist_sv('old_cases_sv.txt', 'new_cases_sv.txt', 'output_folder/')
+
     """
-    with open(oldfile_path, "r") as old:
-        with open(newfile_path, "r") as new:
+    with open(oldfile_path) as old:
+        with open(newfile_path) as new:
             for line in new:
                 line = line.strip()
                 if line.startswith("case_list_ids"):
                     new_samples = line.split(":")[1]
                     len_new_sample = len(new_samples.split("\t"))
 
-        with open(os.path.join(output_folder, "cases_sv.txt"), "w") as updated:           
+        with open(os.path.join(output_folder, "cases_sv.txt"), "w") as updated:
             for line in old:
                 if line.startswith("case_list_description"):
                     n_old_samples = re.findall(r"\d+", line)[0]
@@ -361,7 +370,7 @@ def check_files(oldpath, newpath, output, file_name):
         logger.warning(f"{file_name} was not found in path 2. The file is being copied from path 1.")
         shutil.copy(o_data, output)
     elif not os.path.exists(o_data) and os.path.exists(n_data):
-        logger.warning(f"{file_name} was not found in path 1. The file is being copied from path 2.")  
+        logger.warning(f"{file_name} was not found in path 1. The file is being copied from path 2.")
         shutil.copy(n_data, output)
     else:
         logger.warning(f"{file_name} not found in current folders. Skipping")
@@ -378,10 +387,10 @@ def check_files_cases(oldpath, newpath, output_caseslists, file_name):
         elif file_name == "cases_sv.txt":
             update_caselist_sv(o_data,n_data,output_caseslists)
     elif os.path.exists(o_data) and not os.path.exists(n_data):
-        logger.warning(f"{file_name} was not found in path 2 case_lists folder. The file is being copied from path 1.")  
+        logger.warning(f"{file_name} was not found in path 2 case_lists folder. The file is being copied from path 1.")
         shutil.copy(o_data, output_caseslists)
     elif not os.path.exists(o_data) and os.path.exists(n_data):
-        logger.warning(f"{file_name} was not found in path 1 case_lists folder. The file is being copied from path 2.") 
+        logger.warning(f"{file_name} was not found in path 1 case_lists folder. The file is being copied from path 2.")
         shutil.copy(n_data, output_caseslists)
     else:
         logger.warning(f"{file_name} not found in 'case_lists' folders. Skipping")

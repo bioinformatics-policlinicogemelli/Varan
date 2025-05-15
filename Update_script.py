@@ -31,7 +31,7 @@ configFile = config.read("conf.ini")
 
 def update_main(oldpath, newpath, output, study_id, overwrite):
     logger.info("Starting update_main script:")
-    logger.info(f"update_main args [oldpath:{oldpath}, newpath:{newpath}, output_folder:{output}]")	
+    logger.info(f"update_main args [oldpath:{oldpath}, newpath:{newpath}, output_folder:{output}]")
     oldpath = oldpath.rstrip("/")
 
     logger.info("Checking inputs...")
@@ -44,7 +44,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
 
     if output!="":
         no_out=False
-        if os.path.exists(oldpath):    
+        if os.path.exists(oldpath):
             logger.info("Old folder found")
         if os.path.exists(newpath):
             logger.info("New folder found")
@@ -56,7 +56,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
 
     if len(old_versions) > 0 and os.path.exists(old_versions[-1]):
         if overwrite:
-            logger.info(f"Overwrite option set. Start removing folder")
+            logger.info("Overwrite option set. Start removing folder")
             shutil.rmtree(old_versions[-1])
 
     output = create_newest_version_folder(output)
@@ -66,10 +66,10 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     if os.path.exists(img_path):
         img_output_dir = os.path.join(output, "img")
         os.makedirs(img_output_dir, exist_ok=True)
-        shutil.copy(img_path, os.path.join(img_output_dir, "logo_VARAN.png"))  
+        shutil.copy(img_path, os.path.join(img_output_dir, "logo_VARAN.png"))
 
     output_caseslists = os.path.join(output,"case_lists")
-    os.mkdir(output_caseslists)   
+    os.mkdir(output_caseslists)
 
     logger.info("Great! Everything is ready to start")
     os.system("cp " + oldpath + "/*meta* " + output)

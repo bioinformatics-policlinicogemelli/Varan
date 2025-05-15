@@ -14,10 +14,7 @@
 
 import os
 import re
-from collections import defaultdict
-from datetime import datetime
 
-import pandas as pd
 from loguru import logger
 
 
@@ -83,13 +80,13 @@ def create_newest_version_folder(outputfolder):
     else:
         outputfolder_newest_version, _= get_newest_version(outputfolder)
         os.mkdir(outputfolder_newest_version)
-    
+
     return outputfolder_newest_version
 
 
 def extract_info_from_meta(folder):
     file_meta = os.path.join(folder, "meta_study.txt")
-    with open(file_meta, "r") as meta:
+    with open(file_meta) as meta:
         for line in meta:
             if line.startswith("type_of_cancer"):
                 cancer = line.split(" ")[1].strip()

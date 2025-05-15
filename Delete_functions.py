@@ -16,7 +16,6 @@ import os
 import re
 import sys
 
-import loguru
 import numpy as np
 import pandas as pd
 
@@ -33,7 +32,7 @@ def delete_clinical_samples(file_path, sample_ids, output_folder):
         sample_ids (list): List of sample IDs to be deleted.
         output_folder (str): Path to the folder where the output file will be saved.
 
-    """    
+    """
     file = pd.read_csv(file_path, sep="\t")
     idx_sample=np.argwhere(file.values == "SAMPLE_ID")[0][1]
     filtered = file[~file.iloc[:, idx_sample].astype(str).isin(sample_ids)]
@@ -67,7 +66,7 @@ def delete_clinical_patient(oldpath, sample_ids, output_folder):
     if len(sample[sample.iloc[:, idx_sample].astype(str).isin(patient_ids)]) > len(sample_ids):
         pzt_list=sample[sample.iloc[:, idx_patient].astype(str).isin(patient_ids)]
         pzt_dup=[pzt_list[pzt_list.duplicated(subset=sample.iloc[0, idx_sample])].iloc[0,1]]
-        
+
         for p_dup in pzt_dup:
             df_dup=pzt_list[pzt_list.iloc[:,1]==p_dup]
             if len(df_dup[df_dup.iloc[:, 0].astype(str).isin(sample_ids)])<df_dup.shape[0]:
@@ -158,7 +157,7 @@ def delete_sv(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output file will be saved.
 
     """
-    with open(file_path, "r") as old_file:
+    with open(file_path) as old_file:
         with open(os.path.join(output_folder, "data_sv.txt"), "w") as of:
             for line in old_file:
                 if not any(word in line for word in sample_ids):
@@ -180,7 +179,7 @@ def delete_caselist_cna(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output case list file will be saved.
 
     """
-    with open(file_path, "r") as file:
+    with open(file_path) as file:
 
         for line in file:
             line = line.strip()
@@ -213,7 +212,7 @@ def delete_caselist_sequenced(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output case list file will be saved.
 
     """
-    with open(file_path, "r") as file:
+    with open(file_path) as file:
         for line in file:
             line = line.strip()
             if line.startswith("case_list_ids"):
@@ -245,7 +244,7 @@ def delete_caselist_sv(file_path, sample_ids, output_folder):
         output_folder (str): Path to the folder where the output case list file will be saved.
 
     """
-    with open(file_path, "r") as file:
+    with open(file_path) as file:
         for line in file:
             line = line.strip()
             if line.startswith("case_list_ids"):
@@ -284,7 +283,7 @@ def check_sample_list(remove_path, oldpath):
 
         missing_samples = set(all_samples_to_remove) - set(old_samples)
         if missing_samples:
-            logger.warning(f"Some of the samples you are trying to remove may not be present in data_clinical_sample.txt file!")
+            logger.warning("Some of the samples you are trying to remove may not be present in data_clinical_sample.txt file!")
             logger.warning(f"Missing sample(s): {", ".join(missing_samples)}")
 
         if len(set(old_samples) - set(all_samples_to_remove)) == 0:

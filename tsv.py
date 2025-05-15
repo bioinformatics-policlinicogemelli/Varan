@@ -12,14 +12,11 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import argparse
-import csv
-import os
 
 
 def get_msi_tmb(INPUT):
     data = {}
-    with open(INPUT, "r") as tsvFile:
+    with open(INPUT) as tsvFile:
         righe = tsvFile.read().splitlines()
         MSI_dic = {}
         MSI = []
@@ -54,22 +51,20 @@ def split_hugo_symbols(hugo_symbol):
 
 
 def get_fusions(INPUT):
-    with open(INPUT, "r") as file:
+    with open(INPUT) as file:
         fusioni = []
         lines = file.readlines()
         for i in range(len(lines)):
             if ("[Fusions]" or "[Data Fusions]") in lines[i]:
                 for j in range(i+2, len(lines)):
-                    if lines[j].strip() == "NA":
-                        break
-                    elif lines[j].strip() == "":
+                    if lines[j].strip() == "NA" or lines[j].strip() == "":
                         break
 
                     gene_pair, bp1, bp2, fsr, g1rr, g2rr = lines[j].strip().split("\t")
 
                     Hugo_Symbol = split_hugo_symbols(gene_pair)
 
-                    chrom1 = bp1.split(":") 
+                    chrom1 = bp1.split(":")
                     chrom2 = bp2.split(":")
                     Site1_Chromosome = chrom1[0]
                     Site1_Position = chrom1[1]
@@ -78,7 +73,7 @@ def get_fusions(INPUT):
 
                     fusioni.append({"Site1_Hugo_Symbol": Hugo_Symbol[0], "Site2_Hugo_Symbol": Hugo_Symbol[1], "Site1_Chromosome": Site1_Chromosome,
                                     "Site2_Chromosome": Site2_Chromosome, "Site1_Position": Site1_Position, "Site2_Position": Site2_Position,
-                                    "Normal_Paired_End_Read_Count": fsr, "Gene 1 Reference Reads": g1rr, 
+                                    "Normal_Paired_End_Read_Count": fsr, "Gene 1 Reference Reads": g1rr,
                                     "Gene 2 Reference Reads": g2rr, "Event_Info": gene_pair})
         return fusioni
 

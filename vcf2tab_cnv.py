@@ -12,7 +12,6 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import argparse
 import math
 import os
 import sys
@@ -25,11 +24,10 @@ def is_positive(number, SAMPLE):
 
 	if number >= 0:
 		return True
-	else:
-		n = open("negative_FC.log", "a")
-		n.write("[WARINIG] the sample " + SAMPLE + " has a Fold change in CNV with negative value\n")
-		n.close()
-		return False
+	n = open("negative_FC.log", "a")
+	n.write("[WARINIG] the sample " + SAMPLE + " has a Fold change in CNV with negative value\n")
+	n.close()
+	return False
 
 
 def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
@@ -37,7 +35,7 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 		MODE="a"
 	else:
 		MODE="w"
-	with open(vcf_file, "r") as vcf, open(table_file, MODE) as table:
+	with open(vcf_file) as vcf, open(table_file, MODE) as table:
 		if MODE == "a":
 			pass
 		else:
@@ -91,10 +89,10 @@ def vcf_to_table(vcf_file, table_file, SAMPLE, MODE):
 			if fc != ".":
 				fc = float(fc)
 				if is_positive(fc, SAMPLE):
-					log2fc = math.log(fc,2)
+					log2fc = math.log2(fc)
 				else:
 					fc = 0.0001
-					log2fc = math.log(fc,2)
+					log2fc = math.log2(fc)
 			else:
 				continue
 
@@ -106,7 +104,7 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 		MODE="a"
 	else:
 		MODE="w"
-	with open(vcf_file, "r") as vcf, open(table_file, MODE) as table:
+	with open(vcf_file) as vcf, open(table_file, MODE) as table:
 		if MODE == "a":
 			pass
 		else:
@@ -181,11 +179,14 @@ def vcf_to_table_fc(vcf_file, table_file, SAMPLE, MODE):
 def load_table(file_path):
 	"""Load a table from a file into a Pandas DataFrame object.
 
-	Parameters:
+	Parameters
+	----------
 	file_path (str): path to the file containing the table.
 
-	Returns:
+	Returns
+	-------
 	pandas.DataFrame: the loaded table.
+
 	"""
 	df = pd.read_csv(file_path, sep="\t",header=0)
 	return df

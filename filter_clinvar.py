@@ -18,7 +18,6 @@ import shutil
 import sys
 from configparser import ConfigParser
 
-import numpy as np
 import pandas as pd
 from loguru import logger
 
@@ -34,7 +33,7 @@ def check_bool(key_value):
     elif bool_key_value.strip() in ["False", "false", "F", ""]:
         bool_key_value = False
     else:
-        logger.critical(f"Please insert a boolean value in {bool_key_value} section of conf.ini: accepted values are [\"True\", \"true\", \"T\", \"False\", \"false\", \"F\", \"\"]")
+        logger.critical(f'Please insert a boolean value in {bool_key_value} section of conf.ini: accepted values are ["True", "true", "T", "False", "false", "F", ""]')
         raise ValueError("Check again the compilation conf.ini")
     return bool_key_value
 
@@ -46,7 +45,7 @@ def print_unique_clin_sig(df):
 
 def filter_OncoKB(df):
     oncokb_filter=ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
-    
+
     df_filtered=df[df["ONCOGENIC"].isin(oncokb_filter)]
     return df_filtered
 
@@ -106,11 +105,11 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
 
     if os.path.exists(os.path.join(output_folder,"MAF_OncoKB")) and len(os.listdir(os.path.join(output_folder,"MAF_OncoKB")))>0:
         if overwrite:
-            logger.warning(f"It seems that the folder 'MAF_OncoKB' already exists. Start removing process...")        
+            logger.warning("It seems that the folder 'MAF_OncoKB' already exists. Start removing process...")
             shutil.rmtree(os.path.join(output_folder,"MAF_OncoKB"))
         elif not resume:
-            logger.critical(f"The folder 'MAF_OncoKB' already exists. To overwrite an existing folder add the -w option!")
-            logger.critical(f"Exit without completing the task!")
+            logger.critical("The folder 'MAF_OncoKB' already exists. To overwrite an existing folder add the -w option!")
+            logger.critical("Exit without completing the task!")
             sys.exit()
 
     file_list = concatenate.get_files_by_ext(os.path.join(folder, "maf"), "maf")
@@ -124,7 +123,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
         os.makedirs(output_onco, exist_ok=True)
         extension = "_OncoAnnotated.maf"
         input_file = pd.read_csv(input, sep="\t")
-    
+
         for f in file_list:
             if extension in f:
                 continue
@@ -139,14 +138,14 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
                             cancer_onco = cancer
                         os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f}\
                                 -o {file_path} -t {cancer_onco.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
-            else:               
+            else:
                 os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f}\
                             -o {file_path} -t {cancer.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
 
     file_list = concatenate.get_files_by_ext(os.path.join(folder, "maf"), "maf")
     out_filter = os.path.join(output_folder, "MAF_filtered")
 
-    if oncokb and "o" in filters:   
+    if oncokb and "o" in filters:
         file_list = concatenate.get_files_by_ext(output_onco, "maf")
         out_filter=os.path.join(output_folder, "MAF_Onco_filtered")
 
@@ -159,7 +158,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             file_to_filter=pd.read_csv(file, sep="\t", comment="#", dtype=object)
 
             if "i" in filters:
-                file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get("Filters", "IMPACT")))]    
+                file_to_filter = file_to_filter[~file_to_filter["IMPACT"].isin(ast.literal_eval(config.get("Filters", "IMPACT")))]
 
             if "p" in filters:
                 file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
@@ -221,6 +220,6 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             if "s" in filters:
                 file_to_filter = file_to_filter[file_to_filter.apply(check_sift,axis=1)]
 
-            file_to_filter.to_csv(os.path.join(out_filter, os.path.basename(file)),sep="\t",index=False)  
+            file_to_filter.to_csv(os.path.join(out_filter, os.path.basename(file)),sep="\t",index=False)
 
     logger.success("Filter script completed!\n")
