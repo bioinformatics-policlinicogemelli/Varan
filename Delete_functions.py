@@ -284,7 +284,7 @@ def check_sample_list(remove_path, oldpath):
         missing_samples = set(all_samples_to_remove) - set(old_samples)
         if missing_samples:
             logger.warning("Some of the samples you are trying to remove may not be present in data_clinical_sample.txt file!")
-            logger.warning(f"Missing sample(s): {", ".join(missing_samples)}")
+            logger.warning(f"Missing sample(s): {', '.join(missing_samples)}")
 
         if len(set(old_samples) - set(all_samples_to_remove)) == 0:
             logger.critical("It looks like you are removing all the samples from original study! Cannot create an empty study!")

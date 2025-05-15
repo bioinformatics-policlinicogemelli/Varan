@@ -235,7 +235,7 @@ def check_sample_list(extract_path, oldpath):
         missing_samples = set(all_samples_to_extract) - set(old_samples)
         if missing_samples:
             logger.warning("Some of the samples you are trying to extract may not be present in data_clinical_sample.txt file!")
-            logger.warning(f"Missing sample(s): {", ".join(missing_samples)}")
+            logger.warning(f"Missing sample(s): {', '.join(missing_samples)}")
 
         if len(set(old_samples) - set(all_samples_to_extract)) == 0:
             logger.warning("It looks like you are extracting all the samples from the original study, but this might be redundant, as it replicates the existing one.")
