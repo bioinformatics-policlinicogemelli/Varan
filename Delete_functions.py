@@ -13,16 +13,16 @@
 #limitations under the License.
 
 import os
-import sys
-import pandas as pd
 import re
-import numpy as np
+import sys
+
 import loguru
-from loguru import logger 
+import numpy as np
+import pandas as pd
+
 
 def delete_clinical_samples(file_path, sample_ids, output_folder):
-    """
-    Delete specific clinical samples from a data file(data_clinical_sample).
+    """Delete specific clinical samples from a data file(data_clinical_sample).
 
     This function reads a data file in tab-separated format, filters out
     the rows with specified sample IDs, and saves the filtered data to
@@ -32,7 +32,7 @@ def delete_clinical_samples(file_path, sample_ids, output_folder):
         file_path (str): Path to the input data file.
         sample_ids (list): List of sample IDs to be deleted.
         output_folder (str): Path to the folder where the output file will be saved.
-        
+
     """    
     file = pd.read_csv(file_path, sep="\t")
     idx_sample=np.argwhere(file.values == "SAMPLE_ID")[0][1]
@@ -41,8 +41,7 @@ def delete_clinical_samples(file_path, sample_ids, output_folder):
 
 
 def delete_clinical_patient(oldpath, sample_ids, output_folder):
-    """
-    Delete clinical patients based on associated sample IDs.
+    """Delete clinical patients based on associated sample IDs.
 
     This function reads two data files: one for patients and one for samples,
     filters out patients based on sample IDs, and saves the filtered patient data
@@ -56,15 +55,15 @@ def delete_clinical_patient(oldpath, sample_ids, output_folder):
     """
     file = pd.read_csv(os.path.join(oldpath, "data_clinical_patient.txt"), sep="\t")
     sample = pd.read_csv(os.path.join(oldpath, "data_clinical_sample.txt"), sep="\t")
-    
+
     idx_sample=np.argwhere(sample.values == "SAMPLE_ID")[0][1]
     idx_patient=np.argwhere(sample.values == "PATIENT_ID")[0][1]
-    
+
     patient_ids = list(sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)].iloc[:, idx_patient])
-    
+
     # clean file from un-find samples
     sample_ids=list(sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)].iloc[:, idx_sample])
-    
+
     if len(sample[sample.iloc[:, idx_sample].astype(str).isin(patient_ids)]) > len(sample_ids):
         pzt_list=sample[sample.iloc[:, idx_patient].astype(str).isin(patient_ids)]
         pzt_dup=[pzt_list[pzt_list.duplicated(subset=sample.iloc[0, idx_sample])].iloc[0,1]]
@@ -73,13 +72,13 @@ def delete_clinical_patient(oldpath, sample_ids, output_folder):
             df_dup=pzt_list[pzt_list.iloc[:,1]==p_dup]
             if len(df_dup[df_dup.iloc[:, 0].astype(str).isin(sample_ids)])<df_dup.shape[0]:
                 patient_ids.remove(p_dup)
-        
+
     filtered = file[~file.iloc[:, 0].astype(str).isin(patient_ids)]
     filtered.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t", na_rep="NaN")
-   
+
+
 def delete_cna_hg19(file_path, sample_ids, output_folder):
-    """
-    Delete specific copy number alteration data from a file in hg19 format.
+    """Delete specific copy number alteration data from a file in hg19 format.
 
     This function reads a data file in tab-separated format, filters out the rows
     with specified IDs, and saves the filtered data to a new file in the specified output folder.
@@ -96,8 +95,7 @@ def delete_cna_hg19(file_path, sample_ids, output_folder):
 
 
 def delete_cna_hg19_fc(file_path, sample_ids, output_folder):
-    """
-    Delete specific copy number alteration data from a file in hg19 format.
+    """Delete specific copy number alteration data from a file in hg19 format.
 
     This function reads a data file in tab-separated format, filters out the rows
     with specified IDs, and saves the filtered data to a new file in the specified output folder.
@@ -113,10 +111,8 @@ def delete_cna_hg19_fc(file_path, sample_ids, output_folder):
     filtered.to_csv(os.path.join(output_folder, "data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
 
 
-
 def delete_cna(file_path, sample_ids, output_folder):
-    """
-    Delete copy number alteration data associated with specific samples.
+    """Delete copy number alteration data associated with specific samples.
 
     This function reads a data file in tab-separated format, drops columns corresponding to
     the specified sample IDs, and saves the modified data to a new file in the specified output folder.
@@ -131,10 +127,10 @@ def delete_cna(file_path, sample_ids, output_folder):
     filtered = file.drop(columns=sample_ids, axis=1, errors="ignore")
     filtered = filtered.loc[(filtered != 0).any(axis=1)]
     filtered.to_csv(os.path.join(output_folder, "data_cna.txt"), sep="\t")
-        
+
+
 def delete_mutations(file_path, sample_ids, output_folder):
-    """
-    Delete specific mutation data associated with given sample IDs.
+    """Delete specific mutation data associated with given sample IDs.
 
     This function reads a data file in tab-separated format, filters out rows
     with specified tumor sample barcodes, and saves the filtered data to a new file.
@@ -151,8 +147,7 @@ def delete_mutations(file_path, sample_ids, output_folder):
 
 
 def delete_sv(file_path, sample_ids, output_folder):
-    """
-    Delete structural variation data associated with specified sample IDs.
+    """Delete structural variation data associated with specified sample IDs.
 
     This function reads a data file line by line, filters out lines containing
     any of the specified sample IDs, and saves the filtered data to a new file.
@@ -169,13 +164,12 @@ def delete_sv(file_path, sample_ids, output_folder):
                 if not any(word in line for word in sample_ids):
                     list_split = line.split("\t\t")
                     list_strip = [elem.strip() for elem in list_split]
-                    new_row = "\t".join(list_strip) + '\n'
+                    new_row = "\t".join(list_strip) + "\n"
                     of.write(new_row)
 
 
 def delete_caselist_cna(file_path, sample_ids, output_folder):
-    """
-    Delete case list IDs associated with specific sample IDs for copy number alteration data.
+    """Delete case list IDs associated with specific sample IDs for copy number alteration data.
 
     This function reads a case list file, identifies case list IDs, removes the specified sample IDs,
     updates the case list description, and saves the modified case list to a new file.
@@ -185,10 +179,9 @@ def delete_caselist_cna(file_path, sample_ids, output_folder):
         sample_ids (list): List of sample IDs to be removed from the case list.
         output_folder (str): Path to the folder where the output case list file will be saved.
 
-   
     """
     with open(file_path, "r") as file:
-        
+
         for line in file:
             line = line.strip()
             if line.startswith("case_list_ids"):
@@ -200,7 +193,7 @@ def delete_caselist_cna(file_path, sample_ids, output_folder):
             file.seek(0)
             for line in file:
                 if line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r'\d+', line)[0]
+                    n_old_samples = re.findall(r"\d+", line)[0]
                     line = line.replace(n_old_samples, str(len(updated)))
 
                 if line.startswith("case_list_ids"):
@@ -209,8 +202,7 @@ def delete_caselist_cna(file_path, sample_ids, output_folder):
 
 
 def delete_caselist_sequenced(file_path, sample_ids, output_folder):
-    """
-    Delete case list IDs associated with specific sample IDs for sequenced data.
+    """Delete case list IDs associated with specific sample IDs for sequenced data.
 
     This function reads a case list file, identifies case list IDs, removes the specified sample IDs,
     updates the case list description, and saves the modified case list to a new file.
@@ -220,7 +212,6 @@ def delete_caselist_sequenced(file_path, sample_ids, output_folder):
         sample_ids (list): List of sample IDs to be removed from the case list.
         output_folder (str): Path to the folder where the output case list file will be saved.
 
-    
     """
     with open(file_path, "r") as file:
         for line in file:
@@ -234,18 +225,16 @@ def delete_caselist_sequenced(file_path, sample_ids, output_folder):
             file.seek(0)
             for line in file:
                 if line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r'\d+', line)[0]
+                    n_old_samples = re.findall(r"\d+", line)[0]
                     line = line.replace(n_old_samples, str(len(updated)))
 
                 if line.startswith("case_list_ids"):
                     line = "case_list_ids:" + "\t".join(updated)
                 filtered.write(line)
 
-    
-    
+
 def delete_caselist_sv(file_path, sample_ids, output_folder):
-    """
-    Delete case list IDs associated with specific sample IDs for structural variation data.
+    """Delete case list IDs associated with specific sample IDs for structural variation data.
 
     This function reads a case list file, identifies case list IDs, removes the specified sample IDs,
     updates the case list description, and saves the modified case list to a new file.
@@ -255,7 +244,6 @@ def delete_caselist_sv(file_path, sample_ids, output_folder):
         sample_ids (list): List of sample IDs to be removed from the case list.
         output_folder (str): Path to the folder where the output case list file will be saved.
 
-    
     """
     with open(file_path, "r") as file:
         for line in file:
@@ -269,12 +257,13 @@ def delete_caselist_sv(file_path, sample_ids, output_folder):
             file.seek(0)
             for line in file:
                 if line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r'\d+', line)[0]
+                    n_old_samples = re.findall(r"\d+", line)[0]
                     line = line.replace(n_old_samples, str(len(updated)))
 
                 if line.startswith("case_list_ids"):
                     line = "case_list_ids:" + "\t".join(updated)
                 filtered.write(line)
+
 
 def check_sample_list(remove_path, oldpath):
     with open(remove_path) as sample_list:
@@ -296,7 +285,7 @@ def check_sample_list(remove_path, oldpath):
         missing_samples = set(all_samples_to_remove) - set(old_samples)
         if missing_samples:
             logger.warning(f"Some of the samples you are trying to remove may not be present in data_clinical_sample.txt file!")
-            logger.warning(f"Missing sample(s): {', '.join(missing_samples)}")
+            logger.warning(f"Missing sample(s): {", ".join(missing_samples)}")
 
         if len(set(old_samples) - set(all_samples_to_remove)) == 0:
             logger.critical("It looks like you are removing all the samples from original study! Cannot create an empty study!")

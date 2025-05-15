@@ -12,12 +12,13 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import os 
-import re 
-from loguru import logger
-import pandas as pd
-from datetime import datetime
+import os
+import re
 from collections import defaultdict
+from datetime import datetime
+
+import pandas as pd
+from loguru import logger
 
 
 def extract_version_str(foldername):
@@ -25,20 +26,21 @@ def extract_version_str(foldername):
     versionname  = "_v" + str(version)
     return versionname
 
+
 def extract_version_int(foldername):
     try:
-        version = int(re.search(r'_v(\d+)$', foldername).group(1))
+        version = int(re.search(r"_v(\d+)$", foldername).group(1))
     except:
         version = foldername
     return version
 
 
 def get_version_list(output_folder):
-    foldername = re.split(r'_v[0-9]+$',os.path.basename(output_folder))[0]
+    foldername = re.split(r"_v[0-9]+$",os.path.basename(output_folder))[0]
     outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
         outputfolderpath = os.getcwd()
-    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.split(fr'{output_folder}_v[0-9]+$', os.path.basename(output_folder))[0] + "_v" in file]
+    old_versions = [file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.split(fr"{output_folder}_v[0-9]+$", os.path.basename(output_folder))[0] + "_v" in file]
 
     global old_version_exists
     if old_versions == []:
@@ -52,8 +54,9 @@ def get_version_list(output_folder):
     version_name_ordered = list(map(lambda x: foldername + "_v" + str(x), sorted_version))
     return version_name_ordered
 
+
 def get_newest_version(output_folder):
-    foldername = re.split(r'_v[0-9]+$',os.path.basename(output_folder))[0]
+    foldername = re.split(r"_v[0-9]+$",os.path.basename(output_folder))[0]
     outputfolderpath = os.path.dirname(output_folder)
     if outputfolderpath == "":
         outputfolderpath = os.getcwd()
@@ -71,8 +74,8 @@ def get_newest_version(output_folder):
     output_folder_version = foldername + version
     return os.path.join(os.path.dirname(output_folder),output_folder_version), "_v" + str(v)
 
+
 def create_newest_version_folder(outputfolder):
-    
     if len(get_version_list(outputfolder)) == 0:
         version = "_v1"
         outputfolder_newest_version = outputfolder + version
@@ -86,13 +89,12 @@ def create_newest_version_folder(outputfolder):
 
 def extract_info_from_meta(folder):
     file_meta = os.path.join(folder, "meta_study.txt")
-    with open(file_meta, 'r') as meta:
+    with open(file_meta, "r") as meta:
         for line in meta:
             if line.startswith("type_of_cancer"):
                 cancer = line.split(" ")[1].strip()
             if line.startswith("cancer_study_identifier"):
-                study_id = re.split(r'_v[0-9]+$',line.split(" ")[1])[0].strip()
+                study_id = re.split(r"_v[0-9]+$",line.split(" ")[1])[0].strip()
             if line.startswith("name"):
-                study_name = re.split(r'V[0-9]+$',line.split(":")[1].split("(")[0].strip())[0].strip()
- 
+                study_name = re.split(r"V[0-9]+$",line.split(":")[1].split("(")[0].strip())[0].strip()
     return cancer, [study_id, study_name]

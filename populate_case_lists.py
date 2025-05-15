@@ -12,18 +12,20 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import os
-import pandas as pd
 import argparse
+import os
 from configparser import ConfigParser
 
+import pandas as pd
+
 def populate_cases_sv(project_id, folder, cases_list_dir, logger):
-    """
-        Function to populate cases_sv file
+    """Function to populate cases_sv file
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         cases_list_dir : path of case_list output dir
+
     """
     try:
         data_sv = pd.read_csv(os.path.join(folder, "data_sv.txt"), sep="\t")
@@ -32,7 +34,7 @@ def populate_cases_sv(project_id, folder, cases_list_dir, logger):
         return
     nsamples = len(data_sv.Sample_Id.unique())
     sample_ids = list(data_sv.Sample_Id.unique())
-    
+
     stable_id = project_id + "_sv"
     case_list_name = "Samples with SV data"
     case_list_category = "all_cases_with_sv_data"
@@ -47,30 +49,31 @@ def populate_cases_sv(project_id, folder, cases_list_dir, logger):
         "case_list_description": case_list_description,
         "case_list_ids": case_list_ids,
     }
-    
+
     case_sv_file = open(os.path.join(cases_list_dir, "cases_sv.txt"), "w")
     for key, value in dictionary_file.items():
         print(f"{key}: {value}", file=case_sv_file)
     case_sv_file.close()
 
+
 def populate_cases_cna(project_id, folder, cases_list_dir, logger):
-    """
-        Function to populate cases_cna file
+    """Function to populate cases_cna file
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         cases_list_dir : path of case_list output dir
+
     """
-    
     try:
         data_cna = pd.read_csv(os.path.join(folder, "data_cna.txt"), sep="\t")
     except pd.errors.EmptyDataError:
         logger.error("data_cna.txt is empty, skipping this step!")
         return
-    
+
     nsamples = len(data_cna.columns)-1
     sample_ids = list(data_cna.columns)[1:]
-    
+
     stable_id = project_id + "_cna"
 
     case_list_category = "all_cases_with_cna_data"
@@ -93,16 +96,15 @@ def populate_cases_cna(project_id, folder, cases_list_dir, logger):
     case_cna_file.close()
 
 
-
 def populate_cases_sequenced(project_id, folder, cases_list_dir, logger):
-    """
-        Function to populate cases_sequenced file
+    """Function to populate cases_sequenced file
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         cases_list_dir : path of case_list output dir
-    """
 
+    """
     try:
         data_sequenced = pd.read_csv(os.path.join(folder, "data_mutations_extended.txt"), sep="\t", low_memory=False)
     except pd.errors.EmptyDataError:

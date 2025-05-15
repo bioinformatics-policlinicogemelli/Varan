@@ -12,18 +12,25 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import os 
+import os
 import re
-import pandas as pd
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 
 def create_barplots(output_folder):
+    """Generate and save bar plots into the 'img' folder inside output_folder.
+
+    Args:
+        output_folder (str): The base output directory.
+
+    """
     os.makedirs(os.path.join(output_folder, "img"), exist_ok=True)
     outputfolderpath = os.path.dirname(output_folder)
-    output_folder_base = re.sub(r'_v\d+$', '', output_folder)
-    old_versions = {file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.match(rf"^{re.escape(output_folder_base)}_v[0-9]+$", os.path.join(outputfolderpath, file))} 
+    output_folder_base = re.sub(r"_v\d+$", "", output_folder)
+    old_versions = {file for file in os.listdir(os.path.realpath(outputfolderpath)) if re.match(rf"^{re.escape(output_folder_base)}_v[0-9]+$", os.path.join(outputfolderpath, file))}
 
     total_dic = {}
 
@@ -40,7 +47,7 @@ def create_barplots(output_folder):
         total_dic[folder] = [unique_sam, unique_pat]
 
     n = 5
-    sorted_total = dict(sorted(total_dic.items(), key=lambda item: int(re.search(r'_v(\d+)$', item[0]).group(1))))
+    sorted_total = dict(sorted(total_dic.items(), key=lambda item: int(re.search(r"_v(\d+)$", item[0]).group(1))))
     limited_dic = dict(list(sorted_total.items())[-n:])
 
     values = list(limited_dic.values())
@@ -52,14 +59,12 @@ def create_barplots(output_folder):
     width = 0.3
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    
-    rects1 = ax.bar(x - width/2, samples, width, label='Samples', color='#008080')
-    rects2 = ax.bar(x + width/2, patients, width, label='Patients', color='#FF6F61')
+    rects1 = ax.bar(x - width/2, samples, width, label="Samples", color="#008080")
+    rects2 = ax.bar(x + width/2, patients, width, label="Patients", color="#FF6F61")
 
-
-    ax.set_ylabel('Count')
+    ax.set_ylabel("Count")
     ax.set_xticks(x)
-    ax.set_xticklabels(keys, rotation=45, ha='right') 
+    ax.set_xticklabels(keys, rotation=45, ha="right")
     ax.legend()
 
     autolabel_ver(ax, rects1)
@@ -68,7 +73,7 @@ def create_barplots(output_folder):
     fig.tight_layout()
 
     plt.show()
-    plt.savefig(os.path.join(output_folder, "img", 'general.png'))
+    plt.savefig(os.path.join(output_folder, "img", "general.png"))
 
 
     total_genes = {}
@@ -99,7 +104,7 @@ def create_barplots(output_folder):
         total_genes[folder] = [snv_number, cnv_number, sv_number]
 
 
-    sorted_total = dict(sorted(total_genes.items(), key=lambda item: int(re.search(r'_v(\d+)$', item[0]).group(1))))
+    sorted_total = dict(sorted(total_genes.items(), key=lambda item: int(re.search(r"_v(\d+)$", item[0]).group(1))))
     limited_dic = dict(list(sorted_total.items())[-n:])
 
     studies = list(limited_dic.keys())
@@ -114,18 +119,18 @@ def create_barplots(output_folder):
     colors = {"SNV": "blue", "CNV": "orange", "SV": "green"}
 
     fig, axes = plt.subplots(
-        1, len(categories), 
+        1, len(categories),
         figsize=(10, 5),
-        sharey=True, 
-        gridspec_kw={'wspace': 0.1}, 
-        constrained_layout=True
+        sharey=True,
+        gridspec_kw={"wspace": 0.1},
+        constrained_layout=True,
     )
 
     for i, (cat, values) in enumerate(categories.items()):
         bars = axes[i].barh(studies, values, color=colors[cat])
         axes[i].set_title(cat, fontsize=10)
         axes[i].set_xlabel("Counts", fontsize=9)
-        if i == 0:  
+        if i == 0:
             axes[i].invert_yaxis()
 
         max_value = max(values) if values else 0
@@ -137,18 +142,18 @@ def create_barplots(output_folder):
 
         for bar in bars:
             width = bar.get_width()
-            axes[i].text(width + max_value * 0.02, bar.get_y() + bar.get_height()/2, 
-                         f'{width}', va='center', ha='left', fontsize=8)
+            axes[i].text(width + max_value * 0.02, bar.get_y() + bar.get_height()/2,
+                         f"{width}", va="center", ha="left", fontsize=8)
 
-    plt.savefig(os.path.join(output_folder, "img", 'genes.png'))
+    plt.savefig(os.path.join(output_folder, "img", "genes.png"))
 
     return len(old_versions)
 
 def autolabel_ver(ax, rects):
     for rect in rects:
         height = rect.get_height()
-        ax.annotate(f'{height}',
+        ax.annotate(f"{height}",
                     xy=(rect.get_x() + rect.get_width() / 2, height),
                     xytext=(0, 3),
                     textcoords="offset points",
-                    ha='center', va='bottom')
+                    ha="center", va="bottom")

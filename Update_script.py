@@ -13,26 +13,27 @@
 #limitations under the License.
 
 import os
-from Update_functions import *
-from loguru import logger
-from ValidateFolder import validateOutput, copy_maf
-from versioning import *
-from Make_meta_and_cases import meta_case_main
 import shutil
 import sys
-from write_report import *
+
+from loguru import logger
+
 from filter_clinvar import check_bool
+from Make_meta_and_cases import meta_case_main
+from Update_functions import *
+from ValidateFolder import copy_maf, validateOutput
+from versioning import *
+from write_report import *
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
 
 def update_main(oldpath, newpath, output, study_id, overwrite):
-    
     logger.info("Starting update_main script:")
     logger.info(f"update_main args [oldpath:{oldpath}, newpath:{newpath}, output_folder:{output}]")	
     oldpath = oldpath.rstrip("/")
-    
+
     logger.info("Checking inputs...")
     if not os.path.isdir(oldpath):
         logger.critical(f"{oldpath} is not a valid folder!")
@@ -40,7 +41,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     if not os.path.isdir(newpath):
         logger.critical(f"{newpath} is not a valid folder!")
         sys.exit()
-    
+
     if output!="":
         no_out=False
         if os.path.exists(oldpath):    
@@ -49,7 +50,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
             logger.info("New folder found")
     else:
         no_out=True
-        output=re.split(r'_v[0-9]+$', oldpath)[0]
+        output=re.split(r"_v[0-9]+$", oldpath)[0]
 
     old_versions = get_version_list(output)
 
@@ -72,34 +73,33 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
 
     logger.info("Great! Everything is ready to start")
     os.system("cp " + oldpath + "/*meta* " + output)
-    
+
     file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt", "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt", "data_mutations_extended.txt", "data_sv.txt"]
     for file in file_names:
         try:
             check_files(oldpath, newpath, output, file)
         except pd.errors.ParserError as e:
-            line_number = int(re.search(r'line (\d+)', str(e)).group(1))
+            line_number = int(re.search(r"line (\d+)", str(e)).group(1))
             logger.critical(f"error: Wrong column number in line {line_number} of {file} file")
             raise(IndexError("Exiting from Update script!"))
-
 
     check_files_cases(oldpath, newpath, output_caseslists,"cases_cna.txt")
     check_files_cases(oldpath, newpath, output_caseslists,"cases_sequenced.txt")
     check_files_cases(oldpath, newpath, output_caseslists,"cases_sv.txt")
-    
+
     cancer, study_info = extract_info_from_meta(oldpath)
     study_info.append(oldpath)
     study_info.append(no_out)
 
     meta_case_main(cancer, output, study_info, study_id)
 
-    COPY_MAF = config.get('Zip', 'COPY_MAF')
+    COPY_MAF = config.get("Zip", "COPY_MAF")
     COPY_MAF = check_bool(COPY_MAF)
-    ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+    ZIP_MAF = config.get("Zip", "ZIP_MAF")
     ZIP_MAF = check_bool(ZIP_MAF)
     copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
     copy_maf(newpath, output, COPY_MAF, ZIP_MAF)
-    
+
     logger.info("Starting Validation Folder...")
     number_for_graph = validateOutput(output, None, False, True, None, None, None)
 
@@ -108,6 +108,3 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
 
     logger.success("The process ended without errors")
     logger.success("Successfully updated study!")
-
-
-

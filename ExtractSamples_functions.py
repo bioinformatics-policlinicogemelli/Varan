@@ -14,15 +14,15 @@
 
 import os
 import sys
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from loguru import logger
 
 
 def extract_clinical_samples(file_path, sample_ids, output_folder):
-    """
-    Extracts specific clinical information for samples from the original data_clinical_samples.txt and saves the result to a new file.
-    
+    """Extracts specific clinical information for samples from the original data_clinical_samples.txt and saves the result to a new file.
+
     This function reads a tab-separated CSV file from the given `file_path`, extracts rows
     corresponding to the provided list of `sample_ids`, and saves the extracted data, along with
     the header information, to a new tab-separated file named 'data_clinical_sample.txt' in the
@@ -47,9 +47,7 @@ def extract_clinical_samples(file_path, sample_ids, output_folder):
     extracted.to_csv(os.path.join(output_folder, "data_clinical_sample.txt"), index=False, sep="\t")
 
 def extract_clinical_patient(oldpath, sample_ids, output_folder):
-    
-    """
-    Extracts clinical patient data corresponding to specified sample identifiers and saves the result to a new file. 
+    """Extracts clinical patient data corresponding to specified sample identifiers and saves the result to a new file. 
     
     This function reads the 'data_clinical_patient.txt' file from the original data_clinical_patient, along with the 'data_clinical_sample.txt'
     file that should be present in the same directory. It extracts patient data rows based on the given `sample_ids`, determined by
@@ -71,7 +69,7 @@ def extract_clinical_patient(oldpath, sample_ids, output_folder):
 
     idx_sample=np.argwhere(sample.values == "SAMPLE_ID")[0][1]
     idx_patient=np.argwhere(sample.values == "PATIENT_ID")[0][1]
-    
+
     patient_ids = list(sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)][sample.iloc[0,idx_patient]])
 
     header = file.loc[0:4,:]
@@ -83,11 +81,9 @@ def extract_clinical_patient(oldpath, sample_ids, output_folder):
     extracted = pd.concat([header, extracted])    
     extracted.to_csv(os.path.join(output_folder, "data_clinical_patient.txt"), index=False, sep="\t", header=False, na_rep="NaN")
 
-   
 
 def extract_cna_hg19(file_path, sample_ids, output_folder):
-    """
-    Extracts specific samples from a copy number alteration (CNA) data file in hg19 genome format.
+    """Extracts specific samples from a copy number alteration (CNA) data file in hg19 genome format.
     
     This function reads a tab-separated CNA data file specified by 'file_path', extracts the rows
     corresponding to the provided 'sample_ids', and saves the extracted data into a new file named
@@ -115,10 +111,7 @@ def extract_cna_hg19(file_path, sample_ids, output_folder):
 
 
 def extract_cna_hg19_fc(file_path, sample_ids, output_folder):
-    """
-    To rewrite.
-
-    Args:
+    """Args:
         file_path (str): Path to the input CNA data file in tab-separated format.
         sample_ids (list): List of sample IDs (as strings) to be extracted from the input file.
         output_folder (str): Path to the directory where the extracted data file will be saved.
@@ -137,11 +130,10 @@ def extract_cna_hg19_fc(file_path, sample_ids, output_folder):
     file = pd.read_csv(file_path, sep="\t")
     extracted = file[file["ID"].astype(str).isin(sample_ids)]
     extracted.to_csv(os.path.join(output_folder, "data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
-        
-    
+
+
 def extract_cna(file_path, sample_ids, output_folder):
-    """
-    Extracts specific samples' copy number alteration (CNA) data from the original CNA  file.
+    """Extracts specific samples' copy number alteration (CNA) data from the original CNA  file.
 
     This function reads the original tab-separated CNA data file specified by 'file_path', extracts the columns
     corresponding to the provided 'sample_ids', and saves the extracted data into a new file named
@@ -164,10 +156,10 @@ def extract_cna(file_path, sample_ids, output_folder):
     extracted = file.loc[:, columns_to_keep]
     extracted = extracted.loc[(extracted != 0).any(axis=1)]
     extracted.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
-        
+
+
 def extract_mutations(file_path, sample_ids, output_folder):
-    """
-    Extracts specific samples' mutation data from the original `data_mutations_extended.txt`
+    """Extracts specific samples' mutation data from the original `data_mutations_extended.txt`
     
     This function reads a tab-separated mutation data file specified by 'file_path', extracts the rows
     corresponding to the provided 'sample_ids', and saves the extracted data into a new file named
@@ -186,14 +178,13 @@ def extract_mutations(file_path, sample_ids, output_folder):
     Example:
        >>> extract_mutations('input_mutations.tsv', ['sample1', 'sample2'], 'output_folder/')
     """
-    
     file = pd.read_csv(file_path, sep="\t", dtype=str)
     extracted = file[file["Tumor_Sample_Barcode"].astype(str).isin(sample_ids)]
     extracted.to_csv(os.path.join(output_folder, "data_mutations_extended.txt"), index=False, sep="\t")
-    
+
+
 def extract_sv(file_path, sample_ids, output_folder):
-    """
-    Extracts specific samples' structural variation (SV) data from the original `data_sv.txt`.
+    """Extracts specific samples' structural variation (SV) data from the original `data_sv.txt`.
     
     This function reads a text file specified by 'file_path', extracts the lines
     corresponding to the provided 'sample_ids', and saves the extracted data into a new file named
@@ -211,10 +202,11 @@ def extract_sv(file_path, sample_ids, output_folder):
     Example:
       >>>  extract_sv('input_sv.txt', ['sample1', 'sample2'], 'output_folder/')
     """
-    
+
     old_file=pd.read_csv(file_path,sep="\t")
     new_file=old_file[old_file["Sample_Id"].isin(sample_ids)]
     new_file.to_csv(os.path.join(output_folder,"data_sv.txt"),sep="\t",index=False)
+
 
 def check_sample_list(extract_path, oldpath):
     with open(extract_path) as sample_list:
@@ -236,7 +228,7 @@ def check_sample_list(extract_path, oldpath):
         missing_samples = set(all_samples_to_extract) - set(old_samples)
         if missing_samples:
             logger.warning(f"Some of the samples you are trying to extract may not be present in data_clinical_sample.txt file!")
-            logger.warning(f"Missing sample(s): {', '.join(missing_samples)}")
+            logger.warning(f"Missing sample(s): {", ".join(missing_samples)}")
 
         if len(set(old_samples) - set(all_samples_to_extract)) == 0:
             logger.warning("It looks like you are extracting all the samples from the original study, but this might be redundant, as it replicates the existing one.")

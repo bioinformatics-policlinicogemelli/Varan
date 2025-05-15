@@ -12,32 +12,34 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import os
 import argparse
-from loguru import logger
-import sys
-from configparser import ConfigParser
-import subprocess
+import collections
+import os
 import shutil
-from write_report import *
+import subprocess
+import sys
+import zipfile
+from configparser import ConfigParser
+
+from loguru import logger
+
 from Create_graphs import *
 from filter_clinvar import check_bool
-import zipfile
-import collections
+from write_report import *
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
 def cBio_validation(output_folder):
     config = ConfigParser()
-    config.read('conf.ini')
+    config.read("conf.ini")
 
     logger.info("Starting validation... ")
     logger.warning("Be warned that files succeeding this validation may still fail to load (correctly).")
 
     process = subprocess.Popen(["python3", "importer/validateData.py", "-s", output_folder, "-n", "-html", os.path.join(output_folder, "report_validate.html"), "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     stdout, stderr = process.communicate()
-    
+
     if process.returncode == 1:
         logger.error(f"Error: {stderr.strip()} Check the report file in the study folder for more info!")
     elif process.returncode in [2, 3]:
@@ -55,8 +57,7 @@ def clean_multi(input_folder, folder, file):
 
 
 def validateFolderlog(folder):
-    """
-    Validates the contents of the folder against required files for cBioPortal data upload.
+    """Validates the contents of the folder against required files for cBioPortal data upload.
     
     This function checks the contents of the folder against a set of required files for different categories
     (e.g., Patient, Study, CNA, Fusion, SNV) that are necessary for uploading data to cBioPortal. It logs any
@@ -85,7 +86,7 @@ def validateFolderlog(folder):
         else:
             list_files.append(file)
 
- 
+
     # Define required files for each category
     required_files = {
         "Patient": [
@@ -115,20 +116,21 @@ def validateFolderlog(folder):
             "meta_mutations_extended.txt",
         ],
     }
-    
+
     result_all = {}
     for category, required_files_list in required_files.items():
         missing_files = [elem for elem in required_files_list if elem not in list_files]
         result_all[category] = len(missing_files) == 0
-    
+
         if not result_all[category]:
             logger.warning(f"Missing file(s) for {category} from {folder}:")
             for missing in missing_files:
                 logger.warning("- " + missing)
-        
-            
+
+
     if all(result_all.values()):
         logger.success("Folder contains all required files for cBioportal")
+
 
 def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None, filters=None):
     validateFolderlog(folder)
@@ -146,9 +148,9 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
             maf_path = os.path.join(folder, "maf")
             snv_path = os.path.join(folder, "snv_filtered")
             temp_path = os.path.join(folder, "temp")
-            
+
             if os.path.exists(maf_path):
-                ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+                ZIP_MAF = config.get("Zip", "ZIP_MAF")
                 ZIP_MAF = check_bool(ZIP_MAF)
                 if not os.listdir(maf_path):
                     shutil.rmtree(maf_path)
@@ -159,7 +161,7 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
                     logger.info("Deleting unzipped maf folder...")
                     shutil.rmtree(maf_path)
 
-            ZIP_SNV_FILTERED = config.get('Zip', 'ZIP_SNV_FILTERED')
+            ZIP_SNV_FILTERED = config.get("Zip", "ZIP_SNV_FILTERED")
             ZIP_SNV_FILTERED = check_bool(ZIP_SNV_FILTERED)
             if os.path.exists(snv_path) and ZIP_SNV_FILTERED:
                 logger.info("Zipping snv_filtered folder...") 
@@ -178,37 +180,36 @@ def validateOutput(folder, input, multi, block2=False, cancer=None, oncoKB=None,
 
         logger.success("The study is ready to be uploaded on cBioportal")
         return number_for_graph
-    
+
     else:
         raise Exception("Validation Failed!")
 
 
 def copy_maf(oldpath, output, COPY_MAF, ZIP_MAF):
-
-    COPY_MAF = config.get('Zip', 'COPY_MAF')
+    COPY_MAF = config.get("Zip", "COPY_MAF")
     COPY_MAF = check_bool(COPY_MAF)
     if COPY_MAF:
         clin_sample = pd.read_csv(os.path.join(output, "data_clinical_sample.txt"), sep="\t", header=4)
         sample_IDs = clin_sample["SAMPLE_ID"]
 
-        maf_dir = os.path.join(oldpath, 'maf')
+        maf_dir = os.path.join(oldpath, "maf")
         maf_zip_path = os.path.join(oldpath, "maf.zip")
-        output_maf_dir = os.path.join(output, 'maf')
+        output_maf_dir = os.path.join(output, "maf")
         final_zip = os.path.join(output, "maf.zip")
 
         if os.path.exists(maf_zip_path):
-            with zipfile.ZipFile(maf_zip_path, 'r') as zip_maf:
+            with zipfile.ZipFile(maf_zip_path, "r") as zip_maf:
                 zip_maf.extractall(maf_dir)
 
         if not os.path.exists(maf_dir):
             logger.warning(f"Unable to locate the MAF folder in {oldpath}. MAF files will not be copied.")
-        
+
         else:
-            ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+            ZIP_MAF = config.get("Zip", "ZIP_MAF")
             ZIP_MAF = check_bool(ZIP_MAF)
             if ZIP_MAF and os.path.exists(final_zip):
                 os.makedirs(output_maf_dir, exist_ok=True)
-                with zipfile.ZipFile(final_zip, 'r') as zip_existing:
+                with zipfile.ZipFile(final_zip, "r") as zip_existing:
                     zip_existing.extractall(output_maf_dir)
             else:
                 os.makedirs(output_maf_dir, exist_ok=True)
@@ -240,7 +241,7 @@ def copy_maf(oldpath, output, COPY_MAF, ZIP_MAF):
             if ZIP_MAF:
                 logger.info(f"Zipping MAF files from {oldpath}...")
                 maf_zip_path = os.path.join(output, "maf.zip")
-                with zipfile.ZipFile(maf_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
+                with zipfile.ZipFile(maf_zip_path, "w", zipfile.ZIP_DEFLATED) as zip_ref:
                     for root, _, files in os.walk(output_maf_dir):
                         for file in files:
                             file_path = os.path.join(root, file)

@@ -12,27 +12,28 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-from operator import index
-import pandas as pd
+import ast
 import os
 import re
-import sys
-from datetime import datetime
-from configparser import ConfigParser
-import walk
 import shutil
+import sys
+from configparser import ConfigParser
+from datetime import datetime
+from operator import index
+
+import pandas as pd
+
 import versioning
-import ast
+import walk
 from filter_clinvar import check_bool
 
-
 config = ConfigParser()
-config.read('conf.ini')
+config.read("conf.ini")
 
-annotations_list = ast.literal_eval(config.get('Annotations', 'ANNOTATIONS'))
+annotations_list = ast.literal_eval(config.get("Annotations", "ANNOTATIONS"))
 
 def extract_sample_list(filecase):
-    with open(filecase, 'r') as meta:
+    with open(filecase, "r") as meta:
         for line in meta:
             if line.startswith("case_list_ids:"):
                sample_part = line.split(":")[1]
@@ -49,8 +50,8 @@ def ghost_sample(output_folder):
 
     all_path = os.path.join(output_folder, "data_clinical_sample.txt")
     if os.path.exists(all_path):
-        all_df = pd.read_csv(all_path, sep='\t', header=4)
-        all_samples = set(all_df['SAMPLE_ID'])
+        all_df = pd.read_csv(all_path, sep="\t", header=4)
+        all_samples = set(all_df["SAMPLE_ID"])
     else:
         all_samples = set()
 
@@ -58,16 +59,17 @@ def ghost_sample(output_folder):
 
     return list(ghosts)
 
+
 def get_samples(file, sample_list, output_folder):
     path = os.path.join(output_folder, file)
     if os.path.exists(path):
-        df = pd.read_csv(path, sep='\t', low_memory=False)
+        df = pd.read_csv(path, sep="\t", low_memory=False)
         if file == "data_mutations_extended.txt":
-            samples = set(df['Tumor_Sample_Barcode'])
+            samples = set(df["Tumor_Sample_Barcode"])
         elif file == "data_cna.txt":
             samples = set(df.columns[1:])
         elif file == "data_sv.txt":
-            samples = set(df['Sample_Id'])
+            samples = set(df["Sample_Id"])
         sample_list = sample_list.union(samples)
 
     return sample_list
@@ -78,7 +80,6 @@ def get_samples(file, sample_list, output_folder):
 ###########################
 
 def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
-
     os.system("cp " + "styles.css" + " " + os.path.join(output_folder, "img", "styles.css"))
     now = datetime.now()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -109,9 +110,8 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
         new_pt_nr = len(new_patients)
 
     if versioning.old_version_exists:
-
-        name = re.search(r'^(.+_v)[0-9]+$', os.path.basename(output_folder)).group(1)
-        actual_version = int(re.search(r'^.+_v([0-9]+)$', os.path.basename(output_folder)).group(1))
+        name = re.search(r"^(.+_v)[0-9]+$", os.path.basename(output_folder)).group(1)
+        actual_version = int(re.search(r"^.+_v([0-9]+)$", os.path.basename(output_folder)).group(1))
 
         old_name = name + str(actual_version - 1)
         old_file = os.path.join(os.path.dirname(output_folder), old_name, "data_clinical_sample.txt")
@@ -164,7 +164,7 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
                     <p><strong>TOTAL SAMPLE(S):</strong> {new_smpl_nr}</p>
                     <p><strong>TOTAL PATIENT(S):</strong> {new_pt_nr}</p>
                 </div>"""
-            
+
 
     if ghosts:
         html_content += f"""
@@ -173,7 +173,6 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
         </div>"""
 
     html_content += """</section>"""
-
 
     if versioning.old_version_exists:
         if actual_version != 1:
@@ -220,7 +219,7 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
             </div>"""
 
     if "a" in filters:
-        drop_NA_AF = config.get('Filters', 'drop_NA_AF')
+        drop_NA_AF = config.get("Filters", "drop_NA_AF")
         drop_NA_AF = check_bool(drop_NA_AF)
         if drop_NA_AF:
             excl_or_incl = "exclude"
@@ -230,7 +229,7 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
                 <div class="content">
                 <p><strong>AF:</strong> {extract_key_value(my_filters, "AF")} & {excl_or_incl} NA</p>
             </div>"""
-    
+
     if any(letter in filters for letter in "oqycbi"):
         html_content += f"""
             <div class="subtitle">MAF Filters</div>"""
@@ -238,37 +237,37 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
     if oncoKB and "o" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>ONCOKB:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "ONCOKB_FILTER").strip('[]').replace('"', '').split(',')])}</p>
+                <p><strong>ONCOKB:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "ONCOKB_FILTER").strip("[]").replace('"', "").split(",")])}</p>
             </div>"""
 
     if "q" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>CONSEQUENCES:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "CONSEQUENCES").strip('[]').replace('"', '').split(',')])}</p>
+                <p><strong>CONSEQUENCES:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "CONSEQUENCES").strip("[]").replace('"', "").split(",")])}</p>
             </div>"""
 
     if "y" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>POLYPHEN:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "POLYPHEN").strip('[]').replace('"', '').split(',')])}</p>
+                <p><strong>POLYPHEN:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "POLYPHEN").strip("[]").replace('"', "").split(",")])}</p>
             </div>"""
 
     if "c" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>CLIN_SIG:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "CLIN_SIG").strip('[]').replace('"', '').split(',')])}</p>
+                <p><strong>CLIN_SIG:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "CLIN_SIG").strip("[]").replace('"', "").split(",")])}</p>
             </div>"""
 
     if "i" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>IMPACT:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "IMPACT").strip('[]').replace('"', '').split(',')])}</p>
+                <p><strong>IMPACT:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "IMPACT").strip("[]").replace('"', "").split(",")])}</p>
             </div>"""
 
     if "s" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>SIFT:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "SIFT").strip('[]').replace('"', '').split(',')])}</p>
+                <p><strong>SIFT:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "SIFT").strip("[]").replace('"', "").split(",")])}</p>
             </div>"""
 
     if "p" in filters:
@@ -306,7 +305,7 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
         html_content += f"""
             <section class="graphs">
                 <div class="section-title">Graphical Overview {graph_expression}</div>"""
-    
+
     if os.path.exists(os.path.join(output_folder, general_graph_path)):
         html_content += f"""
                 <div class="content">
@@ -319,7 +318,7 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
                 <div class="content">
                 <img src="{genes_graph_path}" alt="SNV, CNV and Fusions barchart">
             </div>"""
-    
+
     if os.path.exists(os.path.join(output_folder, general_graph_path)) or os.path.exists(os.path.join(output_folder, genes_graph_path)):
         html_content += f"""</section>"""
 
@@ -341,13 +340,12 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
             </div>
         </section>"""
 
-
     html_content += f"""
     </body>
     </html>
     """
 
-    with open(os.path.join(output_folder, "report_VARAN.html"), 'w') as f:
+    with open(os.path.join(output_folder, "report_VARAN.html"), "w") as f:
         f.write(html_content)
 
 
@@ -374,15 +372,16 @@ def write_filters_report(output_folder):
 
     return conf_content
 
+
 def extract_section(content, section_name):
     content = "\n".join(content)
     match = re.search(rf"\[{section_name}\](.*?)(?=\n\[[^\]]+\]|\Z)", content, re.DOTALL | re.IGNORECASE)
-    
+
     if not match:
         return "N/A"
     section_content = match.group(1).strip()
     formatted_content = re.sub(r"^\s*(\S+)\s*=\s*", r"<strong>\1</strong> = ", section_content, flags=re.MULTILINE)
-    
+
     return formatted_content.replace("\n", "<br>")
 
 
@@ -395,13 +394,11 @@ def extract_key_value(filters, key_name):
     return "N/A"
 
 
-
 ###########################
 #          Update         #
 ###########################
 
 def write_report_update(original_study, updating_with, new_study, number_for_graph):
-
     old_img_path = os.path.join(original_study, "img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
@@ -449,7 +446,6 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
     updated_samples_sequenced, added_samples_sequenced, _, _ = compare_sample_file_update(sequenced_1, sequenced_2, new_study)
     updated_samples_sv, added_samples_sv, _, _ = compare_sample_file_update(sv_1, sv_2, new_study)
 
-
     old_report = os.path.join(original_study, "report_VARAN.html")
     updating_report = os.path.join(updating_with, "report_VARAN.html")
 
@@ -468,7 +464,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
     "HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
 
     changed_filters = []
-    
+
     for filter_name in order:
         if filter_name not in (filters1.keys() | filters2.keys()):
             continue 
@@ -479,7 +475,6 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
 
     common_filters = list(set(order) - set(changed_filters))
     common_filters = list(set(common_filters) & set(filters1.keys()))
-
 
     html_content = f"""
     <!DOCTYPE html>
@@ -504,7 +499,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
                     <p><strong>ORIGINAL STUDY:</strong> {os.path.basename(os.path.normpath(original_study))}</p>
                     <p><strong>UPDATING WITH:</strong> {os.path.basename(os.path.normpath(updating_with))}</p>
                     <p><strong>NEW STUDY:</strong> {os.path.basename(os.path.normpath(new_study))}</p>"""
-    
+
     if (cancer_type1 == cancer_type2) and (cancer_type1 != None):
         html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type1}</p>"""
     else:
@@ -522,7 +517,6 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         <div class="content">
             <p><strong><span>&#9888;</span></strong> The following samples are not present in cnv, snv and fusions after filtering: {ghosts}
         </div>"""
-
 
     if updated_clin_sample:
         html_content += f"""
@@ -546,7 +540,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         html_content += f"""
         <div class="section-title">Detailed Overview</div>
             <div class="content">"""
-        
+
     if updated_samples_cna:
         html_content += f"""
         <p><strong>Cases_CNA:</strong></p>
@@ -570,12 +564,10 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         </div>
         """
 
-
     if common_filters != []:
         html_content += f"""
             <section class="filters">
                 <div class="section-title">Filters & Configuration</div>"""
-
 
     if any(filter in common_filters for filter in ["ALT"]):
         html_content += f"""
@@ -591,6 +583,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
     if any(filter in common_filters for filter in ["T_VAF_MIN", "T_VAF_MAX", "AF"]):
         html_content += f"""
             <div class="subtitle">VAF Filters</div>"""
+
     if any(filter in common_filters for filter in ["T_VAF_MIN", "T_VAF_MAX"]):
         html_content += f"""
             <div class="content">
@@ -650,13 +643,11 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
                 <p><strong>SIFT</strong>: {filters1["SIFT"]}</p>
             </div>"""
 
-    
     if "FILTER" in common_filters:
         html_content += f"""
                 <div class="content">
                  <p><strong>FILTER</strong>: {filters1["FILTER"]}</p>
             </div>"""
-
 
     keys_to_check = {"HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
     if common_filters != {}:
@@ -686,8 +677,6 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
                     </div>
                 </section>
             </section>"""
-
-
 
     if any(filters1.get(f) != filters2.get(f) for f in filters1.keys() | filters2.keys()):
         html_content += f"""
@@ -726,13 +715,12 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
         html_content += f"""
             <section class="graphs">
                 <div class="section-title">Graphical Overview {graph_expression}</div>"""
-    
+
     if os.path.exists(os.path.join(new_study, general_graph_path)):
         html_content += f"""
                 <div class="content">
                 <img src="{general_graph_path}" alt="Samples and Patients barchart">
             </div>"""
-
 
     if os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
@@ -761,28 +749,26 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
                 </div>
             </div>
         </section>"""
-        
+
     html_content += f"""
     </body>
     </html>
     """
 
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.write(html_content)
 
 
-
 def compare_sample_file_update(file1, file2, outputfolder):
-
     clin_sam_output_df = pd.read_csv(os.path.join(outputfolder, "data_clinical_sample.txt"), sep="\t")
-    
+
     if os.path.exists(file1) and os.path.exists(file2):
         samples_file1 = extract_sample_list(file1)  
         samples_file2 = extract_sample_list(file2)
 
         updated_samples = [sample for sample in samples_file1 if sample in samples_file2 and sample != ""]
         new_samples = [sample for sample in samples_file2 if not sample in samples_file1 and sample != ""]
-    
+
     else:
         updated_samples = None
         new_samples = None
@@ -795,7 +781,6 @@ def compare_sample_file_update(file1, file2, outputfolder):
 ###########################
 
 def write_report_extract(original_study, new_study, number_for_graph):
-
     old_img_path = os.path.join(original_study, "img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
@@ -868,7 +853,6 @@ def write_report_extract(original_study, new_study, number_for_graph):
     if cancer_type:
         html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type}</p>"""
 
-
     html_content += f""" 
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
@@ -881,7 +865,6 @@ def write_report_extract(original_study, new_study, number_for_graph):
             <p><strong><span>&#9888;</span></strong> The following samples are not present in cnv, snv and fusions after filtering: {ghosts}
         </div>"""
 
-    
     html_content += """
             <div class="section-title">Detailed Overview</div>
                 <div class="content">
@@ -928,7 +911,6 @@ def write_report_extract(original_study, new_study, number_for_graph):
             <section class="filters">
                 <div class="section-title">Filters & Configuration</div>"""
 
-
     if any(filter in filters.keys() for filter in ["ALT"]):
         html_content += f"""
             <div class="subtitle">VCF Filters</div>"""
@@ -943,6 +925,7 @@ def write_report_extract(original_study, new_study, number_for_graph):
     if any(filter in filters.keys() for filter in ["T_VAF_MIN", "T_VAF_MAX", "AF"]):
         html_content += f"""
             <div class="subtitle">VAF Filters</div>"""
+
     if any(filter in filters.keys() for filter in ["T_VAF_MIN", "T_VAF_MAX"]):
         html_content += f"""
             <div class="content">
@@ -960,7 +943,7 @@ def write_report_extract(original_study, new_study, number_for_graph):
                 <div class="content">
                 <p><strong>AF</strong>: {filters["AF"]}</p>
             </div>"""
-    
+
     if any(filter in filters.keys() for filter in ["ONCOKB", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
         html_content += f"""
             <div class="subtitle">MAF Filters</div>"""
@@ -1001,7 +984,6 @@ def write_report_extract(original_study, new_study, number_for_graph):
                 <p><strong>SIFT</strong>: {filters["SIFT"]}</p>
             </div>"""
 
-    
     if "FILTER" in filters.keys():
         html_content += f"""
                 <div class="content">
@@ -1033,17 +1015,16 @@ def write_report_extract(original_study, new_study, number_for_graph):
                     <p><strong>THRESHOLD_FUSION</strong>: {filters["THRESHOLD_FUSION"]}</p>
                 </div>
             </section>"""
-        
+
         if filters != {}:
             html_content += f"""
             </section>"""
-
 
     if os.path.exists(os.path.join(new_study, general_graph_path)) or os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
             <section class="graphs">
                 <div class="section-title">Graphical Overview {graph_expression}</div>"""
-    
+
     if os.path.exists(os.path.join(new_study, general_graph_path)):
         html_content += f"""
                 <div class="content">
@@ -1077,25 +1058,23 @@ def write_report_extract(original_study, new_study, number_for_graph):
                 </div>
             </div>
         </section>"""
-        
+
     html_content += f"""
     </body>
     </html>
     """
 
-    with open(os.path.join(new_study, "report_VARAN.html"), 'w') as f:
+    with open(os.path.join(new_study, "report_VARAN.html"), "w") as f:
         f.write(html_content)
 
 
-
 def compare_sample_file_extract(file1, file2, input_folder, outputfolder):
-
     clin_sam_old_df = pd.read_csv(os.path.join(input_folder, "data_clinical_sample.txt"), sep="\t")
     clin_sam_new_df = pd.read_csv(os.path.join(outputfolder, "data_clinical_sample.txt"), sep="\t")
 
     clin_pat = set(clin_sam_old_df.iloc[4:, 1]) & set(clin_sam_new_df.iloc[4:, 1])
     clin_sample = set(clin_sam_old_df.iloc[4:, 0]) & set(clin_sam_new_df.iloc[4:, 0])
-    
+
     if os.path.exists(file1) and os.path.exists(file2):
         samples_file1 = extract_sample_list(file1)  
         samples_file2 = extract_sample_list(file2)
@@ -1103,7 +1082,7 @@ def compare_sample_file_extract(file1, file2, input_folder, outputfolder):
         extracted_samples = [sample for sample in samples_file2 if sample in samples_file1 and sample != ""]
     else:
         extracted_samples = None
-    
+
     return extracted_samples, len(set(clin_sam_new_df.iloc[4:, 1])), len(set(clin_sam_new_df.iloc[4:, 0]))
 
 
@@ -1112,7 +1091,6 @@ def compare_sample_file_extract(file1, file2, input_folder, outputfolder):
 ###########################
 
 def write_report_remove(original_study, new_study, number_for_graph):
-
     old_img_path = os.path.join(original_study, "img", "logo_VARAN.png")
     general_graph_path = os.path.join("img", "general.png")
     genes_graph_path = os.path.join("img", "genes.png")
@@ -1136,7 +1114,7 @@ def write_report_remove(original_study, new_study, number_for_graph):
         graph_expression = f"(last {number_for_graph} versions)"
 
     ghosts = ghost_sample(new_study)
-    
+
     old_report = os.path.join(original_study, "report_VARAN.html")
     if os.path.exists(old_report):
         filters = extract_filters_from_html(old_report)
@@ -1197,12 +1175,10 @@ def write_report_remove(original_study, new_study, number_for_graph):
             <p><strong><span>&#9888;</span></strong> The following samples are not present in cnv, snv and fusions after filtering: {ghosts}
         </div>"""
 
-
     html_content += """
             <div class="section-title">Detailed Overview</div>
                 <div class="content">
                     <p><strong>Cases_CNA:</strong></p>"""
-
 
     if not removed_samples_cna:
         html_content += f"""
@@ -1253,6 +1229,7 @@ def write_report_remove(original_study, new_study, number_for_graph):
     if any(filter in filters.keys() for filter in ["T_VAF_MIN", "T_VAF_MAX", "AF"]):
         html_content += f"""
             <div class="subtitle">VAF Filters</div>"""
+
     if any(filter in filters.keys() for filter in ["T_VAF_MIN", "T_VAF_MAX"]):
         html_content += f"""
             <div class="content">
@@ -1270,7 +1247,7 @@ def write_report_remove(original_study, new_study, number_for_graph):
                 <div class="content">
                 <p><strong>AF</strong>: {filters["AF"]}</p>
             </div>"""
-    
+
     if any(filter in filters.keys() for filter in ["ONCOKB", "CONSEQUENCES", "POLYPHEN", "CLIN_SIG", "IMPACT", "SIFT", "FILTER"]):
         html_content += f"""
             <div class="subtitle">MAF Filters</div>"""
@@ -1311,7 +1288,6 @@ def write_report_remove(original_study, new_study, number_for_graph):
                 <p><strong>SIFT</strong>: {filters["SIFT"]}</p>
             </div>"""
 
-    
     if "FILTER" in filters.keys():
         html_content += f"""
                 <div class="content">
@@ -1348,13 +1324,12 @@ def write_report_remove(original_study, new_study, number_for_graph):
         html_content += f"""
             <section class="graphs">
                 <div class="section-title">Graphical Overview {graph_expression}</div>"""
-    
+
     if os.path.exists(os.path.join(new_study, general_graph_path)):
         html_content += f"""
                 <div class="content">
                 <img src="{general_graph_path}" alt="Samples and Patients barchart">
             </div>"""
-
 
     if os.path.exists(os.path.join(new_study, genes_graph_path)):
         html_content += f"""
@@ -1382,18 +1357,17 @@ def write_report_remove(original_study, new_study, number_for_graph):
                 </div>
             </div>
         </section>"""
-        
+
     html_content += f"""
     </body>
     </html>
     """
 
-    with open(os.path.join(new_study, "report_VARAN.html"), 'w') as f:
+    with open(os.path.join(new_study, "report_VARAN.html"), "w") as f:
         f.write(html_content)
 
 
 def compare_sample_file_remove(file1, file2, input_folder, outputfolder):
-
     clin_sam_old_df = pd.read_csv(os.path.join(input_folder, "data_clinical_sample.txt"), sep="\t")
     clin_sam_new_df = pd.read_csv(os.path.join(outputfolder, "data_clinical_sample.txt"), sep="\t")
 
@@ -1407,11 +1381,11 @@ def compare_sample_file_remove(file1, file2, input_folder, outputfolder):
     elif os.path.exists(file1) and not os.path.exists(file2):
         removed_samples = extract_sample_list(file1)
         left_samples = 0
-    
+
     else:
         removed_samples = None
         left_samples = None
-    
+
     return removed_samples, left_samples, len(set(clin_sam_new_df.iloc[4:, 1])), len(set(clin_sam_new_df.iloc[4:, 0]))
 
 
@@ -1420,41 +1394,36 @@ def extract_filters_from_html(report):
     with open(report, "r", encoding="utf-8") as file:
         html_content = file.read()
 
-    fs_match = re.search(r'<section class="filters">.*?</section>', html_content, re.DOTALL)
+    fs_match = re.search(r"<section class="filters">.*?</section>", html_content, re.DOTALL)
     if fs_match:
         section_text = fs_match.group()
-        p_items = re.findall(r'<p>\s*<strong>([^<]+?)[:]*</strong>\s*[:=]?\s*(.*?)\s*</p>', section_text, re.DOTALL)
+        p_items = re.findall(r"<p>\s*<strong>([^<]+?)[:]*</strong>\s*[:=]?\s*(.*?)\s*</p>", section_text, re.DOTALL)
         for key, value in p_items:
-            filters[key.strip().rstrip(':')] = value.strip()
-        other_items = re.findall(r'<strong>([^<]+?)</strong>\s*[:=]?\s*(.*?)(?=<br>|</div>|</section>)', section_text, re.DOTALL)
+            filters[key.strip().rstrip(":")] = value.strip()
+        other_items = re.findall(r"<strong>([^<]+?)</strong>\s*[:=]?\s*(.*?)(?=<br>|</div>|</section>)", section_text, re.DOTALL)
         for key, value in other_items:
-            k = key.strip().rstrip(':')
+            k = key.strip().rstrip(":")
             if k not in filters:
                 filters[k] = value.strip()
 
-    vcf_match = re.search(r'<div class="subtitle">VCF Filters</div>\s*<div class="content">(.*?)</div>', html_content, re.DOTALL)
+    vcf_match = re.search(r"<div class="subtitle">VCF Filters</div>\s*<div class="content">(.*?)</div>", html_content, re.DOTALL)
     if vcf_match:
         content = vcf_match.group(1)
         alt_match = re.search(r'Keep only rows where\s*<strong>\s*ALT\s*</strong>\s*is different from\s*"(.*?)"', content, re.DOTALL)
         if alt_match:
             alt_val = alt_match.group(1).strip()
-            filters['ALT'] = '!="{}"'.format(alt_val)
+            filters["ALT"] = '!="{}"'.format(alt_val)
 
     return filters
 
 
-
 def extract_cancer_type_from_html(report):
     cancer_type = None
-    
+
     with open(report, "r", encoding="utf-8") as file:
         html_content = file.read()
 
-    cancer_type_match = re.search(
-        r'<p><strong>\s*CANCER TYPE:\s*</strong>\s*(.*?)\s*</p>',
-        html_content,
-        re.DOTALL | re.IGNORECASE
-    )
+    cancer_type_match = re.search(r"<p><strong>\s*CANCER TYPE:\s*</strong>\s*(.*?)\s*</p>", html_content, re.DOTALL | re.IGNORECASE)
 
     if cancer_type_match:
         cancer_type = cancer_type_match.group(1).strip()

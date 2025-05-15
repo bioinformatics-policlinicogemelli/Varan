@@ -12,24 +12,26 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import os
-import sys
 import argparse
+import os
 import shutil
-from Make_meta_and_cases import meta_case_main
-from Delete_functions import *
-from ValidateFolder import validateOutput, copy_maf
-from versioning import *
+import sys
+
 from loguru import logger
-from write_report import *
+
+from Delete_functions import *
 from filter_clinvar import check_bool
+from Make_meta_and_cases import meta_case_main
+from ValidateFolder import copy_maf, validateOutput
+from versioning import *
+from write_report import *
 
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
 
 def delete_main(oldpath, removepath, output, study_id, overwrite):
-    
+
     logger.info(f"delete_main args [old_path:{oldpath}, remove_path:{removepath}, destination_folder:{output}]")
     logger.info("Checking input...")
 
@@ -47,7 +49,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
             logger.info("Sample list to remove found")
     else:
         no_out=True
-        output=re.split(r'_v[0-9]+$',oldpath)[0]
+        output=re.split(r"_v[0-9]+$",oldpath)[0]
 
     check_sample_list(removepath, oldpath)
     old_versions = get_version_list(output)
@@ -56,12 +58,12 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
         if overwrite:
             logger.info(f"Overwrite option set. Start removing folder")
             shutil.rmtree(old_versions[-1])
-    
+
     output = create_newest_version_folder(output)
     logger.info(f"Creating a new folder: {output}")
     output_caseslists = os.path.join(output, "case_lists")
     os.mkdir(output_caseslists)
-    
+
     logger.info("Great! Everything is ready to start")
 
     os.system("cp " + oldpath + "/*meta* " + output)
@@ -119,16 +121,16 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
         delete_sv(o_sv,sampleIds,output)
     else:
         logger.warning("data_sv.txt not found in current folder. Skipping")
-    
+
     cancer, study_info = extract_info_from_meta(oldpath)
     study_info.append(oldpath)
     study_info.append(no_out)
-    
+
     meta_case_main(cancer, output, study_info, study_id)
 
-    ZIP_MAF = config.get('Zip', 'ZIP_MAF')
+    ZIP_MAF = config.get("Zip", "ZIP_MAF")
     ZIP_MAF = check_bool(ZIP_MAF)
-    COPY_MAF = config.get('Zip', 'COPY_MAF')
+    COPY_MAF = config.get("Zip", "COPY_MAF")
     COPY_MAF = check_bool(COPY_MAF)
     copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
 

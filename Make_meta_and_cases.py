@@ -14,25 +14,27 @@
 
 import argparse
 import os
-from configparser import ConfigParser
-from populate_case_lists import populate_cases_cna,populate_cases_sequenced,populate_cases_sv
-from loguru import logger
 import sys
-from versioning import extract_version_str, get_newest_version, extract_version_str
+from configparser import ConfigParser
 from datetime import datetime
+
+from loguru import logger
+
+from populate_case_lists import (populate_cases_cna, populate_cases_sequenced,
+                                 populate_cases_sv)
+from versioning import extract_version_str, get_newest_version
 
 
 def create_meta_study(cancer, project_name, project_id, description, output_dir, version):
-
-    """
-        Function to create meta_study_file
+    """Function to create meta_study_file
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         description : optional description to overwrite default description
         output_dir : path of output dir
+
     """
-    date = datetime.today().strftime('%d-%m-%Y')
+    date = datetime.today().strftime("%d-%m-%Y")
     name = "project"
 
     if project_name == "":
@@ -41,12 +43,12 @@ def create_meta_study(cancer, project_name, project_id, description, output_dir,
 
     if project_id == "":
         project_id = cancer + "_" + name + version 
-    
+
     add_global_case_list = "true"
 
     if description == "":
         description = "Comprehensive profiling of " + cancer.capitalize() + " cancer samples."
-                
+
     dictionary_file = {
         "type_of_cancer": cancer, 
         "cancer_study_identifier": project_id,
@@ -66,14 +68,15 @@ def create_meta_study(cancer, project_name, project_id, description, output_dir,
 
 
 def create_meta_clinical_patient(project_id, output_dir):
-    """
-        Function to create meta_clinical_patient
+    """Function to create meta_clinical_patient
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         output_dir : path of output dir
+
     """
-   
+
     alteration_type = "CLINICAL"
     datatype = "PATIENT_ATTRIBUTES"
     data_filename = "data_clinical_patient.txt"
@@ -91,14 +94,14 @@ def create_meta_clinical_patient(project_id, output_dir):
 
 
 def create_meta_clinical_sample(project_id, output_dir):
-    """
-        Function to create meta_clinical_sample
+    """Function to create meta_clinical_sample
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         output_dir : path of output dir
+
     """
-    
     alteration_type = "CLINICAL"
     datatype = "SAMPLE_ATTRIBUTES"
     data_filename = "data_clinical_sample.txt"
@@ -116,13 +119,14 @@ def create_meta_clinical_sample(project_id, output_dir):
 
 
 def create_meta_mutations(cancer, project_id, profile, output_dir):
-    """
-        Function to create meta_mutations
+    """Function to create meta_mutations
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         profile: Description to overwrite default description
         output_dir : path of output dir
+
     """
 
     alteration_type = "MUTATION_EXTENDED"
@@ -154,14 +158,14 @@ def create_meta_mutations(cancer, project_id, profile, output_dir):
 
 
 def create_meta_sv(project_id, profile, output_dir):
-    """
-        Function to create meta_sv
+    """Function to create meta_sv
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         output_dir : path of output dir
+
     """
-    
     alteration_type = "STRUCTURAL_VARIANT"
     datatype = "SV"
     stable_id = "structural_variants"
@@ -192,20 +196,20 @@ def create_meta_sv(project_id, profile, output_dir):
 
 
 def create_meta_cna(cancer, project_id, profile, output_dir):
-    """
-        Function to create meta_cna
+    """Function to create meta_cna
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         output_dir : path of output dir
-    """
 
+    """
     alteration_type = "COPY_NUMBER_ALTERATION"
     datatype = "DISCRETE"
     stable_id = "cna"
     profile_in_analysis_tab = "true"
     profile_name = "Putative copy-number alterations from GISTIC of " + cancer + " tumor"
-    
+
     if profile == "":
         profile = "Putative copy-number from GISTIC 2.0. Values: -2 = hemizygous deletion; 0 = neutral / no change; 2 = gain."
 
@@ -230,14 +234,14 @@ def create_meta_cna(cancer, project_id, profile, output_dir):
 
 
 def create_meta_cna_hg19(project_id, profile, output_dir):
-    """
-        Function to create meta_cna_hg19
+    """Function to create meta_cna_hg19
+
     Args:
         cancer : cancer type
         vus : Flag to select Vus inclusion
         output_dir : path of output dir
-    """
 
+    """
     alteration_type = "COPY_NUMBER_ALTERATION"
     datatype = "SEG"
     genome_id = "hg19"
@@ -259,7 +263,6 @@ def create_meta_cna_hg19(project_id, profile, output_dir):
     for key, value in dictionary_file.items():
         print(f"{key}: {value}", file=meta_file)
     meta_file.close()
-
 
 
 def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
@@ -284,12 +287,12 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
         else:
             project_id =  os.path.basename(output_folder)
             project_name = os.path.basename(output_folder).replace("_"," ")      
-            
+
     elif len(old_study_info)>0 and old_study_info[-1]:
         version = extract_version_str(output_folder)
         project_id = old_study_info[0]+version
         project_name = old_study_info[1]+version.replace("_"," ")
-        
+
     description=config.get("Project","DESCRIPTION")
     profile_mut=config.get("Project","PROFILE_MUT")
     profile_cna=config.get("Project","PROFILE_CNA")
@@ -303,9 +306,10 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     else:
         os.mkdir(cases_list_dir)
 
+
     ###########  METAFILE FUNCTIONS ###########
     project_id = create_meta_study(cancer, project_name, project_id, description, output_folder, version)
-    
+
     if os.path.exists(os.path.join(output_folder,"data_clinical_patient.txt")):
         create_meta_clinical_patient(project_id, output_folder)
         logger.info("meta_clinical_patient.txt created!")
@@ -324,9 +328,8 @@ def meta_case_main(cancer, output_folder, old_study_info=[], rename=""):
     if os.path.exists(os.path.join(output_folder,"data_cna_hg19.seg")):
         create_meta_cna_hg19(project_id, profile_cna19, output_folder)
         logger.info("meta_cna_hg19.txt created!")
-        
-    ########### CASE LIST FUNCTION ###########
 
+    ########### CASE LIST FUNCTION ###########
     if os.path.exists(os.path.join(output_folder,"data_mutations_extended.txt")):
         populate_cases_sequenced(project_id, output_folder, cases_list_dir, logger)
     else: logger.warning("data_mutations_extended.txt file not found, not writing cases_sequenced.txt!")

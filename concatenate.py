@@ -13,11 +13,13 @@
 #limitations under the License.
 
 import os
-from loguru import logger
+
 import pandas as pd
+from loguru import logger
+
 
 def concatenate_files(file_list, output_file):
-    with open(output_file, 'w') as out_file:
+    with open(output_file, "w") as out_file:
         for i, file_name in enumerate(file_list):
             with open(file_name) as in_file:
                 lines = in_file.readlines()
@@ -68,7 +70,7 @@ def concatenate_main(filters, output_folder, ext, oncoKB):
     if os.path.isdir(output_file):
         logger.critical(f"It seems that the inserted output_file '{output_file}' is not a file, but a folder! Check your '-o/--output_file' field")
         raise Exception("Exiting from filter_clinvar script!")
-    if not output_file.endswith('txt'):
+    if not output_file.endswith("txt"):
         logger.critical(f"It seems that the inserted output_file '{output_file}' has the wrong extension! Output file must be have a .txt extension.")
         raise Exception("Exiting from filter_clinvar script!")
         
@@ -84,7 +86,7 @@ def concatenate_main(filters, output_folder, ext, oncoKB):
 
     if os.path.exists(output_file):
         data_mut = pd.read_csv(output_file, sep="\t", dtype=str)
-        data_mut.drop_duplicates(keep='last', inplace=True)
+        data_mut.drop_duplicates(keep="last", inplace=True)
 
     if os.path.exists(output_file):
         logger.info(f"Extracting data_mutations_extended from {input_folder} folder")
