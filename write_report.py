@@ -28,12 +28,12 @@ import walk
 from filter_clinvar import check_bool
 
 config = ConfigParser()
-config.read("conf.ini")
+config.read('conf.ini')
 
-annotations_list = ast.literal_eval(config.get("Annotations", "ANNOTATIONS"))
+annotations_list = ast.literal_eval(config.get('Annotations', 'ANNOTATIONS'))
 
 def extract_sample_list(filecase):
-    with open(filecase, "r") as meta:
+    with open(filecase, 'r') as meta:
         for line in meta:
             if line.startswith("case_list_ids:"):
                sample_part = line.split(":")[1]
@@ -50,8 +50,8 @@ def ghost_sample(output_folder):
 
     all_path = os.path.join(output_folder, "data_clinical_sample.txt")
     if os.path.exists(all_path):
-        all_df = pd.read_csv(all_path, sep="\t", header=4)
-        all_samples = set(all_df["SAMPLE_ID"])
+        all_df = pd.read_csv(all_path, sep='\t', header=4)
+        all_samples = set(all_df['SAMPLE_ID'])
     else:
         all_samples = set()
 
@@ -110,8 +110,8 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
         new_pt_nr = len(new_patients)
 
     if versioning.old_version_exists:
-        name = re.search(r"^(.+_v)[0-9]+$", os.path.basename(output_folder)).group(1)
-        actual_version = int(re.search(r"^.+_v([0-9]+)$", os.path.basename(output_folder)).group(1))
+        name = re.search(r'^(.+_v)[0-9]+$', os.path.basename(output_folder)).group(1)
+        actual_version = int(re.search(r'^.+_v([0-9]+)$', os.path.basename(output_folder)).group(1))
 
         old_name = name + str(actual_version - 1)
         old_file = os.path.join(os.path.dirname(output_folder), old_name, "data_clinical_sample.txt")
@@ -237,37 +237,37 @@ def write_report_main(output_folder, cancer, oncoKB, filters, number_for_graph):
     if oncoKB and "o" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>ONCOKB:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "ONCOKB_FILTER").strip("[]").replace('"', "").split(",")])}</p>
+                <p><strong>ONCOKB:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "ONCOKB_FILTER").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "q" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>CONSEQUENCES:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "CONSEQUENCES").strip("[]").replace('"', "").split(",")])}</p>
+                <p><strong>CONSEQUENCES:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "CONSEQUENCES").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "y" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>POLYPHEN:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "POLYPHEN").strip("[]").replace('"', "").split(",")])}</p>
+                <p><strong>POLYPHEN:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "POLYPHEN").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "c" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>CLIN_SIG:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "CLIN_SIG").strip("[]").replace('"', "").split(",")])}</p>
+                <p><strong>CLIN_SIG:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "CLIN_SIG").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "i" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>IMPACT:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "IMPACT").strip("[]").replace('"', "").split(",")])}</p>
+                <p><strong>IMPACT:</strong> exclude {", ".join([item.strip() for item in extract_key_value(my_filters, "IMPACT").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "s" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>SIFT:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "SIFT").strip("[]").replace('"', "").split(",")])}</p>
+                <p><strong>SIFT:</strong> include {", ".join([item.strip() for item in extract_key_value(my_filters, "SIFT").strip('[]').replace('"', '').split(',')])}</p>
             </div>"""
 
     if "p" in filters:
@@ -523,7 +523,7 @@ def write_report_update(original_study, updating_with, new_study, number_for_gra
             <div class="content">
             <p><strong>UPDATED:</strong></p>
             <p>&emsp;<strong>{len(updated_clin_pat)} Patients:</strong> {", ".join(updated_clin_pat)}</p>
-            <p>&emsp;<strong>{len(updated_clin_sample)}Samples:</strong> {", ".join(updated_clin_sample)}</p>
+            <p>&emsp;<strong>{len(updated_clin_sample)} Samples:</strong> {", ".join(updated_clin_sample)}</p>
             </div>
             """
 
@@ -1394,19 +1394,19 @@ def extract_filters_from_html(report):
     with open(report, "r", encoding="utf-8") as file:
         html_content = file.read()
 
-    fs_match = re.search(r"<section class="filters">.*?</section>", html_content, re.DOTALL)
+    fs_match = re.search(r'<section class="filters">.*?</section>', html_content, re.DOTALL)
     if fs_match:
         section_text = fs_match.group()
-        p_items = re.findall(r"<p>\s*<strong>([^<]+?)[:]*</strong>\s*[:=]?\s*(.*?)\s*</p>", section_text, re.DOTALL)
+        p_items = re.findall(r'<p>\s*<strong>([^<]+?)[:]*</strong>\s*[:=]?\s*(.*?)\s*</p>', section_text, re.DOTALL)
         for key, value in p_items:
             filters[key.strip().rstrip(":")] = value.strip()
-        other_items = re.findall(r"<strong>([^<]+?)</strong>\s*[:=]?\s*(.*?)(?=<br>|</div>|</section>)", section_text, re.DOTALL)
+        other_items = re.findall(r'<strong>([^<]+?)</strong>\s*[:=]?\s*(.*?)(?=<br>|</div>|</section>)', section_text, re.DOTALL)
         for key, value in other_items:
             k = key.strip().rstrip(":")
             if k not in filters:
                 filters[k] = value.strip()
 
-    vcf_match = re.search(r"<div class="subtitle">VCF Filters</div>\s*<div class="content">(.*?)</div>", html_content, re.DOTALL)
+    vcf_match = re.search(r'<div class="subtitle">VCF Filters</div>\s*<div class="content">(.*?)</div>', html_content, re.DOTALL)
     if vcf_match:
         content = vcf_match.group(1)
         alt_match = re.search(r'Keep only rows where\s*<strong>\s*ALT\s*</strong>\s*is different from\s*"(.*?)"', content, re.DOTALL)
