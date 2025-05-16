@@ -12,25 +12,47 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import os
+"""Module for generating case lists from SV,CNA and mutation data.
+
+Each function reads the input data file from a project directory,
+extracts sample IDs, and writes a formatted `cases_*.txt` file into
+the output directory for use in cBioPortal.
+
+Functions:
+- populate_cases_sv
+- populate_cases_cna
+- populate_cases_sequenced
+
+"""
+
+from pathlib import Path
 
 import pandas as pd
+from loguru import logger
 
 
-def populate_cases_sv(project_id, folder, cases_list_dir, logger):
-    """Function to populate cases_sv file
+def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
+                      logger: logger) -> None:
+    """Populate the cases_sv.txt file based on SV data.
 
-    Args:
-        cancer : cancer type
-        vus : Flag to select Vus inclusion
-        cases_list_dir : path of case_list output dir
+    Parameters
+    ----------
+    project_id : str
+        Unique identifier for the cancer study.
+    folder : str
+        Path to the directory containing the `data_sv.txt` file.
+    cases_list_dir : str
+        Output directory where the `cases_sv.txt` will be saved.
+    logger : logging.Logger
+        Logger object for error reporting.
 
     """
     try:
-        data_sv = pd.read_csv(os.path.join(folder, "data_sv.txt"), sep="\t")
+        data_sv = pd.read_csv(Path(folder) / "data_sv.txt", sep="\t")
     except pd.errors.EmptyDataError:
-        logger.error("data_sv.txt is empty, skipping this step!")
-        return
+        logger.exception("data_sv.txt is empty, skipping this step!")
+        return()
+
     nsamples = len(data_sv.Sample_Id.unique())
     sample_ids = list(data_sv.Sample_Id.unique())
 
@@ -49,23 +71,31 @@ def populate_cases_sv(project_id, folder, cases_list_dir, logger):
         "case_list_ids": case_list_ids,
     }
 
-    case_sv_file = open(os.path.join(cases_list_dir, "cases_sv.txt"), "w")
-    for key, value in dictionary_file.items():
-        print(f"{key}: {value}", file=case_sv_file)
-    case_sv_file.close()
+    with (Path(cases_list_dir) / "cases_sv.txt").open("w") as case_sv_file:
+        for key, value in dictionary_file.items():
+            print(f"{key}: {value}", file=case_sv_file)
+
+    return()
 
 
-def populate_cases_cna(project_id, folder, cases_list_dir, logger):
-    """Function to populate cases_cna file
+def populate_cases_cna(project_id: str, folder: str, cases_list_dir: str,
+                       logger: logger) -> None:
+    """Populate the cases_cna.txt file based on CNA data.
 
-    Args:
-        cancer : cancer type
-        vus : Flag to select Vus inclusion
-        cases_list_dir : path of case_list output dir
+    Parameters
+    ----------
+    project_id : str
+        Unique identifier for the cancer study.
+    folder : str
+        Path to the directory containing the `data_cna.txt` file.
+    cases_list_dir : str
+        Output directory where the `cases_cna.txt` will be saved.
+    logger : logging.Logger
+        Logger object for error reporting.
 
     """
     try:
-        data_cna = pd.read_csv(os.path.join(folder, "data_cna.txt"), sep="\t")
+        data_cna = pd.read_csv(Path(folder) / "data_cna.txt", sep="\t")
     except pd.errors.EmptyDataError:
         logger.error("data_cna.txt is empty, skipping this step!")
         return
@@ -89,23 +119,30 @@ def populate_cases_cna(project_id, folder, cases_list_dir, logger):
         "case_list_ids": case_list_ids,
     }
 
-    case_cna_file = open(os.path.join(cases_list_dir, "cases_cna.txt"), "w")
-    for key, value in dictionary_file.items():
-        print(f"{key}: {value}", file=case_cna_file)
-    case_cna_file.close()
+    with (Path(cases_list_dir) / "cases_cna.txt").open("w") as case_cna_file:
+        for key, value in dictionary_file.items():
+            print(f"{key}: {value}", file=case_cna_file)
 
 
-def populate_cases_sequenced(project_id, folder, cases_list_dir, logger):
-    """Function to populate cases_sequenced file
+def populate_cases_sequenced(project_id: str, folder: str, cases_list_dir: str,
+                             logger: logger) -> None:
+    """Populate the cases_sequenced.txt file based on mutation data.
 
-    Args:
-        cancer : cancer type
-        vus : Flag to select Vus inclusion
-        cases_list_dir : path of case_list output dir
+    Parameters
+    ----------
+    project_id : str
+        Unique identifier for the cancer study.
+    folder : str
+        Path to the directory containing the `data_mutations_extended.txt` file.
+    cases_list_dir : str
+        Output directory where the `cases_sequenced.txt` will be saved.
+    logger : logging.Logger
+        Logger object for error reporting.
 
     """
     try:
-        data_sequenced = pd.read_csv(os.path.join(folder, "data_mutations_extended.txt"), sep="\t", low_memory=False)
+        data_sequenced = pd.read_csv(Path(folder) / "data_mutations_extended.txt",
+                                    sep="\t", low_memory=False)
     except pd.errors.EmptyDataError:
         logger.error("data_mutations_extended.txt is empty, skipping this step!")
         return
@@ -128,7 +165,6 @@ def populate_cases_sequenced(project_id, folder, cases_list_dir, logger):
         "case_list_ids": case_list_ids,
     }
 
-    case_sequenced_file = open(os.path.join(cases_list_dir, "cases_sequenced.txt"), "w")
-    for key, value in dictionary_file.items():
-        print(f"{key}: {value}", file=case_sequenced_file)
-    case_sequenced_file.close()
+    with (Path(cases_list_dir) / "cases_sequenced.txt").open("w") as case_sequence_file:
+        for key, value in dictionary_file.items():
+            print(f"{key}: {value}", file=case_sequence_file)
