@@ -21,6 +21,7 @@ import subprocess
 import sys
 import zipfile
 from configparser import ConfigParser
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -863,7 +864,7 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
         for k, v in combined_dict.items():
             fusions=[]
             try:
-                fusions = tsv.get_fusions(v)
+                fusions = tsv.get_fusions(Path(v))
             except Exception:
                 logger.error(f"Something went wrong while reading Fusion section for sample {k}")
             if len(fusions) == 0:
@@ -924,7 +925,7 @@ def fill_from_file(table_dict_patient, file_input_clinical, MSI_THR, TMB_THR):
 def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB):
     for k, v in combined_dict.items():
         try:
-            tmv_msi = tsv.get_msi_tmb(v)
+            tmv_msi = tsv.get_msi_tmb(Path(v))
         except Exception:
             logger.error("Something went wrong!")
 
