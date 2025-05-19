@@ -65,7 +65,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
 
     logger.info("Great! Everything is ready to start")
 
-    os.system("cp " + oldpath + "/*meta* " + output)
+    os.system("cp " + oldpath + "/*meta* " + output.name)
 
     with open(removepath) as sample_list:
         first_line = sample_list.readline()

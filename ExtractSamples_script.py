@@ -64,7 +64,7 @@ def extract_main(oldpath, extract_path, output, study_id, overwrite):
     os.mkdir(output_caseslists)
 
     logger.info("Great! Everything is ready to start")
-    os.system("cp " + oldpath + "/*meta* " + output)
+    os.system("cp " + oldpath + "/*meta* " + output.name)
 
     sampleIds = open(extract_path).readlines()
     sampleIds = [sample.strip() for sample in sampleIds]

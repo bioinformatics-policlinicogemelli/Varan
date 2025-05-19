@@ -424,7 +424,7 @@ def create_folder(output_folder, overwrite_output, resume):
 
     if output_list == []:
         version = "_v1"
-        output_folder_version = output_folder + version
+        output_folder_version = Path(output_folder + version)
     else:
         output_folder_version,_ = get_newest_version(output_folder)
     logger.info(f"Creating the output folder '{output_folder_version}'...")

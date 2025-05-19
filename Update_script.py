@@ -72,7 +72,7 @@ def update_main(oldpath, newpath, output, study_id, overwrite):
     os.mkdir(output_caseslists)
 
     logger.info("Great! Everything is ready to start")
-    os.system("cp " + oldpath + "/*meta* " + output)
+    os.system("cp " + oldpath + "/*meta* " + output.name)
 
     file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt", "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt", "data_mutations_extended.txt", "data_sv.txt"]
     for file in file_names:
