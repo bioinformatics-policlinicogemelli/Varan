@@ -87,9 +87,9 @@ def concatenate_main(filters, output_folder, ext, oncoKB):
     if os.path.exists(output_file):
         data_mut = pd.read_csv(output_file, sep="\t", dtype=str)
         data_mut.drop_duplicates(keep="last", inplace=True)
-
+    
     if os.path.exists(output_file):
         logger.info(f"Extracting data_mutations_extended from {input_folder} folder")
-        os.system("mv "+os.path.join(input_folder,"data_mutations_extended.txt")+" "+ output_folder )
+        os.system("mv " + os.path.join(input_folder, "data_mutations_extended.txt") + " " + output_folder.name)
 
     logger.success("Concatenate script completed!\n")

@@ -420,7 +420,7 @@ def create_folder(output_folder, overwrite_output, resume):
             shutil.rmtree(output)
         elif resume:
             _,current_version = get_newest_version(output_folder)
-            return output_folder + current_version
+            return Path(output_folder + current_version)
 
     if output_list == []:
         version = "_v1"
