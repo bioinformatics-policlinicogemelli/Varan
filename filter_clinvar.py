@@ -258,7 +258,7 @@ def filter_main(input,folder, output_folder, oncokb, filters, cancer, resume, ov
             sys.exit()
 
     maf_folder = Path(folder) / "maf"
-    file_list = concatenate.get_files_by_ext(maf_folder "maf")
+    file_list = concatenate.get_files_by_ext(maf_folder, "maf")
 
     if len(file_list) == 0:
         logger.critical(f"The maf folder {maf_folder} seems to be empty: check if SNV folder exists and contains the VCF files. If you don't have SNV vcf, use -t option to select specific analysis.")
