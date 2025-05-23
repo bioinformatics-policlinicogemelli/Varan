@@ -42,7 +42,6 @@ from ValidateFolder import copy_maf, validateOutput
 from versioning import extract_info_from_meta
 from write_report import write_report_update
 
-
 config = ConfigParser()
 configFile = config.read("conf.ini")
 
