@@ -38,7 +38,7 @@ from ExtractSamples_functions import (
 )
 from filter_clinvar import check_bool
 from Make_meta_and_cases import meta_case_main
-from ValidateFolder import copy_maf, validateOutput
+from ValidateFolder import copy_maf, validate_output
 from versioning import (
     create_newest_version_folder,
     extract_info_from_meta,
@@ -127,7 +127,7 @@ def extract_main(oldpath: str,
     copy_maf(oldpath, output, copy_maf_set, zip_maf_set)
 
     logger.info("Starting Validation Folder...")
-    number_for_graph = validateOutput(output, None, False, True, None, None, None)
+    number_for_graph = validate_output(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
     write_report_extract(oldpath, output, number_for_graph)

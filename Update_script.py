@@ -38,7 +38,7 @@ from Update_functions import (
     prepare_output_folder,
     safe_check_file,
 )
-from ValidateFolder import copy_maf, validateOutput
+from ValidateFolder import copy_maf, validate_output
 from versioning import extract_info_from_meta
 from write_report import write_report_update
 
@@ -112,7 +112,7 @@ def update_main(oldpath: str, newpath: str,
     copy_maf(newpath, output, copy_maf_flag, zip_maf_flag)
 
     logger.info("Starting Validation Folder...")
-    number_for_graph = validateOutput(output, None, False, True, None, None, None)
+    number_for_graph = validate_output(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
     write_report_update(oldpath, newpath, output, number_for_graph)

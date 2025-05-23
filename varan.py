@@ -12,9 +12,27 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
+"""Provide the main entry point for the Varan bioinformatics pipeline.
+
+This script parses command-line arguments, configures logging, and runs
+various stages of the Varan pipeline, such as data walking, filtering,
+concatenation, table creation, validation, updating, deleting, and extracting
+samples from studies.
+
+It supports flexible options for analysis types, filters, and sample handling.
+
+"""
+
+from __future__ import annotations
+
 import argparse
-import os
 import sys
+from collections.abc import Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, NoReturn
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 from loguru import logger
 
@@ -24,45 +42,102 @@ from ExtractSamples_script import extract_main
 from filter_clinvar import filter_main
 from Make_meta_and_cases import meta_case_main
 from Update_script import update_main
-from ValidateFolder import validateOutput
+from ValidateFolder import validate_output
 from walk import walk_folder
 
 
-def logo():
-    print(r"""
+def logo() -> None:
+    """Print the ASCII art logo for the Varan pipeline."""
+    logo_text = r"""
 __| |_______________________________________________________________________| |__
 __   _______________________________________________________________________   __
-  | |                                                                       | |  
-  | | █████   █████   █████████   ███████████     █████████   ██████   █████| |  
-  | |░░███   ░░███   ███░░░░░███ ░░███░░░░░███   ███░░░░░███ ░░██████ ░░███ | |  
-  | | ░███    ░███  ░███    ░███  ░███    ░███  ░███    ░███  ░███░███ ░███ | |  
-  | | ░███    ░███  ░███████████  ░██████████   ░███████████  ░███░░███░███ | |  
-  | | ░░███   ███   ░███░░░░░███  ░███░░░░░███  ░███░░░░░███  ░███ ░░██████ | |  
-  | |  ░░░█████░    ░███    ░███  ░███    ░███  ░███    ░███  ░███  ░░█████ | |  
-  | |    ░░███      █████   █████ █████   █████ █████   █████ █████  ░░█████| |  
-  | |     ░░░      ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░    ░░░░░ | |  
+  | |                                                                       | |
+  | | █████   █████   █████████   ███████████     █████████   ██████   █████| |
+  | |░░███   ░░███   ███░░░░░███ ░░███░░░░░███   ███░░░░░███ ░░██████ ░░███ | |
+  | | ░███    ░███  ░███    ░███  ░███    ░███  ░███    ░███  ░███░███ ░███ | |
+  | | ░███    ░███  ░███████████  ░██████████   ░███████████  ░███░░███░███ | |
+  | | ░░███   ███   ░███░░░░░███  ░███░░░░░███  ░███░░░░░███  ░███ ░░██████ | |
+  | |  ░░░█████░    ░███    ░███  ░███    ░███  ░███    ░███  ░███  ░░█████ | |
+  | |    ░░███      █████   █████ █████   █████ █████   █████ █████  ░░█████| |
+  | |     ░░░      ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░    ░░░░░ | |
 __| |_______________________________________________________________________| |__
 __   _______________________________________________________________________   __
-  | |                                                                       | |  
-""")
+  | |                                                                       | |
+"""
+    logger.info(logo_text)
 
 
-def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, overwrite_output=False, resume=False, multiple=False, update=False, extract=False, remove=False):
+def varan(
+    varan_input: Sequence[str] | None,
+    cancer: str | None,
+    output_folder: str,
+    oncokb: bool,
+    filters: str,
+    analysis_type: str | None = None,
+    overwrite_output: bool = False,
+    resume: bool = False,
+    multiple: bool = False,
+    update: bool = False,
+    extract: bool = False,
+    remove: bool = False,
+) -> None:
+    """Run the full Varan pipeline workflow based on provided arguments.
 
+    Execute various steps such as preparation, filtering, concatenation,
+    table creation, validation, updating, deleting, and extracting samples.
+
+    Parameters
+    ----------
+    varan_input : Optional[Sequence[str]]
+        List of input paths (folders or files), or None if not applicable.
+    cancer : Optional[str]
+        Name of the cancer type or None if not provided.
+    output_folder : str
+        Path to the output directory.
+    oncokb : bool
+        Flag indicating whether to apply OncoKB annotation.
+    filters : str
+        String of filter options to apply during processing.
+    analysis_type : Optional[str], optional
+        Type of analysis to perform, by default None.
+        Valid options include "snv", "cnv", "fus", or "tab".
+    overwrite_output : bool, optional
+        Whether to overwrite the output folder if it exists, by default False.
+    resume : bool, optional
+        Whether to resume an existing analysis, by default False.
+    multiple : bool, optional
+        Whether multiple sample VCF files are expected, by default False.
+    update : bool, optional
+        Whether to run the update study process, by default False.
+    extract : bool, optional
+        Whether to run the extract samples process, by default False.
+    remove : bool, optional
+        Whether to run the remove samples process, by default False.
+
+    Returns
+    -------
+    None
+
+    """
     if not any([update, extract, remove]):
 
         logger.info(
-            f"Varan args [input:{input}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, oncoKB:{oncoKB}, "
-            f"analysis_type:{analysis_type}, overwrite_output:{overwrite_output}, resume:{resume}, "
-            f"multiple:{multiple}, update:{update}, extract:{extract}, remove:{remove}]")
-
+            f"Varan args [input:{varan_input}, output_folder:{output_folder}, "
+            f"filters:{filters}, cancer:{cancer}, oncoKB:{oncokb}, "
+            f"analysis_type:{analysis_type}, overwrite_output:{overwrite_output}, "
+            f"resume:{resume}, multiple:{multiple}, update:{update}, "
+            f"extract:{extract}, remove:{remove}]")
 
         ###########################
         #        1.  WALK         #
         ###########################
 
         logger.info("Starting preparation study folder")
-        output_folder, input, _ = walk_folder(input, multiple, output_folder, oncoKB, cancer, overwrite_output, resume, analysis_type, filters)
+        output_folder, varan_input, _ = walk_folder(
+            varan_input, multiple, output_folder, oncokb, cancer,
+            overwrite_output, resume, analysis_type, filters,
+            )
+
 
 
         ###########################
@@ -71,16 +146,26 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
 
         logger.info("Starting MAF filtering")
         if analysis_type not in ["cnv", "fus", "tab"]:
-            filter_main(input,output_folder, output_folder, oncoKB, filters, cancer, resume)
+            filter_main(
+                varan_input,
+                output_folder,
+                output_folder,
+                oncokb,
+                filters,
+                cancer,
+                resume,
+                )
 
 
         ############################
         #      3. CONCATENATE      #
         ############################
 
-        if  os.path.exists(os.path.join(output_folder,"maf")) and analysis_type not in ["cnv", "fus", "tab"]:
+        maf_path = Path(output_folder) / "maf"
+
+        if maf_path.exists() and analysis_type not in ["cnv", "fus", "tab"]:
             logger.info("Concatenating mutation file")
-            concatenate_main(filters, output_folder,"maf", oncoKB)
+            concatenate_main(filters, output_folder, "maf", oncokb)
 
 
         ###########################################
@@ -88,7 +173,7 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ###########################################
 
         logger.info("It's time to create tables!")
-        meta_case_main(cancer,output_folder)
+        meta_case_main(cancer, output_folder)
 
 
         ############################
@@ -96,7 +181,15 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
         ############################
 
         logger.info("Starting validation...")
-        validateOutput(output_folder, input, multiple, False, cancer, oncoKB, filters)
+        validate_output(
+            output_folder,
+            varan_input,
+            multiple,
+            False,
+            cancer,
+            oncokb,
+            filters,
+            )
 
 
     ############################
@@ -141,9 +234,10 @@ def varan(input, cancer, output_folder, oncoKB, filters, analysis_type=None, ove
 #################################################################################################################
 
 class MyArgumentParser(argparse.ArgumentParser):
-  """An argument parser that raises an error, instead of quits"""
+  """An argument parser that raises an error, instead of quits."""
 
-  def error(self, message):
+def error(self, message: str) -> NoReturn:
+    """Raise a ValueError with the given error message."""
     raise ValueError(message)
 
 if __name__ == "__main__":
@@ -151,36 +245,55 @@ if __name__ == "__main__":
     logger.remove()
     logfile="Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
     logger.level("INFO", color="<green>")
-    logger.add(sys.stderr, format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}", colorize=True, catch=True)
-    logger.add(os.path.join("Logs",logfile),format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",mode="w")
+
+    logger.add(
+        sys.stderr,
+        format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
+        colorize=True,
+        catch=True)
+    logger.add(
+        Path("Logs") / logfile,
+        format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
+        mode="w")
 
     logo()
 
     logger.info("Welcome to VARAN 🦎\n")
 
-    parser = MyArgumentParser(add_help=True, exit_on_error=False, usage=None, description="Argument of Varan script")
+    parser = MyArgumentParser(
+        add_help=True,
+        exit_on_error=False,
+        usage=None,
+        description="Argument of Varan script")
 
     # WALK BLOCK
     parser.add_argument("-c", "--Cancer", required=False,
                         help="Cancer Name")
-    parser.add_argument("-i", "--input", nargs="+", required=False, type=str,
-                        help="list with 1) input folder/sample file tsv (required) 2) patient tsv 3) fusion file")
-    parser.add_argument("-t", "--analysis_type", required=False, choices=["snv", "cnv", "fus", "tab"],
-                        help="Select the analysis to follow (snv -> snv analysis; cnv -> cnv analysis; fus  -> fusions analysis; tab  -> table creation)")
+    parser.add_argument("-i", "--varan_input", nargs="+", required=False, type=str,
+    help=("list with 1) input folder/sample file tsv (required) "
+    "2) patient tsv 3) fusion file"))
+
+    parser.add_argument("-t", "--analysis_type", required=False,
+    choices=["snv", "cnv", "fus", "tab"],
+    help=("Select the analysis to follow (snv -> snv analysis; "
+    "cnv -> cnv analysis; fus  -> fusions analysis; tab  -> table creation)"))
+
     parser.add_argument("-w", "--overWrite", required=False, action="store_true",
                         help="Overwrite output folder if it exists")
     parser.add_argument("-R", "--resume", required=False, action="store_true",
                         help="Resume an already started analysis")
 
     # ANNOTATION BLOCK
-    parser.add_argument("-k", "--oncoKB", required=False, action="store_true",
+    parser.add_argument("-k", "--oncokb", required=False, action="store_true",
                         help="OncoKB annotation")
     parser.add_argument("-m", "--multiple", required=False, action="store_true",
                         help="Multiple sample VCF?")
 
     # FILTER BLOCK
     parser.add_argument("-f", "--Filter", required=False, default="",
-                        help="Select filter for SNV [d -> filter, p -> filter==PASS, v-> vaf, o-> Oncokb , a -> AF, q -> Consequence, y-> polyphens, c -> clin_sig, n -> novel]")
+                        help=("Select filter for SNV [d -> filter, p -> filter==PASS, "
+                        "v-> vaf, o-> Oncokb, a -> AF, q -> Consequence, y-> polyphens, "
+                        "c -> clin_sig, n -> novel, i -> Impact]"))
 
     # UPDATE BLOCK
     parser.add_argument("-u", "--Update", required=False,action="store_true",
@@ -189,12 +302,14 @@ if __name__ == "__main__":
                         help="Path of new study folder to add")
 
     # DELETE BLOCK
-    parser.add_argument("-r", "--Remove", required=False,action="store_true",
-                        help="Add this argument if you want to remove samples from a study")
+    parser.add_argument(
+        "-r", "--Remove", required=False,action="store_true",
+        help="Add this argument if you want to remove samples from a study")
 
     # EXTRACT BLOCK
-    parser.add_argument("-e", "--Extract", required=False,action="store_true",
-                        help="Add this argument if you want to extract samples from a study")
+    parser.add_argument(
+        "-e", "--Extract", required=False, action="store_true",
+        help="Add this argument if you want to extract samples from a study")
 
     # COMMON BLOCK
     parser.add_argument("-o", "--output_folder", required=False, default="",
@@ -203,21 +318,22 @@ if __name__ == "__main__":
                         help="Path of file with list of SampleIDs")
     parser.add_argument("-p", "--Path", required=False,
                         help="Path of original study folder")
-    parser.add_argument("-N", "--Name", required=False,default="",
-                        help="Add this argument if you want to give a custom name to the extract study")
-
+    parser.add_argument(
+        "-N", "--Name", required=False, default="",
+        help=(
+            "Add this argument if you want to give a custom name to the extract study"))
 
     try:
         args = parser.parse_args()
 
         cancer = args.Cancer
-        input = args.input
+        varan_input = args.varan_input
         filters=args.Filter
         output_folder = args.output_folder
         analysis_type=args.analysis_type
         overwrite_output=args.overWrite
         resume=args.resume
-        oncoKB=args.oncoKB
+        oncokb=args.oncokb
         multiple=args.multiple
 
         update=args.Update
@@ -225,10 +341,13 @@ if __name__ == "__main__":
         remove=args.Remove
 
         if sum([args.Update, args.Extract, args.Remove]) > 1:
-            logger.critical("Please select only one option between Update, Extract and Remove")
+            logger.critical(
+                "Please select only one option between Update, Extract and "
+                "Remove")
             sys.exit()
 
-        if not any([args.Update, args.Extract, args.Remove]) and (args.input==None or args.input[0].strip()==""):
+        if not any([args.Update, args.Extract, args.Remove]) and (
+            args.varan_input is None or args.varan_input[0].strip() == ""):
             logger.critical("Error Argument: Valid Input is required")
             sys.exit()
 
@@ -236,16 +355,21 @@ if __name__ == "__main__":
             logger.critical("Error Argument: Output is required")
             sys.exit()
 
-        if not any([args.Update, args.Extract, args.Remove]) and args.Cancer==None:
+        if not any([args.Update, args.Extract, args.Remove]) and args.Cancer is None:
             logger.critical("Error Argument: Cancer name is required")
             sys.exit()
 
-        if args.Update and (args.Path==None or args.NewPath==None):
-            logger.critical("To update a study, you need to specify both original and new folder paths")
+        if args.Update and (args.Path is None or args.NewPath is None):
+            logger.critical(
+                "To update a study, you need to specify both original "
+                "and new folder paths")
             sys.exit()
 
-        if (any([args.Remove,args.Extract]) and args.Path==None) or (any([args.Remove,args.Extract]) and args.SampleList==None):
-            logger.critical("To remove/extract samples from a study, you need to specify both original folder path and samples' list")
+        if (any([args.Remove, args.Extract]) and args.Path is None) or \
+        (any([args.Remove, args.Extract]) and args.SampleList is None):
+            logger.critical(
+                "To remove/extract samples from a study, you need to specify both "
+                "original folder path and samples' list")
             sys.exit()
 
         if (args.output_folder=="" and args.Name!=""):
@@ -253,19 +377,37 @@ if __name__ == "__main__":
             sys.exit()
 
         if "n" in filters and "v" not in filters:
-            logger.critical("To use the \"n\" option in filters it's required to set also the \"v\"")
+            logger.critical(
+                'To use the "n" option in filters it\'s required to set also the "v"')
             sys.exit()
 
-        if "o" in filters and not oncoKB:
-            logger.critical("To use the \"o\" option in filters it's required to set also -k")
+        if "o" in filters and not oncokb:
+            logger.critical(
+                'To use the "o" option in filters it\'s required to set also -k')
             sys.exit()
 
-        if resume:
-            if overwrite_output:
-                logger.critical("Both resume and overwrite options are selected. Please select only one!")
-                sys.exit()
+        if resume and overwrite_output:
+            logger.critical(
+                "Both resume and overwrite options are selected. "
+                "Please select only one!")
+            sys.exit()
 
-        varan(input, cancer, output_folder, oncoKB, filters, analysis_type, overwrite_output, resume, multiple, update, extract, remove)
 
-    except Exception as err:
-        logger.critical(f"error: {err}", file=sys.stderr)
+        varan(
+            varan_input,
+            cancer,
+            output_folder,
+            oncokb,
+            filters,
+            analysis_type,
+            overwrite_output,
+            resume,
+            multiple,
+            update,
+            extract,
+            remove)
+
+    except ValueError as err:
+        logger.critical(f"ValueError: {err}", file=sys.stderr)
+    except FileNotFoundError as err:
+        logger.critical(f"File not found: {err}", file=sys.stderr)

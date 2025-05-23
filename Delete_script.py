@@ -21,7 +21,7 @@ from loguru import logger
 from Delete_functions import *
 from filter_clinvar import check_bool
 from Make_meta_and_cases import meta_case_main
-from ValidateFolder import copy_maf, validateOutput
+from ValidateFolder import copy_maf, validate_output
 from versioning import *
 from write_report import *
 
@@ -128,7 +128,7 @@ def delete_main(oldpath, removepath, output, study_id, overwrite):
     copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
 
     logger.info("Starting Validation Folder...")
-    number_for_graph = validateOutput(output, None, False, True, None, None, None)
+    number_for_graph = validate_output(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
     write_report_remove(oldpath, output, number_for_graph)
