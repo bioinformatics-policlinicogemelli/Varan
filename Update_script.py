@@ -43,7 +43,7 @@ from versioning import extract_info_from_meta
 from write_report import write_report_update
 
 config = ConfigParser()
-configFile = config.read("conf.ini")
+config_file = config.read("conf.ini")
 
 
 def update_main(oldpath: str, newpath: str,
@@ -63,8 +63,8 @@ def update_main(oldpath: str, newpath: str,
     """
     logger.info("Starting update_main script:")
     logger.info(
-    f"update_main args [oldpath:{oldpath}, newpath:{newpath}, output_folder:{output}]"
-)
+    f"update_main args [oldpath:{oldpath}, newpath:{newpath}, "
+    f"output_folder:{output}]")
 
     oldpath = oldpath.rstrip("/")
 
@@ -83,7 +83,6 @@ def update_main(oldpath: str, newpath: str,
 
     logger.info("Great! Everything is ready to start")
 
-    # Ensure paths are valid
     oldpath = Path(oldpath)
     output = Path(output)
 

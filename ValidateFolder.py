@@ -54,7 +54,7 @@ from filter_clinvar import check_bool
 from write_report import write_report_main
 
 config = ConfigParser()
-configfile = config.read("conf.ini")
+config_file = config.read("conf.ini")
 
 def cbio_validation(output_folder: str) -> None:
     """Execute cBioPortal's validateData.py script on the specified output folder.

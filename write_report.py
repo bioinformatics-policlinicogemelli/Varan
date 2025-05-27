@@ -20,12 +20,10 @@ readable HTML format. The generated report is intended to facilitate
 data review and interpretation.
 
 """
-
 from __future__ import annotations
 
 import ast
 import re
-import os
 import shutil
 import sys
 from configparser import ConfigParser
@@ -1620,14 +1618,19 @@ def write_report_remove(
     sv_1 = case_list1 / "cases_sv.txt"
     sv_2 = case_list2 / "cases_sv.txt"
 
-    removed_samples_cna, left_samples_cna, total_patients, total_samples = (
-        compare_sample_file_remove(cna_1, cna_2, original_study, new_study))
+    (
+        old_samples_cna,
+        removed_samples_cna,
+        left_samples_cna,
+        total_patients,
+        total_samples,
+    ) = compare_sample_file_remove(cna_1, cna_2, new_study)
 
-    removed_samples_sequenced, left_samples_sequenced, _, _ = (
-        compare_sample_file_remove(sequenced_1, sequenced_2, original_study, new_study))
+    old_samples_sequenced, removed_samples_sequenced, left_samples_sequenced, _, _ = (
+        compare_sample_file_remove(sequenced_1, sequenced_2, new_study))
 
-    removed_samples_sv, left_samples_sv, _, _ = (
-        compare_sample_file_remove(sv_1, sv_2, original_study, new_study))
+    old_samples_sv, removed_samples_sv, left_samples_sv, _, _ = (
+        compare_sample_file_remove(sv_1, sv_2, new_study))
 
 
     html_content = f"""
@@ -1678,32 +1681,33 @@ def write_report_remove(
                 <div class="content">
                     <p><strong>Cases_CNA:</strong></p>"""
 
-    if not removed_samples_cna:
+    if not old_samples_cna:
         html_content += f"""
             <p>&emsp;{Path(original_study).name}'s cases_cna was empty.</p>"""
     else:
         html_content += f"""
             <p>&emsp;<strong>Removed:</strong> {len(removed_samples_cna)} samples
             ({", ".join(removed_samples_cna)})</p>
-            <p>&emsp;There are now {left_samples_cna} samples in cases_cna.</p>"""
+            <p>&emsp;There is/are now {left_samples_cna} samples in cases_cna.</p>"""
 
     html_content += """
         <p><strong>Cases_sequenced:</strong></p>"""
 
-    if not removed_samples_sequenced:
+    if not old_samples_sequenced:
         html_content += f"""
             <p>&emsp;{Path(original_study).name}'s cases_sequenced was empty.</p>"""
     else:
         html_content += f"""
         <p>&emsp;<strong>Removed:</strong> {len(removed_samples_sequenced)} samples
         ({', '.join(removed_samples_sequenced)})</p>
-        <p>&emsp;There are now {left_samples_sequenced} samples in cases_sequenced.</p>
+        <p>&emsp;There is/are now {left_samples_sequenced}
+        samples in cases_sequenced.</p>
     """
 
     html_content += """
         <p><strong>Cases_sv:</strong></p>"""
 
-    if not removed_samples_sv:
+    if not old_samples_sv:
         html_content += f"""
             <p>&emsp;{Path(original_study).name}'s cases_sv was empty.</p>"""
     else:
@@ -1711,7 +1715,7 @@ def write_report_remove(
             f"""
             <p>&emsp;<strong>Removed:</strong> {len(removed_samples_sv)} samples<br>
             {", ".join(removed_samples_sv)}</p>
-            <p>&emsp;There are now {left_samples_sv} samples in cases_sv.</p>""")
+            <p>&emsp;There is/are now {left_samples_sv} samples in cases_sv.</p>""")
 
     if filters != {}:
         html_content += """
@@ -1886,7 +1890,7 @@ def compare_sample_file_remove(
     file1: str | Path,
     file2: str | Path,
     outputfolder: str | Path,
-) -> tuple[list[str] | None, int | None, int, int]:
+) -> tuple[list[str] | None, list[str] | None, list[str] | int | None, int, int]:
     """Identify removed samples in two studies and summarize the updated clinical data.
 
     Args:
@@ -1897,7 +1901,8 @@ def compare_sample_file_remove(
 
     Returns:
         Tuple:
-            - removed_samples (Optional[list[str]]): Samples that were in the old file
+            - samples_file1 (list[str] | None)
+            - removed_samples (list[str] | None): Samples that were in the old file
             but not in the new file,
               or None if both files are missing.
             - left_samples (Optional[int]): Number of samples left in the new file, or
@@ -1922,14 +1927,17 @@ def compare_sample_file_remove(
         left_samples = len(set(samples_file1) - set(removed_samples))
 
     elif Path(file1).exists() and not Path(file2).exists():
+        samples_file1 = extract_sample_list(file1)
         removed_samples = extract_sample_list(file1)
         left_samples = 0
 
     else:
+        samples_file1 = None
         removed_samples = None
         left_samples = None
 
     return (
+        samples_file1,
         removed_samples,
         left_samples,
         len(set(clin_sam_new_df.iloc[4:, 1])),
