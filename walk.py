@@ -12,6 +12,14 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
+"""Module to convert VCF in MAF and to evaluate CNA.
+
+This script supports: 
+- conversion and vep annotation
+- cna extraction and filtering
+
+"""
+
 import ast
 import os
 import random
@@ -49,7 +57,13 @@ output_filtered = "snv_filtered"
 tmp = "scratch"
 
 
-def create_random_name_folder():
+def create_random_name_folder() -> str:
+    """Create a temporary folder with a random name.
+
+    Returns:
+        str: Path to the created temporary folder.
+
+    """
     nome_cartella = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
     temporary = os.path.join(tmp, nome_cartella)
     try:
@@ -63,19 +77,43 @@ def create_random_name_folder():
     return(temporary)
 
 
-def clear_scratch():
+def clear_scratch() -> None:
+    """Remove all directories inside the `tmp` directory.
+
+    Returns:
+        None
+
+    """
     for root, dirs, files in os.walk(tmp):
         for dir in dirs:
             shutil.rmtree(os.path.join(root,dir))
 
 
-def get_cnv_from_folder(inputFolderCNV):
+def get_cnv_from_folder(inputFolderCNV: str) -> list:
+    """Returns a list of all VCF files in a directory.
+
+    Args:
+        inputFolderCNV (str): Path to the CNV input folder.
+
+    Returns:
+        list: List of VCF filenames.
+
+    """
     files = os.listdir(inputFolderCNV)
     cnv_vcf_files = [file for file in files if file.endswith("vcf")]
     return cnv_vcf_files
 
 
-def get_sampleID_from_cnv(cnv_vcf):
+def get_sampleID_from_cnv(cnv_vcf: str) -> str:
+    """Extracts sample ID from CNV.
+
+    Args:
+        cnv_vcf (str): VCF filename.
+
+    Returns:
+        str: Corresponding BAM filename.
+
+    """
     if "_CopyNumberVariants.vcf" in cnv_vcf:
         sample=cnv_vcf.replace("_CopyNumberVariants.vcf", ".bam")
     else:
@@ -83,7 +121,22 @@ def get_sampleID_from_cnv(cnv_vcf):
     return sample
 
 
-def reshape_cna(input, cna_df_path, cancer, output_dir):
+def reshape_cna(input: str,
+                cna_df_path: str,
+                cancer: str,
+                output_dir: str) -> str:
+    """Reshape and annotate CNA data and add ONCOTREE code.
+
+    Args:
+        input (str): Path to input file or directory.
+        cna_df_path (str): Path to CNA dataframe.
+        cancer (str): ONCOTREE code.
+        output_dir (str): Output directory.
+
+    Returns:
+        str: Path to the intermediate annotated file.
+
+    """
     if not os.path.isfile(input):
         input_file = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t")
     else:
@@ -106,7 +159,17 @@ def reshape_cna(input, cna_df_path, cancer, output_dir):
     return os.path.join(output_dir, "temp_cna.txt")
 
 
-def annotate_cna(path_cna, output_folder):
+def annotate_cna(path_cna: str, output_folder: str) -> None:
+    """Annotate CNA file using OncoKB and filters oncogenic alterations.
+
+    Args:
+        path_cna (str): Path to CNA input file.
+        output_folder (str): Output directory for results.
+
+    Returns:
+        None
+
+    """
     out = path_cna.replace(".txt", "2.txt")
     os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {path_cna}\
                         -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
@@ -118,7 +181,32 @@ def annotate_cna(path_cna, output_folder):
     data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
 
 
-def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, multiple):
+def cnv_type_from_folder(input: str,
+                         cnv_vcf_files: list,
+                         output_folder: str,
+                         oncokb: bool,
+                         cancer: str,
+                         multiple: bool) -> dict:
+    """Processe CNV, converting them in CNA tables and performing annotation.
+
+    Args:
+    input : str
+        Path to the input directory or the sample TSV file (if CNVkit=True).
+    cnv_vcf_files : list
+        List of CNV VCF file paths or file names (relative to CNV folder).
+    output_folder : str
+        Directory to store the output files.
+    oncokb : bool
+        If True, annotate results using OncoKB.
+    cancer : str
+        Default cancer type to use if ONCOTREE_CODE is not available.
+    multiple : bool
+        If True, indicates that VCFs are in "CNV/single_sample_vcf"; otherwise in "CNV".
+
+    Returns:
+    dict
+        A mapping from sample ID to VCF file path used in processing.
+    """
     c = 0
     sID_path = dict()
     for case_folder in cnv_vcf_files:
@@ -263,7 +351,20 @@ def cnv_type_from_folder(input, cnv_vcf_files, output_folder, oncokb, cancer, mu
         return sID_path
 
 
-def escat_class(df_table, input_file, row):
+def escat_class(df_table: pd.DataFrame,
+                input_file: pd.DataFrame,
+                row: pd.Series) -> None:
+    """Assign ESCAT classifications to CNA data based on cancer type and gene.
+
+    Args:
+        df_table (pd.DataFrame): DataFrame with CNAs.
+        input_file (pd.DataFrame): Metadata file including ONCOTREE_CODE.
+        row (pd.Series): Row from the CNA DataFrame.
+
+    Returns:
+        None
+
+    """
     oncocode = input_file[input_file["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"]]["ONCOTREE_CODE"].values
     gene = df_table[(df_table["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"] == row["Hugo_Symbol"])]
 
