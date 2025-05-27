@@ -14,11 +14,12 @@
 
 """Module to convert VCF in MAF and to evaluate CNA.
 
-This script supports: 
+This script supports:
 - conversion and vep annotation
 - cna extraction and filtering
 
 """
+from __future__ import annotations
 
 import ast
 import os
@@ -42,7 +43,7 @@ from filter_clinvar import check_bool, filter_oncokb
 from versioning import get_newest_version, get_version_list
 
 config = ConfigParser()
-configFile = config.read("conf.ini")
+config_file = config.read("conf.ini")
 
 VCF2MAF = config.get("Paths", "VCF2MAF")
 REF_FASTA = config.get("Paths", "REF_FASTA")
@@ -64,16 +65,18 @@ def create_random_name_folder() -> str:
         str: Path to the created temporary folder.
 
     """
-    nome_cartella = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
-    temporary = os.path.join(tmp, nome_cartella)
+    folder_name = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
+    temporary = os.path.join(tmp, folder_name)
     try:
         os.mkdir(temporary)
     except FileNotFoundError:
         logger.critical(f"Scratch folder '{tmp}' not found!")
-        raise(FileNotFoundError("Error in create_random_name_folder: exiting from walk script!"))
+        msg = "Error in create_random_name_folder: exiting from walk script!"
+        raise(FileNotFoundError(msg))
     except Exception:
         logger.critical("Something went wrong while creating the vep tmp folder")
-        raise(Exception("Error in create_random_name_folder: exiting from walk script!"))
+        msg = "Error in create_random_name_folder: exiting from walk script!"
+        raise(Exception(msg))
     return(temporary)
 
 
@@ -85,27 +88,26 @@ def clear_scratch() -> None:
 
     """
     for root, dirs, files in os.walk(tmp):
-        for dir in dirs:
-            shutil.rmtree(os.path.join(root,dir))
+        for directory in dirs:
+            shutil.rmtree(os.path.join(root, directory))
 
 
-def get_cnv_from_folder(inputFolderCNV: str) -> list:
-    """Returns a list of all VCF files in a directory.
+def get_cnv_from_folder(inputFoldercnv: str) -> list:
+    """Return a list of all VCF files in a directory.
 
     Args:
-        inputFolderCNV (str): Path to the CNV input folder.
+        inputFoldercnv (str): Path to the CNV input folder.
 
     Returns:
         list: List of VCF filenames.
 
     """
-    files = os.listdir(inputFolderCNV)
-    cnv_vcf_files = [file for file in files if file.endswith("vcf")]
-    return cnv_vcf_files
+    files = os.listdir(inputFoldercnv)
+    return [file for file in files if file.endswith("vcf")]
 
 
-def get_sampleID_from_cnv(cnv_vcf: str) -> str:
-    """Extracts sample ID from CNV.
+def get_sample_id_from_cnv(cnv_vcf: str) -> str:
+    """Extract sample ID from CNV.
 
     Args:
         cnv_vcf (str): VCF filename.
@@ -121,14 +123,14 @@ def get_sampleID_from_cnv(cnv_vcf: str) -> str:
     return sample
 
 
-def reshape_cna(input: str,
+def reshape_cna(my_input: str,
                 cna_df_path: str,
                 cancer: str,
                 output_dir: str) -> str:
     """Reshape and annotate CNA data and add ONCOTREE code.
 
     Args:
-        input (str): Path to input file or directory.
+        my_input (str): Path to input file or directory.
         cna_df_path (str): Path to CNA dataframe.
         cancer (str): ONCOTREE code.
         output_dir (str): Output directory.
@@ -137,14 +139,15 @@ def reshape_cna(input: str,
         str: Path to the intermediate annotated file.
 
     """
-    if not os.path.isfile(input):
-        input_file = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t")
+    if not os.path.isfile(my_input):
+        input_file = pd.read_csv(os.path.join(my_input, "sample.tsv"), sep="\t")
     else:
-        input_file = pd.read_csv(input, sep="\t")
+        input_file = pd.read_csv(my_input, sep="\t")
 
     cna_df = pd.read_csv(cna_df_path, sep="\t")
 
-    cna_df.rename({"ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"}, inplace=True, axis=1)
+    cna_df.rename({"ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},
+    inplace=True, axis=1)
     input_file.rename({"SampleID":"Tumor_Sample_Barcode"}, inplace=True, axis=1)
 
     if "ONCOTREE_CODE" not in input_file.columns:
@@ -152,8 +155,9 @@ def reshape_cna(input: str,
 
     input_file["Tumor_Sample_Barcode"] = input_file["Tumor_Sample_Barcode"] + ".cnv.bam"
 
-    annotate = pd.merge(cna_df[["Tumor_Sample_Barcode", "Hugo_Symbol", "discrete", "Copy_Number_Alteration"]], \
-                        input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE"]], on="Tumor_Sample_Barcode")
+    annotate = pd.merge(
+        cna_df[["Tumor_Sample_Barcode", "Hugo_Symbol", "discrete", "Copy_Number_Alteration"]],
+        input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE"]], on="Tumor_Sample_Barcode")
     annotate.to_csv(os.path.join(output_dir, "temp_cna.txt"), index=False, sep="\t")
 
     return os.path.join(output_dir, "temp_cna.txt")
@@ -177,7 +181,11 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
     cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration":int})
     cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
 
-    data_cna = cna.pivot_table(index="Hugo_Symbol", columns="Tumor_Sample_Barcode", values="Copy_Number_Alteration", fill_value=0)
+    data_cna = cna.pivot_table(
+        index="Hugo_Symbol",
+        columns="Tumor_Sample_Barcode",
+        values="Copy_Number_Alteration",
+        fill_value=0)
     data_cna.to_csv(os.path.join(output_folder, "data_cna.txt"), index=True, sep="\t")
 
 
@@ -187,7 +195,7 @@ def cnv_type_from_folder(input: str,
                          oncokb: bool,
                          cancer: str,
                          multiple: bool) -> dict:
-    """Processe CNV, converting them in CNA tables and performing annotation.
+    """Process CNV, converting them in CNA tables and performing annotation.
 
     Args:
     input : str
@@ -206,6 +214,7 @@ def cnv_type_from_folder(input: str,
     Returns:
     dict
         A mapping from sample ID to VCF file path used in processing.
+
     """
     c = 0
     sID_path = dict()
@@ -216,7 +225,7 @@ def cnv_type_from_folder(input: str,
             MODE = "w"
         try:
             cnv_vcf = case_folder
-            sampleID = get_sampleID_from_cnv(case_folder)
+            sampleID = get_sample_id_from_cnv(case_folder)
 
             if sampleID in sID_path:
                 dup = open("sampleID_dup".log, "w")
@@ -395,7 +404,19 @@ def escat_class(df_table: pd.DataFrame,
             df_table[(df_table["Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) & (df_table["Hugo_Symbol"]==row["Hugo_Symbol"])]["ESCAT"]="IIB"
 
 
-def table_to_dict(df):
+def table_to_dict(df: pd.DataFrame) -> dict[str, list[tuple]]:
+    """Convert a DataFrame into a dictionary grouped by the 'ID' column.
+
+    Each key is a sample ID, and each value is a list of tuples containing:
+    (chrom, _2, _3, _4, _5, gene, discrete).
+
+    Args:
+        df (pd.DataFrame): Input DataFrame with required columns.
+
+    Returns:
+        dict[str, list[tuple]]: Dictionary mapping sample IDs to lists of tuples with SNV data.
+
+    """
     result = {}
     for row in df.itertuples(index=False):
         row_values = (row.chrom, row._2, row._3, row._4, row._5, row.gene, row.discrete)
@@ -405,13 +426,30 @@ def table_to_dict(df):
     return result
 
 
-def get_snv_from_folder(inputFolderSNV):
+def get_snv_from_folder(inputFolderSNV: str) -> list[str]:
+    """List all VCF files in a given folder.
+
+    Args:
+        inputFolderSNV (str): Path to the folder containing SNV VCF files.
+
+    Returns:
+        list[str]: List of filenames ending with 'vcf'.
+
+    """
     files = os.listdir(inputFolderSNV)
-    snv_vcf_files = [file for file in files if file.endswith("vcf")]
-    return snv_vcf_files
+    return [file for file in files if file.endswith("vcf")]
 
 
-def get_sampleID_from_snv(snv_vcf):
+def get_sampleID_from_snv(snv_vcf: str) -> str:
+    """Extract the sample ID from a VCF filename by converting it to a BAM filename.
+
+    Args:
+        snv_vcf (str): SNV VCF filename.
+
+    Returns:
+        str: Corresponding BAM filename.
+
+    """
     if "MergedSmallVariants.genome.vcf" in snv_vcf:
         sample = snv_vcf.replace("_MergedSmallVariants.genome.vcf", ".bam")
     else:
@@ -419,7 +457,17 @@ def get_sampleID_from_snv(snv_vcf):
     return sample
 
 
-def snv_type_from_folder(input, snv_vcf_files):
+def snv_type_from_folder(input: str, snv_vcf_files: list[str]) -> dict[str, str]:
+    """Map sample IDs to their full SNV paths, handling duplicates.
+
+    Args:
+        input (str): Path to the folder containing SNV files.
+        snv_vcf_files (list[str]): List of SNV VCF filenames.
+
+    Returns:
+        dict[str, str]: Mapping from sample ID (as BAM filename) to full SNV file path.
+
+    """
     c = 0
     sID_path = dict()
     for case_folder in snv_vcf_files:
@@ -440,7 +488,18 @@ def snv_type_from_folder(input, snv_vcf_files):
     return sID_path
 
 
-def vcf_filtering(sID_path, output_folder, output_filtered):
+def vcf_filtering(sID_path: dict[str, str], output_folder: str, output_filtered: str) -> dict[str, str]:
+    """Apply filtering to VCF file.
+
+    Args:
+        sID_path (dict[str, str]): Mapping from sample IDs to VCF file paths.
+        output_folder (str): Path to the base output folder.
+        output_filtered (str): Subfolder name for filtered output files.
+
+    Returns:
+        dict[str, str]: Updated mapping from sample IDs to filtered VCF file paths.
+
+    """
     sID_path_filtered = dict()
     if output_filtered.strip() == "":
         output_filtered = "snv_filtered"
@@ -454,7 +513,19 @@ def vcf_filtering(sID_path, output_folder, output_filtered):
     return sID_path_filtered
 
 
-def vcf2maf_constructor(k, v, temporary, output_folder):
+def vcf2maf_constructor(k: str, v: str, temporary: str, output_folder: str) -> list[str]:
+    """Construct the vcf2maf command line based on input parameters and config file.
+
+    Args:
+        k (str): Sample ID.
+        v (str): Path to the input VCF file.
+        temporary (str): Temporary directory for intermediate files.
+        output_folder (str): Base output folder.
+
+    Returns:
+        list[str]: A list representing the command-line call to vcf2maf.
+
+    """
     CACHE = config.get("Paths", "CACHE")
     cmd = "vcf-query -l "+v
     try:
@@ -497,7 +568,17 @@ def vcf2maf_constructor(k, v, temporary, output_folder):
     return cl
 
 
-def run_vcf2maf(cl, sample):
+def run_vcf2maf(cl: list[str], sample: str) -> None:
+    """Run the vcf2maf conversion using the constructed command.
+
+    Args:
+        cl (list[str]): The command-line list to execute.
+        sample (str): The sample ID for logging purposes.
+
+    Returns:
+        None
+
+    """
     logger.info(f"Starting vcf2maf conversion of {sample}... This may take several minutes (approx 5 minutes per sample).")
     logger.info(f"args={cl}")
     sout = subprocess.run(cl, capture_output=True, check=False)
@@ -509,7 +590,18 @@ def run_vcf2maf(cl, sample):
             logger.error(sout.stderr.decode("ascii").replace("ERROR: ",""))
 
 
-def create_folder(output_folder, overwrite_output, resume):
+def create_folder(output_folder: str, overwrite_output: bool, resume: bool) -> Path:
+    """Create versioned output folder for storing results.
+
+    Args:
+        output_folder (str): Base output path.
+        overwrite_output (bool): If True, delete existing version and create new.
+        resume (bool): If True, resume from last existing version if available.
+
+    Returns:
+        Path: Path to the versioned output folder.
+
+    """
     output_list = get_version_list(output_folder)
     output_list=list(map(lambda x: os.path.join(os.path.dirname(output_folder),x),output_list))
 
@@ -538,7 +630,16 @@ def create_folder(output_folder, overwrite_output, resume):
     return output_folder_version
 
 
-def get_table_from_folder(tsvpath):
+def get_table_from_folder(tsvpath: str) -> dict[str, list[str]]:
+    """Extract sample-to-patient mapping from a TSV file.
+
+    Args:
+        tsvpath (str): Path to the input TSV file.
+
+    Returns:
+        dict[str, list[str]]: Mapping from SAMPLE_ID to list with corresponding PATIENT_ID.
+
+    """
     table_dict = dict()
     file = pd.read_csv(tsvpath, sep="\t", index_col=False, dtype=str)
     for _, row in file.iterrows():
@@ -550,7 +651,16 @@ def get_table_from_folder(tsvpath):
     return table_dict
 
 
-def flatten(nested_list):
+def flatten(nested_list: list[list]) -> list:
+    """Flatten a nested list into a single flat list.
+
+    Args:
+        nested_list (list[list]): A list of lists to flatten.
+
+    Returns:
+        list: A single flattened list.
+
+    """
     flat_list = []
     for sublist in nested_list:
         for item in sublist:
@@ -558,7 +668,17 @@ def flatten(nested_list):
     return flat_list
 
 
-def check_multiple_file(input_file, multiple):
+def check_multiple_file(input_file: str, multiple: bool) -> None:
+    """Check sample.tsv and conf.ini for multiple sample input.
+
+    Args:
+        input_file (str): Path to the sample.tsv file.
+        multiple (bool): Whether the input is in multiple-sample mode.
+
+    Raises:
+        Exception: If validation of configuration and sample.tsv fails.
+
+    """
     conf_snv = config.get("Multiple", "SNV")
     conf_cnv = config.get("Multiple", "CNV")
     file_paths = pd.read_csv(input_file, sep="\t", header=0)
@@ -582,7 +702,17 @@ def check_multiple_file(input_file, multiple):
         logger.warning("SNV and/or CNV columns in sample.tsv were not filled.")
 
 
-def check_multiple_folder(input_dir, multiple):
+def check_multiple_folder(input_dir: str, multiple: bool) -> None:
+    """Validate whether SNV/CNV VCFs are single or multi-sample based on -m option.
+
+    Args:
+        input_dir (str): Path to the base input directory.
+        multiple (bool): Whether the input should be multi-sample.
+
+    Raises:
+        Exception: If actual file type does not match `multiple` expectation.
+
+    """
     snv_mulitple, snv_single, cnv_mulitple, cnv_single = False, False, False, False
     snv_folder = os.path.join(input_dir, "SNV")
     try:
@@ -630,7 +760,27 @@ def check_multiple_folder(input_dir, multiple):
         raise Exception ("Input error")
 
 
-def write_clinical_sample(clin_samp_path, output_folder, table_dict):
+def write_clinical_sample(
+    clin_samp_path: str,
+    output_folder: str,
+    table_dict: dict,
+) -> None:
+    """Write the `data_clinical_sample.txt` file by merging sample and metrics data.
+
+    The function reads the clinical sample file, optionally merges it with MSI/TMB
+    metrics from a provided table, validates headers, and writes the output file
+    with appropriate headers as required by cBioPortal format.
+
+    Args:
+        clin_samp_path (str): Path to the input clinical sample TSV file.
+        output_folder (str): Directory where the final file will be saved.
+        table_dict (dict): Dictionary containing metrics (MSI, TMB) by sample ID.
+
+    Raises:
+        NameError: If expected columns or header definitions are missing or incorrect.
+        KeyError: If input template does not contain required fields.
+
+    """
     logger.info("Writing data_clinical_sample.txt file...")
     conf_header_short = config.get("ClinicalSample", "HEADER_SAMPLE_SHORT")
     conf_header_long = config.get("ClinicalSample", "HEADER_SAMPLE_LONG")
@@ -733,7 +883,14 @@ def write_clinical_sample(clin_samp_path, output_folder, table_dict):
     final_data_sample.to_csv(data_clin_txt, sep="\t", index=False, header=False)
 
 
-def write_default_clinical_patient(output_folder, table_dict):
+def write_default_clinical_patient(output_folder: str, table_dict: dict) -> None:
+    """Write a default `data_clinical_patient.txt` file.
+
+    Args:
+        output_folder (str): Path to the output directory.
+        table_dict (dict): Dictionary containing sample info mapped to patient IDs.
+
+    """
     logger.info("Writing data_clinical_patient.txt file...")
     data_clin_samp = os.path.join(output_folder, "data_clinical_patient.txt")
     cil_sample = open(data_clin_samp, "w")
@@ -751,7 +908,27 @@ def write_default_clinical_patient(output_folder, table_dict):
     cil_sample.close()
 
 
-def add_header_patient_type(patient_tsv, datapat_columns, conf_header_type, final_data_pat):
+def add_header_patient_type(
+    patient_tsv: str,
+    datapat_columns: list[str],
+    conf_header_type: str,
+    final_data_pat: pd.DataFrame
+) -> pd.DataFrame:
+    """Add HEADER_PATIENT_TYPE row to the patient DataFrame.
+
+    Args:
+        patient_tsv (str): File name used in log messages for context.
+        datapat_columns (list[str]): List of column names.
+        conf_header_type (str): Comma-separated types from config.
+        final_data_pat (pd.DataFrame): The data to which headers are appended.
+
+    Returns:
+        pd.DataFrame: DataFrame with the header row prepended.
+
+    Raises:
+        NameError: If types are invalid or column count mismatches.
+
+    """
     if not conf_header_type:
         def_type = ["STRING", "NUMBER", "STRING"]
         header_type = def_type + ["STRING"] * (len(datapat_columns)-3)
@@ -774,7 +951,26 @@ def add_header_patient_type(patient_tsv, datapat_columns, conf_header_type, fina
     return final_data_pat
 
 
-def add_header_patient_short(patient_tsv, datapat_columns, conf_header_short, default_row, final_data_pat):
+def add_header_patient_short(
+    patient_tsv: str,
+    datapat_columns: list[str],
+    conf_header_short: str,
+    default_row: pd.DataFrame,
+    final_data_pat: pd.DataFrame
+) -> pd.DataFrame:
+    """Add HEADER_PATIENT_SHORT row to the patient DataFrame.
+
+    Args:
+        patient_tsv (str): File name for context in logging.
+        datapat_columns (list[str]): List of column names.
+        conf_header_short (str): Header from config, comma-separated.
+        default_row (pd.DataFrame): Default row to use if config not provided.
+        final_data_pat (pd.DataFrame): The target DataFrame.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame.
+
+    """
     if not conf_header_short:
         pat_header_short = default_row
     else:
@@ -788,7 +984,26 @@ def add_header_patient_short(patient_tsv, datapat_columns, conf_header_short, de
     return final_data_pat
 
 
-def add_header_patient_long(patient_tsv, datapat_columns, conf_header_long, default_row, final_data_pat):
+def add_header_patient_long(
+    patient_tsv: str,
+    datapat_columns: list[str],
+    conf_header_long: str,
+    default_row: pd.DataFrame,
+    final_data_pat: pd.DataFrame
+) -> pd.DataFrame:
+    """Add HEADER_PATIENT_LONG row to the patient DataFrame.
+
+    Args:
+        patient_tsv (str): File name for context.
+        datapat_columns (list[str]): List of column names.
+        conf_header_long (str): Header from config, comma-separated.
+        default_row (pd.DataFrame): Default row if config missing.
+        final_data_pat (pd.DataFrame): DataFrame to prepend header to.
+
+    Returns:
+        pd.DataFrame: DataFrame with header row added.
+
+    """
     if not conf_header_long:
         pat_header_long = default_row
     else:
@@ -802,7 +1017,18 @@ def add_header_patient_long(patient_tsv, datapat_columns, conf_header_long, defa
     return final_data_pat
 
 
-def extract_multiple_cnv(multiple_vcf, input_dir):
+def extract_multiple_cnv(multiple_vcf: str, input_dir: str) -> None:
+    """Split a multi-sample CNV VCF file into single-sample VCFs using vcftools.
+
+    Args:
+        multiple_vcf (str): Path to multi-sample CNV VCF file.
+        input_dir (str): Working directory where single VCFs will be saved.
+
+    Side Effects:
+        - Creates `single_sample_vcf/` directory and per-sample VCF files inside it.
+        - Generates and removes a temporary `sample_id.txt` file.
+
+    """
     single_sample_vcf_dir = os.path.join(input_dir, "single_sample_vcf")
     if not os.path.exists(os.path.join(input_dir, "single_sample_vcf")):
         os.mkdir(os.path.join(input_dir, "single_sample_vcf"))
@@ -817,7 +1043,15 @@ def extract_multiple_cnv(multiple_vcf, input_dir):
             cmd = f"vcftools --vcf {multiple_vcf} --indv {sample} --recode --recode-INFO-all --stdout > {single_sample_vcf}"
             os.system(cmd)
 
-def extract_multiple_snv(multiple_vcf,input_dir):
+
+def extract_multiple_snv(multiple_vcf: str, input_dir: str) -> None:
+    """Split a multi-sample SNV VCF file into single-sample files.
+
+    Args:
+        multiple_vcf (str): Path to the multi-sample VCF file.
+        input_dir (str): Directory where single-sample VCFs are saved.
+
+    """
     if not os.path.exists(os.path.join(input_dir, "single_sample_vcf")):
         os.mkdir(os.path.join(input_dir, "single_sample_vcf"))
 
@@ -831,7 +1065,17 @@ def extract_multiple_snv(multiple_vcf,input_dir):
             os.system(cmd)
 
 
-def check_field_tsv(row, name):
+def check_field_tsv(row: pd.Series, name: str) -> str:
+    """Return a field from a TSV row. Exit if field is missing.
+
+    Args:
+        row (pd.Series): A row from a DataFrame.
+        name (str): Name of the column to extract.
+
+    Returns:
+        str: The value in the specified column.
+
+    """
     try:
         field=str(row[name])
     except KeyError as e:
@@ -840,7 +1084,19 @@ def check_field_tsv(row, name):
     return field
 
 
-def get_combinedVariantOutput_from_folder(inputFolder, file, isinputfile):
+def get_combinedVariantOutput_from_folder(
+    inputFolder: str, file: pd.DataFrame, isinputfile: bool) -> dict:
+    """Create a dict mapping SAMPLE_ID to CombinedVariantOutput file paths.
+
+    Args:
+        inputFolder (str): Base folder for default paths.
+        file (pd.DataFrame): Input sample information.
+        isinputfile (bool): Whether to use the path from the file or default.
+
+    Returns:
+        dict: Mapping from SAMPLE_ID to CombinedOutput file paths.
+
+    """
     combined_dict = dict()
     for _,row in file.iterrows():
         sampleID = check_field_tsv(row, "SAMPLE_ID")
@@ -858,7 +1114,18 @@ def get_combinedVariantOutput_from_folder(inputFolder, file, isinputfile):
     return combined_dict
 
 
-def check_input_file(output_folder, file, copy_to, sample_id):
+def check_input_file(
+    output_folder: str, file: str, copy_to: str, sample_id: str
+) -> None:
+    """Copy an input file to a temporary folder or log if missing.
+
+    Args:
+        output_folder (str): Base output directory.
+        file (str): File path to copy.
+        copy_to (str): Subfolder name.
+        sample_id (str): ID of the sample (for logging).
+
+    """
     if os.path.exists(file):
         os.system("cp " + file + " " + os.path.join(output_folder, "temp", copy_to))
     elif not file:
@@ -867,14 +1134,47 @@ def check_input_file(output_folder, file, copy_to, sample_id):
         logger.warning(f"{file} not found")
 
 
-def check_folders(output_folder, snv_path, cnv_path, combout, sample_id):
+def check_folders(
+    output_folder: str,
+    snv_path: str,
+    cnv_path: str,
+    combout: str,
+    sample_id: str) -> None:
+    """Check presence of SNV, CNV, and CombinedOutput files for a sample.
+
+    Args:
+        output_folder (str): Base output directory.
+        snv_path (str): Path to SNV file.
+        cnv_path (str): Path to CNV file.
+        combout (str): Path to CombinedOutput file.
+        sample_id (str): ID of the sample.
+
+    """
     logger.info(f"Verifying the compilation of the conf.ini file for sample {sample_id}")
     check_input_file(output_folder, snv_path, "SNV", sample_id)
     check_input_file(output_folder, cnv_path, "CNV", sample_id)
     check_input_file(output_folder, combout, "CombinedOutput", sample_id)
 
 
-def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
+def transform_input(
+    tsv: str,
+    clin_pzt: str,
+    fusion_tsv: str,
+    output_folder: str,
+    multiple: bool) -> str:
+    """Prepare temp folder structure and copy necessary files.
+
+    Args:
+        tsv (str): Sample TSV file path.
+        clin_pzt (str): Clinical patient TSV file path.
+        fusion_tsv (str): Fusion TSV file path.
+        output_folder (str): Output directory.
+        multiple (bool): Whether input is from multi-sample VCF.
+
+    Returns:
+        str: Path to the temporary folder created.
+
+    """
     os.makedirs(os.path.join(output_folder, "temp"), exist_ok=True)
     os.makedirs(os.path.join(output_folder, "temp", "SNV"), exist_ok=True)
     os.makedirs(os.path.join(output_folder, "temp", "CNV"), exist_ok=True)
@@ -908,7 +1208,20 @@ def transform_input(tsv, clin_pzt, fusion_tsv, output_folder, multiple):
     return os.path.join(output_folder, "temp")
 
 
-def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
+def fill_fusion_from_temp(
+    input: str,
+    fusion_table_file: str,
+    clin_file: pd.DataFrame,
+    fusion_files: list[str]) -> None:
+    """Collect fusion events from temp directory into a unified table.
+
+    Args:
+        input (str): Temp input path.
+        fusion_table_file (str): Output file path for combined fusions.
+        clin_file (pd.DataFrame): Clinical file to match SAMPLE_IDs.
+        fusion_files (list[str]): List of fusion TSV filenames.
+
+    """
     nfusion=len(fusion_files)
     logger.info(f"Found {nfusion} Fusion file(s)")
 
@@ -937,7 +1250,23 @@ def fill_fusion_from_temp(input, fusion_table_file, clin_file, fusion_files):
                         fusion_table.write("\t".join(map(str, fus)) + "\n")
 
 
-def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
+def annotate_fusion(
+    cancer: str, 
+    fusion_table_file: str, 
+    data_sv: pd.DataFrame, 
+    input_file: pd.DataFrame) -> str:
+    """Annotate fusion events with OncoKB FusionAnnotator.
+
+    Args:
+        cancer (str): Cancer type code.
+        fusion_table_file (str): Path to fusion TSV input file.
+        data_sv (pd.DataFrame): DataFrame with fusion data.
+        input_file (pd.DataFrame): Clinical data with SAMPLE_ID and optionally ONCOTREE_CODE.
+
+    Returns:
+        str: Path to annotated fusion output file.
+
+    """
     if "ONCOTREE_CODE" in input_file.columns:
         fusion_table_df = data_sv.merge(input_file[["SAMPLE_ID", "ONCOTREE_CODE"]], how="inner", left_on="Sample_Id", right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
@@ -954,7 +1283,22 @@ def annotate_fusion(cancer, fusion_table_file, data_sv, input_file):
     return fusion_table_file_out
 
 
-def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
+def fill_fusion_from_combined(
+    fusion_table_file: str, 
+    combined_dict: dict[str, str], 
+    THR_FUS: str
+) -> None:
+    """Extract fusion events from combined variant output and write to TSV.
+
+    Args:
+        fusion_table_file (str): Output file path for fusion TSV.
+        combined_dict (dict[str, str]): Map sample ID to CombinedVariantOutput file path.
+        THR_FUS (str): Threshold expression for filtering read count (e.g. ">5").
+
+    Returns:
+        None
+
+    """
     logger.info("Writing data_sv.txt file...")
 
     with open(fusion_table_file, "w") as fusion_table:
@@ -988,7 +1332,16 @@ def fill_fusion_from_combined(fusion_table_file, combined_dict, THR_FUS):
                         fus["Event_Info"] + " Fusion\t" + "Yes\n")
 
 
-def check_data_cna(data_cna_path):
+def check_data_cna(data_cna_path: str) -> None:
+    """Check if CNA data file is empty; remove file if empty.
+
+    Args:
+        data_cna_path (str): Path to CNA input file.
+
+    Returns:
+        None
+
+    """
     input_file = os.path.basename(data_cna_path)
     logger.info(f"Checking {input_file} file...")
     try:
@@ -1001,7 +1354,24 @@ def check_data_cna(data_cna_path):
         logger.warning(f"{input_file} does not exist!")
 
 
-def fill_from_file(table_dict_patient, file_input_clinical, MSI_THR, TMB_THR):
+def fill_from_file(
+    table_dict_patient: dict[str, list], 
+    file_input_clinical: pd.DataFrame, 
+    MSI_THR: str, 
+    TMB_THR: dict[str, str]
+) -> dict[str, list]:
+    """Populate clinical table dictionary with MSI and TMB values and statuses.
+
+    Args:
+        table_dict_patient (dict): Patient clinical data dictionary.
+        file_input_clinical (pd.DataFrame): Clinical input with SAMPLE_ID, MSI, TMB.
+        MSI_THR (str): Threshold condition string for MSI (used with eval).
+        TMB_THR (dict): Map of TMB categories to threshold conditions.
+
+    Returns:
+        dict: Updated clinical data dictionary.
+
+    """
     for k, m, t in zip(file_input_clinical["SAMPLE_ID"], file_input_clinical["MSI"], file_input_clinical["TMB"]):
         table_dict_patient[k].append(m)
         table_dict_patient[k].append(t)
@@ -1023,7 +1393,26 @@ def fill_from_file(table_dict_patient, file_input_clinical, MSI_THR, TMB_THR):
     return table_dict_patient
 
 
-def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR, TMB):
+def fill_from_combined(
+    combined_dict: dict[str, str], 
+    table_dict_patient: dict[str, list], 
+    MSI_SITES_THR: str, 
+    MSI_THR: str, 
+    TMB: dict[str, str]
+) -> dict[str, list]:
+    """Extract MSI and TMB from combined output files and update clinical dict.
+
+    Args:
+        combined_dict (dict): Map sample ID to CombinedVariantOutput path.
+        table_dict_patient (dict): Clinical data dictionary to update.
+        MSI_SITES_THR (str): Threshold condition for MSI sites (eval string).
+        MSI_THR (str): Threshold condition for MSI stability (eval string).
+        TMB (dict): Map TMB categories to threshold conditions.
+
+    Returns:
+        dict: Updated clinical data dictionary.
+
+    """
     for k, v in combined_dict.items():
         try:
             tmv_msi = tsv.get_msi_tmb(Path(v))
@@ -1061,7 +1450,16 @@ def fill_from_combined(combined_dict, table_dict_patient, MSI_SITES_THR, MSI_THR
     return table_dict_patient
 
 
-def input_extraction_file(input):
+def input_extraction_file(input: list[str]) -> tuple[str, str, str]:
+    """Extract sample, patient, and fusion TSV file paths from input list.
+
+    Args:
+        input (list[str]): List of file path strings (up to 3 elements).
+
+    Returns:
+        tuple[str, str, str]: Paths to sample, patient, and fusion TSV files.
+
+    """
     sample_tsv=input[0]
     patient_tsv, fusion_tsv = "",""
 
@@ -1073,7 +1471,16 @@ def input_extraction_file(input):
     return sample_tsv, patient_tsv, fusion_tsv
 
 
-def input_extraction_folder(input):
+def input_extraction_folder(input: str) -> tuple[str, str, str]:
+    """Extract sample, patient, and fusion TSV file paths from input folder.
+
+    Args:
+        input (str): Path to input folder.
+
+    Returns:
+        tuple[str, str, str]: Paths to sample.tsv, patient.tsv, and fusion TSV files.
+
+    """
     patient_tsv, fusion_tsv = "",""
     sample_tsv = os.path.join(input, "sample.tsv")
     if os.path.exists(os.path.join(input, "patient.tsv")):
@@ -1083,7 +1490,27 @@ def input_extraction_folder(input):
     return sample_tsv, patient_tsv, fusion_tsv
 
 
-def validate_input(oncokb, vcf_type, filters, cancer, input):
+def validate_input(
+    oncokb: bool, 
+    vcf_type: str | None, 
+    filters: str, 
+    cancer: str, 
+    input: str
+) -> None:
+    """Validate the input configuration and required files for the pipeline.
+
+    Args:
+        oncokb (bool): Whether OncoKB annotation is enabled.
+        vcf_type (str | None): VCF type or None.
+        filters (str): Filter options as string.
+        cancer (str): Cancer ID to validate against cBioPortal.
+        input (str): Path to input file or folder.
+
+    Raises:
+        Exception: If required columns are missing or config fields are empty.
+        SystemExit: If cancer ID is not recognized by cBioPortal.
+
+    """
     #check that the input file is correctly made
     if not isinputfile:
         file_tsv = pd.read_csv(os.path.join(input, "sample.tsv"), sep="\t", dtype=str)
@@ -1119,8 +1546,34 @@ def validate_input(oncokb, vcf_type, filters, cancer, input):
         sys.exit()
 
 
-def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output=False, resume=False, vcf_type=None, filters=""):
+def walk_folder(
+    input: list[str],
+    multiple: bool,
+    output_folder: str,
+    oncokb: bool,
+    cancer: str,
+    overwrite_output: bool = False,
+    resume: bool = False,
+    vcf_type: str | None = None,
+    filters: str = ""
+) -> tuple[str, str, str]:
+    """Process input files/folders for SNV, CNV, fusions, and prepare output.
 
+    Args:
+        input (list[str]): List with input path(s), either folder(s) or file(s).
+        multiple (bool): Whether multiple samples per file are expected.
+        output_folder (str): Path to the output directory.
+        oncokb (bool): Whether to enable OncoKB annotation.
+        cancer (str): Cancer ID used for validations and annotations.
+        overwrite_output (bool, optional): Overwrite output folder if exists. Defaults to False.
+        resume (bool, optional): Resume from previous run if True. Defaults to False.
+        vcf_type (str | None, optional): Type of VCF to process (snv, cnv, fus, tab). Defaults to None.
+        filters (str, optional): Filters to apply on VCF data. Defaults to "".
+
+    Returns:
+        tuple[str, str, str]: Returns output folder path, input path or file, and fusion TSV path.
+
+    """
     logger.info("Starting walk_folder script:")
     logger.info(f"walk_folder args [input:{input}, output_folder:{output_folder}, overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, filters:{filters}, multiple:{multiple}]")
 
