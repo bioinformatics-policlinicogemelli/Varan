@@ -47,7 +47,7 @@ from versioning import (
 from write_report import write_report_extract
 
 config = ConfigParser()
-configFile = config.read("conf.ini")
+config_file = config.read("conf.ini")
 
 def extract_main(oldpath: str,
                  extract_path: str,
@@ -93,16 +93,16 @@ def extract_main(oldpath: str,
         output=re.split(r"_v[0-9]+$",oldpath)[0]
 
     check_sample_list(extract_path, oldpath)
-    old_versions=get_version_list(output)
+    old_versions = get_version_list(output)
 
     if overwrite and len(old_versions)>0 and Path(old_versions[-1]).exists():
         logger.info("Overwrite option set. Start removing folder")
         shutil.rmtree(old_versions[-1])
 
-    output=create_newest_version_folder(output)
+    output = create_newest_version_folder(output)
     logger.info(f"Creating a new folder: {output}")
 
-    output_caseslists=Path(output) / "case_lists"
+    output_caseslists = Path(output) / "case_lists"
     output_caseslists.mkdir(parents=True, exist_ok=True)
 
     logger.info("Great! Everything is ready to start")

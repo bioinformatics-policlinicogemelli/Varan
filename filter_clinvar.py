@@ -37,7 +37,7 @@ from loguru import logger
 import concatenate
 
 config = ConfigParser()
-configFile = config.read("conf.ini")
+config_file = config.read("conf.ini")
 
 def check_bool(key_value: str) -> bool:
     """Convert a string into a Python boolean.
@@ -60,13 +60,15 @@ def check_bool(key_value: str) -> bool:
         bool_key_value = False
     else:
         logger.critical(
-            'Please insert a boolean value in %s section of conf.ini: accepted values are ["True", "true", "T", "False", "false", "F", ""]',
+            'Please insert a boolean value in %s section of conf.ini: accepted values '
+            'are ["True", "true", "T", "False", "false", "F", ""]',
             bool_key_value)
-        raise ValueError("Check again the compilation conf.ini")
+        msg = "Check again the compilation conf.ini"
+        raise ValueError(msg)
     return bool_key_value
 
 
-def filter_OncoKB(df: pd.DataFrame) -> None:
+def filter_oncokb(df: pd.DataFrame) -> None:
     """Filter the input based on 'ONCOGENIC' column.
 
     This function is intended to retain only mutations with
@@ -87,7 +89,7 @@ def filter_OncoKB(df: pd.DataFrame) -> None:
     return df[df["ONCOGENIC"].isin(oncokb_filter)]
 
 
-def check_CLIN_SIG(row: pd.Series) -> bool:
+def check_clin_sig(row: pd.Series) -> bool:
     """Check clinical significance annotations in the 'CLIN_SIG' field.
 
     This function is used as a row-wise filter to identify variants with
@@ -245,16 +247,19 @@ def filter_main(input_path: str,folder: str,
 
     """
     logger.info("Starting filter_main script:")
-    logger.info(f"filter_main args [maf_folder:{folder}, output_folder:{output_folder}, filters:{filters}, cancer:{cancer}, overwrite:{overwrite}]")
+    logger.info(f"filter_main args [maf_folder:{folder}, output_folder:{output_folder},"
+    f" filters:{filters}, cancer:{cancer}, overwrite:{overwrite}]")
 
     maf_oncokb_path = Path(output_folder) / "MAF_OncoKB"
     if maf_oncokb_path.exists() and any(maf_oncokb_path.iterdir()):
         if overwrite:
-            logger.warning("It seems that the folder 'MAF_OncoKB' already exists. Start removing process...")
+            logger.warning("It seems that the folder 'MAF_OncoKB' already exists. "
+            "Start removing process...")
             tmp_path=Path(output_folder) / "MAF_OncoKB"
             shutil.rmtree(tmp_path)
         elif not resume:
-            logger.critical("The folder 'MAF_OncoKB' already exists. To overwrite an existing folder add the -w option!")
+            logger.critical("The folder 'MAF_OncoKB' already exists. To overwrite an "
+            "existing folder add the -w option!")
             logger.critical("Exit without completing the task!")
             sys.exit()
 
@@ -262,8 +267,11 @@ def filter_main(input_path: str,folder: str,
     file_list = concatenate.get_files_by_ext(maf_folder, "maf")
 
     if len(file_list) == 0:
-        logger.critical(f"The maf folder {maf_folder} seems to be empty: check if SNV folder exists and contains the VCF files. If you don't have SNV vcf, use -t option to select specific analysis.")
-        raise(Exception("Exiting from filter_clinvar script!"))
+        logger.critical(f"The maf folder {maf_folder} seems to be empty: check if SNV "
+        "folder exists and contains the VCF files. If you don't have SNV vcf, use -t "
+        "option to select specific analysis.")
+        msg = "Exiting from filter_clinvar script!"
+        raise(Exception(msg))
 
     if oncokb:
         maf_oncokb_path.mkdir(parents=True, exist_ok=True)
@@ -280,11 +288,13 @@ def filter_main(input_path: str,folder: str,
                         for _, row in input_file.iterrows():
                             if row["SAMPLE_ID"] in file_no:
                                 cancer_onco = row["ONCOTREE_CODE"] or cancer
-                                os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f} "
-                                        f"-o {file_path} -t {cancer_onco.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
+                                os.system(f"python3 oncokb-annotator/MafAnnotator.py "
+                                f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
+                                f"-b {config.get('OncoKB', 'ONCOKB')}")
                     else:
-                        os.system(f"python3 oncokb-annotator/MafAnnotator.py -i {f} "
-                                f"-o {file_path} -t {cancer.upper()} -b {config.get('OncoKB', 'ONCOKB')}")
+                        os.system(f"python3 oncokb-annotator/MafAnnotator.py "
+                        f"-i {f} -o {file_path} -t {cancer.upper()} "
+                        f"-b {config.get('OncoKB', 'ONCOKB')}")
 
     file_list = concatenate.get_files_by_ext(maf_folder, "maf")
     out_filter = output_folder/"MAF_filtered"
@@ -315,8 +325,8 @@ def filter_main(input_path: str,folder: str,
                     file_to_filter["ONCOGENIC"].isin(oncokb_filter)]
 
             if "v" in filters:
-                t_VAF_min=float(config.get("Filters", "t_VAF_min"))
-                t_VAF_max=float(config.get("Filters", "t_VAF_max"))
+                t_vaf_min=float(config.get("Filters", "t_VAF_min"))
+                t_vaf_max=float(config.get("Filters", "t_VAF_max"))
 
                 temp = file_to_filter.dropna(subset=["t_AF"])
 
@@ -331,31 +341,31 @@ def filter_main(input_path: str,folder: str,
                 file_to_filter[vaf_colname] = pd.to_numeric(file_to_filter[vaf_colname])
 
                 if "n" in filters:
-                    t_VAF_min_novel = float(config.get("Filters", "t_VAF_min_novel"))
+                    t_vaf_min_novel = float(config.get("Filters", "t_VAF_min_novel"))
                     file_to_filter = file_to_filter.dropna(subset=["dbSNP_RS"])
 
                     file_to_filter[vaf_colname] = pd.to_numeric(
                         file_to_filter[vaf_colname])
                     file_to_filter_nov = file_to_filter[
-                        (file_to_filter[vaf_colname] > t_VAF_min_novel) &
-                        (file_to_filter[vaf_colname] <= t_VAF_max) &
+                        (file_to_filter[vaf_colname] > t_vaf_min_novel) &
+                        (file_to_filter[vaf_colname] <= t_vaf_max) &
                         (file_to_filter["dbSNP_RS"]=="novel")]
                     file_to_filter_notnov = file_to_filter[
-                        (file_to_filter[vaf_colname] > t_VAF_min) &
-                        (file_to_filter[vaf_colname] <= t_VAF_max) &
+                        (file_to_filter[vaf_colname] > t_vaf_min) &
+                        (file_to_filter[vaf_colname] <= t_vaf_max) &
                         (file_to_filter["dbSNP_RS"]!="novel")]
                     file_to_filter = pd.concat([
                         file_to_filter_nov, file_to_filter_notnov], axis=0)
 
                 else:
                     file_to_filter = file_to_filter[
-                        (file_to_filter[vaf_colname] > t_VAF_min) &
-                        (file_to_filter[vaf_colname] <= t_VAF_max)]
+                        (file_to_filter[vaf_colname] > t_vaf_min) &
+                        (file_to_filter[vaf_colname] <= t_vaf_max)]
 
             if "a" in filters:
                 af=config.get("Filters", "AF")
-                drop_NA = config.get("Filters", "drop_NA_AF")
-                drop_NA = check_bool(drop_NA)
+                drop_na = config.get("Filters", "drop_NA_AF")
+                drop_na = check_bool(drop_na)
                 file_to_filter["AF"] = pd.to_numeric(
                     file_to_filter["AF"], errors="coerce")
                 na_file_to_filter = file_to_filter[
@@ -364,13 +374,13 @@ def filter_main(input_path: str,folder: str,
                 file_to_filter = file_to_filter.dropna(subset=["AF"])
                 file_to_filter = file_to_filter[eval(f"file_to_filter['AF'] {af}")]
 
-                if not drop_NA:
+                if not drop_na:
                         file_to_filter = pd.concat([
                             file_to_filter, na_file_to_filter], ignore_index=True)
 
             if "c" in filters:
                 file_to_filter = file_to_filter[
-                    file_to_filter.apply(check_CLIN_SIG,axis=1)]
+                    file_to_filter.apply(check_clin_sig,axis=1)]
 
             if "q" in filters:
                 file_to_filter = file_to_filter[

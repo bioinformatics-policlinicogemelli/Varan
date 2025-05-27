@@ -19,7 +19,6 @@ format. It supports mutation, CNA, SV, and clinical data, based on the contents 
 the output directory. Also handles study renaming and versioning from configuration.
 
 """
-
 from __future__ import annotations
 
 from configparser import ConfigParser

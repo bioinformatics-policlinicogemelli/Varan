@@ -565,7 +565,8 @@ def safe_check_file(oldpath: Path, newpath: Path, output: Path, file: str) -> No
         line_number = line_match.group(1) if line_match else "unknown"
         logger.critical(
             f"Wrong column number in line {line_number} of {file} file")
-        raise IndexError("Exiting from Update script!")
+        msg = "Exiting from Update script!"
+        raise IndexError(msg) from e
 
 def copy_metadata_files(oldpath: Path, output: Path) -> None:
     """Copy all metadata files from old study folder to new.

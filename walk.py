@@ -38,7 +38,7 @@ from loguru import logger
 import tsv
 import vcf2tab_cnv
 import vcf_filter
-from filter_clinvar import check_bool, filter_OncoKB
+from filter_clinvar import check_bool, filter_oncokb
 from versioning import get_newest_version, get_version_list
 
 config = ConfigParser()
@@ -1301,7 +1301,7 @@ def walk_folder(input, multiple, output_folder, oncokb, cancer, overwrite_output
 
             if "o" in filters:
                 fus_file = pd.read_csv(fusion_table_file_out, sep="\t")
-                fus_file = filter_OncoKB(fus_file)
+                fus_file = filter_oncokb(fus_file)
                 fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
 
             data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t")

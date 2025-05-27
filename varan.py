@@ -292,8 +292,8 @@ if __name__ == "__main__":
     # FILTER BLOCK
     parser.add_argument("-f", "--Filter", required=False, default="",
                         help=("Select filter for SNV [d -> filter, p -> filter==PASS, "
-                        "v-> vaf, o-> Oncokb, a -> AF, q -> Consequence, y-> polyphens, "
-                        "c -> clin_sig, n -> novel, i -> Impact]"))
+                        "v-> vaf, o-> Oncokb, a -> AF, q -> Consequence, y-> polyphens,"
+                        " c -> clin_sig, n -> novel, i -> Impact]"))
 
     # UPDATE BLOCK
     parser.add_argument("-u", "--Update", required=False,action="store_true",
