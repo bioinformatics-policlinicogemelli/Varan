@@ -165,18 +165,17 @@ def concatenate_main(
     input_folder = Path(output_folder) / folder
     output_file = input_folder / "data_mutations_extended.txt"
 
+    msg = "Exiting from filter_clinvar script!"
     if output_file.is_dir():
         logger.critical(
             f"It seems that the inserted output_file '{output_file}' is not a file, "
             "but a folder! Check your '-o/--output_file' field")
-        msg = "Exiting from filter_clinvar script!"
         raise RuntimeError(msg)
 
     if not output_file.name.endswith("txt"):
         logger.critical(
             f"It seems that the inserted output_file '{output_file}' has "
             "the wrong extension! Output file must be have a .txt extension.")
-        msg = "Exiting from filter_clinvar script!"
         raise RuntimeError(msg)
 
     file_list = get_files_by_ext(input_folder, ext)
