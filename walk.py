@@ -22,6 +22,7 @@ This script supports:
 from __future__ import annotations
 
 import ast
+import contextlib
 import os
 import secrets
 import shutil
@@ -184,8 +185,14 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
 
     """
     out = path_cna.replace(".txt", "2.txt")
-    os.system(f"python3 ./oncokb-annotator/CnaAnnotator.py -i {path_cna}\
-                        -o {out} -f individual -b {config.get('OncoKB', 'ONCOKB')}")
+    oncokb_key = config.get("OncoKB", "ONCOKB")
+    cmd = [
+        "python3", "./oncokb-annotator/CnaAnnotator.py",
+        "-i", path_cna,
+        "-o", out,
+        "-f", "individual",
+        "-b", oncokb_key]
+    subprocess.run(cmd, check=True)
 
     cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration":int})
     cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
@@ -321,12 +328,17 @@ def cnv_type_from_folder(input_path: str,
             annotate.to_csv(temppath, index=False, sep="\t")
 
             if oncokb:
-                out=temppath.name.replace(
+                out = temppath.name.replace(
                     "toannotate.txt", "annotated.txt")
-                os.system(
-                    f"python3 ./oncokb-annotator/CnaAnnotator.py -i {temppath}\
-                                -o {out} -f individual -b \
-                                    {config.get('OncoKB', 'ONCOKB')}")
+                oncokb_key = config.get("OncoKB", "ONCOKB")
+                cmd = [
+                    "python3", "./oncokb-annotator/CnaAnnotator.py",
+                    "-i", str(temppath),
+                    "-o", out,
+                    "-f", "individual",
+                    "-b", oncokb_key]
+                subprocess.run(cmd, check=True)
+
                 name = "annotated_oncokb_CNA_ndiscrete.txt"
                 cna = pd.read_csv(out, sep="\t",
                                   dtype={"Copy_Number_Alteration":int})
@@ -1225,23 +1237,34 @@ def extract_multiple_cnv(multiple_vcf: str, input_dir: str) -> None:
     """
     input_dir = Path(input_dir)
     single_sample_vcf_dir = input_dir / "single_sample_vcf"
-
-    if not single_sample_vcf_dir.exists():
-        single_sample_vcf_dir.mkdir()
+    single_sample_vcf_dir.mkdir(exist_ok=True)
 
     sample_id_txt = input_dir / "sample_id.txt"
-    cmd = f"vcf-query -l {multiple_vcf} > {sample_id_txt}"
-    os.system(cmd)
 
-    with open (os.path.join(input_dir, "sample_id.txt")) as file:
-        lines = file.readlines()
-        for sample in lines:
-            sample = sample.strip()
-            single_sample_vcf = os.path.join(single_sample_vcf_dir, f"{sample}.vcf")
-            cmd = (
-                f"vcftools --vcf {multiple_vcf} --indv {sample} "
-                f"--recode --recode-INFO-all --stdout > {single_sample_vcf}")
-            os.system(cmd)
+    cmd_extract = ["vcf-query", "-l", str(multiple_vcf)]
+    try:
+        with sample_id_txt.open("w") as f:
+            subprocess.run(cmd_extract, stdout=f, check=True)
+    except subprocess.CalledProcessError as e:
+        msg = f"Error during vcf-query: {e}"
+        raise RuntimeError(msg) from err
+
+    with sample_id_txt.open() as f:
+        for line in f:
+            sample_id = line.strip()
+            output_vcf = single_sample_vcf_dir / f"{sample_id}.vcf"
+            cmd_vcf = [
+                "vcftools",
+                "--vcf", str(multiple_vcf),
+                "--indv", sample_id,
+                "--recode",
+                "--recode-INFO-all",
+                "--stdout"]
+            try:
+                with output_vcf.open("w") as out_f:
+                    subprocess.run(cmd_vcf, stdout=out_f, check=True)
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Error during VCF creation for {sample_id}: {e}")
 
 
 def extract_multiple_snv(multiple_vcf: str, input_dir: str) -> None:
@@ -1266,11 +1289,23 @@ def extract_multiple_snv(multiple_vcf: str, input_dir: str) -> None:
 
     with sample_id_file.open() as file:
         lines = file.readlines()
-        for sample in lines:
-            sample = sample.strip()
+        for sample_line in lines:
+            sample = sample_line.strip()
             output_vcf = vcf_dir / f"{sample}.vcf"
-            cmd = f"vcf-subset --exclude-ref -c {sample} {multiple_vcf} > {output_vcf}"
-            os.system(cmd)
+
+            with output_vcf.open("w") as out_f:
+                try:
+                    subprocess.run(
+                        [
+                            "vcf-subset",
+                            "--exclude-ref",
+                            "-c", sample,
+                            str(multiple_vcf)],
+                        stdout=out_f,
+                        check=True)
+                except subprocess.CalledProcessError as e:
+                    msg = f"Error during vcf-subset for {sample}: {e}"
+                    raise RuntimeError(msg)
 
 
 def check_field_tsv(row: pd.Series, name: str) -> str:
@@ -1313,14 +1348,14 @@ def get_combined_variant_output_from_folder(
         sample_id = check_field_tsv(row, "SAMPLE_ID")
         patient_id = check_field_tsv(row, "PATIENT_ID")
         if isinputfile:
-            combined_path = check_field_tsv(row, "comb_path")
+            combined_path = Path(check_field_tsv(row, "comb_path"))
         else:
             combined_path = (
                 Path(input_folder)
                 / "CombinedOutput"
                 / f"{patient_id}_CombinedVariantOutput.tsv")
 
-        if os.path.exists(combined_path):
+        if combined_path.exists():
             pass
         else:
             logger.warning("comb_path in conf.ini does not exists")
@@ -1594,7 +1629,7 @@ def check_data_cna(data_cna_path: str) -> None:
                 logger.warning(f"{input_file} is empty. File removed.")
     except FileNotFoundError:
         logger.warning(f"{input_file} does not exist!")
-    except IOError as e:
+    except OSError as e:
         logger.error(f"Error reading {input_file}: {e}")
 
 
@@ -1694,8 +1729,8 @@ def fill_from_combined(
             if not found:
                 logger.warning(
                     f"The TMB value {tmv_msi['TMB_Total']} is not within the conf.ini "
-                    f"thresholds {list(tmb.values())}. For this value, the TMB_THR will be "
-                    "set as 'Out of threshold ranges'.")
+                    f"thresholds {list(tmb.values())}. For this value, the TMB_THR "
+                    "will be set as 'Out of threshold ranges'.")
                 table_dict_patient[k].append("Out of threshold ranges")
         else:
             table_dict_patient[k].append("NA")
@@ -1735,12 +1770,13 @@ def input_extraction_folder(input_path: str) -> tuple:
         tuple: Paths to sample.tsv, patient.tsv, and fusion TSV files.
 
     """
+    input_path = Path(input_path)
     patient_tsv, fusion_tsv = "",""
-    sample_tsv = os.path.join(input_path, "sample.tsv")
-    if os.path.exists(os.path.join(input_path, "patient.tsv")):
-        patient_tsv = os.path.join(input_path, "patient.tsv")
-    if os.path.exists(os.path.join(input_path, "FUSIONS", "Fusions.tsv")):
-        fusion_tsv = os.path.join(input_path, "FUSIONS", "Fusions.tsv")
+    sample_tsv = input_path / "sample.tsv"
+    if (input_path / "patient.tsv").exists():
+        patient_tsv = input_path / "patient.tsv"
+    if (input_path / "FUSIONS" / "Fusions.tsv").exists():
+        fusion_tsv = input_path / "FUSIONS" / "Fusions.tsv"
     return sample_tsv, patient_tsv, fusion_tsv
 
 
@@ -1782,14 +1818,16 @@ def validate_input(
         raise(ValueError(msg))
 
     if oncokb and config.get("OncoKB", "ONCOKB") == "":
-        raise ValueError("oncokb option was set but ONCOKB field in conf.ini is empty!")
+        msg = "oncokb option was set but ONCOKB field in conf.ini is empty!"
+        raise ValueError(msg)
 
-    if vcf_type is None or "snv" in vcf_type:
-        if not VEP_PATH or not VEP_DATA:
-            raise ValueError("VEP_PATH and/or VEP_DATA field in conf.ini is empty!")
+    if (vcf_type is None or "snv" in vcf_type) and (not VEP_PATH or not VEP_DATA):
+        msg = "VEP_PATH and/or VEP_DATA field in conf.ini is empty!"
+        raise ValueError(msg)
 
     if not REF_FASTA:
-        raise ValueError("REF_FASTA field in conf.ini is empty!")
+        msg = "REF_FASTA field in conf.ini is empty!"
+        raise ValueError(msg)
 
     if "o" in filters and not oncokb:
         logger.warning("OncoKB filter was selected in filters options but -k option "
@@ -1817,7 +1855,7 @@ def walk_folder(
     """Process input files/folders for SNV, CNV, fusions, and prepare output.
 
     Args:
-        input (list): List with input path(s), either folder(s) or file(s).
+        input_path (list): List with input path(s), either folder(s) or file(s).
         multiple (bool): Whether multiple samples per file are expected.
         output_folder (str): Path to the output directory.
         oncokb (bool): Whether to enable OncoKB annotation.
@@ -1842,8 +1880,8 @@ def walk_folder(
     config.read("conf.ini")
 
     if not Path(input_path[0]).exists():
-        raise FileNotFoundError(
-            f"No valid file/folder {input_path} found. Check your input path")
+        msg = f"No valid file/folder {input_path} found. Check your input path"
+        raise FileNotFoundError(msg)
 
     global isinputfile
 
@@ -1906,7 +1944,7 @@ def walk_folder(
     except Exception as err:
         logger.critical(f"Something went wrong while reading {clin_sample_path}!")
         msg = "Error in reading the input file! Please check again."
-        raise InputFileError(msg) from err
+        raise OSError(msg) from err
 
     if resume:
         if maf_path.exists():
@@ -1918,7 +1956,8 @@ def walk_folder(
             except Exception as err:
                 logger.critical(
                     "Error accessing the maf folder. Please check its integrity.")
-                raise Exception("Error reading the maf folder.") from err
+                msg = "Error reading the maf folder."
+                raise Exception(msg) from err
 
         elif maf_zip_path.exists():
             try:
@@ -1976,14 +2015,19 @@ def walk_folder(
         #case_folder_arr_cnv = get_cnv_from_folder(input_folder_cnv)
         logger.info("Everything ok!")
 
-    if os.path.exists(input_folder_snv) and vcf_type not in ["cnv", "fus", "tab"]:
-        tmp = "scratch"
-        os.makedirs(tmp, exist_ok=True)
+    input_folder_snv = Path(input_folder_snv)
+
+    if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
+        tmp = Path("scratch")
+        tmp.mkdir(parents=True, exist_ok=True)
+
         if multiple:
-            multivcf = [i for i in os.listdir(input_folder_snv) if i.endswith(".vcf")][0]
-            extract_multiple_snv(os.path.join(input_folder_snv, multivcf), input_folder_snv)
-            input_folder_snv = os.path.join(input_folder_snv, "single_sample_vcf")
+            multivcf = next(f for f in input_folder_snv.iterdir() if f.suffix == ".vcf")
+            extract_multiple_snv(multivcf, input_folder_snv)
+            input_folder_snv = input_folder_snv / "single_sample_vcf"
+
         logger.info("Checking SNV files...")
+
     case_folder_arr = get_snv_from_folder(input_folder_snv)
     logger.info("Everything ok!")
 
@@ -1991,23 +2035,28 @@ def walk_folder(
     ###       SNV AND CNV       ###
     ###############################
 
-    if os.path.exists(input_folder_cnv) and vcf_type not in ["snv", "fus", "tab"]:
+    input_folder_cnv = Path(input_folder_cnv)
+    input_folder_snv = Path(input_folder_snv)
+
+    if input_folder_cnv.exists() and vcf_type not in ["snv", "fus", "tab"]:
         logger.info("Managing CNV files...")
         #sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
 
-    if os.path.exists(input_folder_snv) and vcf_type not in ["cnv", "fus", "tab"]:
+    if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
         logger.info("Managing SNV files...")
         s_id_path_snv = snv_type_from_folder(input_folder_snv, case_folder_arr)
 
         logger.info("Checking maf folder...")
-        maf_path = os.path.join(output_folder, "maf")
-        if os.path.isdir(maf_path) and len([i for i in os.listdir(maf_path) if i.endswith(".maf")])>0:
+        maf_path = Path(output_folder) / "maf"
+        if maf_path.is_dir() and any(f.suffix == ".maf" for f in maf_path.iterdir()):
             logger.info("A non empty maf folder already exists!")
 
         if not resume:
             if "d" in filters:
                 logger.info("Filtering out VCFs with dots in ALT column")
-                s_id_path_snv = vcf_filtering(s_id_path_snv, output_folder, output_filtered)
+                s_id_path_snv = vcf_filtering(
+                s_id_path_snv, output_folder, output_filtered)
+
             temporary = create_random_name_folder()
             for k, v in s_id_path_snv.items():
                 cl = vcf2maf_constructor(v, temporary, output_folder)
@@ -2022,29 +2071,34 @@ def walk_folder(
     ###############################
     if vcf_type not in ["cnv","snv","tab"]:
 
-        fusion_table_file = os.path.join(output_folder, "data_sv.txt")
-        fusion_folder = os.path.join(input_folder, "FUSIONS")
+        fusion_table_file = Path(output_folder) / "data_sv.txt"
+        fusion_folder = Path(input_folder) / "FUSIONS"
 
-        if os.path.exists(os.path.join(input_folder, "CombinedOutput")) and len(os.listdir(os.path.join(input_folder, "CombinedOutput")))>0:
+        combined_output_folder = Path(input_folder) / "CombinedOutput"
+        if (
+            combined_output_folder.exists()
+            and any(f.is_file() for f in combined_output_folder.iterdir())):
             logger.info("Getting Fusions infos from CombinedOutput...")
             thr_fus = config.get("FUSION", "THRESHOLD_FUSION")
-            combined_dict = get_combined_variant_output_from_folder(input_folder, clin_file, isinputfile)
+            combined_dict = get_combined_variant_output_from_folder(
+                input_folder, clin_file, isinputfile)
             fill_fusion_from_combined(fusion_table_file, combined_dict, thr_fus)
 
-        elif os.path.exists(os.path.abspath(fusion_folder)) and os.listdir(fusion_folder):
-            fusion_files=[file for file in os.listdir(fusion_folder) if "tsv" in file]
-            logger.info(f"Getting Fusions infos from {fusion_files[0]} file...")
-            if fusion_files != []:
-                fill_fusion_from_temp(input_folder, fusion_table_file, clin_file, fusion_files)
+        elif fusion_folder.exists() and any(fusion_folder.iterdir()):
+            fusion_files = [f for f in fusion_folder.iterdir() if f.suffix == ".tsv"]
+            if fusion_files:
+                logger.info(f"Getting Fusions infos from {fusion_files[0].name} file.")
+                fill_fusion_from_temp(
+                    input_folder, fusion_table_file, clin_file, fusion_files)
 
-        if os.path.exists(fusion_table_file):
-            with open(fusion_table_file) as data_sv:
+        if fusion_table_file.exists():
+            with fusion_table_file.open() as data_sv:
                 all_data_sv = data_sv.readlines()
-                if (len(all_data_sv) == 1):
-                    os.remove(fusion_table_file)
+                if len(all_data_sv) == 1:
+                    fusion_table_file.unlink()
                     logger.warning("data.sv is empty. File removed.")
 
-        if oncokb and os.path.exists(fusion_table_file):
+        if oncokb and fusion_table_file.exists():
             data_sv = pd.read_csv(fusion_table_file, sep="\t")
             input_file = pd.read_csv(clin_sample_path, sep="\t")
             fusion_table_file_out = annotate_fusion(
@@ -2056,11 +2110,8 @@ def walk_folder(
                 fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
 
             data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t")
-            try:
-                data_sv_tmp=data_sv_tmp.drop(
-                    ["SAMPLE_ID", "ONCOTREE_CODE"], axis=1)
-            except KeyError:
-                pass
+            with contextlib.suppress(KeyError):
+                data_sv_tmp = data_sv_tmp.drop(["SAMPLE_ID", "ONCOTREE_CODE"], axis=1)
 
             data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
             os.system(f"mv {fusion_table_file_out} {fusion_table_file}")
@@ -2073,7 +2124,7 @@ def walk_folder(
     table_dict_patient = get_table_from_folder(clin_sample_path)
 
     logger.info("Writing clinical files...")
-    if patient_tsv.strip()!="":
+    if patient_tsv.name.strip()!="":
         logger.info("Writing data_clinical_patient.txt file...")
 
         input_file_path = Path(input_folder) / "patient.tsv"
