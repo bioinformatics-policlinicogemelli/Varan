@@ -53,7 +53,7 @@
             <h4 class="subsection-title" id="hardware-requirements">Hardware Requirements:</h4>
             <ul>
                 <li>~3 GB storage space for the container image.</li>
-                <li>~25 GB storage space for the VEP cache and the reference genome.</li>
+                <li>~2 GB storage space for the VEP cache and the reference genome.</li>
             </ul>
 
             <h3 id="getting-started">Getting Started with Varan</h3>
@@ -78,18 +78,20 @@
             <h4 class="subsection-title" id="step-2">Step 2: Download the example data</h4>
             <p> To download test data follow the steps below:
                 <ol>
-                    <li>Download all the necessary files at this <a href="https://drive.google.com/file/d/16PuHszwmw8e9ERhM1xrQ9hm1rBJME8FO/view?usp=sharing">link</a>.</li> 
+                    <li>Download all the necessary files at this <a href="https://www.dropbox.com/scl/fo/d7dcxtnybc7s6f2lex25h/AM132NWusjuGvVoonXfObKs?rlkey=8pwgu85ep46p8s0y711otrsuw&st=raeai43t&dl=1" target="_blank">link</a>.</li> 
                     <li>Move <i>TEST.zip</i> folder in Varan folder.</li>
                     <li>Unzip <i>TEST.zip</i>.</li>
                 </ol>
             </p>
             <p>The 'TEST' folder contains the following subfolders:</p>
             <ul>
-                <li><span class="highlight">Genome</span>: contains the reference genome and its indexed version.</li>
-                <li><span class="highlight">Input</span>: includes all necessary input files for processing.</li>
+                <li><span class="highlight">Genome</span>: includes the reference sequence for chromosome 2 only.</li>
+                <li><span class="highlight">Input</span>: includes all necessary input files for processing. These files are synthetic.</li>
                 <li><span class="highlight">Output</span>: empty folder to store our test outputs.</li>
-                <li><span class="highlight">Vep_cache</span>: stores the transcript models, regulatory features, and variant data for <i>Homo sapiens</i>.</li>
+                <li><span class="highlight">Vep_cache</span>: stores transcript models, regulatory features, and variant data for <i>Homo sapiens</i>, limited to chromosome 2.</li>
             </ul>
+
+            <p><span class="highlight">⚠️Note</span>: This reduced dataset is intended for lightweight testing and demonstration purposes only.</p>
 
             <h4 class="subsection-title" id="step-3">Step 3: Create a new study</h4>
             <p>To create your first study, run the following command:</p>

@@ -16,42 +16,52 @@
     <div class="main-container">
         <div class="sidebar">
             <ul>
-                <li><a href="https://bioinformatics-policlinicogemelli.github.io/Varan/index.html">Home</a></li>
-                <ul>
-                    <li><a href="#study-creation">Study Creation</a>
+                <li><a href="https://bioinformatics-policlinicogemelli.github.io/Varan/index.html">Home</a>
                     <ul>
-                        <a href="#input-preparation1">Input Preparation</a>
-                        <ul>
-                            <li><a href="#folder1">Folder</a></li>
-                            <li><a href="#file">File(s)</a></li>
-                            <li><a href="#templates">Templates</a></li>
-                            <li><a href="#configuration-file1">Configuration File</a></li>
-                        </ul>
-                        <a href="#launch-varan1">Launch Varan</a>
-                        <ul>
-                            <li><a href="#options1">Options</a></li>
-                            <li><a href="#filtering">Filtering</a></li>
-                            <li><a href="#examples1">Examples</a></li>
-                        </ul>
+                        <li><a href="#installation-procedures">Installation Procedures</a></li>
+                        <li><a href="#study-creation">Study Creation</a>
+                            <ul>
+                                <li><a href="#input-preparation1">Input Preparation</a>
+                                    <ul>
+                                        <li><a href="#folder1">Folder</a></li>
+                                        <li><a href="#file">File(s)</a></li>
+                                        <li><a href="#templates">Templates</a></li>
+                                        <li><a href="#configuration-file1">Configuration File</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="#launch-varan1">Launch Varan</a>
+                                    <ul>
+                                        <li><a href="#options1">Options</a></li>
+                                        <li><a href="#filtering">Filtering</a></li>
+                                        <li><a href="#examples1">Examples</a></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        <li><a href="#study-manipulation">Study Manipulation</a></li>    
+                            <ul>
+                                <li><a href="#input-preparation2">Input Preparation</a>
+                                    <ul>
+                                        <li><a href="#folder2">Folder</a></li>
+                                        <li><a href="#configuration-file2">Configuration File</a></li>
+                                    </ul>
+                                </li> 
+                                <li><a href="#launch-varan2">Launch Varan</a>
+                                    <ul>
+                                        <li><a href="#options2">Options</a></li>
+                                        <li><a href="#examples2">Examples</a></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li><a href="#output">Output</a>
+                            <ul>
+                                <li><a href="#varan-reports">Varan Reports</a></li>
+                            </ul>
+                        </li>
                     </ul>
-                    <li><a href="#study-manipulation">Study Manipulation</a>
-                    <ul>
-                        <a href="#input-preparation2">Input Preparation</a>
-                        <ul>
-                            <li><a href="#folder2">Folder</a></li>
-                            <li><a href="#configuration-file2">Configuration File</a></li>
-                        </ul>
-                        <a href="#launch-varan2">Launch Varan</a>
-                        <ul>
-                            <li><a href="#options2">Options</a></li>
-                            <li><a href="#examples2">Examples</a></li>
-                        </ul>
-                    </ul>
-                    <li><a href="#output">Output</a>
-                </ul>
+                </li>
             </ul>
         </div>
-
         
         <div class="content">
             <h2>User guide</h2>
@@ -71,8 +81,15 @@
                 
                 <li><span class="highlight">Detailed Reports</span>: For each version, a comprehensive report is generated, which includes the filters applied, the configuration used in the study, the number of samples and patients, and a comparison with previous versions to track the study's evolution.</li>
                 
-                <li><span class="highlight">Validation Check</span>: Before uploading a study to cBioPortal, the system performs a validation to confirm the upload can be executed successfully.<br>
+                <li><span class="highlight">Validation Check</span>: Before uploading a study to cBioPortal, the system performs a validation to confirm that the upload can be executed successfully.<br>
                     <p>⚠️ Be warned that files succeeding this validation may still fail to load (correctly).</p></li>
+            </ul>
+
+            <h3 id="installation-procedures">Installation Procedures</h3>
+            <p>Varan can be installed either via Docker or through a local setup. Please refer to the appropriate section below based on your preferred installation method:</p>
+            <ul>
+                <li><span class="highlight">Docker installation (recommended):</span> Follow the step-by-step instructions provided in the <a href="https://bioinformatics-policlinicogemelli.github.io/Varan/quickstart.html">Quickstart Guide</a>.</li>
+                <li><span class="highlight">Local installation:</span> Detailed procedures for installing Varan locally are available <a href="https://bioinformatics-policlinicogemelli.github.io/Varan/installation_procedures.html">here</a>.</li>
             </ul>
 
             <h3 id="study-creation">Study Creation</h3>
@@ -134,6 +151,7 @@ input_folder/
 
             <h6 id="sample.tsv"><i>sample.tsv</i></h6>
             <p>The following table shows the required fields for the sample clinical data (this will generate the <i>data_clinical_sample.txt</i> file).</p>
+            <p>You can view and download a template version <a href="https://github.com/bioinformatics-policlinicogemelli/Varan/blob/readme/Templates/sample.tsv" target="_blank" rel="noopener noreferrer">here</a>.</p>
             <p>⚠️ This file is required for Varan analysis!</p>
 
           <table>
@@ -141,14 +159,14 @@ input_folder/
                   <tr>
                       <th>SAMPLE_ID</th>
                       <th>PATIENT_ID</th>
-                      <th>MSI</th>
-                      <th>TMB</th>
-                      <th>MSI_THR</th>
-                      <th>TMB_THR</th>
                       <th>ONCOTREE_CODE</th>
                       <th>snv_path</th>
                       <th>cnv_path</th>
                       <th>comb_path</th>
+                      <th>MSI</th>
+                      <th>TMB</th>
+                      <th>MSI_THR</th>
+                      <th>TMB_THR</th>
                       <th>...</th>
                   </tr>
               </thead>
@@ -156,14 +174,14 @@ input_folder/
                   <tr>
                       <td>0000001_DNA</td>
                       <td>11111111</td>
-                      <td>1</td>
-                      <td>12</td>
-                      <td></td>
-                      <td></td>
                       <td>BOWEL</td>
                       <td>path_to_snv</td>
                       <td>path_to_cnv</td>
                       <td>path_to_combined_output</td>
+                      <td>1</td>
+                      <td>12</td>
+                      <td></td>
+                      <td></td>
                       <td>...</td>
                   </tr>
               </tbody>
@@ -173,16 +191,20 @@ input_folder/
             <ul>
                 <li><span class="highlight">SAMPLE_ID</span>: IDs of all samples of interest.</li>
                 <li><span class="highlight">PATIENT_ID</span>: IDs of all patients of interest.</li>
-                <li><span class="highlight">MSI</span>: MSI value for each of the samples.</li>
-                <li><span class="highlight">TMB</span>: TMB value for each of the samples.</li>
+                <li><span class="highlight">ONCOTREE_CODE</span>: code to associate for the oncoKB annotation.</li>
+                <li><span class="highlight">snv_path</span>: path to SNV file for every sample.</li>
+                <li><span class="highlight">cnv_path</span>: path to CNV file for every sample.</li>
+                <li><span class="highlight">cnv_path</span>: path to Combined Variant Output file for every sample.</li>
+                <li><span class="highlight">MSI</span>: MSI value for every sample.</li>
+                <li><span class="highlight">TMB</span>: TMB value for every sample.</li>
                 <li><span class="highlight">MSI_THR</span>: MSI categorization based on the threshold set in the <i>conf.ini</i> file.</li>
                 <li><span class="highlight">TMB_THR</span>: TMB categorization based on the threshold set in the <i>conf.ini</i> file.</li>
-                <li><span class="highlight">ONCOTREE_CODE</span>: code to associate for the oncoKB annotation.</li>
             </ul>
             <p>⚠️ The user can add new columns starting from the last one.</p>
             
             <h6 id="patient.tsv"><i>patient.tsv</i></h6>
             <p>This template must be filled by the user with all disposable patients' clinical info and will be used to create the <i>data_clinical_patient.txt</i>.</p>
+            <p>You can view and download a template version <a href="https://github.com/bioinformatics-policlinicogemelli/Varan/blob/readme/Templates/patient.tsv" target="_blank" rel="noopener noreferrer">here</a>.</p>
             <p>⚠️ This file is optional.</p>
             <table>
               <thead>
@@ -211,6 +233,7 @@ input_folder/
             
             <h6 id="fusion.tsv"><i>fusion.tsv</i></h6>
             <p>This template must be filled by the user with all disposable fusion info and will be used to create the <i>data_sv.txt</i>.</p>
+            <p>You can view and download a template version <a href="https://github.com/bioinformatics-policlinicogemelli/Varan/blob/readme/Templates/fusion.tsv" target="_blank" rel="noopener noreferrer">here</a>.</p>
             <p>⚠️ This file is optional.</p>
             <table>
                 <thead>
@@ -242,7 +265,7 @@ input_folder/
             </ul>
 
             <h5 id="configuration-file1">Configuration File</h5>
-            <p>The next step to start using Varan is to correctly configure the <i>conf.ini</i> file.</p>
+            <p>The next step to start using Varan is to properly configure the <i>conf.ini</i> file. You can view and download a template version <a href="https://github.com/bioinformatics-policlinicogemelli/Varan/blob/readme/Templates/conf.ini" target="_blank" rel="noopener noreferrer">here</a>.</p>
             <p>⚠️ In the next subparagraph, for each field the type of variable requested will be inserted between angle brackets &lt;&gt;. For string, two possible entries can be found: &lt; 'string' &gt; and &lt; string &gt;. In the first case, it is requested to insert text inside quotation marks (i.e. DESCRIPTION='this is the description'), while on the other one, quotation marks are not requested (i.e. PROJECT_NAME=study).</p>
             <p>⚠️ For Docker, a partially pre-filled <i>conf.ini</i> file is provided, with some paths already configured.</p>
             <p>⚠️ Only the fields from the <i>conf.ini</i> file that are relevant to this functionality will be displayed below.</p>
@@ -579,7 +602,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
 
 
             <h5 id="configuration-file2">Configuration File</h5>
-            <p>The next step to start using Varan is to correctly configure the <i>conf.ini</i> file.</p>
+            <p>The next step to start using Varan is to properly configure the <i>conf.ini</i> file. You can view and download a template version <a href="https://github.com/bioinformatics-policlinicogemelli/Varan/blob/readme/Templates/conf.ini" target="_blank" rel="noopener noreferrer">here</a>.</p>
             <p>⚠️ Only the fields from the <i>conf.ini</i> file that are relevant to this functionality will be displayed below.</p>
 
             <h6>Zip</h6>
@@ -716,9 +739,69 @@ study_name
             <p>(*) Filtered MAF files will be stored in the MAF_Onco_filtered or MAF_Filtered folders, depending on whether the MAFs were annotated with OncoKB.</p>
             <p>(**) MAF_OncoKB folder will be created only if the <code>-k</code> option is set and will contain all the MAF with OncoKB annotations.</p>
             <p>(***) A folder containing MAF files. It will be zipped if <code>ZIP_MAF</code> is set as True in <i>conf.ini</i>.</p>
-            <p><i>report_validate.html</i> is an automatically generated file that provides a report on the cBioPortal validation, highlighting any errors or warnings encountered during the validation process.</p>
-            <p><i>report_VARAN.html</i> is an automatically generated file that provides a summary of the study, including the filters applied, the configuration used, and a comparison with previous versions of the same study.</p>
 
+            <h4 id="varan-reports">Varan Reports</h4>
+
+            <h5>Validate Report</h5>
+            <p><i>report_validate.html</i> is an automatically generated file that provides a report on the cBioPortal validation, highlighting any errors or warnings encountered during the validation process.</p>
+            <p>For more info about cBioPortal offline validation see <a href="https://docs.cbioportal.org/using-the-dataset-validator/#offline-validation" target="_blank" rel="noopener noreferrer">here</a></p>
+              
+            
+            <h5>Summary Report</h5>
+            <p><i>report_VARAN.html</i> is an automatically generated file that provides a summary of the study. It is structured into several sections.</p>
+            <p><span class="highlight">Note:</span> While the structure remains consistent, not all fields appear in every report. Their presence depends on the specific action taken (e.g., creation, update, extraction, or removal).</p>
+
+            <h6>General Information</h6>
+            <div style="text-align: center;">
+                <img src="img/Report - General Information.png" style="width: 600px; max-width: 80%; height: auto;" alt="General Information Section">
+            </div>              
+            <p>This section provides essential details about the study such as:</p>
+            <ul>
+                <li><span class="highlight">Command line</span>: Full command used to generate or modify the study, including all relevant parameters.</li>
+                <li><span class="highlight">Study identifiers</span>: Names associated with the study, which may include the current study, references to existing studies, or intermediate datasets depending on the workflow.</li>
+                <li><span class="highlight">Cancer type</span>: Influences variant annotation based on cancer-specific context and guidelines.</li>
+                <li><span class="highlight">Sample and patient count</span>: Number of samples and patients included in the resulting dataset.</li>
+            </ul>
+
+            <h6>Detailed Overview</h6>
+            <div style="text-align: center;">
+                <img src="img/Report - Detailed Overview.png" style="width: 600px; max-width: 80%; height: auto;" alt="General Information Section">
+            </div>
+            <p>This section provides a breakdown of sample-level changes applied to cases_cna, cases_sequenced and cases_sv.</p>
+            <p>For each dataset, the report indicates:</p>
+            <ul>
+                <li>Which samples were extracted or removed.</li>
+                <li>The number and identifiers of affected samples.</li>
+                <li>The resulting size of each dataset after the operation, if applicable.</li>
+            </ul>
+
+            <h6>Filters & Configuration</h6>
+            <div style="text-align: center;">
+                <img src="img/Report - Filters & Configuration.png" style="width: 600px; max-width: 80%; height: auto;" alt="General Information Section">
+            </div>
+            <p>This section summarizes the filters and configuration settings applied to the study. Filters control which data are included in the analysis. Configuration parameters define how molecular features like CNA, TMB, MSI, and gene fusions are processed and interpreted.</p>
+            <ul>
+                <li>For <code>create</code> operations, the section shows all filters and configurations explicitly defined for the newly created study.</li>
+                <li>For <code>update</code> operations, only filters and configurations shared between the two studies are shown here. Any differences, including parameters present in one study but not the other, are listed separately under the section <span class="highlight">Differences in Filters & Configurations</span>.</li>
+                <li>For <code>extract</code> and <code>remove</code> operations, this section reports the filters and configuration settings from the original study used as the basis for extraction or removal.</li>
+            </ul>
+
+            <h6>Graphical Overview</h6>
+            <div style="text-align: center;">
+                <img src="img/Report - Graphical Overview.png" style="width: 600px; max-width: 80%; height: auto;" alt="General Information Section">
+            </div>
+            <p>This section provides a visual summary of the study history over time. It includes two main plots:</p>
+            <ul>
+                <li>A barplot showing the number of samples and patients across different study versions.</li>
+                <li>A barplot showing the total number of SNVs, CNVs, and fusions detected in each version.</li>
+            </ul>
+            <p>The number of versions displayed depends on the version of the current study. Up to the last 5 versions are shown to highlight the evolution of the dataset over time.</p>
+            
+            <h6>Annotations</h6>
+            <div style="text-align: center;">
+                <img src="img/Report - Annotations.png" style="width: 600px; max-width: 80%; height: auto;" alt="General Information Section">
+            </div>
+            <p>In this section you can find the manual annotations added in the specific section of the <i>conf.ini</i> file.</p>
         </div>
     </div>
 

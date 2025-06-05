@@ -12,89 +12,139 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import csv
-import os
-import argparse
+"""Functions for extracting key metrics like TMB, MSI, and genomic fusions.
 
-def get_msi_tmb(INPUT):
+- `get_msi_tmb`: Extracts TMB and MSI data from a file.
+- `split_hugo_symbols`: Splits Hugo symbols by common delimiters.
+- `get_fusions`: Extracts fusion events, including gene pairs and locations.
+- `main`: Processes fusion data using the above functions.
+
+"""
+
+
+def get_msi_tmb(input_file: str) -> dict:
+    """Extract MSI and TMB data from an input_file file.
+
+    This function parses a TSV file to extract the total TMB, usable MSI sites,
+    and unstable MSI sites from specific lines in the file.
+
+    Parameters
+    ----------
+    input_file : str
+        The path to the input_file file that contains the MSI and TMB data.
+
+    Returns
+    -------
+    dict
+        A dictionary containing the TMB total and MSI data.
+        The MSI data is stored as a list of tuples
+
+    """
     data = {}
-    with open(INPUT, 'r') as tsvFile:
-        righe = tsvFile.read().splitlines()
-        MSI_dic = {}
-        MSI = []
+    with input_file.open() as tsv_file:
+        righe = tsv_file.read().splitlines()
+        msi_dic = {}
         for riga in righe:
-            if('Total TMB' in riga):
-                campi = riga.split(sep='\t')
-                TMB_Total = campi[1]
-                data['TMB_Total'] = TMB_Total
-            if('Usable MSI Sites' in riga):
-                campi = riga.split(sep='\t')
-                Usable_MSI = campi[1]
-                MSI_dic['Usable_MSI'] = Usable_MSI
-            if('Percent Unstable MSI Sites' in riga):
-                campi = riga.split(sep='\t')
-                Tot_MSI_unstable = campi[1]
-                MSI_dic['Tot_MSI_unstable'] = Tot_MSI_unstable
-            if('SUM_JSD' in riga):
-                MSI_dic['Usable_MSI'] = 50
-                campi = riga.split(sep='\t')
-                MSI_dic['Tot_MSI_unstable'] = campi[1]
-                Usable_MSI = campi[1]
-        data['MSI'] = [(key, value) for key, value in MSI_dic.items()]
+            if("Total TMB" in riga):
+                campi = riga.split(sep="\t")
+                tmb_total = campi[1]
+                data["TMB_Total"] = tmb_total
+            if("Usable MSI Sites" in riga):
+                campi = riga.split(sep="\t")
+                usable_msi = campi[1]
+                msi_dic["Usable_MSI"] = usable_msi
+            if("Percent Unstable MSI Sites" in riga):
+                campi = riga.split(sep="\t")
+                tot_msi_unstable = campi[1]
+                msi_dic["Tot_MSI_unstable"] = tot_msi_unstable
+            if("SUM_JSD" in riga):
+                msi_dic["Usable_MSI"] = 50
+                campi = riga.split(sep="\t")
+                msi_dic["Tot_MSI_unstable"] = campi[1]
+                usable_msi = campi[1]
+        data["MSI"] = list(msi_dic.items())
         return(data)
 
-def split_hugo_symbols(hugo_symbol):
-    for simbolo in [';', '-', '/']:
-        if simbolo in hugo_symbol:
-            split_symbols = hugo_symbol.split(simbolo)
-            return split_symbols
+
+def split_hugo_symbols(hugo_symbol: str) -> str:
+    """Split a Hugo symbol into multiple gene symbols.
+
+    Parameters
+    ----------
+    hugo_symbol : str
+        A string that may contain multiple gene symbols separated by ';', '-', or '/'.
+
+    Returns
+    -------
+    str
+        A list of individual gene symbols.
+
+    """
+    for symbol in [";", "-", "/"]:
+        if symbol in hugo_symbol:
+            split_symbols = hugo_symbol.split(symbol)
     return split_symbols
 
-def get_fusions(INPUT):
-    with open(INPUT, 'r') as file:
-        fusioni = []
+
+def get_fusions(input_file: str) -> list[dict[str, str]]:
+    """Extract gene fusion events from a given file.
+
+    This function parses a fusion report and extracts gene symbols,
+    chromosome locations, and supporting read counts for each fusion event.
+
+    Parameters
+    ----------
+    input_file : str
+        Path to the input file containing fusion data.
+
+    Returns
+    -------
+    list of dict
+        A list of dictionaries, representing a fusion event for gene symbols,
+        chromosomes, positions, and read counts.
+
+    """
+    with input_file.open() as file:
+        fusions = []
         lines = file.readlines()
         for i in range(len(lines)):
-            if ('[Fusions]' or '[Data Fusions]') in lines[i]:
+            if "[Fusions]" in lines[i] or "[Data Fusions]" in lines[i]:
                 for j in range(i+2, len(lines)):
-                    if lines[j].strip() == 'NA':
-                        break
-                    elif lines[j].strip() == '':
+                    if lines[j].strip() == "NA" or lines[j].strip() == "":
                         break
 
-                    gene_pair, bp1, bp2, fsr, g1rr, g2rr = lines[j].strip().split('\t')
-                    
-                    Hugo_Symbol = split_hugo_symbols(gene_pair)
-                    
-                    chrom1 = bp1.split(':') 
-                    chrom2 = bp2.split(':')
-                    Site1_Chromosome = chrom1[0]
-                    Site1_Position = chrom1[1]
-                    Site2_Chromosome = chrom2[0]
-                    Site2_Position = chrom2[1]
+                    gene_pair, bp1, bp2, fsr, g1rr, g2rr = lines[j].strip().split("\t")
 
-                    fusioni.append({'Site1_Hugo_Symbol': Hugo_Symbol[0], 'Site2_Hugo_Symbol': Hugo_Symbol[1], 'Site1_Chromosome': Site1_Chromosome,
-                                    'Site2_Chromosome': Site2_Chromosome, 'Site1_Position': Site1_Position, 'Site2_Position': Site2_Position,
-                                    'Normal_Paired_End_Read_Count': fsr, 'Gene 1 Reference Reads': g1rr, 
-                                    'Gene 2 Reference Reads': g2rr, 'Event_Info': gene_pair})
-        return fusioni
+                    hugo_symbol = split_hugo_symbols(gene_pair)
 
-def main(INPUT):
+                    chrom1 = bp1.split(":")
+                    chrom2 = bp2.split(":")
+                    site1_chromosome = chrom1[0]
+                    site1_position = chrom1[1]
+                    site2_chromosome = chrom2[0]
+                    site2_position = chrom2[1]
 
-    get_fusions(INPUT)
+                    fusions.append({
+                        "Site1_Hugo_Symbol": hugo_symbol[0],
+                        "Site2_Hugo_Symbol": hugo_symbol[1],
+                        "Site1_Chromosome": site1_chromosome,
+                        "Site2_Chromosome": site2_chromosome,
+                        "Site1_Position": site1_position,
+                        "Site2_Position": site2_position,
+                        "Normal_Paired_End_Read_Count": fsr,
+                        "Gene 1 Reference Reads": g1rr,
+                        "Gene 2 Reference Reads": g2rr,
+                        "Event_Info": gene_pair})
+        return fusions
 
-if __name__ == '__main__':
-    
-    parser = argparse.ArgumentParser(description="Parse combined variant output file\nProvided from Illumina Local App\nIt returns the MSI and TMB values",
-                                            epilog="Version: 1.0\n\
-                                            Author: Bioinformatics Facility GSTeP'\n\
-                                            email: luciano.giaco@policlinicogemelli.it")
 
-    parser.add_argument('-i', '--input', help="<input.tsv>\
-                                            combined variant output file to parse",
-                                            required=True)
-    args = parser.parse_args()
-    INPUT = args.input
+def main(input_file: str) -> None:
+    """Run the fusion data extraction pipeline.
 
-    main(INPUT)
+    Parameters
+    ----------
+    input_file : Path
+        Path to the input file containing fusion event data.
 
+    """
+    get_fusions(input_file)

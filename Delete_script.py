@@ -12,128 +12,135 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-import os
-import sys
-import argparse
+"""Module to delete samples from a study and produce a new version.
+
+This script:
+- Validates paths and inputs.
+- Removes all information associated with the listed samples from clinical,
+  mutation, CNA, and structural variant files.
+- Creates a new versioned output folder.
+- Copies relevant metadata.
+- Validates the result and generates a summary HTML report.
+
+Requires configuration in a `conf.ini` file and various helper modules:
+- Delete_functions.py
+- filter_clinvar.py
+- Make_meta_and_cases.py
+- ValidateFolder.py
+- versioning.py
+- write_report.py
+
+"""
+import re
 import shutil
-from Make_meta_and_cases import meta_case_main
-from Delete_functions import *
-from ValidateFolder import validateOutput, copy_maf
-from versioning import *
+import sys
+from configparser import ConfigParser
+from pathlib import Path
+
 from loguru import logger
-from write_report import *
+
+from Delete_functions import (
+    check_sample_list,
+    delete_all_data)
 from filter_clinvar import check_bool
+from Make_meta_and_cases import meta_case_main
+from ValidateFolder import (
+    copy_maf,
+    validate_output,
+    check_all_data,
+    remove_meta)
+from versioning import (
+    create_newest_version_folder,
+    extract_info_from_meta,
+    get_version_list)
+from write_report import write_report_remove
 
 config = ConfigParser()
-configFile = config.read("conf.ini")
+config_file = config.read("conf.ini")
 
 
-def delete_main(oldpath, removepath, output, study_id, overwrite):
-    
-    logger.info(f"delete_main args [old_path:{oldpath}, remove_path:{removepath}, destination_folder:{output}]")
+def delete_main(oldpath: str, removepath: str, output: str,
+                study_id: str, overwrite: bool) -> None:
+    """Remove samples from a stdy and generate a cleaned new version.
+
+    Args:
+        oldpath (str): Path to the original dataset folder.
+        removepath (str): Path to a text file listing samples to remove.
+        output (str): Destination path for the new cleaned version folder.
+        study_id (str): Identifier of the study (used in metadata).
+        overwrite (bool): If True, overwrites existing version folder.
+
+    Returns:
+        None
+
+    """
+    logger.info(f"delete_main args [old_path:{oldpath}, remove_path:{removepath}, "
+    f"destination_folder:{output}]")
     logger.info("Checking input...")
 
-    oldpath = oldpath.rstrip("/")
+    oldpath = Path(oldpath.rstrip("/"))
 
-    if not os.path.isdir(oldpath):
+    if not oldpath.is_dir():
         logger.critical(f"{oldpath} is not a valid folder!")
-        sys.exit()	
+        sys.exit()
 
-    if output!="":
-        no_out=False
-        if os.path.exists(oldpath):
+    if output != "":
+        no_out = False
+        if oldpath.exists():
             logger.info("Original folder found")
-        if os.path.exists(removepath):
+        if Path(removepath).exists():
             logger.info("Sample list to remove found")
     else:
-        no_out=True
-        output=re.split(r'_v[0-9]+$',oldpath)[0]
+        no_out = True
+        output = re.split(r"_v[0-9]+$", str(oldpath))[0]
 
     check_sample_list(removepath, oldpath)
     old_versions = get_version_list(output)
 
-    if len(old_versions)>0 and os.path.exists(old_versions[-1]):
-        if overwrite:
-            logger.info(f"Overwrite option set. Start removing folder")
-            shutil.rmtree(old_versions[-1])
-    
+    last_version = Path(old_versions[-1]) if old_versions else None
+
+    if last_version and last_version.exists() and overwrite:
+        logger.info("Overwrite option set. Start removing folder")
+        shutil.rmtree(last_version)
+
     output = create_newest_version_folder(output)
     logger.info(f"Creating a new folder: {output}")
-    output_caseslists = os.path.join(output, "case_lists")
-    os.mkdir(output_caseslists)
-    
+
+    output_caseslists = Path(output) / "case_lists"
+    output_caseslists.mkdir(parents=True, exist_ok=True)
+
     logger.info("Great! Everything is ready to start")
 
-    os.system("cp " + oldpath + "/*meta* " + output)
-
-    with open(removepath) as sample_list:
+    with Path(removepath).open() as sample_list:
         first_line = sample_list.readline()
         if len(first_line.split("\t")) > 1:
-            logger.warning(f"The file {removepath} contains more than a column. It may not be in the correct format!")
+            logger.warning(f"The file {removepath} contains more than a column. "
+            "It may not be in the correct format!")
 
-    sampleIds = open(removepath,"r").readlines()
-    sampleIds = [sample.strip() for sample in sampleIds]
+    with Path(removepath).open("r") as f:
+        sample_ids = [line.strip() for line in f]
 
-    o_clinical_patient=os.path.join(oldpath,"data_clinical_patient.txt")
-    if os.path.exists(o_clinical_patient):
-        delete_clinical_patient(oldpath,sampleIds,output)
-    else:
-        logger.warning("data_clinical_patient.txt not found in current folder. Skipping")
-    #
-    o_clinical_sample=os.path.join(oldpath,"data_clinical_sample.txt")
-    if os.path.exists(o_clinical_sample) :
-        delete_clinical_samples(o_clinical_sample,sampleIds,output)
-    else:
-        logger.warning("data_clinical_sample.txt not found in current folder. Skipping")
-    
-    #
-    o_cna_hg19=os.path.join(oldpath,"data_cna_hg19.seg")
-    if os.path.exists(o_cna_hg19):
-        delete_cna_hg19(o_cna_hg19,sampleIds,output)
-    else:
-        logger.warning("data_cna_hg19.seg not found in current folder. Skipping")
+    delete_all_data(oldpath, sample_ids, output)
 
-    #
-    o_cna_hg19_fc=os.path.join(oldpath,"data_cna_hg19.seg.fc.txt")
-    if os.path.exists(o_cna_hg19_fc):
-        delete_cna_hg19_fc(o_cna_hg19_fc,sampleIds,output)
-    else:
-        logger.warning("data_cna_hg19.seg.fc.txt not found in current folder. Skipping")
+    for file in Path(oldpath).glob("*meta*"):
+        if file.is_file():
+            shutil.copy(file, Path(output))
 
-    #
-    o_cna=os.path.join(oldpath,"data_cna.txt")
-    if os.path.exists(o_cna):
-        delete_cna(o_cna,sampleIds,output)
-    else:
-        logger.warning("data_cna.txt not found in current folder. Skipping")
-    
-    #
-    o_mutations=os.path.join(oldpath,"data_mutations_extended.txt")
-    if os.path.exists(o_mutations):
-        delete_mutations(o_mutations,sampleIds,output)
-    else:
-        logger.warning("data_mutations_extended.txt not found in current folder. Skipping")
-    #
-    o_sv=os.path.join(oldpath,"data_sv.txt")
-    if os.path.exists(o_sv):
-        delete_sv(o_sv,sampleIds,output)
-    else:
-        logger.warning("data_sv.txt not found in current folder. Skipping")
-    
+    check_all_data(output)
+    remove_meta(output)
+
     cancer, study_info = extract_info_from_meta(oldpath)
     study_info.append(oldpath)
     study_info.append(no_out)
-    
+
     meta_case_main(cancer, output, study_info, study_id)
 
-    ZIP_MAF = config.get('Zip', 'ZIP_MAF')
-    ZIP_MAF = check_bool(ZIP_MAF)
-    COPY_MAF = config.get('Zip', 'COPY_MAF')
-    COPY_MAF = check_bool(COPY_MAF)
-    copy_maf(oldpath, output, COPY_MAF, ZIP_MAF)
+    zip_maf = check_bool(config.get("Zip", "ZIP_MAF"))
+    maf_copy = check_bool(config.get("Zip", "COPY_MAF"))
+    copy_maf(oldpath, output, maf_copy, zip_maf)
 
     logger.info("Starting Validation Folder...")
-    number_for_graph = validateOutput(output, None, False, True, None, None, None)
+    number_for_graph = validate_output(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
     write_report_remove(oldpath, output, number_for_graph)
