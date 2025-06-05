@@ -39,12 +39,20 @@ from pathlib import Path
 
 from loguru import logger
 
-from Delete_functions import check_sample_list, delete_all_data
+from Delete_functions import (
+    check_sample_list,
+    delete_all_data)
 from filter_clinvar import check_bool
 from Make_meta_and_cases import meta_case_main
-from ValidateFolder import copy_maf, validate_output
-from versioning import (create_newest_version_folder, extract_info_from_meta,
-                        get_version_list)
+from ValidateFolder import (
+    copy_maf,
+    validate_output,
+    check_all_data,
+    remove_meta)
+from versioning import (
+    create_newest_version_folder,
+    extract_info_from_meta,
+    get_version_list)
 from write_report import write_report_remove
 
 config = ConfigParser()
@@ -103,10 +111,6 @@ def delete_main(oldpath: str, removepath: str, output: str,
 
     logger.info("Great! Everything is ready to start")
 
-    for file in Path(oldpath).glob("*meta*"):
-        if file.is_file():
-            shutil.copy(file, Path(output))
-
     with Path(removepath).open() as sample_list:
         first_line = sample_list.readline()
         if len(first_line.split("\t")) > 1:
@@ -117,6 +121,13 @@ def delete_main(oldpath: str, removepath: str, output: str,
         sample_ids = [line.strip() for line in f]
 
     delete_all_data(oldpath, sample_ids, output)
+
+    for file in Path(oldpath).glob("*meta*"):
+        if file.is_file():
+            shutil.copy(file, Path(output))
+
+    check_all_data(output)
+    remove_meta(output)
 
     cancer, study_info = extract_info_from_meta(oldpath)
     study_info.append(oldpath)

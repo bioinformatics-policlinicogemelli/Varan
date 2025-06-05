@@ -129,48 +129,48 @@ def get_sample_id_from_cnv(cnv_vcf: str) -> str:
     return sample
 
 
-# def reshape_cna(my_input: str,
-#                 cna_df_path: str,
-#                 cancer: str,
-#                 output_dir: str) -> str:
-#     """Reshape and annotate CNA data and add ONCOTREE code.
+def reshape_cna(my_input: str,
+                cna_df_path: str,
+                cancer: str,
+                output_dir: str) -> str:
+    """Reshape and annotate CNA data and add ONCOTREE code.
 
-#     Args:
-#         my_input (str): Path to input file or directory.
-#         cna_df_path (str): Path to CNA dataframe.
-#         cancer (str): ONCOTREE code.
-#         output_dir (str): Output directory.
+    Args:
+        my_input (str): Path to input file or directory.
+        cna_df_path (str): Path to CNA dataframe.
+        cancer (str): ONCOTREE code.
+        output_dir (str): Output directory.
 
-#     Returns:
-#         str: Path to the intermediate annotated file.
+    Returns:
+        str: Path to the intermediate annotated file.
 
-#     """
-#     my_input_path = Path(my_input)
-#     output_path = Path(output_dir) / "temp_cna.txt"
-#     if not os.path.is_file(my_input_path):
-#         input_file = pd.read_csv(my_input_path / "sample.tsv", sep="\t")
-#     else:
-#         input_file = pd.read_csv(my_input_path, sep="\t")
+    """
+    my_input_path = Path(my_input)
+    output_path = Path(output_dir) / "temp_cna.txt"
+    if not os.path.is_file(my_input_path):
+        input_file = pd.read_csv(my_input_path / "sample.tsv", sep="\t")
+    else:
+        input_file = pd.read_csv(my_input_path, sep="\t")
 
-#     cna_df = pd.read_csv(cna_df_path, sep="\t")
+    cna_df = pd.read_csv(cna_df_path, sep="\t")
 
-#     cna_df=cna_df.rename({"ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},
-#                          axis=1)
-#     input_file=input_file.rename({"SampleID":"Tumor_Sample_Barcode"}, axis=1)
+    cna_df=cna_df.rename({"ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},
+                         axis=1)
+    input_file=input_file.rename({"SampleID":"Tumor_Sample_Barcode"}, axis=1)
 
-#     if "ONCOTREE_CODE" not in input_file.columns:
-#         input_file["ONCOTREE_CODE"] = cancer
+    if "ONCOTREE_CODE" not in input_file.columns:
+        input_file["ONCOTREE_CODE"] = cancer
 
-#     input_file["Tumor_Sample_Barcode"] = input_file["Tumor_Sample_Barcode"] + ".cnv.bam"
+    input_file["Tumor_Sample_Barcode"] = input_file["Tumor_Sample_Barcode"] + ".cnv.bam"
 
-#     annotate = cna_df[[
-#         "Tumor_Sample_Barcode", "Hugo_Symbol", "discrete",
-#         "Copy_Number_Alteration"]].merge(
-#     input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE"]],
-#     on="Tumor_Sample_Barcode",
-# )
+    annotate = cna_df[[
+        "Tumor_Sample_Barcode", "Hugo_Symbol", "discrete",
+        "Copy_Number_Alteration"]].merge(
+    input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE"]],
+    on="Tumor_Sample_Barcode",
+)
 
-#     return output_path.name
+    return output_path.name
 
 
 def annotate_cna(path_cna: str, output_folder: str) -> None:
@@ -235,6 +235,7 @@ def cnv_type_from_folder(input_path: str,
     """
     c = 0
     sid_path = {}
+
     for case_folder in cnv_vcf_files:
         mode = "a" if Path("data_cna_hg19.seg").exists() else "w"
         try:
@@ -296,6 +297,7 @@ def cnv_type_from_folder(input_path: str,
 
         cnv_kit = config.get("Cna", "CNVkit")
         cnv_kit = check_bool(cnv_kit)
+
         if cnv_kit:
             if not Path(input_path).is_file():
                 input_file = pd.read_csv(
@@ -349,9 +351,6 @@ def cnv_type_from_folder(input_path: str,
                 cna = pd.read_csv(out, sep="\t",
                                   dtype={"Copy_Number_Alteration":int})
 
-            cna["ESCAT"]="Unmatched"
-            df_table["ESCAT"]="Unmatched"
-
             logger.info("Analyzing cna sample(s)")
             for _, row in cna.iterrows():
                 try:
@@ -371,9 +370,6 @@ def cnv_type_from_folder(input_path: str,
                     np.log2((1 - purity)
                             + purity * (copy_nums + .5)
                             / PLOIDY ))
-
-                # ESCAT classification
-                escat_class(df_table, input_file, row)
 
             # CNVkit filter
             if not cna["TC"].isna().all():
@@ -398,9 +394,6 @@ def cnv_type_from_folder(input_path: str,
                 "available the setting of CNVkit = False is recommended")
                 return sid_path
 
-            df_table.to_csv(
-                Path(output_folder) / "data_cna_hg19_escat.seg.fc.txt",
-                index=True, sep="\t")
             cna.to_csv(Path(output_folder) / name,
                        index=True, sep="\t")
 
@@ -432,104 +425,30 @@ def cnv_type_from_folder(input_path: str,
     return sid_path
 
 
-def escat_class(df_table: pd.DataFrame,
-                input_file: pd.DataFrame,
-                row: pd.Series) -> None:
-    """Assign ESCAT classifications to CNA data based on cancer type and gene.
+def table_to_dict(df: pd.DataFrame) -> dict:
+    """Convert a DataFrame into a dictionary grouped by the 'ID' column.
+
+    Each key is a sample ID, and each value is a list
+    of tuples containing:
+    (chrom, _2, _3, _4, _5, gene, discrete).
 
     Args:
-        df_table (pd.DataFrame): DataFrame with CNAs.
-        input_file (pd.DataFrame): Metadata file including ONCOTREE_CODE.
-        row (pd.Series): Row from the CNA DataFrame.
+        df (pd.DataFrame): Input DataFrame with required columns.
 
     Returns:
-        None
+        dict: Dictionary mapping sample IDs
+        to lists of tuples with SNV data.
 
     """
-    oncocode = input_file[
-    input_file["Tumor_Sample_Barcode"] == row[
-        "Tumor_Sample_Barcode"]]["ONCOTREE_CODE"].to_numpy()
-
-    if oncocode =="NSCLC":
-        if (row["Hugo_Symbol"]=="MET" and row[
-            "seg.mean"]>1) or (row["Hugo_Symbol"]=="ERBB2"
-                               and row["seg.mean"]>1):
-            row["ESCAT"]="IIB"
-            df_table[(df_table["Tumor_Sample_Barcode"]==row[
-                "Tumor_Sample_Barcode"]) &
-                     (df_table["Hugo_Symbol"]==row[
-                         "Hugo_Symbol"])]["ESCAT"]="IIB"
-
-    elif oncocode=="BREAST":
-        if (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
-            row["ESCAT"]="IA"
-            df_table[(df_table[
-                "Tumor_Sample_Barcode"]==row["Tumor_Sample_Barcode"]) &
-                     (df_table["Hugo_Symbol"]==row[
-                         "Hugo_Symbol"])]["ESCAT"]="IA"
-
-    elif oncocode=="BOWEL":
-        if (row["Hugo_Symbol"]=="ERBB2" and row["seg.mean"]>1):
-            row["ESCAT"]="IIB"
-            df_table[(df_table[
-                "Tumor_Sample_Barcode"]==row[
-                    "Tumor_Sample_Barcode"]) &
-                     (df_table["Hugo_Symbol"]==row[
-                         "Hugo_Symbol"])]["ESCAT"]="IIB"
-
-    elif oncocode=="PROSTATE":
-        if (row["Hugo_Symbol"]=="BRCA1" and
-            row["seg.mean"]<1) or (row["Hugo_Symbol"]=="BRCA2" and
-                                   row["seg.mean"]<1):
-            row["ESCAT"]="IA"
-            df_table[(df_table[
-                "Tumor_Sample_Barcode"]==row[
-                    "Tumor_Sample_Barcode"]) &
-                     (df_table["Hugo_Symbol"]==row[
-                         "Hugo_Symbol"])]["ESCAT"]="IA"
-        elif (row["Hugo_Symbol"]=="PTEN" and
-              row["seg.mean"]<1):
-            row["ESCAT"]="IIA"
-            df_table[(df_table[
-                "Tumor_Sample_Barcode"]==row[
-                    "Tumor_Sample_Barcode"]) &
-                     (df_table["Hugo_Symbol"]==row[
-                         "Hugo_Symbol"])]["ESCAT"]="IIA"
-        elif (row["Hugo_Symbol"]=="ATM" and
-              row["seg.mean"]<1) or (row[
-                  "Hugo_Symbol"]=="PALB2" and row["seg.mean"]<1):
-            row["ESCAT"]="IIB"
-            df_table[(df_table[
-                "Tumor_Sample_Barcode"]==row[
-                    "Tumor_Sample_Barcode"]) &
-                     (df_table["Hugo_Symbol"]==row[
-                         "Hugo_Symbol"])]["ESCAT"]="IIB"
-
-
-# def table_to_dict(df: pd.DataFrame) -> dict:
-#     """Convert a DataFrame into a dictionary grouped by the 'ID' column.
-
-#     Each key is a sample ID, and each value is a list
-#     of tuples containing:
-#     (chrom, _2, _3, _4, _5, gene, discrete).
-
-#     Args:
-#         df (pd.DataFrame): Input DataFrame with required columns.
-
-#     Returns:
-#         dict: Dictionary mapping sample IDs
-#         to lists of tuples with SNV data.
-
-#     """
-#     result = {}
-#     for row in df.itertuples(index=False):
-#         row_values = (row.chrom,
-#                       row._2, row._3, row._4,
-#                       row._5, row.gene, row.discrete)
-#         if row.ID not in result:
-#             result[row.ID] = []
-#         result[row.ID].append(row_values)
-#     return result
+    result = {}
+    for row in df.itertuples(index=False):
+        row_values = (row.chrom,
+                      row._2, row._3, row._4,
+                      row._5, row.gene, row.discrete)
+        if row.ID not in result:
+            result[row.ID] = []
+        result[row.ID].append(row_values)
+    return result
 
 
 def get_snv_from_folder(inputfolder_snv: str) -> list[str]:
@@ -737,7 +656,9 @@ def create_folder(output_folder: str,
 
     if not output_list:
         version = "_v1"
-        output_folder_version = Path(output_folder) / version
+        output_folder_version = Path(f"{output_folder}{version}")
+
+
     else:
         output_folder_version, _ = get_newest_version(output_folder)
 
@@ -1098,11 +1019,11 @@ def write_default_clinical_patient(output_folder: str, table_dict: dict) -> None
         cil_sample.write("#1\t1\t1\n")
         cil_sample.write("PATIENT_ID\tAGE\tGENDER\n")
 
-    nested_list = list(table_dict.values())
-    list_patients = set(flatten(nested_list))
+        nested_list = list(table_dict.values())
+        list_patients = set(flatten(nested_list))
 
-    for v in list_patients:
-        cil_sample.write(f"{v}\tNaN\tNaN\n")
+        for v in list_patients:
+            cil_sample.write(f"{v}\tNaN\tNaN\n")
 
 
 
@@ -1404,6 +1325,7 @@ def check_folders(
     """
     logger.info("Verifying the compilation of the conf.ini file for "
     f"sample {sample_id}")
+
     check_input_file(output_folder, snv_path, "SNV", sample_id)
     check_input_file(output_folder, cnv_path, "CNV", sample_id)
     check_input_file(output_folder, combout, "CombinedOutput", sample_id)
@@ -1539,14 +1461,13 @@ def annotate_fusion(
             left_on="Sample_Id",
             right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
-
-        fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")
+        fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
         os.system(
             f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file} "
             f"-o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
 
     else:
-        fusion_table_file_out = fusion_table_file.replace(".txt", "ann.txt")
+        fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
         os.system(
             f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file} "
             f"-o {fusion_table_file_out} -t {cancer.upper()}  "
@@ -1748,12 +1669,12 @@ def input_extraction_file(input_f: list) -> tuple:
         tuple: Paths to sample, patient, and fusion TSV files.
 
     """
-    sample_tsv=input_f[0]
+    sample_tsv = input_f[0]
     patient_tsv, fusion_tsv = "",""
 
     limit = 2
     if len(input_f) > 1:
-        patient_tsv=input_f[1].strip()
+        patient_tsv = input_f[1].strip()
         if len(input_f) > limit:
             fusion_tsv=input_f[limit].strip()
 
@@ -1800,7 +1721,6 @@ def validate_input(
         SystemExit: If cancer ID is not recognized by cBioPortal.
 
     """
-    #check that the input file is correctly made
     if not isinputfile:
         sample_path = Path(input_path) / "sample.tsv"
         file_tsv = pd.read_csv(sample_path, sep="\t", dtype=str)
@@ -2012,7 +1932,7 @@ def walk_folder(
                 extract_multiple_cnv(multivcf, input_folder_cnv)
                 input_folder_cnv = input_folder_cnv / "single_sample_vcf"
         logger.info("Checking CNV files...")
-        #case_folder_arr_cnv = get_cnv_from_folder(input_folder_cnv)
+        case_folder_arr_cnv = get_cnv_from_folder(input_folder_cnv)
         logger.info("Everything ok!")
 
     input_folder_snv = Path(input_folder_snv)
@@ -2040,7 +1960,7 @@ def walk_folder(
 
     if input_folder_cnv.exists() and vcf_type not in ["snv", "fus", "tab"]:
         logger.info("Managing CNV files...")
-        #sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
+        sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
 
     if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
         logger.info("Managing SNV files...")
@@ -2122,9 +2042,9 @@ def walk_folder(
     ##############################
 
     table_dict_patient = get_table_from_folder(clin_sample_path)
-
     logger.info("Writing clinical files...")
-    if patient_tsv.name.strip()!="":
+
+    if Path(patient_tsv).name.strip() != "":
         logger.info("Writing data_clinical_patient.txt file...")
 
         input_file_path = Path(input_folder) / "patient.tsv"

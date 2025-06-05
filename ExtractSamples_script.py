@@ -34,16 +34,18 @@ from loguru import logger
 
 from ExtractSamples_functions import (
     check_sample_list,
-    extract_all_data,
-)
+    extract_all_data)
 from filter_clinvar import check_bool
 from Make_meta_and_cases import meta_case_main
-from ValidateFolder import copy_maf, validate_output
+from ValidateFolder import (
+    copy_maf,
+    validate_output,
+    check_all_data,
+    remove_meta)
 from versioning import (
     create_newest_version_folder,
     extract_info_from_meta,
-    get_version_list,
-)
+    get_version_list)
 from write_report import write_report_extract
 
 config = ConfigParser()
@@ -106,6 +108,7 @@ def extract_main(oldpath: str,
     output_caseslists.mkdir(parents=True, exist_ok=True)
 
     logger.info("Great! Everything is ready to start")
+
     meta_files = Path(oldpath).glob("*meta*")
     for file in meta_files:
         shutil.copy(file, output)
@@ -114,6 +117,9 @@ def extract_main(oldpath: str,
         sample_ids = [line.strip() for line in f]
 
     extract_all_data(oldpath, sample_ids, output)
+
+    check_all_data(output)
+    remove_meta(output)
 
     cancer, study_info = extract_info_from_meta(oldpath)
     study_info.append(oldpath)

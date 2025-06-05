@@ -153,7 +153,7 @@ def create_barplots(output_folder: str) -> int:
 
 
     snv = [count[0] for count in values]
-    cnv = [count[1] for count in values]
+    cnv = [int(count[1]) for count in values]
     sv = [count[2] for count in values]
 
     categories = {"SNV": snv, "CNV": cnv, "SV": sv}

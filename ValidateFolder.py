@@ -433,3 +433,63 @@ def zip_maf_files(output_maf_dir: Path, zip_path: Path) -> None:
                 arcname = os.path.relpath(file_path, output_maf_dir)
                 zip_ref.write(file_path, arcname)
     shutil.rmtree(output_maf_dir)
+
+
+def remove_meta(output: str | Path) -> None:
+    """Check existence of files and deletes metadatas if it doesn't.
+
+    For each key-value pair in the internal mapping, the function checks whether
+    the key file exists. If not, the corresponding value file is deleted.
+
+    Parameters:
+    ----------
+    output : str or Path
+        Path to the output directory where the files are located.
+    """
+    output = Path(output)
+
+    file_map = {
+        "data_cna_hg19.seg": "meta_cna_hg19_seg.txt",
+        "data_mutations_extended.txt": "meta_mutations_extended.txt",
+        "data_sv.txt": "meta_sv.txt",
+        "data_cna.txt": "meta_cna.txt"
+    }
+
+    for data_file, meta_file in file_map.items():
+        data_path = output / data_file
+        meta_path = output / meta_file
+
+        if not data_path.exists() and meta_path.exists():
+                meta_path.unlink()
+
+
+def check_all_data(output_folder: str | Path) -> None:
+    """Check data files in the specified output folder.
+
+    For each file in the list, if the file exists and contains only one data row,
+    it is considered incomplete or invalid and is deleted.
+
+    Parameters:
+    ----------
+    output_folder : str or Path
+        Path to the directory containing the data files to be checked.
+
+    """
+    output_folder = Path(output_folder)
+
+    file_to_delete = [
+        "data_cna_hg19.seg",
+        "data_cna_hg19.seg.fc.txt",
+        "data_cna.txt",
+        "data_mutations_extended.txt",
+        "data_sv.txt"]
+
+    for filename in file_to_delete:
+        file_path = output_folder / filename
+        if file_path.exists():
+            try:
+                file_df = pd.read_csv(file_path, sep="\t")
+                if len(file_df) < 1:
+                    file_path.unlink()
+            except Exception as e:
+                logger.warning(f"Error with {file_path}: {e}")

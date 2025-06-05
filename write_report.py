@@ -1186,7 +1186,7 @@ def write_report_extract(original_study: str, new_study: str,
         report_VARAN.html in the new_study folder.
 
     """
-    old_img_path = original_study / "img" / "logo_VARAN.png"
+    old_img_path = Path(original_study) / "img" / "logo_VARAN.png"
     general_graph_path = Path("img") / "general.png"
     genes_graph_path = Path("img") / "genes.png"
 
@@ -1230,11 +1230,11 @@ def write_report_extract(original_study: str, new_study: str,
     sv_2 = case_list2 / "cases_sv.txt"
 
     extracted_samples_cna, total_patients, total_samples = compare_sample_file_extract(
-        cna_1, cna_2, original_study, new_study)
+        cna_1, cna_2, new_study)
     extracted_samples_sequenced, _, _ = compare_sample_file_extract(
-        sequenced_1, sequenced_2, original_study, new_study)
+        sequenced_1, sequenced_2, new_study)
     extracted_samples_sv, _, _ = compare_sample_file_extract(
-        sv_1, sv_2, original_study, new_study)
+        sv_1, sv_2, new_study)
 
     html_content = f"""
     <!DOCTYPE html>
@@ -1713,8 +1713,8 @@ def write_report_remove(
     else:
         html_content += (
             f"""
-            <p>&emsp;<strong>Removed:</strong> {len(removed_samples_sv)} samples<br>
-            {", ".join(removed_samples_sv)}</p>
+            <p>&emsp;<strong>Removed:</strong> {len(removed_samples_sv)} samples
+            ({", ".join(removed_samples_sv)})</p>
             <p>&emsp;There is/are now {left_samples_sv} samples in cases_sv.</p>""")
 
     if filters != {}:
