@@ -538,8 +538,8 @@ def vcf_filtering(sid_path: dict,
         _, vcf_file = os.path.split(v)
         out_filt = Path(output_folder) / output_filtered
         vcf_filtered = out_filt / (vcf_file.replace(".vcf","") + ".FILTERED.vcf")
-        vcf_filter.main(v, vcf_filtered.name)
-        sid_path_filtered[k] = vcf_filtered.name
+        vcf_filter.main(v, str(vcf_filtered))
+        sid_path_filtered[k] = str(vcf_filtered)
     return sid_path_filtered
 
 

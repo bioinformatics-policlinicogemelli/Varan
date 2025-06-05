@@ -47,7 +47,7 @@ def parsing_vcf(file_input: str, file_output: str) -> None:
     data=pd.DataFrame(correct_data[1:],columns=correct_data[0])
     data=data[data["ALT"]!="."]
     data=data[data["FILTER"]=="PASS"]
-    data.to_csv(file_output,sep="\t", mode="a", index=False)
+    data.to_csv(file_output, sep="\t", mode="a", index=False)
 
 
 def write_header_lines(input_vcf: str, output_vcf: str) -> None:
