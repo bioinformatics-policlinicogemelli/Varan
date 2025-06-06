@@ -282,20 +282,6 @@ def write_report_main(
 
     html_content += """</section>"""
 
-    if versioning.old_version_exists and actual_version != 1:
-            html_content += f"""
-            <section class="comparison">
-                <div class="section-title">
-                    Comparison with Previous Version (v_{actual_version - 1})
-                </div>
-                <div class="content">
-                    <p><strong>ADDED PATIENT(S):</strong> {len(only_new_pat)}</p>
-                    <p><strong>ADDED SAMPLE(S):</strong> {len(only_new_sam)}</p>
-                    <p><strong>REMOVED PATIENT(S):</strong> {len(only_old_pat)}</p>
-                    <p><strong>REMOVED SAMPLE(S):</strong> {len(only_old_sam)}</p>
-                </div>
-            </section>
-            """
 
     html_content += """
         <section class="filters">
@@ -451,6 +437,21 @@ def write_report_main(
                 {extract_section(my_filters, "FUSION")}
             </div>
         </section>"""
+
+    if versioning.old_version_exists and actual_version != 1:
+            html_content += f"""
+            <section class="comparison">
+                <div class="section-title">
+                    Comparison with Previous Version (_v{actual_version - 1})
+                </div>
+                <div class="content">
+                    <p><strong>ADDED PATIENT(S):</strong> {len(only_new_pat)}</p>
+                    <p><strong>ADDED SAMPLE(S):</strong> {len(only_new_sam)}</p>
+                    <p><strong>REMOVED PATIENT(S):</strong> {len(only_old_pat)}</p>
+                    <p><strong>REMOVED SAMPLE(S):</strong> {len(only_old_sam)}</p>
+                </div>
+            </section>
+            """
 
     if (Path(output_folder) / general_graph_path).exists()\
     or (Path(output_folder) / genes_graph_path).exists():
@@ -725,6 +726,36 @@ new_study: Path, number_for_graph: int) -> None:
 
     ghosts = ghost_sample(new_study)
 
+    new_samples, new_patients, new_smpl_nr, new_pt_nr = parse_clinical_sample(
+    new_study)
+    if versioning.old_version_exists:
+        name = re.search(r"^(.+_v)[0-9]+$", new_study.name).group(1)
+        actual_version = int(re.search(r"^.+_v([0-9]+)$",\
+        Path(new_study).name).group(1))
+
+        old_name = name + str(actual_version - 1)
+        old_file = Path(new_study).parent / old_name / "data_clinical_sample.txt"
+
+        if actual_version != 1:
+            if Path(old_file).exists():
+                old_clin_sam = pd.read_csv(old_file, sep="\t", header=4)
+
+                old_samples = set(old_clin_sam["SAMPLE_ID"])
+                old_patients = set(old_clin_sam["PATIENT_ID"])
+
+                only_new_sam = new_samples - old_samples
+                only_new_pat = new_patients - old_patients
+
+                only_old_sam = old_samples - new_samples
+                only_old_pat = old_patients - new_patients
+
+            else:
+                only_new_sam = new_samples
+                only_new_pat = new_patients
+
+                only_old_sam = []
+                only_old_pat = []
+
     output_file = Path(new_study) / "report_VARAN.html"
 
     case_list1 = Path(original_study) / "case_lists"
@@ -877,27 +908,45 @@ new_study: Path, number_for_graph: int) -> None:
         <div class="section-title">Detailed Overview</div>
             <div class="content">"""
 
+    if updated_samples_cna or added_samples_cna:
+        html_content += f"""
+    <p><strong>Cases_CNA:</strong></p>"""
+
     if updated_samples_cna:
         html_content += f"""
-    <p><strong>Cases_CNA:</strong></p>
     <p>&emsp;<strong>Updated:</strong> {len(updated_samples_cna)} samples (
-        {', '.join(updated_samples_cna)})</p>
+        {', '.join(updated_samples_cna)})</p>"""
+
+    if added_samples_cna:
+        html_content += f"""
     <p>&emsp;<strong>Added:</strong> {len(added_samples_cna)} samples (
         {', '.join(added_samples_cna)})</p>"""
 
+    if updated_samples_sequenced or added_samples_sequenced:
+        html_content += f"""
+    <p><strong>Cases_sequenced:</strong></p>"""
+
     if updated_samples_sequenced:
         html_content += f"""
-    <p><strong>Cases_sequenced:</strong></p>
     <p>&emsp;<strong>Updated:</strong> {len(updated_samples_sequenced)} samples (
-        {', '.join(updated_samples_sequenced)})</p>
+        {', '.join(updated_samples_sequenced)})</p>"""
+
+    if added_samples_sequenced:
+        html_content += f"""
     <p>&emsp;<strong>Added:</strong> {len(added_samples_sequenced)} samples (
         {', '.join(added_samples_sequenced)})</p>"""
 
+    if updated_samples_sv or added_samples_sv:
+        html_content += f"""
+    <p><strong>Cases_sv:</strong></p>"""
+
     if updated_samples_sv:
         html_content += f"""
-    <p><strong>Cases_sv:</strong></p>
     <p>&emsp;<strong>Updated:</strong> {len(updated_samples_sv)} samples (
-        {', '.join(updated_samples_sv)})</p>
+        {', '.join(updated_samples_sv)})</p>"""
+
+    if added_samples_sv:
+        html_content += f"""
     <p>&emsp;<strong>Added:</strong> {len(added_samples_sv)} samples (
         {', '.join(added_samples_sv)})</p>"""
 
@@ -1057,6 +1106,21 @@ new_study: Path, number_for_graph: int) -> None:
             </div>
         """
 
+    if versioning.old_version_exists and actual_version != 1:
+            html_content += f"""
+            <section class="comparison">
+                <div class="section-title">
+                    Comparison with Previous Version (_v{actual_version - 1})
+                </div>
+                <div class="content">
+                    <p><strong>ADDED PATIENT(S):</strong> {len(only_new_pat)}</p>
+                    <p><strong>ADDED SAMPLE(S):</strong> {len(only_new_sam)}</p>
+                    <p><strong>REMOVED PATIENT(S):</strong> {len(only_old_pat)}</p>
+                    <p><strong>REMOVED SAMPLE(S):</strong> {len(only_old_sam)}</p>
+                </div>
+            </section>
+            """
+
     new_study_path = Path(new_study)
     if ((new_study_path / general_graph_path).exists()
     or (new_study_path / genes_graph_path).exists()):
@@ -1212,6 +1276,36 @@ def write_report_extract(original_study: str, new_study: str,
 
     ghosts = ghost_sample(new_study)
 
+    new_samples, new_patients, new_smpl_nr, new_pt_nr = parse_clinical_sample(
+    new_study)
+    if versioning.old_version_exists:
+        name = re.search(r"^(.+_v)[0-9]+$", new_study.name).group(1)
+        actual_version = int(re.search(r"^.+_v([0-9]+)$",\
+        Path(new_study).name).group(1))
+
+        old_name = name + str(actual_version - 1)
+        old_file = Path(new_study).parent / old_name / "data_clinical_sample.txt"
+
+        if actual_version != 1:
+            if Path(old_file).exists():
+                old_clin_sam = pd.read_csv(old_file, sep="\t", header=4)
+
+                old_samples = set(old_clin_sam["SAMPLE_ID"])
+                old_patients = set(old_clin_sam["PATIENT_ID"])
+
+                only_new_sam = new_samples - old_samples
+                only_new_pat = new_patients - old_patients
+
+                only_old_sam = old_samples - new_samples
+                only_old_pat = old_patients - new_patients
+
+            else:
+                only_new_sam = new_samples
+                only_new_pat = new_patients
+
+                only_old_sam = []
+                only_old_pat = []
+
     old_report = Path(original_study) / "report_VARAN.html"
     if Path(old_report).exists():
         filters = extract_filters_from_html(old_report)
@@ -1305,8 +1399,8 @@ def write_report_extract(original_study: str, new_study: str,
     if extracted_samples_sequenced:
         html_content += (
             f"""
-            <p>&emsp;<strong>Extracted:</strong> {sample_count} samples<br>
-            {sample_list}</p>
+            <p>&emsp;<strong>Extracted:</strong> {sample_count} samples
+            ({sample_list})</p>
             """
         )
 
@@ -1451,10 +1545,24 @@ def write_report_extract(original_study: str, new_study: str,
         if filters != {}:
             html_content += """
             </section>"""
-    if (
-        (Path(new_study) / general_graph_path).exists()
-        or (Path(new_study) / genes_graph_path).exists()
-    ):
+
+    if versioning.old_version_exists and actual_version != 1:
+            html_content += f"""
+            <section class="comparison">
+                <div class="section-title">
+                    Comparison with Previous Version (_v{actual_version - 1})
+                </div>
+                <div class="content">
+                    <p><strong>ADDED PATIENT(S):</strong> {len(only_new_pat)}</p>
+                    <p><strong>ADDED SAMPLE(S):</strong> {len(only_new_sam)}</p>
+                    <p><strong>REMOVED PATIENT(S):</strong> {len(only_old_pat)}</p>
+                    <p><strong>REMOVED SAMPLE(S):</strong> {len(only_old_sam)}</p>
+                </div>
+            </section>
+            """
+
+    if ((Path(new_study) / general_graph_path).exists()
+        or (Path(new_study) / genes_graph_path).exists()):
         html_content += f"""
             <section class="graphs">
                 <div class="section-title">
@@ -1600,6 +1708,36 @@ def write_report_remove(
         graph_expression = f"(last {number_for_graph} versions)"
 
     ghosts = ghost_sample(new_study)
+
+    new_samples, new_patients, new_smpl_nr, new_pt_nr = parse_clinical_sample(
+    new_study)
+    if versioning.old_version_exists:
+        name = re.search(r"^(.+_v)[0-9]+$", new_study.name).group(1)
+        actual_version = int(re.search(r"^.+_v([0-9]+)$",\
+        Path(new_study).name).group(1))
+
+        old_name = name + str(actual_version - 1)
+        old_file = Path(new_study).parent / old_name / "data_clinical_sample.txt"
+
+        if actual_version != 1:
+            if Path(old_file).exists():
+                old_clin_sam = pd.read_csv(old_file, sep="\t", header=4)
+
+                old_samples = set(old_clin_sam["SAMPLE_ID"])
+                old_patients = set(old_clin_sam["PATIENT_ID"])
+
+                only_new_sam = new_samples - old_samples
+                only_new_pat = new_patients - old_patients
+
+                only_old_sam = old_samples - new_samples
+                only_old_pat = old_patients - new_patients
+
+            else:
+                only_new_sam = new_samples
+                only_new_pat = new_patients
+
+                only_old_sam = []
+                only_old_pat = []
 
     old_report = Path(original_study) / "report_VARAN.html"
     if Path(old_report).exists():
@@ -1833,6 +1971,21 @@ def write_report_remove(
                     </p>
                 </div>
             </section>"""
+
+    if versioning.old_version_exists and actual_version != 1:
+            html_content += f"""
+            <section class="comparison">
+                <div class="section-title">
+                    Comparison with Previous Version (_v{actual_version - 1})
+                </div>
+                <div class="content">
+                    <p><strong>ADDED PATIENT(S):</strong> {len(only_new_pat)}</p>
+                    <p><strong>ADDED SAMPLE(S):</strong> {len(only_new_sam)}</p>
+                    <p><strong>REMOVED PATIENT(S):</strong> {len(only_old_pat)}</p>
+                    <p><strong>REMOVED SAMPLE(S):</strong> {len(only_old_sam)}</p>
+                </div>
+            </section>
+            """
 
     if ((Path(new_study) / general_graph_path).exists()
         or (Path(new_study) / genes_graph_path).exists()):

@@ -492,4 +492,4 @@ def check_all_data(output_folder: str | Path) -> None:
                 if len(file_df) < 1:
                     file_path.unlink()
             except Exception as e:
-                logger.warning(f"Error with {file_path}: {e}")
+                file_path.unlink()
