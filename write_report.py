@@ -1305,8 +1305,8 @@ def write_report_extract(original_study: str, new_study: str,
     if extracted_samples_sequenced:
         html_content += (
             f"""
-            <p>&emsp;<strong>Extracted:</strong> {sample_count} samples<br>
-            {sample_list}</p>
+            <p>&emsp;<strong>Extracted:</strong> {sample_count} samples
+            ({sample_list})</p>
             """
         )
 
