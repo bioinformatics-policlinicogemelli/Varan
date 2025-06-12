@@ -138,6 +138,54 @@ def get_fusions(input_file: str) -> list[dict[str, str]]:
         return fusions
 
 
+def get_exons(input_file: str) -> list[dict[str, str]]:
+    """Extract BRCA exon-level CNV information from a given input file.
+
+    This function searches for the "[Exon-Level CNVs]" section in the input file
+    and parses the next two lines of CNV data (typically corresponding to BRCA1 and BRCA2).
+    If a line contains only "BRCA1\tNA" or "BRCA2\tNA", it will be skipped.
+
+    Args:
+        input_file (str): Path to the input file containing CNV information.
+            This file must include a section labeled "[Exon-Level CNVs]".
+
+    Returns:
+        list[dict[str, str]]: A list of dictionaries, each representing a CNV entry with keys:
+            "Hugo_Symbol", "Chromosome", "Start_Position", "Stop_Position",
+            "Affected_Exon(s)", "Fold_Change", and "CNV_Type".
+
+    """
+    with input_file.open() as file:
+        lines = file.readlines()
+
+        has_exon_section = any("[Exon-Level CNVs]" in line for line in lines)
+        if not has_exon_section:
+            return None
+
+        exonic = []
+        for i in range(len(lines)):
+            if "[Exon-Level CNVs]" in lines[i]:
+                for j in range(i + 2, i + 4):
+                    line = lines[j].strip()
+                    if line.endswith("\tNA") or "NA" in line.split("\t")[1:]:
+                        continue
+                    fields = line.split("\t")
+                    if len(fields) < 7:
+                        continue
+                    gene, chr, start, stop, exon, fc, cnv_type = fields[:7]
+                    exonic.append({
+                        "Hugo_Symbol": gene,
+                        "Chromosome": chr,
+                        "Start_Position": start,
+                        "Stop_Position": stop,
+                        "Affected_Exon(s)": exon,
+                        "Fold_Change": fc,
+                        "CNV_Type": cnv_type
+                    })
+                break
+        return exonic
+
+
 def main(input_file: str) -> None:
     """Run the fusion data extraction pipeline.
 

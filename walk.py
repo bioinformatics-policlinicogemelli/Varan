@@ -202,7 +202,7 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
         columns="Tumor_Sample_Barcode",
         values="Copy_Number_Alteration",
         fill_value=0)
-    outpath=Path(output_folder) / "data_cna.txt"
+    outpath = Path(output_folder) / "data_cna.txt"
     data_cna.to_csv(outpath, index=True, sep="\t")
 
 
@@ -317,7 +317,7 @@ def cnv_type_from_folder(input_path: str,
             if "ONCOTREE_CODE" not in input_file.columns:
                 input_file["ONCOTREE_CODE"] = cancer
 
-            input_file["Tumor_Sample_Barcode"] = input_file["SAMPLE_ID"] #+ ".cnv.bam"
+            input_file["Tumor_Sample_Barcode"] = input_file["SAMPLE_ID"]
 
             annotate = df_table_filt[[
                 "Tumor_Sample_Barcode", "Hugo_Symbol",
@@ -338,7 +338,10 @@ def cnv_type_from_folder(input_path: str,
                     "-i", str(temppath),
                     "-o", out,
                     "-f", "individual",
-                    "-b", oncokb_key]
+                    "-b", oncokb_key,
+                    "-t", input_file["ONCOTREE_CODE"],
+                    "-z"
+                    ]
                 subprocess.run(cmd, check=True)
 
                 name = "annotated_oncokb_CNA_ndiscrete.txt"
@@ -400,7 +403,7 @@ def cnv_type_from_folder(input_path: str,
             cna["Tumor_Sample_Barcode"] = cna[
                 "Tumor_Sample_Barcode"].str.replace(
                     ".cnv.bam", "", regex=False)
-            data_cna=cna.pivot_table(
+            data_cna = cna.pivot_table(
                 index="Hugo_Symbol",
                 columns="Tumor_Sample_Barcode",
                 values="Copy_Number_Alteration", fill_value=0)
@@ -1247,7 +1250,7 @@ def check_field_tsv(row: pd.Series, name: str) -> str:
         "spelled or if there are tabs/spaces before or after the coloumn key: "
         f"\n{row.index}. \nThis error may also occur if the table columns have "
         "not been separated by tabs!")
-        sys.exit()
+        sys.exit(1)
     return field
 
 
@@ -1516,10 +1519,10 @@ def fill_fusion_from_combined(
                     site2_hugo_symbol = fus["Site2_Hugo_Symbol"]
                     if site2_hugo_symbol == "CASC1":
                         site2_hugo_symbol = "DNAI7"
-                    # site1_Chromosome = fus["Site1_Chromosome"]
-                    # site2_Chromosome = fus["Site2_Chromosome"]
-                    # site1_Position = fus["Site1_Position"]
-                    # site2_Position = fus["Site2_Position"]
+                    site1_Chromosome = fus["Site1_Chromosome"]
+                    site2_Chromosome = fus["Site2_Chromosome"]
+                    site1_Position = fus["Site1_Position"]
+                    site2_Position = fus["Site2_Position"]
 
                     if eval("int(fus['Normal_Paired_End_Read_Count'])" + thr_fus):
                         fusion_table.write(
@@ -1759,7 +1762,174 @@ def validate_input(
     if cancer not in cancer_cbio:
         logger.critical(f"The cancer_id '{cancer}' is not recognize by cBioPortal. "
         "Check the cancer_list.txt to find the correct cancer id")
-        sys.exit()
+        sys.exit(1)
+
+
+def write_exon_brca(output_file: str, combined_dict: dict[str, str]) -> None:
+    """Write a tab-separated file containing BRCA exon-level CNV data.
+
+    This function reads exon-level CNV information from a set of input files,
+    filters and formats the data, and writes it into a single output file
+    named `exonic_BRCA.txt`. Each row in the output corresponds to a CNV call
+    from a given sample related to BRCA genes.
+
+    Args:
+        output_file (str): Path to the output file where results will be written.
+        combined_dict (dict[str, str]): Dictionary mapping sample IDs to input file 
+        paths. Each file is expected to contain a section with exon-level CNV data.
+
+    Returns:
+        None: The function writes to a file and returns nothing.
+
+    """
+    logger.info("Writing exonic_BRCA.txt file...")
+    output_file_path = Path(output_file)
+
+    with output_file_path.open("w") as exonic_table:
+        header = (
+            "Sample_Id\tGene\tChromosome\tStart\tStop\t"
+            "Affected Exon(s)\tFold Change\tCNV Type\n")
+        exonic_table.write(header)
+
+        for k, v in combined_dict.items():
+            exonic =[]
+            try:
+                exonic = tsv.get_exons(Path(v))
+            except Exception:
+                logger.error("Something went wrong while reading Exon-Level CNVs section "
+                f"for sample {k}")
+
+            if not exonic:
+                continue
+
+            for ex in exonic:
+                hugo_symbol = ex["Hugo_Symbol"]
+                chr = ex["Chromosome"]
+                start = ex["Start_Position"]
+                stop = ex["Stop_Position"]
+                exon = ex["Affected_Exon(s)"]
+                fc = ex["Fold_Change"]
+                cnv_type = ex["CNV_Type"]
+
+                exonic_table.write(
+                    f"{k}\t{hugo_symbol}\t{chr}\t" +
+                    f"{start}\t{stop}\t{exon}\t" +
+                    f"{fc}\t{cnv_type}\n")
+
+
+def update_data_clinical_with_exon_info(
+    combined_output: Path,
+    combined_dict: dict,
+    output_folder: Path):
+    """Updates clinical_sample WITH exon-level CNV information for BRCA1 and BRCA2
+
+    Args:
+        combined_output (Path): Directory containing combined output files.
+        combined_dict (dict): Mapping of {sample_id: path_to_tsv}.
+        output_folder (Path): Output directory where data_clinical_sample.txt is located.
+
+    """
+    data_clin_path = output_folder / "data_clinical_sample.txt"
+
+    if combined_output.is_dir() and any(combined_output.iterdir()):
+        all_exon_dfs = []
+
+        for sample_id, tsv_path in combined_dict.items():
+            try:
+                exonic = tsv.get_exons(Path(tsv_path))
+            except Exception as e:
+                logger.error(f"Error while reading exon-level CNVs for sample {sample_id}: {e}")
+                exonic = []
+
+            exon_df = build_exon_df(output_folder, exonic, sample_id=sample_id)
+            all_exon_dfs.append(exon_df)
+
+        if all_exon_dfs:
+            all_exon_dfs = pd.concat(all_exon_dfs, ignore_index=True)
+
+            with open(data_clin_path, "r") as f:
+                header_lines = [next(f) for _ in range(4)]
+
+            data_clin_df = pd.read_csv(data_clin_path, sep="\t", header=4)
+            merged_data_clin = pd.merge(data_clin_df, all_exon_dfs, on="SAMPLE_ID", how="left")
+
+            new_columns = ["Exonic_BRCA1", "Exonic_BRCA2", "BRCA1_details", "BRCA2_details"]
+
+            updated_headers = []
+            updated_headers.append(header_lines[0].rstrip("\n") + "\t" + "\t".join(new_columns) + "\n")
+            updated_headers.append(header_lines[1].rstrip("\n") + "\t" + "\t".join(new_columns) + "\n")
+            updated_headers.append(header_lines[2].rstrip("\n") + "\t" + "\t".join(["STRING"] * len(new_columns)) + "\n")
+            updated_headers.append(header_lines[3].rstrip("\n") + "\t" + "\t".join(["1"] * len(new_columns)) + "\n")
+
+            with open(data_clin_path, "w") as f:
+                f.writelines(updated_headers)
+                merged_data_clin.to_csv(f, sep="\t", index=False)
+
+        else:
+            logger.warning("No exon CNV data available to update the clinical file.")
+
+
+def build_exon_df(output_folder: Path, exonic, sample_id: str) -> pd.DataFrame:
+    """Build a df with BRCA1 and BRCA2 exon-level CNV info for a given sample.
+
+    This function evaluates exon-level CNV data for BRCA1 and BRCA2 genes and classifies their status
+    as "Positive" (if exons are reported) or "Negative" (if gene is present but no events). If the
+    exon-level CNV section is missing entirely (i.e., `exonic` is None), all fields are set to "NA".
+
+    Args:
+        output_folder (Path): Path to the output directory (not used in this function).
+        exonic (list[dict] or None): List of dictionaries representing exon-level CNVs,
+            each dictionary must contain at least a "Hugo_Symbol" key. If None, the section
+            was missing entirely from the input.
+        sample_id (str): The sample identifier.
+
+    Returns:
+        pd.DataFrame: A DataFrame with one row and the following columns:
+            - SAMPLE_ID
+            - BRCA1: "Positive", "Negative", or "NaN"
+            - BRCA2: "Positive", "Negative", or "NaN"
+            - BRCA1_DETAILS: formatted string or "NaN"
+            - BRCA2_DETAILS: formatted string or "NaN"
+
+    """
+    if exonic is None:
+        row = {
+            "SAMPLE_ID": sample_id,
+            "EXONIC_BRCA1": "NaN",
+            "EXONIC_BRCA2": "NaN",
+            "BRCA1_DETAILS": "NaN",
+            "BRCA2_DETAILS": "NaN"
+        }
+    else:
+        brca1_exons = [entry for entry in exonic if entry.get("Hugo_Symbol") == "BRCA1"]
+        brca2_exons = [entry for entry in exonic if entry.get("Hugo_Symbol") == "BRCA2"]
+
+        if any(exon.get("CNV_Type") == "LOSS" for exon in brca1_exons):
+            brca1_status = "LOSS"
+        elif any(exon.get("CNV_Type") == "GAIN" for exon in brca1_exons):
+            brca1_status = "GAIN"
+        else:
+            brca1_status = "NaN"
+
+        if any(exon.get("CNV_Type") == "LOSS" for exon in brca2_exons):
+            brca2_status = "LOSS"
+        elif any(exon.get("CNV_Type") == "GAIN" for exon in brca2_exons):
+            brca2_status = "GAIN"
+        else:
+            brca2_status = "NaN"
+
+        brca1_details = "; ".join(str(e) for e in brca1_exons) if brca1_exons else "NaN"
+        brca2_details = "; ".join(str(e) for e in brca2_exons) if brca2_exons else "NaN"
+
+        row = {
+            "SAMPLE_ID": sample_id,
+            "EXONIC_BRCA1": brca1_status,
+            "EXONIC_BRCA2": brca2_status,
+            "BRCA1_DETAILS": brca1_details,
+            "BRCA2_DETAILS": brca2_details
+        }
+
+    return pd.DataFrame([row])
 
 
 def walk_folder(
@@ -1962,6 +2132,15 @@ def walk_folder(
         logger.info("Managing CNV files...")
         sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
 
+    combined_output_folder = Path(input_folder) / "CombinedOutput"
+    if (combined_output_folder.exists()
+        and any(f.is_file() for f in combined_output_folder.iterdir())):
+        combined_dict = get_combined_variant_output_from_folder(
+            input_folder, clin_file, isinputfile)
+
+        exon_file_output = Path(output_folder) / "exon_CNA_data.txt"
+        write_exon_brca(exon_file_output, combined_dict)
+
     if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
         logger.info("Managing SNV files...")
         s_id_path_snv = snv_type_from_folder(input_folder_snv, case_folder_arr)
@@ -2091,7 +2270,7 @@ def walk_folder(
     else:
         write_default_clinical_patient(output_folder, table_dict_patient)
 
-    fileinputclinical = pd.read_csv(
+    file_input_sample = pd.read_csv(
         clin_sample_path, sep="\t", index_col=False, dtype=str)
 
     msi_thr = config.get("MSI", "THRESHOLD_MSI")
@@ -2108,9 +2287,11 @@ def walk_folder(
             msi_sites_thr, msi_thr, tmb_thr)
     else:
         new_table_dict_patient = fill_from_file(
-            table_dict_patient, fileinputclinical, msi_thr, tmb_thr)
+            table_dict_patient, file_input_sample, msi_thr, tmb_thr)
 
     write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient)
+    update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)
+
     logger.success("Walk script completed!\n")
 
     return output_folder, input_path, fusion_tsv
