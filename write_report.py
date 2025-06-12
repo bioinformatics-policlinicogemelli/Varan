@@ -1107,7 +1107,7 @@ new_study: Path, number_for_graph: int) -> None:
         """
 
     if versioning.old_version_exists and actual_version != 1:
-            html_content += f"""
+            html_content += f""" 
             <section class="comparison">
                 <div class="section-title">
                     Comparison with Previous Version (_v{actual_version - 1})
