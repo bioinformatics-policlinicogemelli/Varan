@@ -118,11 +118,11 @@ def extract_maf_folder(filters: str, oncokb: str | bool) -> str:
 
     """
     if oncokb:
-        folder = "MAF_OncoKB"
+        folder="MAF_OncoKB"
         if "o" in filters:
-            folder = "MAF_Onco_filtered"
+            folder="MAF_Onco_filtered"
     else:
-        folder="maf"    
+        folder="maf"
         if filters not in {"d", ""}:
             folder="MAF_filtered"
 
