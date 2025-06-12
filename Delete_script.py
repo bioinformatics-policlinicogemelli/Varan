@@ -82,7 +82,7 @@ def delete_main(oldpath: str, removepath: str, output: str,
 
     if not oldpath.is_dir():
         logger.critical(f"{oldpath} is not a valid folder!")
-        sys.exit()
+        sys.exit(1)
 
     if output != "":
         no_out = False

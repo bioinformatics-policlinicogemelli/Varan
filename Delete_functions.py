@@ -341,7 +341,7 @@ def check_sample_list(remove_path: str, oldpath: str) -> None:
             logger.critical(
                 f"The file {remove_path} contains more than a column. "
                 "It may not be in the correct format!")
-            sys.exit()
+            sys.exit(1)
 
     with Path(remove_path).open() as sample_list:
         all_samples_to_remove = {sample.strip() for sample in sample_list}
@@ -353,7 +353,7 @@ def check_sample_list(remove_path: str, oldpath: str) -> None:
         if not any(sample in old_samples for sample in all_samples_to_remove):
             logger.critical("The sample(s) you are trying to remove are not present "
             "in data_clinical_sample.txt file! Please check again!")
-            sys.exit()
+            sys.exit(1)
 
         missing_samples = set(all_samples_to_remove) - set(old_samples)
         if missing_samples:
@@ -364,7 +364,7 @@ def check_sample_list(remove_path: str, oldpath: str) -> None:
         if len(set(old_samples) - set(all_samples_to_remove)) == 0:
             logger.critical("It looks like you are removing all the samples from "
             "original study! Cannot create an empty study!")
-            sys.exit()
+            sys.exit(1)
 
 
 def delete_all_data(oldpath: str, sample_ids: list, output: str) -> None:

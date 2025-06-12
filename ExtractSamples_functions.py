@@ -251,7 +251,7 @@ def check_sample_list(extract_path: str, oldpath: str) -> None:
             logger.critical(
                 f"The file {extract_path} contains more than a column."
                 f"It may not be in the correct format!")
-            sys.exit()
+            sys.exit(1)
 
     with Path(extract_path).open() as sample_list:
         all_samples_to_extract = {sample.strip() for sample in sample_list}
@@ -264,7 +264,7 @@ def check_sample_list(extract_path: str, oldpath: str) -> None:
             logger.critical(
                 "The sample(s) you are trying to extract are not"
                 "present in data_clinical_sample.txt file! Please check again!")
-            sys.exit()
+            sys.exit(1)
 
         missing_samples = set(all_samples_to_extract) - set(old_samples)
         if missing_samples:

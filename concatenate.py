@@ -117,14 +117,15 @@ def extract_maf_folder(filters: str, oncokb: str | bool) -> str:
         The name of the folder containing the MAF files to process.
 
     """
-    if oncokb and "o" in filters:
-        folder="MAF_Onco_filtered"
-    elif filters not in {"d", ""}:
-        folder="MAF_filtered"
-    elif oncokb:
-        folder="MAF_OncoKB"
+    if oncokb:
+        folder = "MAF_OncoKB"
+        if "o" in filters:
+            folder = "MAF_Onco_filtered"
     else:
-        folder="maf"
+        folder="maf"    
+        if filters not in {"d", ""}:
+            folder="MAF_filtered"
+
     return folder
 
 

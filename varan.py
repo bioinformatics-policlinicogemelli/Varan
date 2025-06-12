@@ -342,53 +342,53 @@ if __name__ == "__main__":
             logger.critical(
                 "Please select only one option between Update, Extract and "
                 "Remove")
-            sys.exit()
+            sys.exit(1)
 
         if not any([args.Update, args.Extract, args.Remove]) and (
             args.varan_input is None or args.varan_input[0].strip() == ""):
             logger.critical("Error Argument: Valid Input is required")
-            sys.exit()
+            sys.exit(1)
 
         if not any([args.Update, args.Extract, args.Remove]) and args.output_folder=="":
             logger.critical("Error Argument: Output is required")
-            sys.exit()
+            sys.exit(1)
 
         if not any([args.Update, args.Extract, args.Remove]) and args.Cancer is None:
             logger.critical("Error Argument: Cancer name is required")
-            sys.exit()
+            sys.exit(1)
 
         if args.Update and (args.Path is None or args.NewPath is None):
             logger.critical(
                 "To update a study, you need to specify both original "
                 "and new folder paths")
-            sys.exit()
+            sys.exit(1)
 
         if (any([args.Remove, args.Extract]) and args.Path is None) or \
         (any([args.Remove, args.Extract]) and args.SampleList is None):
             logger.critical(
                 "To remove/extract samples from a study, you need to specify both "
                 "original folder path and samples' list")
-            sys.exit()
+            sys.exit(1)
 
         if (args.output_folder=="" and args.Name!=""):
             logger.critical("To use -N option it's required to set also -o")
-            sys.exit()
+            sys.exit(1)
 
         if "n" in filters and "v" not in filters:
             logger.critical(
                 'To use the "n" option in filters it\'s required to set also the "v"')
-            sys.exit()
+            sys.exit(1)
 
         if "o" in filters and not oncokb:
             logger.critical(
                 'To use the "o" option in filters it\'s required to set also -k')
-            sys.exit()
+            sys.exit(1)
 
         if resume and overwrite_output:
             logger.critical(
                 "Both resume and overwrite options are selected. "
                 "Please select only one!")
-            sys.exit()
+            sys.exit(1)
 
 
         varan(

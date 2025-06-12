@@ -261,7 +261,7 @@ def filter_main(input_path: str,folder: str,
             logger.critical("The folder 'MAF_OncoKB' already exists. To overwrite an "
             "existing folder add the -w option!")
             logger.critical("Exit without completing the task!")
-            sys.exit()
+            sys.exit(1)
 
     maf_folder = Path(folder) / "maf"
     file_list = concatenate.get_files_by_ext(maf_folder, "maf")
@@ -299,13 +299,14 @@ def filter_main(input_path: str,folder: str,
     file_list = concatenate.get_files_by_ext(maf_folder, "maf")
     out_filter = output_folder/"MAF_filtered"
 
-    if oncokb and "o" in filters:
+    if oncokb:
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
-        out_filter=output_folder/"MAF_Onco_filtered"
+        if "o" in filters:
+            out_filter = output_folder/"MAF_Onco_filtered"
 
     if filters not in {"", "d"}:
 
-        logger.info("Start filtering vcf...")
+        logger.info("Start filtering maf...")
         out_filter.mkdir(parents=True, exist_ok=True)
 
         for file in file_list:
