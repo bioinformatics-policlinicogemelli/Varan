@@ -222,9 +222,6 @@ def apply_cnvkit_filter(cna: pd.DataFrame, input_file: pd.DataFrame, cancer: str
     """
     logger.info("Applying CNVkit filtering...")
 
-    if "TC" not in input_file.columns:
-        input_file["TC"] = np.nan
-
     if input_file["TC"].isna().any():
         missing = list(input_file[input_file["TC"].isna()]["SAMPLE_ID"])
         logger.warning(f"Missing TC values for: {missing}")
@@ -438,6 +435,9 @@ def cnv_type_from_folder(input_path: str,
             input_file = pd.read_csv(input_path, sep="\t")
 
         input_file["Tumor_Sample_Barcode"] = input_file["SAMPLE_ID"]
+
+        if "TC" not in input_file.columns:
+            input_file["TC"] = np.nan
 
         temp_cna = df_table_filt[[
             "Tumor_Sample_Barcode", "Hugo_Symbol",

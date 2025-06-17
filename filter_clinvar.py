@@ -309,7 +309,10 @@ def filter_main(input_path: str,folder: str,
         out_filter.mkdir(parents=True, exist_ok=True)
 
         for file in file_list:
-            file_to_filter=pd.read_csv(file, sep="\t", comment="#", dtype=object)
+            try:
+                file_to_filter=pd.read_csv(file, sep="\t", dtype=object)
+            except Error as e:
+                file_to_filter=pd.read_csv(file, sep="\t", dtype=object, skiprows=1)
 
             if "i" in filters:
                 file_to_filter = file_to_filter[
