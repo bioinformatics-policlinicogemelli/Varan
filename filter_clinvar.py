@@ -84,7 +84,7 @@ def filter_oncokb(df: pd.DataFrame) -> None:
                       matches the allowed values from config.
 
     """
-    oncokb_filter=ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
+    oncokb_filter = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
 
     return df[df["ONCOGENIC"].isin(oncokb_filter)]
 
@@ -106,8 +106,8 @@ def check_clin_sig(row: pd.Series) -> bool:
               [Filters]); False otherwise.
 
     """
-    clin_sig=ast.literal_eval(config.get("Filters", "CLIN_SIG"))
-    output=[]
+    clin_sig = ast.literal_eval(config.get("Filters", "CLIN_SIG"))
+    output = []
     for _e in str(row["CLIN_SIG"]).split(","):
         if _e not in clin_sig:
             output.append(True)
@@ -131,8 +131,8 @@ def check_consequences(row: pd.Series) -> bool:
               from the config ('CONSEQUENCES' field under [Filters]); False otherwise.
 
     """
-    consequences=ast.literal_eval(config.get("Filters", "CONSEQUENCES"))
-    output=[]
+    consequences = ast.literal_eval(config.get("Filters", "CONSEQUENCES"))
+    output = []
     for _e in str(row["Consequence"]).split(","):
         if _e in consequences:
             output.append(True)
@@ -155,8 +155,8 @@ def check_polyphen(row: pd.Series) -> None:
         False otherwise.
 
     """
-    consequences=ast.literal_eval(config.get("Filters", "POLYPHEN"))
-    output=[]
+    consequences = ast.literal_eval(config.get("Filters", "POLYPHEN"))
+    output = []
     if str(row["PolyPhen"]).split("(")[0] in consequences:
         output.append(True)
     else:
@@ -178,8 +178,8 @@ def check_sift(row: pd.Series) -> bool:
         False otherwise.
 
     """
-    consequences=ast.literal_eval(config.get("Filters", "SIFT"))
-    output=[]
+    consequences = ast.literal_eval(config.get("Filters", "SIFT"))
+    output = []
     if str(row["SIFT"]).split("(")[0] in consequences:
         output.append(True)
     else:
@@ -279,22 +279,22 @@ def filter_main(input_path: str,folder: str,
         input_file = pd.read_csv(input_path, sep="\t")
 
         for f in file_list:
-                    if extension in f:
-                        continue
-                    file = Path(f).name
-                    file_no = file.replace(".maf", "") + extension
-                    file_path = maf_oncokb_path / file_no
-                    if "ONCOTREE_CODE" in input_file.columns:
-                        for _, row in input_file.iterrows():
-                            if row["SAMPLE_ID"] in file_no:
-                                cancer_onco = row["ONCOTREE_CODE"] or cancer
-                                os.system(f"python3 oncokb-annotator/MafAnnotator.py "
-                                f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
-                                f"-b {config.get('OncoKB', 'ONCOKB')}")
-                    else:
+            if extension in f:
+                continue
+            file = Path(f).name
+            file_no = file.replace(".maf", "") + extension
+            file_path = maf_oncokb_path / file_no
+            if "ONCOTREE_CODE" in input_file.columns:
+                for _, row in input_file.iterrows():
+                    if row["SAMPLE_ID"] in file_no:
+                        cancer_onco = row["ONCOTREE_CODE"] or cancer
                         os.system(f"python3 oncokb-annotator/MafAnnotator.py "
-                        f"-i {f} -o {file_path} -t {cancer.upper()} "
+                        f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
                         f"-b {config.get('OncoKB', 'ONCOKB')}")
+            else:
+                os.system(f"python3 oncokb-annotator/MafAnnotator.py "
+                f"-i {f} -o {file_path} -t {cancer.upper()} "
+                f"-b {config.get('OncoKB', 'ONCOKB')}")
 
     file_list = concatenate.get_files_by_ext(maf_folder, "maf")
     out_filter = output_folder/"MAF_filtered"
@@ -309,7 +309,10 @@ def filter_main(input_path: str,folder: str,
         out_filter.mkdir(parents=True, exist_ok=True)
 
         for file in file_list:
-            file_to_filter=pd.read_csv(file, sep="\t", comment="#", dtype=object)
+            try:
+                file_to_filter = pd.read_csv(file, sep="\t", dtype=object)
+            except Exception:
+                file_to_filter = pd.read_csv(file, sep="\t", dtype=object, skiprows=1)
 
             if "i" in filters:
                 file_to_filter = file_to_filter[
@@ -317,16 +320,16 @@ def filter_main(input_path: str,folder: str,
                         ast.literal_eval(config.get("Filters", "IMPACT")))]
 
             if "p" in filters:
-                file_to_filter=file_to_filter[file_to_filter["FILTER"]=="PASS"]
+                file_to_filter = file_to_filter[file_to_filter["FILTER"]=="PASS"]
 
             if oncokb and "o" in filters:
-                oncokb_filter=ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
-                file_to_filter= file_to_filter[
+                oncokb_filter = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
+                file_to_filter = file_to_filter[
                     file_to_filter["ONCOGENIC"].isin(oncokb_filter)]
 
             if "v" in filters:
-                t_vaf_min=float(config.get("Filters", "t_VAF_min"))
-                t_vaf_max=float(config.get("Filters", "t_VAF_max"))
+                t_vaf_min = float(config.get("Filters", "t_VAF_min"))
+                t_vaf_max = float(config.get("Filters", "t_VAF_max"))
 
                 temp = file_to_filter.dropna(subset=["t_AF"])
 
@@ -363,7 +366,7 @@ def filter_main(input_path: str,folder: str,
                         (file_to_filter[vaf_colname] <= t_vaf_max)]
 
             if "a" in filters:
-                af=config.get("Filters", "AF")
+                af = config.get("Filters", "AF")
                 drop_na = config.get("Filters", "drop_NA_AF")
                 drop_na = check_bool(drop_na)
                 file_to_filter["AF"] = pd.to_numeric(
