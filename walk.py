@@ -51,7 +51,7 @@ REF_FASTA = config.get("Paths", "REF_FASTA")
 VEP_PATH = config.get("Paths", "VEP_PATH")
 VEP_DATA = config.get("Paths", "VEP_DATA")
 CLINV = config.get("Paths", "CLINV")
-CNA = ast.literal_eval(config.get("Cna", "HEADER_CNV"))
+cna_header = ast.literal_eval(config.get("Cna", "HEADER_CNV"))
 PLOIDY = int(config.get("Cna", "PLOIDY"))
 ONCOKB_FILTER = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
 
@@ -129,48 +129,49 @@ def get_sample_id_from_cnv(cnv_vcf: str) -> str:
     return sample
 
 
-def reshape_cna(my_input: str,
-                cna_df_path: str,
-                cancer: str,
-                output_dir: str) -> str:
-    """Reshape and annotate CNA data and add ONCOTREE code.
+# def reshape_cna(my_input: str,
+#                 cna_df_path: str,
+#                 cancer: str,
+#                 output_dir: str) -> str:
+#     """Reshape and annotate CNA data and add ONCOTREE code.
 
-    Args:
-        my_input (str): Path to input file or directory.
-        cna_df_path (str): Path to CNA dataframe.
-        cancer (str): ONCOTREE code.
-        output_dir (str): Output directory.
+#     Args:
+#         my_input (str): Path to input file or directory.
+#         cna_df_path (str): Path to CNA dataframe.
+#         cancer (str): ONCOTREE code.
+#         output_dir (str): Output directory.
 
-    Returns:
-        str: Path to the intermediate annotated file.
+#     Returns:
+#         str: Path to the intermediate annotated file.
 
-    """
-    my_input_path = Path(my_input)
-    output_path = Path(output_dir) / "temp_cna.txt"
-    if not os.path.is_file(my_input_path):
-        input_file = pd.read_csv(my_input_path / "sample.tsv", sep="\t")
-    else:
-        input_file = pd.read_csv(my_input_path, sep="\t")
+#     """
+#     my_input_path = Path(my_input)
+#     output_path = Path(output_dir) / "temp_cna.txt"
 
-    cna_df = pd.read_csv(cna_df_path, sep="\t")
+#     if not os.path.is_file(my_input_path):
+#         input_file = pd.read_csv(my_input_path / "sample.tsv", sep="\t")
+#     else:
+#         input_file = pd.read_csv(my_input_path, sep="\t")
 
-    cna_df=cna_df.rename({"ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},
-                         axis=1)
-    input_file=input_file.rename({"SampleID":"Tumor_Sample_Barcode"}, axis=1)
+#     cna_df = pd.read_csv(cna_df_path, sep="\t")
 
-    if "ONCOTREE_CODE" not in input_file.columns:
-        input_file["ONCOTREE_CODE"] = cancer
+#     cna_df=cna_df.rename({"ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},
+#                          axis=1)
+#     input_file=input_file.rename({"SampleID":"Tumor_Sample_Barcode"}, axis=1)
 
-    input_file["Tumor_Sample_Barcode"] = input_file["Tumor_Sample_Barcode"] + ".cnv.bam"
+#     if "ONCOTREE_CODE" not in input_file.columns:
+#         input_file["ONCOTREE_CODE"] = cancer
 
-    annotate = cna_df[[
-        "Tumor_Sample_Barcode", "Hugo_Symbol", "discrete",
-        "Copy_Number_Alteration"]].merge(
-    input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE"]],
-    on="Tumor_Sample_Barcode",
-)
+#     input_file["Tumor_Sample_Barcode"] = input_file["Tumor_Sample_Barcode"] + ".cnv.bam"
 
-    return output_path.name
+#     annotate = cna_df[[
+#         "Tumor_Sample_Barcode", "Hugo_Symbol", "discrete",
+#         "Copy_Number_Alteration"]].merge(
+#     input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE"]],
+#     on="Tumor_Sample_Barcode",
+# )
+
+#     return output_path.name
 
 
 def annotate_cna(path_cna: str, output_folder: str) -> None:
@@ -206,12 +207,174 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
     data_cna.to_csv(outpath, index=True, sep="\t")
 
 
+def apply_cnvkit_filter(cna: pd.DataFrame, input_file: pd.DataFrame, cancer: str, output_folder: str) -> pd.DataFrame:
+    """
+    Applies CNVkit thresholding logic based on tumor purity (TC).
+
+    Args:
+        cna (pd.DataFrame): CNA DataFrame with seg.mean values.
+        input_file (pd.DataFrame): Sample information with TC.
+        cancer (str): Default cancer type.
+        output_folder (str): Output directory for writing final CNA table.
+
+    Returns:
+        pd.DataFrame: Filtered CNA matrix.
+    """
+    logger.info("Applying CNVkit filtering...")
+
+    if "TC" not in input_file.columns:
+        input_file["TC"] = np.nan
+
+    if input_file["TC"].isna().any():
+        missing = list(input_file[input_file["TC"].isna()]["SAMPLE_ID"])
+        logger.warning(f"Missing TC values for: {missing}")
+
+    if "ONCOTREE_CODE" not in input_file.columns:
+        input_file["ONCOTREE_CODE"] = cancer
+
+    cna["Copy_Number_Alteration"] = 0
+    for _, row in cna.iterrows():
+        try:
+            tc = int(input_file.loc[input_file["Tumor_Sample_Barcode"] == row["Tumor_Sample_Barcode"], "TC"])
+        except Exception as e:
+            logger.warning(f"Skipping sample {row['Tumor_Sample_Barcode']} due to missing TC")
+            continue
+
+        purity = tc / 100
+        copy_nums = np.arange(6)
+        c = 2 ** (np.log2((1 - purity) + purity * (copy_nums + 0.5) / PLOIDY))
+
+        # CNVkit filter
+        if not cna["TC"].isna().all():
+            cna["Copy_Number_Alteration"] = 0
+
+            cna.loc[cna["seg.mean"] < c[0], "Copy_Number_Alteration"] = -2
+            cna.loc[(cna["seg.mean"] >= c[0]) & (cna["seg.mean"] < c[1]), "Copy_Number_Alteration"] = -1
+            cna.loc[(cna["seg.mean"] >= c[1]) & (cna["seg.mean"] < c[3]), "Copy_Number_Alteration"] = 0
+            cna.loc[(cna["seg.mean"] >= c[3]) & (cna["seg.mean"] < c[5]), "Copy_Number_Alteration"] = 1
+            cna.loc[cna["seg.mean"] >= c[5], "Copy_Number_Alteration"] = 2
+        else:
+            logger.warning("TC column is empty or does not exist in sample.tsv! "
+            "This column is required when CNVkit = True! If TC values are not "
+            "available, setting CNVkit = False is recommended")
+
+
+    cna.to_csv(out, index=False, sep="\t")
+
+    cna["Tumor_Sample_Barcode"] = cna["Tumor_Sample_Barcode"].str.replace(".cnv.bam", "", regex=False)
+    data_cna = cna.pivot_table(
+        index="Hugo_Symbol",
+        columns="Tumor_Sample_Barcode",
+        values="Copy_Number_Alteration",
+        fill_value=0)
+    return data_cna
+
+
+
+def annotate_with_oncokb(
+    temppath: Path,
+    input_file: pd.DataFrame,
+    cancer: str,
+    filters: str) -> pd.DataFrame:
+    """Annotate CNA data using OncoKB and returns the annotated DataFrame.
+
+    Args:
+        temppath (Path): Path to the input file to annotate.
+        input_file (pd.DataFrame): Sample information table.
+        cancer (str): Default cancer type if ONCOTREE_CODE is missing.
+        filters (str): Filtering flags.
+
+    Returns:
+        pd.DataFrame: Annotated CNA data.
+
+    """
+    logger.info("Annotating CNA with OncoKB...")
+    out = temppath.with_name(temppath.name.replace("not_annotated.txt", "annotated.txt"))
+    oncokb_key = config.get("OncoKB", "ONCOKB")
+
+    for _, row in input_file.iterrows():
+        cancer_onco = row.get("ONCOTREE_CODE", cancer)
+        cmd = [
+            "python3", "./oncokb-annotator/CnaAnnotator.py",
+            "-i", str(temppath),
+            "-o", out,
+            "-b", oncokb_key,
+            "-f", "individual",
+            "-t", cancer_onco.upper(),
+            "-z"
+        ]
+        subprocess.run(cmd, check=True)
+
+    temppath.unlink()
+    name = "annotated_CNA_ndiscrete.txt"
+    cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration": int})
+
+    if "o" in filters:
+        cna = cna[cna["ONCOGENIC"].isin(ONCOKB_FILTER)]
+
+    return cna, name, out
+
+
+
+def get_sample_path(input_path: str, case_folder: str, multiple: bool) -> Path:
+    """Construct the full path to a VCF file based on the folder structure and mode.
+
+    Args:
+        input_path (str): Root input directory containing CNV data.
+        case_folder (str): Name of the case or VCF file.
+        multiple (bool): If True, assumes VCFs are stored in 'CNV/single_sample_vcf';
+                         otherwise, in 'CNV'.
+
+    Returns:
+        Path: Full path to the target VCF file.
+
+    """
+    if multiple:
+        return Path(input_path) / "CNV" / "single_sample_vcf" / case_folder
+    else:
+        return Path(input_path) / "CNV" / case_folder
+
+
+def convert_all_vcfs(
+    cnv_vcf_files,
+    input_path,
+    output_folder,
+    multiple) -> dict:
+    """Convert all CNV VCF files into tabular CNA format.
+
+    Args:
+        cnv_vcf_files (list): List of CNV VCF file names or paths.
+        input_path (str): Base path where CNV folders are located.
+        output_folder (str): Directory where output SEG and FC files will be written.
+        multiple (bool): If True, expects input files in 'CNV/single_sample_vcf', otherwise in 'CNV'.
+
+    Returns:
+        dict: Mapping from sample ID to full VCF file path.
+
+    """
+    output_seg = Path(output_folder) / "data_cna_hg19.seg"
+    output_fc = Path(output_folder) / "data_cna_hg19.seg.fc.txt"
+
+    for case_folder in cnv_vcf_files:
+        try:
+            sample_id = get_sample_id_from_cnv(case_folder)
+
+            vcf_path = get_sample_path(input_path, case_folder, multiple)
+
+            vcf2tab_cnv.vcf_to_table(vcf_path, output_seg, sample_id, "w")
+            vcf2tab_cnv.vcf_to_table_fc(vcf_path, output_fc, sample_id, "w")
+
+        except Exception:
+            logger.warning(f"An error occurred while parsing {case_folder}")
+
+
 def cnv_type_from_folder(input_path: str,
                          cnv_vcf_files: list,
                          output_folder: str,
                          oncokb: bool,
                          cancer: str,
-                         multiple: bool) -> dict:
+                         multiple: bool,
+                         filters: str) -> dict:
     """Process CNV, converting them in CNA tables and performing annotation.
 
     Args:
@@ -233,40 +396,8 @@ def cnv_type_from_folder(input_path: str,
         A mapping from sample ID to VCF file path used in processing.
 
     """
-    c = 0
-    sid_path = {}
 
-    for case_folder in cnv_vcf_files:
-        mode = "a" if Path("data_cna_hg19.seg").exists() else "w"
-        try:
-            cnv_vcf = case_folder
-            sample_id = get_sample_id_from_cnv(case_folder)
-
-            if sample_id in sid_path:
-                with Path("sampleID_dup.log").open("w") as dup_path:
-                    dup_path.write(sample_id + "\t" + "cnv_vcf")
-            else:
-                if multiple:
-                    sid_path[sample_id] = Path(
-                        input_path) / "CNV" / "single_sample_vcf" / cnv_vcf
-                else:
-                    sid_path[sample_id] = Path(input_path) / "CNV" / cnv_vcf
-
-                vcf2tab_cnv.vcf_to_table(
-                    sid_path[sample_id], Path(
-                        output_folder) / "data_cna_hg19.seg",
-                    sample_id, mode)
-                vcf2tab_cnv.vcf_to_table_fc(
-                    sid_path[sample_id], Path(
-                        output_folder) / "data_cna_hg19.seg.fc.txt",
-                    sample_id, mode)
-
-        except Exception:
-            with Path("noParsed_cnv.log").open("w") as log_noparsed:
-                log_noparsed.write("[WARNING] " + case_folder + "\n")
-                log_noparsed.close()
-
-        c = c + 1
+    convert_all_vcfs(cnv_vcf_files, input_path, output_folder, multiple)
 
     seg_path = Path(output_folder) / "data_cna_hg19.seg"
     segfc_path = Path(output_folder) / "data_cna_hg19.seg.fc.txt"
@@ -284,132 +415,52 @@ def cnv_type_from_folder(input_path: str,
     ### MANAGE DISCRETE TABLE ##
     ############################
 
-        logger.info("Starting CNA evaluation (this step could take a while)...")
-        df_table = pd.read_csv(
-            Path(output_folder) / "data_cna_hg19.seg.fc.txt", sep="\t", header=0)
+        logger.info("Starting CNA evaluation...")
+        df_table = pd.read_csv(segfc_path, sep="\t", header=0)
 
-        df_table=df_table.rename(columns={
-            "discrete":"Copy_Number_Alteration",
-            "ID":"Tumor_Sample_Barcode",
-            "gene":"Hugo_Symbol"})
+        if cna_header:
+            df_table = df_table[df_table['gene'].isin(cna_header)]
+            df_table.to_csv((Path(output_folder) / "filtered_data_cna_hg19.seg.fc.txt"), index=False, sep="\t")
+
+        df_table = df_table.rename(
+            columns={
+                "discrete":"Copy_Number_Alteration",
+                "ID":"Tumor_Sample_Barcode",
+                "gene":"Hugo_Symbol"})
+
         df_table_filt = df_table[
             df_table["Copy_Number_Alteration"].isin([-2,2])]
+
+        if not Path(input_path).is_file():
+            input_file = pd.read_csv(
+                Path(input_path) / "sample.tsv", sep="\t")
+        else:
+            input_file = pd.read_csv(input_path, sep="\t")
+
+        input_file["Tumor_Sample_Barcode"] = input_file["SAMPLE_ID"]
+
+        temp_cna = df_table_filt[[
+            "Tumor_Sample_Barcode", "Hugo_Symbol",
+            "seg.mean", "Copy_Number_Alteration"]].merge(
+                input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE", "TC"]],
+                on="Tumor_Sample_Barcode")
+
+        temppath = Path(output_folder) / "cna_not_annotated.txt"
+        temp_cna.to_csv(temppath, index=False, sep="\t")
+
+        # TODO ricontrollare anche per il data_sv
+        if oncokb:
+            cna, name, out = annotate_with_oncokb(temppath, input_file, cancer, filters)
+        else:
+            cna = pd.read_csv(temppath, sep="\t", dtype={"Copy_Number_Alteration": int})
+            name = "CNA_ndiscrete.txt"
+            out = temppath
 
         cnv_kit = config.get("Cna", "CNVkit")
         cnv_kit = check_bool(cnv_kit)
 
         if cnv_kit:
-            if not Path(input_path).is_file():
-                input_file = pd.read_csv(
-                    Path(input_path) / "sample.tsv", sep="\t")
-            else:
-                input_file = pd.read_csv(input_path, sep="\t")
-
-            if "TC" not in input_file.columns:
-                input_file["TC"] = np.nan
-
-            if len(input_file[input_file["TC"].isna()])>0:
-                nan_sbj = input_file[input_file["TC"].isna()]
-                nan_sbj = list(nan_sbj["SAMPLE_ID"])
-                logger.warning(
-                    f"Some subject have NaN TC in tsv input file: {nan_sbj}!")
-
-            if "ONCOTREE_CODE" not in input_file.columns:
-                input_file["ONCOTREE_CODE"] = cancer
-
-            input_file["Tumor_Sample_Barcode"] = input_file["SAMPLE_ID"]
-
-            annotate = df_table_filt[[
-                "Tumor_Sample_Barcode", "Hugo_Symbol",
-                "seg.mean", "Copy_Number_Alteration"]].merge(
-                    input_file[["Tumor_Sample_Barcode",
-                                "ONCOTREE_CODE", "TC"]],
-                    on="Tumor_Sample_Barcode")
-
-            temppath = Path(output_folder) / "temp_cna_toannotate.txt"
-            annotate.to_csv(temppath, index=False, sep="\t")
-
-            if oncokb:
-                out = temppath.name.replace(
-                    "toannotate.txt", "annotated.txt")
-                oncokb_key = config.get("OncoKB", "ONCOKB")
-                cmd = [
-                    "python3", "./oncokb-annotator/CnaAnnotator.py",
-                    "-i", str(temppath),
-                    "-o", out,
-                    "-f", "individual",
-                    "-b", oncokb_key,
-                    "-t", input_file["ONCOTREE_CODE"],
-                    "-z"
-                    ]
-                subprocess.run(cmd, check=True)
-
-                name = "annotated_oncokb_CNA_ndiscrete.txt"
-                cna = pd.read_csv(out, sep="\t",
-                                  dtype={"Copy_Number_Alteration":int})
-                cna = cna[cna["ONCOGENIC"].isin(ONCOKB_FILTER)]
-            else:
-                out = temppath
-                name = "CNA_ndiscrete.txt"
-                cna = pd.read_csv(out, sep="\t",
-                                  dtype={"Copy_Number_Alteration":int})
-
-            logger.info("Analyzing cna sample(s)")
-            for _, row in cna.iterrows():
-                try:
-                    tc = int(
-                        input_file[input_file[
-                            "Tumor_Sample_Barcode"] == row[
-                                "Tumor_Sample_Barcode"]]["TC"])
-                except ValueError:
-                    continue
-                except Exception as err:
-                    msg = "Something went wrong while reading TC!"
-                    raise(Exception(msg)) from err
-
-                purity = tc / 100
-                copy_nums = np.arange(6)
-                c = 2 ** (
-                    np.log2((1 - purity)
-                            + purity * (copy_nums + .5)
-                            / PLOIDY ))
-
-            # CNVkit filter
-            if not cna["TC"].isna().all():
-                cna["Copy_Number_Alteration"]=0
-                cna.loc[(cna["seg.mean"]<c[0]
-                         ), "Copy_Number_Alteration"]=-2
-                cna.loc[(cna["seg.mean"]>=c[0]
-                         )&(cna["seg.mean"]<c[1]
-                            ), "Copy_Number_Alteration"]=-1
-                cna.loc[(cna["seg.mean"]>=c[1]
-                         )&(cna["seg.mean"]<c[3]
-                            ), "Copy_Number_Alteration"]=0
-                cna.loc[(cna["seg.mean"]>=c[3]
-                         )&(cna["seg.mean"]<c[5]
-                            ), "Copy_Number_Alteration"]=1
-                cna.loc[cna["seg.mean"]>=c[5],
-                        "Copy_Number_Alteration"]=2
-
-            else:
-                logger.warning("TC column is empty or does not exist in sample.tsv! "
-                "This column is required when CNVkit = True! If TC values are not "
-                "available the setting of CNVkit = False is recommended")
-                return sid_path
-
-            cna.to_csv(Path(output_folder) / name,
-                       index=True, sep="\t")
-
-            cna["Tumor_Sample_Barcode"] = cna[
-                "Tumor_Sample_Barcode"].str.replace(
-                    ".cnv.bam", "", regex=False)
-            data_cna = cna.pivot_table(
-                index="Hugo_Symbol",
-                columns="Tumor_Sample_Barcode",
-                values="Copy_Number_Alteration", fill_value=0)
-            data_cna.to_csv(Path(output_folder) / "data_cna.txt",
-                            index=True, sep="\t")
-
+            data_cna = apply_cnvkit_filter(cna, input_file, cancer, output_folder)
         else:
             df_table_filt = df_table_filt.copy()
             df_table_filt.loc[:, "Tumor_Sample_Barcode"] = df_table_filt[
@@ -421,11 +472,13 @@ def cnv_type_from_folder(input_path: str,
                 columns="Tumor_Sample_Barcode",
                 values="Copy_Number_Alteration",
                 fill_value=0).astype(int)
-            if not data_cna.empty:
-                data_cna.to_csv(Path(output_folder) / "data_cna.txt",
-                                index=True, sep="\t")
 
-    return sid_path
+        if not data_cna.empty:
+            cols_to_keep = data_cna.columns[(data_cna != 0).any()]
+            data_cna = data_cna[cols_to_keep]
+
+            data_cna.to_csv(Path(output_folder) / "data_cna.txt",
+            index=True, sep="\t")
 
 
 def table_to_dict(df: pd.DataFrame) -> dict:
@@ -2130,7 +2183,7 @@ def walk_folder(
 
     if input_folder_cnv.exists() and vcf_type not in ["snv", "fus", "tab"]:
         logger.info("Managing CNV files...")
-        sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
+        sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple, filters) # sID_path_cnv mai usato 
 
     combined_output_folder = Path(input_folder) / "CombinedOutput"
     if (combined_output_folder.exists()
