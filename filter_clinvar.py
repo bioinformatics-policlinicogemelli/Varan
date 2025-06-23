@@ -279,22 +279,22 @@ def filter_main(input_path: str,folder: str,
         input_file = pd.read_csv(input_path, sep="\t")
 
         for f in file_list:
-                    if extension in f:
-                        continue
-                    file = Path(f).name
-                    file_no = file.replace(".maf", "") + extension
-                    file_path = maf_oncokb_path / file_no
-                    if "ONCOTREE_CODE" in input_file.columns:
-                        for _, row in input_file.iterrows():
-                            if row["SAMPLE_ID"] in file_no:
-                                cancer_onco = row["ONCOTREE_CODE"] or cancer
-                                os.system(f"python3 oncokb-annotator/MafAnnotator.py "
-                                f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
-                                f"-b {config.get('OncoKB', 'ONCOKB')}")
-                    else:
+            if extension in f:
+                continue
+            file = Path(f).name
+            file_no = file.replace(".maf", "") + extension
+            file_path = maf_oncokb_path / file_no
+            if "ONCOTREE_CODE" in input_file.columns:
+                for _, row in input_file.iterrows():
+                    if row["SAMPLE_ID"] in file_no:
+                        cancer_onco = row["ONCOTREE_CODE"] or cancer
                         os.system(f"python3 oncokb-annotator/MafAnnotator.py "
-                        f"-i {f} -o {file_path} -t {cancer.upper()} "
+                        f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
                         f"-b {config.get('OncoKB', 'ONCOKB')}")
+            else:
+                os.system(f"python3 oncokb-annotator/MafAnnotator.py "
+                f"-i {f} -o {file_path} -t {cancer.upper()} "
+                f"-b {config.get('OncoKB', 'ONCOKB')}")
 
     file_list = concatenate.get_files_by_ext(maf_folder, "maf")
     out_filter = output_folder/"MAF_filtered"
