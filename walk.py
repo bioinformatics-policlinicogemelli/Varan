@@ -52,7 +52,7 @@ VEP_PATH = config.get("Paths", "VEP_PATH")
 VEP_DATA = config.get("Paths", "VEP_DATA")
 CLINV = config.get("Paths", "CLINV")
 cna_header = ast.literal_eval(config.get("Cna", "HEADER_CNV"))
-PLOIDY = int(config.get("Cna", "PLOIDY"))
+ploidy = int(config.get("Cna", "PLOIDY"))
 ONCOKB_FILTER = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
 
 output_filtered = "snv_filtered"
@@ -207,11 +207,12 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
     data_cna.to_csv(outpath, index=True, sep="\t")
 
 
-def apply_cnvkit_filter(cna: pd.DataFrame, input_file: pd.DataFrame, cancer: str, output_folder: str) -> pd.DataFrame:
+def apply_cnvkit_filter(name: str, cna: pd.DataFrame, input_file: pd.DataFrame, cancer: str, output_folder: str, out: str) -> pd.DataFrame:
     """
     Applies CNVkit thresholding logic based on tumor purity (TC).
 
     Args:
+        name (str): name of the output of the function
         cna (pd.DataFrame): CNA DataFrame with seg.mean values.
         input_file (pd.DataFrame): Sample information with TC.
         cancer (str): Default cancer type.
@@ -221,6 +222,10 @@ def apply_cnvkit_filter(cna: pd.DataFrame, input_file: pd.DataFrame, cancer: str
         pd.DataFrame: Filtered CNA matrix.
     """
     logger.info("Applying CNVkit filtering...")
+
+    intermediates_path = Path(out.parent) / "Intermediates"
+    intermediates_path.mkdir(parents=True, exist_ok=True)
+    shutil.move(out, intermediates_path / out.name)
 
     if input_file["TC"].isna().any():
         missing = list(input_file[input_file["TC"].isna()]["SAMPLE_ID"])
@@ -239,7 +244,7 @@ def apply_cnvkit_filter(cna: pd.DataFrame, input_file: pd.DataFrame, cancer: str
 
         purity = tc / 100
         copy_nums = np.arange(6)
-        c = 2 ** (np.log2((1 - purity) + purity * (copy_nums + 0.5) / PLOIDY))
+        c = 2 ** (np.log2((1 - purity) + purity * (copy_nums + 0.5) / ploidy))
 
         # CNVkit filter
         if not cna["TC"].isna().all():
@@ -255,8 +260,8 @@ def apply_cnvkit_filter(cna: pd.DataFrame, input_file: pd.DataFrame, cancer: str
             "This column is required when CNVkit = True! If TC values are not "
             "available, setting CNVkit = False is recommended")
 
-
-    cna.to_csv(out, index=False, sep="\t")
+    output = Path(output_folder) / name
+    cna.to_csv(output, index=False, sep="\t")
 
     cna["Tumor_Sample_Barcode"] = cna["Tumor_Sample_Barcode"].str.replace(".cnv.bam", "", regex=False)
     data_cna = cna.pivot_table(
@@ -302,7 +307,10 @@ def annotate_with_oncokb(
         ]
         subprocess.run(cmd, check=True)
 
-    temppath.unlink()
+    intermediates_path = Path (temppath.parent) / "Intermediates"
+    intermediates_path.mkdir(parents=True, exist_ok=True)
+    shutil.move(temppath, Path(intermediates_path) / "cna_not_annotated.txt")
+    #temppath.unlink()
     name = "annotated_CNA_ndiscrete.txt"
     cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration": int})
 
@@ -460,7 +468,7 @@ def cnv_type_from_folder(input_path: str,
         cnv_kit = check_bool(cnv_kit)
 
         if cnv_kit:
-            data_cna = apply_cnvkit_filter(cna, input_file, cancer, output_folder)
+            data_cna = apply_cnvkit_filter(name, cna, input_file, cancer, output_folder, out)
         else:
             df_table_filt = df_table_filt.copy()
             df_table_filt.loc[:, "Tumor_Sample_Barcode"] = df_table_filt[
@@ -2343,7 +2351,7 @@ def walk_folder(
             table_dict_patient, file_input_sample, msi_thr, tmb_thr)
 
     write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient)
-    update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)
+    #update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)
 
     logger.success("Walk script completed!\n")
 

@@ -54,7 +54,7 @@ def is_positive(number: float, sample: str) -> bool:
         True if the number is positive, False otherwise.
 
     """
-    if number >= 0:
+    if number > 0:
         return True
     with Path("negative_FC.log").open("a") as n:
         n.write(f"[WARNING] the sample {sample} has a Fold change in CNV with "
