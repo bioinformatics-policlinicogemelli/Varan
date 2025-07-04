@@ -112,7 +112,7 @@ def extract_fc_from_fields(
     logger.critical(
         f"The VCF file for sample {sample} is in an unsupported "
         f"version (v{version_number}). Supported versions: [4.1, 4.2]")
-    sys.exit()
+    sys.exit(1)
 
 
 def extract_header_positions(header_line: str, sample: str) -> dict:
@@ -251,7 +251,7 @@ def parse_fc_and_gene(
         logger.critical(
             f"The VCF file for sample {sample} is in an unsupported version "
             f"(v{version_number}).")
-        sys.exit()
+        sys.exit(1)
     return fc, gene
 
 

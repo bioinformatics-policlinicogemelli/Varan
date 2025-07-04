@@ -71,10 +71,10 @@ def update_main(oldpath: str, newpath: str,
     logger.info("Checking inputs...")
     if not Path(oldpath).is_dir():
         logger.critical(f"{oldpath} is not a valid folder!")
-        sys.exit()
+        sys.exit(1)
     if not Path(newpath).is_dir():
         logger.critical(f"{newpath} is not a valid folder!")
-        sys.exit()
+        sys.exit(1)
 
     output, no_out, output_caseslists = prepare_output_folder(
         oldpath, output, overwrite)

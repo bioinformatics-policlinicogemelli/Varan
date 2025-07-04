@@ -82,7 +82,7 @@ def extract_main(oldpath: str,
 
     if not Path(oldpath).is_dir():
         logger.critical(f"{oldpath} is not a valid folder!")
-        sys.exit()
+        sys.exit(1)
 
     if output!="":
         no_out=False

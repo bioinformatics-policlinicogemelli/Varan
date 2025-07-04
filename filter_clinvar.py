@@ -261,7 +261,7 @@ def filter_main(input_path: str,folder: str,
             logger.critical("The folder 'MAF_OncoKB' already exists. To overwrite an "
             "existing folder add the -w option!")
             logger.critical("Exit without completing the task!")
-            sys.exit()
+            sys.exit(1)
 
     maf_folder = Path(folder) / "maf"
     file_list = concatenate.get_files_by_ext(maf_folder, "maf")
