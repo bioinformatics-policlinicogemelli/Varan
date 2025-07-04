@@ -296,15 +296,20 @@ def filter_main(input_path: str,folder: str,
                 f"-i {f} -o {file_path} -t {cancer.upper()} "
                 f"-b {config.get('OncoKB', 'ONCOKB')}")
 
-    file_list = concatenate.get_files_by_ext(maf_folder, "maf")
-    out_filter = output_folder/"MAF_filtered"
-
-    if oncokb and "o" in filters:
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
-        out_filter=output_folder/"MAF_Onco_filtered"
+        out_filter = maf_oncokb_path
+        if filters not in {"d", ""}:
+            out_filter = output_folder / "MAF_Onco_filtered"
+            out_filter.mkdir(parents=True, exist_ok=True)
+    else:
+        file_list = concatenate.get_files_by_ext(maf_folder, "maf")
+        out_filter = "maf"
+        if filters not in {"d", ""}:
+            out_filter = output_folder /  "MAF_filtered"
+            out_filter.mkdir(parents=True, exist_ok=True)
+
 
     if filters not in {"", "d"}:
-
         logger.info("Start filtering vcf...")
         out_filter.mkdir(parents=True, exist_ok=True)
 
