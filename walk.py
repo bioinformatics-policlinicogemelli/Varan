@@ -330,19 +330,20 @@ def cnv_type_from_folder(input_path: str,
             annotate.to_csv(temppath, index=False, sep="\t")
 
             if oncokb:
-                out = temppath.name.replace(
-                    "toannotate.txt", "annotated.txt")
-                oncokb_key = config.get("OncoKB", "ONCOKB")
-                cmd = [
-                    "python3", "./oncokb-annotator/CnaAnnotator.py",
-                    "-i", str(temppath),
-                    "-o", out,
-                    "-f", "individual",
-                    "-b", oncokb_key,
-                    "-t", input_file["ONCOTREE_CODE"],
-                    "-z"
+                for _, row in input_file.iterrows():
+                    out = temppath.name.replace("toannotate.txt", "annotated.txt")
+                    oncokb_key = config.get("OncoKB", "ONCOKB")
+
+                    cmd = [
+                        "python3", "./oncokb-annotator/CnaAnnotator.py",
+                        "-i", str(temppath),
+                        "-o", out,
+                        "-f", "individual",
+                        "-b", oncokb_key,
+                        "-t", str(row["ONCOTREE_CODE"]),
+                        "-z"
                     ]
-                subprocess.run(cmd, check=True)
+                    subprocess.run(cmd, check=True)
 
                 name = "annotated_oncokb_CNA_ndiscrete.txt"
                 cna = pd.read_csv(out, sep="\t",
