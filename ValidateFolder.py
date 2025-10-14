@@ -253,7 +253,6 @@ def validate_output(
     cases_path = Path(folder) / "case_lists"
     if cases_path.exists() and not any(cases_path.iterdir()):
         shutil.rmtree(cases_path)
-
     if val != 1:
         number_for_graph = int(create_barplots(folder))
         if not block2:

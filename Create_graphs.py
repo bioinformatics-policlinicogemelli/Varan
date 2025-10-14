@@ -119,7 +119,7 @@ def create_barplots(output_folder: str) -> int:
     """
     (Path(output_folder) / "img").mkdir(parents=True, exist_ok=True)
     outputfolderpath = Path(output_folder).parent
-    output_folder_base = re.sub(r"_v\d+$", "", output_folder.name)
+    output_folder_base = re.sub(r"_v\d+$", "", Path(output_folder).name)
     old_versions = {\
         file.name for file in Path(outputfolderpath).resolve().iterdir()\
             if re.match(rf"^{re.escape(output_folder_base)}_v[0-9]+$", file.name)}

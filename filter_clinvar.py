@@ -299,13 +299,13 @@ def filter_main(input_path: str,folder: str,
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
         out_filter = maf_oncokb_path
         if filters not in {"d", ""}:
-            out_filter = output_folder / "MAF_Onco_filtered"
+            out_filter = Path(output_folder) / "MAF_Onco_filtered"
             out_filter.mkdir(parents=True, exist_ok=True)
     else:
         file_list = concatenate.get_files_by_ext(maf_folder, "maf")
         out_filter = "maf"
         if filters not in {"d", ""}:
-            out_filter = output_folder /  "MAF_filtered"
+            out_filter = Path(output_folder) /  "MAF_filtered"
             out_filter.mkdir(parents=True, exist_ok=True)
 
     if filters not in {"", "d"}:
@@ -402,7 +402,7 @@ def filter_main(input_path: str,folder: str,
                 file_to_filter = file_to_filter[
                     file_to_filter.apply(check_sift,axis=1)]
 
-            file_out = out_filter / Path(file).name
+            file_out = Path(out_filter) / Path(file).name
             file_to_filter.to_csv(file_out, sep="\t", index=False)
 
     logger.success("Filter script completed!\n")

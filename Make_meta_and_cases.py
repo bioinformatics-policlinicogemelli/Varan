@@ -262,7 +262,7 @@ def create_meta_cna(cancer: str, project_id: str, profile: str,
         "data_filename": data_filename,
     }
 
-    meta_file_path = output_dir / "meta_cna.txt"
+    meta_file_path = Path(output_dir) / "meta_cna.txt"
     with meta_file_path.open("w") as meta_file:
         logger.info("Writing meta_cna.txt file...")
         for key, value in dictionary_file.items():
@@ -299,7 +299,7 @@ def create_meta_cna_hg19(project_id: str, profile: str, output_dir: str) -> None
         "data_filename": data_filename,
     }
 
-    meta_file_path = output_dir / "meta_cna_hg19_seg.txt"
+    meta_file_path = Path(output_dir) / "meta_cna_hg19_seg.txt"
     with meta_file_path.open("w") as meta_file:
         logger.info("Writing meta_cna_hg19_seg.txt file...")
         for key, value in dictionary_file.items():
