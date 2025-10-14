@@ -330,20 +330,46 @@ def cnv_type_from_folder(input_path: str,
             annotate.to_csv(temppath, index=False, sep="\t")
 
             if oncokb:
-                for _, row in input_file.iterrows():
-                    out = temppath.name.replace("toannotate.txt", "annotated.txt")
-                    oncokb_key = config.get("OncoKB", "ONCOKB")
+
+                out_can_ann=Path(output_folder) / "CNV_ann"
+                out_can_ann.mkdir(exist_ok=True)
+
+                oncokb_key = config.get("OncoKB", "ONCOKB")
+
+                temppath_df=pd.read_csv(temppath, sep="\t")
+                
+                df_all=pd.DataFrame()
+                for sample_df in temppath_df["Tumor_Sample_Barcode"].unique():
+                    
+                    out = Path(out_can_ann) / temppath.name.replace(
+                    "toannotate.txt", f"annotated_{sample_df}.txt")
+
+                    df_tmp=temppath_df[temppath_df["Tumor_Sample_Barcode"]==sample_df]
+                    df_path=Path(output_folder) / "tmp_ann.txt"
+                    df_tmp.to_csv(df_path, sep="\t", index=False)
+
 
                     cmd = [
                         "python3", "./oncokb-annotator/CnaAnnotator.py",
-                        "-i", str(temppath),
-                        "-o", out,
+                        "-i", str(df_path),
+                        "-o", str(out),
                         "-f", "individual",
                         "-b", oncokb_key,
-                        "-t", str(row["ONCOTREE_CODE"]),
+                        "-t", df_tmp["ONCOTREE_CODE"].unique()[0],
                         "-z"
-                    ]
+                        ]
+                    
                     subprocess.run(cmd, check=True)
+
+                    df_path.unlink(missing_ok=True)
+
+                all_ann_files = list(out_can_ann.glob("*annotated_*.txt"))
+                merged_df = pd.concat(
+                    [pd.read_csv(f, sep="\t") for f in all_ann_files],
+                    ignore_index=True
+                )
+                out = Path(output_folder) / "CNV_annotated_merged.txt"
+                merged_df.to_csv(out, sep="\t", index=False)
 
                 name = "annotated_oncokb_CNA_ndiscrete.txt"
                 cna = pd.read_csv(out, sep="\t",
@@ -1830,7 +1856,7 @@ def update_data_clinical_with_exon_info(
         output_folder (Path): Output directory where data_clinical_sample.txt is located.
 
     """
-    data_clin_path = output_folder / "data_clinical_sample.txt"
+    data_clin_path = Path(output_folder) / "data_clinical_sample.txt"
 
     if combined_output.is_dir() and any(combined_output.iterdir()):
         all_exon_dfs = []
@@ -2026,9 +2052,9 @@ def walk_folder(
         "contain input files.")
         raise ValueError(msg)
 
-    maf_path = output_folder / "maf"
-    maf_zip_path = output_folder / "maf.zip"
-    clin_sample_path = input_folder / "sample.tsv"
+    maf_path = Path(output_folder) / "maf"
+    maf_zip_path = Path(output_folder) / "maf.zip"
+    clin_sample_path = Path(input_folder) / "sample.tsv"
 
     try:
         clin_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
