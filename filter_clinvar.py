@@ -299,7 +299,7 @@ def filter_main(input_path: str,folder: str,
     file_list = concatenate.get_files_by_ext(maf_folder, "maf")
     out_filter = output_folder/"MAF_filtered"
 
-    if oncokb and "o" in filters:
+    if oncokb: #and "o" in filters:
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
         out_filter=output_folder/"MAF_Onco_filtered"
 
