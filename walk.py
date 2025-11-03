@@ -195,7 +195,9 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
     subprocess.run(cmd, check=True)
 
     cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration":int})
-    cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
+    #TODO
+    # add filtering based on new conf.ini field
+    # cna = cna[cna["ONCOGENIC"].isin([PRENDERE DA CONF.INI])]
 
     data_cna = cna.pivot_table(
         index="Hugo_Symbol",
