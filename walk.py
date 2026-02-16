@@ -195,7 +195,8 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
     subprocess.run(cmd, check=True)
 
     cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration":int})
-    cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
+    # TODO add filtering based on conf.ini field
+    #cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
 
     data_cna = cna.pivot_table(
         index="Hugo_Symbol",
@@ -257,6 +258,7 @@ def cnv_type_from_folder(input_path: str,
                         output_folder) / "data_cna_hg19.seg",
                     sample_id, mode)
                 vcf2tab_cnv.vcf_to_table_fc(
+                    input_path,
                     sid_path[sample_id], Path(
                         output_folder) / "data_cna_hg19.seg.fc.txt",
                     sample_id, mode)
@@ -2319,6 +2321,7 @@ def walk_folder(
             table_dict_patient, file_input_sample, msi_thr, tmb_thr)
 
     write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient)
+
     update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)
 
     logger.success("Walk script completed!\n")

@@ -255,11 +255,13 @@ def parse_fc_and_gene(
     return fc, gene
 
 
-def vcf_to_table_fc(vcf_file: str, table_file: str, sample: str, mode: str) -> None:
-    """Convert VCF CNV to table format with FC, gene, and discrete CNV type values.
+def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, sample: str, mode: str) -> None:
+    """Convert VCF CNV to table format with FC, gene, discrete, and CNV adjusted/unadjusted values.
 
     Parameters
     ----------
+    sample_info_path : Path
+        Path to the sample.tsv file containing TC (tumor cellularity) per sample.
     vcf_file : str
         Path to the input VCF file.
     table_file : str
@@ -272,16 +274,39 @@ def vcf_to_table_fc(vcf_file: str, table_file: str, sample: str, mode: str) -> N
     Returns
     -------
     None
-
     """
     table_path = Path(table_file)
     vcf_path = Path(vcf_file)
+    sample = sample.split(".")[0]
+
+    tc_available = False
+    sample_tc = None
+    if sample_info_path.exists():
+        tc_tbl = pd.read_csv(Path(sample_info_path, "sample.tsv"), sep="\t")
+        if "TC" in tc_tbl.columns:
+            tc_available = True
+            tc_row = tc_tbl[tc_tbl["SAMPLE_ID"] == sample]
+            if not tc_row.empty and not pd.isna(tc_row["TC"].values[0]):
+
+                sample_tc = float(tc_row["TC"].values[0])/100
+            else:
+                sample_tc = None
+                logger.warning(
+                    f"Sample '{sample}' does not have a TC value. Only unadjusted CN will be calculated."
+                )
+        else:
+            logger.warning(
+                f"Column 'TC' not found in {sample_info_path}. Only unadjusted CN will be calculated."
+            )
+    else:
+        logger.warning(
+            f"Sample info file {sample_info_path} not found. Only unadjusted CN will be calculated."
+        )
 
     mode = "a" if table_path.exists() else "w"
     with vcf_path.open() as vcf, table_path.open(mode) as table:
         if mode != "a":
-            table.write("ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\tgene\tdiscrete\n")
-        sample=sample.split(".")[0]
+            table.write("ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\tgene\tdiscrete\tcnv_unadjusted\tcnv_adjusted\n")
 
         for line in vcf:
             if line.startswith("##fileformat"):
@@ -291,8 +316,7 @@ def vcf_to_table_fc(vcf_file: str, table_file: str, sample: str, mode: str) -> N
                 continue
 
             if line.startswith("#"):
-                fields_names = line.split("\t")
-                fields_names = [x.strip() for x in fields_names]
+                fields_names = [x.strip() for x in line.split("\t")]
                 chrom_position = fields_names.index("#CHROM")
                 info_position = fields_names.index("INFO")
                 start_position = fields_names.index("POS")
@@ -303,7 +327,6 @@ def vcf_to_table_fc(vcf_file: str, table_file: str, sample: str, mode: str) -> N
                 continue
 
             fields = line.strip().split("\t")
-
             chrom = fields[chrom_position].strip("chr")
             start = fields[start_position]
             infos = fields[info_position].split(";")
@@ -321,17 +344,23 @@ def vcf_to_table_fc(vcf_file: str, table_file: str, sample: str, mode: str) -> N
                 fields,
                 sample)
 
-            if fc != ".":
-                fc = float(fc)
-                if not is_positive(fc, sample):
-                    fc = 0.0001
-            else:
+            if fc == "." or fc is None:
                 continue
+            fc = float(fc)
+            if not is_positive(fc, sample):
+                fc = 0.0001
+
+            cn_unadjusted = round(2 * fc)
+            if tc_available and sample_tc is not None and sample_tc > 0:
+                cn_adjusted = round(2 + 2 * (fc - 1) / sample_tc)
+                if cn_adjusted < 0:
+                    cn_adjusted = 0
+            else:
+                cn_adjusted = "NA"
 
             ########################
             # manage discrete data #
             ########################
-
             if alt == "<DUP>":
                 discr = "2"
             elif alt == "<DEL>":
@@ -339,7 +368,7 @@ def vcf_to_table_fc(vcf_file: str, table_file: str, sample: str, mode: str) -> N
             else:
                 discr = "0"
 
-            table.write(f"{sample}\t{chrom}\t{start}\t{end}\t{qual}\t{fc}\t{gene}\t{discr}\n")
+            table.write(f"{sample}\t{chrom}\t{start}\t{end}\t{qual}\t{fc}\t{gene}\t{discr}\t{cn_unadjusted}\t{cn_adjusted}\n")
 
 
 def load_table(file_path: str) -> pd.DataFrame:

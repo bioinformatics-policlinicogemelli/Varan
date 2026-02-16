@@ -331,7 +331,7 @@ def write_report_main(
                 & {excl_or_incl} NA</p>
             </div>"""
 
-    if any(letter in filters for letter in "oqycbi"):
+    if any(letter in filters for letter in "oqpycbi"):
         html_content += """
             <div class="subtitle">MAF Filters</div>"""
 
@@ -583,7 +583,7 @@ def write_filters_report() -> list[str]:
             "Filters": ["BENIGN", "CLIN_SIG", "CONSEQUENCES", "ONCOKB_FILTER",
                         "t_VAF_min", "t_VAF_min_novel", "t_VAF_max",
                         "AF", "POLYPHEN", "IMPACT", "SIFT"],
-            "Cna": ["HEADER_CNV", "PLOIDY", "CNVkit"],
+            "Cna": ["PLOIDY", "CNVkit"],
             "TMB": ["THRESHOLD_TMB"],
             "MSI": ["THRESHOLD_SITES", "THRESHOLD_MSI"],
             "FUSION": ["THRESHOLD_FUSION"],
@@ -814,7 +814,7 @@ new_study: Path, number_for_graph: int) -> None:
         cancer_type2 = None
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT",\
-    "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "HEADER_CNV", "PLOIDY", "CNVKIT",\
+    "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "PLOIDY", "CNVKIT",\
     "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
 
     changed_filters = []
@@ -1036,16 +1036,13 @@ new_study: Path, number_for_graph: int) -> None:
                 <p><strong>SIFT</strong>: {filters1["SIFT"]}</p>
             </div>"""
 
-    keys_to_check = {"HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB",
+    keys_to_check = {"PLOIDY", "CNVKIT", "THRESHOLD_TMB",
     "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
 
     if common_filters != {} and all(key in filters1 for key in keys_to_check):
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
-                    <p><strong>
-                        HEADER_CNV</strong> = {ast.literal_eval(filters1["HEADER_CNV"])}
-                    </p>
                     <p><strong>PLOIDY</strong> = {filters1["PLOIDY"]}</p>
                     <p><strong>CNVKIT</strong> = {filters1["CNVKIT"]}</p>
                 </div>
@@ -1513,10 +1510,6 @@ def write_report_extract(original_study: str, new_study: str,
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
-                    <p>
-                        <strong>HEADER_CNV</strong> =
-                        {ast.literal_eval(filters["HEADER_CNV"])}
-                    </p>
                     <p><strong>PLOIDY</strong> = {filters["PLOIDY"]}</p>
                     <p><strong>CNVKIT</strong> = {filters["CNVKIT"]}</p>
                 </div>
@@ -1943,10 +1936,6 @@ def write_report_remove(
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
-                        <p>
-                            <strong>HEADER_CNV</strong> =
-                            {ast.literal_eval(filters["HEADER_CNV"])}
-                        </p>
                     <p><strong>PLOIDY</strong> = {filters["PLOIDY"]}</p>
                     <p><strong>CNVKIT</strong> = {filters["CNVKIT"]}</p>
                 </div>
