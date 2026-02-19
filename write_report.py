@@ -446,6 +446,7 @@ def write_report_main(
             </div>"""
 
     if any(letter in filters for letter in "oqpycbi"):
+    if any(letter in filters for letter in "oqpycbi"):
         html_content += """
             <div class="subtitle">MAF Filters</div>"""
 
@@ -697,7 +698,7 @@ def write_filters_report() -> list[str]:
             "Filters": ["BENIGN", "CLIN_SIG", "CONSEQUENCES", "ONCOKB_FILTER",
                         "t_VAF_min", "t_VAF_min_novel", "t_VAF_max",
                         "AF", "POLYPHEN", "IMPACT", "SIFT"],
-            "Cna": ["PLOIDY", "CNVKIT_algorithm"],
+            "Cna": ["HEADER_CNV", "PLOIDY", "CNVkit"],
             "TMB": ["THRESHOLD_TMB"],
             "MSI": ["THRESHOLD_SITES", "THRESHOLD_MSI"],
             "FUSION": ["THRESHOLD_FUSION"],
@@ -928,7 +929,7 @@ new_study: Path, number_for_graph: int) -> None:
         cancer_type2 = None
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT",\
-    "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "PLOIDY", "CNVKIT_algorithm",\
+    "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "HEADER_CNV", "PLOIDY", "CNVKIT",\
     "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
 
     changed_filters = []
@@ -1150,7 +1151,7 @@ new_study: Path, number_for_graph: int) -> None:
                 <p><strong>SIFT</strong>: {filters1["SIFT"]}</p>
             </div>"""
 
-    keys_to_check = {"PLOIDY", "CNVKIT_algorithm", "THRESHOLD_TMB",
+    keys_to_check = {"HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB",
     "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
 
     if common_filters != {} and all(key in filters1 for key in keys_to_check):

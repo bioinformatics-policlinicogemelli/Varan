@@ -257,9 +257,13 @@ def parse_fc_and_gene(
 
 def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, sample: str, mode: str) -> None:
     """Convert VCF CNV to table format with FC, gene, discrete, and CNV adjusted/unadjusted values.
+def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, sample: str, mode: str) -> None:
+    """Convert VCF CNV to table format with FC, gene, discrete, and CNV adjusted/unadjusted values.
 
     Parameters
     ----------
+    sample_info_path : Path
+        Path to the sample.tsv file containing TC (tumor cellularity) per sample.
     sample_info_path : Path
         Path to the sample.tsv file containing TC (tumor cellularity) per sample.
     vcf_file : str
@@ -277,6 +281,31 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
     """
     table_path = Path(table_file)
     vcf_path = Path(vcf_file)
+    sample = sample.split(".")[0]
+
+    tc_available = False
+    sample_tc = None
+    if sample_info_path.exists():
+        tc_tbl = pd.read_csv(Path(sample_info_path, "sample.tsv"), sep="\t")
+        if "TC" in tc_tbl.columns:
+            tc_available = True
+            tc_row = tc_tbl[tc_tbl["SAMPLE_ID"] == sample]
+            if not tc_row.empty and not pd.isna(tc_row["TC"].values[0]):
+
+                sample_tc = float(tc_row["TC"].values[0])/100
+            else:
+                sample_tc = None
+                logger.warning(
+                    f"Sample '{sample}' does not have a TC value. Only unadjusted CN will be calculated."
+                )
+        else:
+            logger.warning(
+                f"Column 'TC' not found in {sample_info_path}. Only unadjusted CN will be calculated."
+            )
+    else:
+        logger.warning(
+            f"Sample info file {sample_info_path} not found. Only unadjusted CN will be calculated."
+        )
     sample = sample.split(".")[0]
 
     tc_available = False
@@ -344,18 +373,10 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
                 fields,
                 sample)
 
-            if fc == "." or fc is None:
-                continue
-            fc = float(fc)
-            if not is_positive(fc, sample):
-                fc = 0.0001
-
-            cn_unadjusted = round(2 * fc)
-            
-            if tc_available and sample_tc is not None and sample_tc > 0:
-                cn_adjusted = round(2 + 2 * (fc - 1) / sample_tc)
-                if cn_adjusted < 0:
-                    cn_adjusted = 0
+            if fc != ".":
+                fc = float(fc)
+                if not is_positive(fc, sample):
+                    fc = 0.0001
             else:
                 cn_adjusted = "NA"
 
