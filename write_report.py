@@ -23,12 +23,14 @@ data review and interpretation.
 from __future__ import annotations
 
 import ast
+import os
 import re
 import shutil
 import sys
 from configparser import ConfigParser
 from datetime import datetime
 from pathlib import Path
+import subprocess
 
 import pandas as pd
 
@@ -39,6 +41,95 @@ config = ConfigParser()
 config.read("conf.ini")
 
 annotations_list = ast.literal_eval(config.get("Annotations", "ANNOTATIONS"))
+vep_cache_version = int(config.get("Paths", "CACHE"))
+vep_path = config.get("Paths", "VEP_PATH")
+
+
+def get_python_version() -> str:
+    """Return the current Python version."""
+    return sys.version.split()[0]
+
+
+def get_clinvar_update_date(config: configparser.ConfigParser) -> str | None:
+    """Extract ClinVar update date from configuration file.
+
+    The function retrieves the CLINV entry from the configuration file,
+    extracts the date in YYYYMMDD format from the filename (e.g. 
+    clinvar_20260201.vcf.gz), and converts it to ISO format (YYYY-MM-DD).
+
+    Parameters
+    ----------
+    config : ConfigParser
+        Configuration object containing ClinVar path definition.
+
+    Returns
+    -------
+    update_date : str or None
+        ClinVar update date formatted as YYYY-MM-DD if successfully
+        extracted, otherwise None.
+    """
+    if not config.has_option("Paths", "CLINV"):
+        return None
+
+    raw_value = config.get("Paths", "CLINV")
+
+    clinvar_path = raw_value.split(",")[0].strip()
+
+    filename = os.path.basename(clinvar_path)
+
+    match = re.search(r"clinvar_(\d{8})", filename)
+    if not match:
+        return None
+
+    date_str = match.group(1)
+
+    try:
+        formatted_date = datetime.strptime(date_str, "%Y%m%d").strftime("%Y-%m-%d")
+        return formatted_date
+    except ValueError:
+        return None
+
+
+def get_vep_version(vep_executable: str = "vep") -> str | None:
+    """Retrieve the VEP version by parsing the help output.
+
+    Some VEP installations do not accept the '--version' flag. In this case,
+    we extract the version from the first line of 'vep --help' output.
+
+    Parameters
+    ----------
+    vep_executable : str, optional
+        Path or name of the VEP executable. Default is "vep".
+
+    Returns
+    -------
+    version : str or None
+        The version string of VEP if successfully retrieved, otherwise None.
+    """
+    try:
+        result = subprocess.run(
+            [vep_executable, "--help"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        # Prendi la prima riga non vuota e cerca un numero di versione
+        for line in result.stdout.splitlines():
+            if "ensembl-vep" in line.lower() or "vep" in line.lower():
+                # estrae la prima cosa che assomiglia a x.y.z
+                import re
+                match = re.search(r"\d+\.\d+(\.\d+)?", line)
+                if match:
+                    return match.group(0)
+        return None
+    except subprocess.CalledProcessError as e:
+        print(f"Error running VEP: {e.stderr}")
+        return None
+    except FileNotFoundError:
+        print(f"Executable '{vep_executable}' not found")
+        return None
+
 
 def extract_sample_list(filecase: str) -> list[str]:
     """Extract a list of sample IDs from a metadata file.
@@ -212,6 +303,10 @@ def write_report_main(
     new_samples, new_patients, new_smpl_nr, new_pt_nr = parse_clinical_sample(
         output_folder)
 
+    python_version = get_python_version()
+    clinvar_update = get_clinvar_update_date(config)
+    vep_version = get_vep_version(Path(vep_path, "vep"))
+
     if versioning.old_version_exists:
         name = re.search(r"^(.+_v)[0-9]+$", output_folder.name).group(1)
         actual_version = int(re.search(r"^.+_v([0-9]+)$",\
@@ -260,15 +355,34 @@ def write_report_main(
         <div class="container">
             <section class="general-info">
                 <div class="section-title">General Information</div>
+                <div class="subtitle">Execution Information</div>
                 <div class="content">
                     <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
+                <div class="subtitle">Software Environment</div>"""
+
+    if isinstance(python_version, str) and python_version.strip():
+        html_content += f"""
+            <p><strong>Python version:</strong> {python_version}</p>"""
+
+    if isinstance(clinvar_update, str) and clinvar_update:
+        html_content += f"""
+            <p><strong>ClinVar last update:</strong> {clinvar_update}</p>"""
+    
+    if isinstance(vep_version, str) and vep_version.strip():
+        html_content += f"""
+            <p><strong>VEP version:</strong> {vep_version}</p>"""
+
+    if isinstance(vep_cache_version, int):
+        html_content += f"""
+            <p><strong>VEP cache:</strong> {vep_cache_version}</p>"""
+
+    html_content += f"""
+                    <div class="subtitle">Study Metadata</div>
                     <p><strong>STUDY NAME:</strong> {Path(output_folder).name}</p>
                     <p><strong>CANCER TYPE:</strong> {cancer}</p>
-                    <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>TOTAL SAMPLE(S):</strong> {new_smpl_nr}</p>
                     <p><strong>TOTAL PATIENT(S):</strong> {new_pt_nr}</p>
                 </div>"""
-
 
     if ghosts:
         html_content += (
@@ -331,7 +445,7 @@ def write_report_main(
                 & {excl_or_incl} NA</p>
             </div>"""
 
-    if any(letter in filters for letter in "oqycbi"):
+    if any(letter in filters for letter in "oqpycbi"):
         html_content += """
             <div class="subtitle">MAF Filters</div>"""
 
@@ -583,7 +697,7 @@ def write_filters_report() -> list[str]:
             "Filters": ["BENIGN", "CLIN_SIG", "CONSEQUENCES", "ONCOKB_FILTER",
                         "t_VAF_min", "t_VAF_min_novel", "t_VAF_max",
                         "AF", "POLYPHEN", "IMPACT", "SIFT"],
-            "Cna": ["HEADER_CNV", "PLOIDY", "CNVkit"],
+            "Cna": ["PLOIDY", "CNVKIT_algorithm"],
             "TMB": ["THRESHOLD_TMB"],
             "MSI": ["THRESHOLD_SITES", "THRESHOLD_MSI"],
             "FUSION": ["THRESHOLD_FUSION"],
@@ -814,7 +928,7 @@ new_study: Path, number_for_graph: int) -> None:
         cancer_type2 = None
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT",\
-    "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "HEADER_CNV", "PLOIDY", "CNVKIT",\
+    "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "PLOIDY", "CNVKIT_algorithm",\
     "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
 
     changed_filters = []
@@ -1036,18 +1150,15 @@ new_study: Path, number_for_graph: int) -> None:
                 <p><strong>SIFT</strong>: {filters1["SIFT"]}</p>
             </div>"""
 
-    keys_to_check = {"HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB",
+    keys_to_check = {"PLOIDY", "CNVKIT_algorithm", "THRESHOLD_TMB",
     "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
 
     if common_filters != {} and all(key in filters1 for key in keys_to_check):
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
-                    <p><strong>
-                        HEADER_CNV</strong> = {ast.literal_eval(filters1["HEADER_CNV"])}
-                    </p>
                     <p><strong>PLOIDY</strong> = {filters1["PLOIDY"]}</p>
-                    <p><strong>CNVKIT</strong> = {filters1["CNVKIT"]}</p>
+                    <p><strong>CNVKIT Algorithm</strong> = {filters1["CNVKIT_algorithm"]}</p>
                 </div>
 
                 <div class="subtitle">Tumor Mutational Burden (TMB)</div>
@@ -1513,12 +1624,8 @@ def write_report_extract(original_study: str, new_study: str,
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
-                    <p>
-                        <strong>HEADER_CNV</strong> =
-                        {ast.literal_eval(filters["HEADER_CNV"])}
-                    </p>
                     <p><strong>PLOIDY</strong> = {filters["PLOIDY"]}</p>
-                    <p><strong>CNVKIT</strong> = {filters["CNVKIT"]}</p>
+                    <p><strong>CNVKIT Algorithm</strong> = {filters["CNVKIT_algorithm"]}</p>
                 </div>
 
                 <div class="subtitle">Tumor Mutational Burden (TMB)</div>
@@ -1943,12 +2050,8 @@ def write_report_remove(
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
-                        <p>
-                            <strong>HEADER_CNV</strong> =
-                            {ast.literal_eval(filters["HEADER_CNV"])}
-                        </p>
                     <p><strong>PLOIDY</strong> = {filters["PLOIDY"]}</p>
-                    <p><strong>CNVKIT</strong> = {filters["CNVKIT"]}</p>
+                    <p><strong>CNVKIT Algorithm</strong> = {filters["CNVKIT_algorithm"]}</p>
                 </div>
 
                 <div class="subtitle">Tumor Mutational Burden (TMB)</div>
