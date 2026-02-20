@@ -349,7 +349,9 @@ def copy_maf(oldpath: str, output: str, copy_maf: bool, zip_maf: bool) -> None:
         with zipfile.ZipFile(final_zip, "r") as zip_existing:
             zip_existing.extractall(output_maf_dir)
 
-    common_suffix = detect_common_suffix(maf_dir, sample_ids)
+    #TODO risolvere bug 
+    # common_suffix = detect_common_suffix(maf_dir, sample_ids)
+    common_suffix = ".hard-filtered.FILTERED.vcf.maf"
 
     for sample in sample_ids:
         file_name = f"{sample}{common_suffix}"

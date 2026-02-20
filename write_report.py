@@ -45,6 +45,20 @@ vep_cache_version = int(config.get("Paths", "CACHE"))
 vep_path = config.get("Paths", "VEP_PATH")
 
 
+def get_git_version():
+    try:
+        repo_dir = Path(__file__).resolve().parent
+        version = subprocess.check_output(
+            ["git", "describe", "--tags", "--abbrev=0"],
+            cwd=repo_dir,
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+
+        return version.lstrip("v")
+    except Exception:
+        return "unknown"
+
+
 def get_python_version() -> str:
     """Return the current Python version."""
     return sys.version.split()[0]
@@ -303,6 +317,7 @@ def write_report_main(
     new_samples, new_patients, new_smpl_nr, new_pt_nr = parse_clinical_sample(
         output_folder)
 
+    varan_version = get_git_version()
     python_version = get_python_version()
     clinvar_update = get_clinvar_update_date(config)
     vep_version = get_vep_version(Path(vep_path, "vep"))
@@ -360,6 +375,10 @@ def write_report_main(
                     <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
                 <div class="subtitle">Software Environment</div>"""
 
+    if isinstance(varan_version, str) and varan_version.strip():
+        html_content += f"""
+            <p><strong>Varan version:</strong> {varan_version}</p>"""
+
     if isinstance(python_version, str) and python_version.strip():
         html_content += f"""
             <p><strong>Python version:</strong> {python_version}</p>"""
@@ -389,8 +408,8 @@ def write_report_main(
             f"""
             <div class="content">
                 <p><strong><span>&#9888;</span></strong>
-                The following samples are not present in cnv,
-                snv and fusions after filtering: {ghosts}</p>
+                The following samples do not have any detected
+                alterations in the performed analysis: {ghosts}</p>
             </div>"""
         )
 
@@ -408,8 +427,8 @@ def write_report_main(
     if "d" in filters:
         html_content += """
                 <div class="content">
-                <p>Keep only rows where <strong>ALT</strong> is different from "."</p>
-                <p>Keep only rows where <strong>FILTER</strong> = "PASS"</p>
+                <p>Keep only VCF rows where <strong>ALT</strong> is different from "."</p>
+                <p>Keep only VCF rows where <strong>FILTER</strong> = "PASS"</p>
             </div>"""
 
     if any(letter in filters for letter in "va"):
@@ -445,7 +464,6 @@ def write_report_main(
                 & {excl_or_incl} NA</p>
             </div>"""
 
-    if any(letter in filters for letter in "oqpycbi"):
     if any(letter in filters for letter in "oqpycbi"):
         html_content += """
             <div class="subtitle">MAF Filters</div>"""
@@ -698,7 +716,7 @@ def write_filters_report() -> list[str]:
             "Filters": ["BENIGN", "CLIN_SIG", "CONSEQUENCES", "ONCOKB_FILTER",
                         "t_VAF_min", "t_VAF_min_novel", "t_VAF_max",
                         "AF", "POLYPHEN", "IMPACT", "SIFT"],
-            "Cna": ["HEADER_CNV", "PLOIDY", "CNVkit"],
+            "Cna": ["PLOIDY", "CNVKIT_algorithm"],
             "TMB": ["THRESHOLD_TMB"],
             "MSI": ["THRESHOLD_SITES", "THRESHOLD_MSI"],
             "FUSION": ["THRESHOLD_FUSION"],
@@ -929,7 +947,7 @@ new_study: Path, number_for_graph: int) -> None:
         cancer_type2 = None
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT",\
-    "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "HEADER_CNV", "PLOIDY", "CNVKIT",\
+    "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "PLOIDY", "CNVKIT_algorithm",\
     "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
 
     changed_filters = []
@@ -1151,7 +1169,7 @@ new_study: Path, number_for_graph: int) -> None:
                 <p><strong>SIFT</strong>: {filters1["SIFT"]}</p>
             </div>"""
 
-    keys_to_check = {"HEADER_CNV", "PLOIDY", "CNVKIT", "THRESHOLD_TMB",
+    keys_to_check = {"PLOIDY", "CNVKIT_algorithm", "THRESHOLD_TMB",
     "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
 
     if common_filters != {} and all(key in filters1 for key in keys_to_check):
