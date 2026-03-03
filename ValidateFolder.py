@@ -291,8 +291,6 @@ def validate_output(
                 clean_multi(varan_input[0], "CNV", "sample_id.txt")
                 clean_multi(varan_input[0], "SNV", "single_sample_vcf")
                 clean_multi(varan_input[0], "SNV", "sample_id.txt")
-
-        logger.success("The study is ready to be uploaded on cBioportal")
         return number_for_graph
 
     error_msg = "Validation Failed!"
