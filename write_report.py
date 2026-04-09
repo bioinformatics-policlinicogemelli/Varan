@@ -43,6 +43,8 @@ config.read("conf.ini")
 annotations_list = ast.literal_eval(config.get("Annotations", "ANNOTATIONS"))
 vep_cache_version = int(config.get("Paths", "CACHE"))
 vep_path = config.get("Paths", "VEP_PATH")
+sample_type = config.get("Sample_Type", "TYPE")
+ref_genome = config.get("Paths", "REF_FASTA")
 
 
 def get_git_version():
@@ -372,35 +374,42 @@ def write_report_main(
                 <div class="section-title">General Information</div>
                 <div class="subtitle">Execution Information</div>
                 <div class="content">
-                    <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
+                    <p><strong>Command Line:</strong> {" ".join(sys.argv)}</p>
                 <div class="subtitle">Software Environment</div>"""
 
     if isinstance(varan_version, str) and varan_version.strip():
         html_content += f"""
-            <p><strong>Varan version:</strong> {varan_version}</p>"""
+            <p><strong>Varan Version:</strong> {varan_version}</p>"""
 
     if isinstance(python_version, str) and python_version.strip():
         html_content += f"""
-            <p><strong>Python version:</strong> {python_version}</p>"""
+            <p><strong>Python Version:</strong> {python_version}</p>"""
 
     if isinstance(clinvar_update, str) and clinvar_update:
         html_content += f"""
-            <p><strong>ClinVar last update:</strong> {clinvar_update}</p>"""
+            <p><strong>ClinVar Last Update:</strong> {clinvar_update}</p>"""
     
     if isinstance(vep_version, str) and vep_version.strip():
         html_content += f"""
-            <p><strong>VEP version:</strong> {vep_version}</p>"""
+            <p><strong>VEP Version:</strong> {vep_version}</p>"""
 
     if isinstance(vep_cache_version, int):
         html_content += f"""
-            <p><strong>VEP cache:</strong> {vep_cache_version}</p>"""
+            <p><strong>VEP Cache:</strong> {vep_cache_version}</p>"""
 
     html_content += f"""
                     <div class="subtitle">Study Metadata</div>
-                    <p><strong>STUDY NAME:</strong> {Path(output_folder).name}</p>
-                    <p><strong>CANCER TYPE:</strong> {cancer}</p>
-                    <p><strong>TOTAL SAMPLE(S):</strong> {new_smpl_nr}</p>
-                    <p><strong>TOTAL PATIENT(S):</strong> {new_pt_nr}</p>
+                    <p><strong>Study Name:</strong> {Path(output_folder).name}</p>
+                    <p><strong>Sample Type:</strong> {sample_type}</p>
+                    <p><strong>Cancer Type:</strong> {cancer}</p>"""
+
+    if isinstance(ref_genome, str) and ref_genome.strip():
+        html_content += f"""
+            <p><strong>Reference Genome:</strong> {ref_genome}</p>"""
+
+    html_content += f"""
+                    <p><strong>Total Sample(s):</strong> {new_smpl_nr}</p>
+                    <p><strong>Total Patient(s):</strong> {new_pt_nr}</p>
                 </div>"""
 
     if ghosts:
@@ -940,11 +949,16 @@ new_study: Path, number_for_graph: int) -> None:
         filters2 = extract_filters_from_html(updating_report)
         cancer_type1 = extract_cancer_type_from_html(old_report)
         cancer_type2 = extract_cancer_type_from_html(updating_report)
+        sample_type1 = extract_sample_type_from_html(old_report)
+        sample_type2 = extract_sample_type_from_html(updating_report)
+
     else:
         filters1 = {}
         filters2 = {}
         cancer_type1 = None
         cancer_type2 = None
+        sample_type1 = None
+        sample_type2 = None
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT",\
     "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "PLOIDY", "CNVKIT_algorithm",\
@@ -986,6 +1000,11 @@ new_study: Path, number_for_graph: int) -> None:
                     <p><strong>ORIGINAL STUDY:</strong> {Path(original_study).name}</p>
                     <p><strong>UPDATING WITH:</strong> {Path(updating_with).name}</p>
                     <p><strong>NEW STUDY:</strong> {Path(new_study).name}</p>"""
+
+    if (sample_type1 == sample_type2) and (sample_type1 is not None):
+        html_content += f"""<p><strong>SAMPLE TYPE:</strong> {sample_type1}</p>"""
+    else:
+        html_content += """<p><strong>SAMPLE TYPE:</strong> Mixed</p>"""
 
     if (cancer_type1 == cancer_type2) and (cancer_type1 is not None):
         html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type1}</p>"""
@@ -1440,6 +1459,7 @@ def write_report_extract(original_study: str, new_study: str,
     if Path(old_report).exists():
         filters = extract_filters_from_html(old_report)
         cancer_type = extract_cancer_type_from_html(old_report)
+        sample_type = extract_sample_type_from_html(old_report)
     else:
         filters = {}
         cancer_type = None
@@ -1483,6 +1503,9 @@ def write_report_extract(original_study: str, new_study: str,
                     <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
                     <p><strong>ORIGINAL STUDY:</strong> {Path(original_study).name}</p>
                     <p><strong>NEW STUDY:</strong> {Path(new_study).name}</p>"""
+
+    if sample_type:
+        html_content += f"""<p><strong>SAMPLE TYPE:</strong> {sample_type}</p>"""
 
     if cancer_type:
         html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type}</p>"""
@@ -1869,6 +1892,7 @@ def write_report_remove(
     if Path(old_report).exists():
         filters = extract_filters_from_html(old_report)
         cancer_type = extract_cancer_type_from_html(old_report)
+        sample_type = extract_sample_type_from_html(old_report)
     else:
         filters = {}
         cancer_type = None
@@ -1920,6 +1944,9 @@ def write_report_remove(
                     <p><strong>COMMAND LINE:</strong> {" ".join(sys.argv)}</p>
                     <p><strong>ORIGINAL STUDY:</strong> {Path(original_study).name}</p>
                     <p><strong>NEW STUDY:</strong> {Path(new_study).name}</p>"""
+
+    if sample_type:
+        html_content += f"""<p><strong>SAMPLE TYPE:</strong> {sample_type}</p>"""
 
     if cancer_type:
         html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type}</p>"""
@@ -2300,3 +2327,7 @@ def extract_cancer_type_from_html(report: str | Path) -> str | None:
         cancer_type = cancer_type_match.group(1).strip()
 
     return cancer_type
+
+
+#def extract_sample_type_from_html(report: str | Path) -> str | None:
+# TODO

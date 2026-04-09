@@ -53,6 +53,8 @@ VEP_DATA = config.get("Paths", "VEP_DATA")
 CLINV = config.get("Paths", "CLINV")
 PLOIDY = int(config.get("Cna", "PLOIDY"))
 ONCOKB_FILTER = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
+SAMPLE_TYPE = (config.get("Sample_Type", "TYPE").strip().strip('"').strip("'").upper())
+THRESHOLD_MSI_LIQUID = float(config.get("MSI", "THRESHOLD_MSI_LIQUID"))
 
 output_filtered = "snv_filtered"
 tmp = "scratch"
@@ -1647,9 +1649,10 @@ def fill_from_combined(
     """
     for k, v in combined_dict.items():
         try:
-            tmv_msi = tsv.get_msi_tmb(Path(v))
+            tmv_msi = tsv.get_msi_tmb(Path(v), SAMPLE_TYPE)
         except Exception:
-            logger.error("Something went wrong!")
+            logger.error(f"Something went wrong with sample {k}!")
+            continue
 
         if (
             tmv_msi["MSI"][0][1] != "NA" and
@@ -1660,14 +1663,21 @@ def fill_from_combined(
 
         table_dict_patient[k].append(tmv_msi["TMB_Total"])
 
-        if (
-            tmv_msi["MSI"][0][1] != "NA" and
-            tmv_msi["MSI"][1][1] != "NA" and
-            table_dict_patient[k][1] != "NA"):
-            if eval("float(tmv_msi['MSI'][1][1])" + msi_thr):
-                table_dict_patient[k].append("Stable")
-            else:
-                table_dict_patient[k].append("Unstable")
+        if (tmv_msi["MSI"][1][1] != "NA" and table_dict_patient[k][-2] != "NA"):
+                msi_value = float(tmv_msi["MSI"][1][1])
+
+                if SAMPLE_TYPE == "LIQUID":
+                    if msi_value >= THRESHOLD_MSI_LIQUID:
+                        table_dict_patient[k].append("Unstable")
+                    else:
+                        table_dict_patient[k].append("Stable")
+
+                elif SAMPLE_TYPE == "SOLID":
+                    if eval(str(msi_value) + msi_thr):
+                        table_dict_patient[k].append("Stable")
+                    else:
+                        table_dict_patient[k].append("Unstable")
+
         else:
             table_dict_patient[k].append("NA")
 
@@ -1680,9 +1690,7 @@ def fill_from_combined(
                     break
             if not found:
                 logger.warning(
-                    f"The TMB value {tmv_msi['TMB_Total']} is not within the conf.ini "
-                    f"thresholds {list(tmb.values())}. For this value, the TMB_THR "
-                    "will be set as 'Out of threshold ranges'.")
+                    f"TMB {tmv_msi['TMB_Total']} out of range for {k}")
                 table_dict_patient[k].append("Out of threshold ranges")
         else:
             table_dict_patient[k].append("NA")
@@ -1771,6 +1779,9 @@ def validate_input(
     if oncokb and config.get("OncoKB", "ONCOKB") == "":
         msg = "oncokb option was set but ONCOKB field in conf.ini is empty!"
         raise ValueError(msg)
+
+    if SAMPLE_TYPE not in {"SOLID", "LIQUID"}:
+        raise ValueError('Please select a sample type between "Solid" and "Liquid" in conf.ini.')
 
     if (vcf_type is None or "snv" in vcf_type) and (not VEP_PATH or not VEP_DATA):
         msg = "VEP_PATH and/or VEP_DATA field in conf.ini is empty!"

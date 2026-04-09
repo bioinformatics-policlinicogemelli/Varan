@@ -21,8 +21,9 @@
 
 """
 
+from loguru import logger
 
-def get_msi_tmb(input_file: str) -> dict:
+def get_msi_tmb(input_file: str, sample_type: str) -> dict:
     """Extract MSI and TMB data from an input_file file.
 
     This function parses a TSV file to extract the total TMB, usable MSI sites,
@@ -40,30 +41,39 @@ def get_msi_tmb(input_file: str) -> dict:
         The MSI data is stored as a list of tuples
 
     """
-    data = {}
+    data = {"TMB_Total": "NA", "MSI": []}
+    msi_dic = {"Usable_MSI": "NA", "Tot_MSI_unstable": "NA"}
+        
     with input_file.open() as tsv_file:
         righe = tsv_file.read().splitlines()
-        msi_dic = {}
+        
         for riga in righe:
-            if("Total TMB" in riga):
-                campi = riga.split(sep="\t")
-                tmb_total = campi[1]
-                data["TMB_Total"] = tmb_total
-            if("Usable MSI Sites" in riga):
-                campi = riga.split(sep="\t")
-                usable_msi = campi[1]
-                msi_dic["Usable_MSI"] = usable_msi
-            if("Percent Unstable MSI Sites" in riga):
-                campi = riga.split(sep="\t")
-                tot_msi_unstable = campi[1]
-                msi_dic["Tot_MSI_unstable"] = tot_msi_unstable
-            if("SUM_JSD" in riga):
-                msi_dic["Usable_MSI"] = 50
-                campi = riga.split(sep="\t")
-                msi_dic["Tot_MSI_unstable"] = campi[1]
-                usable_msi = campi[1]
-        data["MSI"] = list(msi_dic.items())
-        return(data)
+            campi = riga.split(sep="\t")
+            if len(campi) < 2: continue
+
+            if "Total TMB" in riga:
+                data["TMB_Total"] = campi[1]
+
+            if sample_type == "SOLID":
+                if "SUM_JSD" in riga:
+                    logger.warning("Sample_Type on conf.ini is set to SOLID, but the sample appears to be LIQUID. MSI value could be empty!")
+                if "Usable MSI Sites" in riga:
+                    msi_dic["Usable_MSI"] = campi[1]
+                if "Percent Unstable MSI Sites" in riga:
+                    msi_dic["Tot_MSI_unstable"] = campi[1]
+            
+            elif sample_type == "LIQUID":
+                if "Usable MSI Sites" in riga:
+                    logger.warning("Sample_Type on conf.ini is set to LIQUID, but the sample appears to be SOLID. MSI value could be empty!")
+                if "SUM_JSD" in riga:
+                    msi_dic["Usable_MSI"] = "50" # to bypass control
+                    msi_dic["Tot_MSI_unstable"] = campi[1]
+        
+        data["MSI"] = [
+            ("Usable_MSI", msi_dic["Usable_MSI"]),
+            ("Tot_MSI_unstable", msi_dic["Tot_MSI_unstable"])
+        ]
+        return data
 
 
 def split_hugo_symbols(hugo_symbol: str) -> str:
