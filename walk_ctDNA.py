@@ -51,6 +51,7 @@ REF_FASTA = config.get("Paths", "REF_FASTA")
 VEP_PATH = config.get("Paths", "VEP_PATH")
 VEP_DATA = config.get("Paths", "VEP_DATA")
 CLINV = config.get("Paths", "CLINV")
+CNA = ast.literal_eval(config.get("Cna", "HEADER_CNV"))
 PLOIDY = int(config.get("Cna", "PLOIDY"))
 ONCOKB_FILTER = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
 
@@ -216,7 +217,7 @@ def cnv_type_from_folder(input_path: str,
 
     Args:
     input_path : str
-        Path to the input directory or the sample TSV file (if CNVKIT_algorithm=True).
+        Path to the input directory or the sample TSV file (if CNVkit=True).
     cnv_vcf_files : list
         List of CNV VCF file paths or file names (relative to CNV folder).
     output_folder : str
@@ -257,7 +258,6 @@ def cnv_type_from_folder(input_path: str,
                         output_folder) / "data_cna_hg19.seg",
                     sample_id, mode)
                 vcf2tab_cnv.vcf_to_table_fc(
-                    input_path,
                     sid_path[sample_id], Path(
                         output_folder) / "data_cna_hg19.seg.fc.txt",
                     sample_id, mode)
@@ -296,7 +296,7 @@ def cnv_type_from_folder(input_path: str,
         df_table_filt = df_table[
             df_table["Copy_Number_Alteration"].isin([-2,2])]
 
-        cnv_kit = config.get("Cna", "CNVKIT_algorithm")
+        cnv_kit = config.get("Cna", "CNVkit")
         cnv_kit = check_bool(cnv_kit)
 
         if cnv_kit:
@@ -402,7 +402,7 @@ def cnv_type_from_folder(input_path: str,
                             + purity * (copy_nums + .5)
                             / PLOIDY ))
 
-            # CNVKIT_algorithm filter
+            # CNVkit filter
             if not cna["TC"].isna().all():
                 cna["Copy_Number_Alteration"]=0
                 cna.loc[(cna["seg.mean"]<c[0]
@@ -421,8 +421,8 @@ def cnv_type_from_folder(input_path: str,
 
             else:
                 logger.warning("TC column is empty or does not exist in sample.tsv! "
-                "This column is required when CNVKIT_algorithm = True! If TC values are not "
-                "available the setting of CNVKIT_algorithmt = False is recommended")
+                "This column is required when CNVkit = True! If TC values are not "
+                "available the setting of CNVkit = False is recommended")
                 return sid_path
 
             cna.to_csv(Path(output_folder) / name,
@@ -2307,20 +2307,19 @@ def walk_folder(
     tmb_thr = ast.literal_eval(config.get("TMB", "THRESHOLD_TMB"))
 
     combined_output = Path(input_folder) / "CombinedOutput"
-    if combined_output.exists() and len(list(combined_output.iterdir())) > 0:
-        msi_sites_thr = config.get("MSI", "THRESHOLD_SITES")
+    # if combined_output.exists() and len(list(combined_output.iterdir())) > 0:
+    #     msi_sites_thr = config.get("MSI", "THRESHOLD_SITES")
 
-        combined_dict = get_combined_variant_output_from_folder(
-            input_folder, clin_file, isinputfile)
-        new_table_dict_patient = fill_from_combined(
-            combined_dict, table_dict_patient,
-            msi_sites_thr, msi_thr, tmb_thr)
-    else:
-        new_table_dict_patient = fill_from_file(
-            table_dict_patient, file_input_sample, msi_thr, tmb_thr)
-        combined_dict = {}
+    #     combined_dict = get_combined_variant_output_from_folder(
+    #         input_folder, clin_file, isinputfile)
+    #     new_table_dict_patient = fill_from_combined(
+    #         combined_dict, table_dict_patient,
+    #         msi_sites_thr, msi_thr, tmb_thr)
+    # else:
+    #     new_table_dict_patient = fill_from_file(
+    #         table_dict_patient, file_input_sample, msi_thr, tmb_thr)
 
-    write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient)
+    write_clinical_sample(clin_sample_path, output_folder, table_dict_patient)
 
     update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)
 

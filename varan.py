@@ -29,6 +29,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+import subprocess
 from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ from Make_meta_and_cases import meta_case_main
 from Update_script import update_main
 from ValidateFolder import validate_output
 from walk import walk_folder
-
+from write_report import get_git_version
 
 def logo() -> None:
     """Print the ASCII art logo for the Varan pipeline."""
@@ -258,15 +259,25 @@ if __name__ == "__main__":
 
     logger.info("Welcome to VARAN 🦎\n")
 
+    __version__ = get_git_version()
+
     parser = MyArgumentParser(
         add_help=True,
         exit_on_error=False,
         usage=None,
         description="Argument of Varan script")
 
+    # VERSION BLOCK
+    parser.add_argument(
+        "-v", "--version",
+        action="version",
+        version=f"Varan {__version__}"
+    )
+
     # WALK BLOCK
     parser.add_argument("-c", "--Cancer", required=False,
                         help="Cancer Name")
+
     parser.add_argument("-i", "--varan_input", nargs="+", required=False, type=str,
     help=("list with 1) input folder/sample file tsv (required) "
     "2) patient tsv 3) fusion file"))
@@ -278,6 +289,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-w", "--overWrite", required=False, action="store_true",
                         help="Overwrite output folder if it exists")
+
     parser.add_argument("-R", "--resume", required=False, action="store_true",
                         help="Resume an already started analysis")
 
