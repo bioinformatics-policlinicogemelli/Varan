@@ -60,7 +60,7 @@ def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
     case_list_name = "Samples with SV data"
     case_list_category = "all_cases_with_sv_data"
     case_list_description = "Samples with SV data (" + str(nsamples) + " sample(s))"
-    case_list_ids = "\t".join(sample_ids)
+    case_list_ids = "\t".join([str(s) for s in sample_ids])
 
     dictionary_file = {
         "cancer_study_identifier": project_id,
@@ -108,7 +108,7 @@ def populate_cases_cna(project_id: str, folder: str, cases_list_dir: str,
     case_list_category = "all_cases_with_cna_data"
     case_list_name = "Samples with CNA data"
     case_list_description = "Samples with CNA data (" + str(nsamples) + " sample(s))"
-    case_list_ids = "\t".join(sample_ids)
+    case_list_ids = "\t".join([str(s) for s in sample_ids])
 
     dictionary_file = {
         "cancer_study_identifier": project_id,
