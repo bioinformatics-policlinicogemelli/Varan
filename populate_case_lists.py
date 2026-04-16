@@ -154,7 +154,7 @@ def populate_cases_sequenced(project_id: str, folder: str, cases_list_dir: str,
     case_list_category = "all_cases_with_mutation_data"
     case_list_name = "Sequenced Tumors"
     case_list_description = "All sequenced samples (" + str(nsamples) + " sample(s))"
-    case_list_ids = "\t".join(sample_ids)
+    case_list_ids = "\t".join([str(s) for s in sample_ids])
 
     dictionary_file = {
         "cancer_study_identifier": project_id,

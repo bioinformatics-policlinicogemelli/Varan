@@ -2317,6 +2317,7 @@ def walk_folder(
     else:
         new_table_dict_patient = fill_from_file(
             table_dict_patient, file_input_sample, msi_thr, tmb_thr)
+        combined_dict = {}
 
     write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient)
     update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)

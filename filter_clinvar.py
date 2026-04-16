@@ -286,7 +286,7 @@ def filter_main(input_path: str,folder: str,
             file_path = maf_oncokb_path / file_no
             if "ONCOTREE_CODE" in input_file.columns:
                 for _, row in input_file.iterrows():
-                    if row["SAMPLE_ID"] in file_no:
+                    if str(row["SAMPLE_ID"]) in file_no:
                         cancer_onco = row["ONCOTREE_CODE"] or cancer
                         os.system(f"python3 oncokb-annotator/MafAnnotator.py "
                         f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
