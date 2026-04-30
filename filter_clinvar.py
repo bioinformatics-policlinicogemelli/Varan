@@ -276,7 +276,7 @@ def filter_main(input_path: str,folder: str,
     if oncokb:
         maf_oncokb_path.mkdir(parents=True, exist_ok=True)
         extension = "_OncoAnnotated.maf"
-        input_file = pd.read_csv(input_path, sep="\t")
+        input_file = pd.read_csv(input_path, sep="\t", dtype={"SAMPLE_ID": str})
 
         for f in file_list:
             if extension in f:

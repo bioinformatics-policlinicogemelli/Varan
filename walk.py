@@ -288,8 +288,13 @@ def cnv_type_from_folder(input_path: str,
     ############################
 
         logger.info("Starting CNA evaluation (this step could take a while)...")
+
         df_table = pd.read_csv(
-            Path(output_folder) / "data_cna_hg19.seg.fc.txt", sep="\t", header=0)
+            Path(output_folder) / "data_cna_hg19.seg.fc.txt", 
+            sep="\t", 
+            header=0,
+            dtype={"ID": str}
+        )
 
         df_table=df_table.rename(columns={
             "discrete":"Copy_Number_Alteration",
@@ -442,6 +447,7 @@ def cnv_type_from_folder(input_path: str,
 
         else:
             df_table_filt = df_table_filt.copy()
+            df_table_filt["Tumor_Sample_Barcode"] = df_table_filt["Tumor_Sample_Barcode"].astype(str)
             df_table_filt.loc[:, "Tumor_Sample_Barcode"] = df_table_filt[
                 "Tumor_Sample_Barcode"].str.replace(
                     ".cnv.bam", "", regex=True)
@@ -1821,39 +1827,50 @@ def write_exon_brca(output_file: str, combined_dict: dict[str, str]) -> None:
         None: The function writes to a file and returns nothing.
 
     """
-    logger.info("Writing exonic_BRCA.txt file...")
-    output_file_path = Path(output_file)
+    logger.info("Checking for exonic BRCA data...")
+    rows_to_write = []
 
-    with output_file_path.open("w") as exonic_table:
-        header = (
-            "Sample_Id\tGene\tChromosome\tStart\tStop\t"
-            "Affected Exon(s)\tFold Change\tCNV Type\n")
-        exonic_table.write(header)
+    header = (
+        "Sample_Id\tGene\tChromosome\tStart\tStop\t"
+        "Affected Exon(s)\tFold Change\tCNV Type\n")
 
-        for k, v in combined_dict.items():
-            exonic =[]
-            try:
-                exonic = tsv.get_exons(Path(v))
-            except Exception:
-                logger.error("Something went wrong while reading Exon-Level CNVs section "
-                f"for sample {k}")
+    for k, v in combined_dict.items():
+        exonic = []
+        try:
+            exonic = tsv.get_exons(Path(v))
+        except Exception:
+            logger.error(f"Something went wrong while reading Exon-Level CNVs for sample {k}")
 
-            if not exonic:
-                continue
+        if not exonic:
+            continue
 
-            for ex in exonic:
-                hugo_symbol = ex["Hugo_Symbol"]
-                chr = ex["Chromosome"]
-                start = ex["Start_Position"]
-                stop = ex["Stop_Position"]
-                exon = ex["Affected_Exon(s)"]
-                fc = ex["Fold_Change"]
-                cnv_type = ex["CNV_Type"]
+        for ex in exonic:
+            hugo_symbol = ex.get("Hugo_Symbol", "NA")
+            chr_val = ex.get("Chromosome", "NA")
+            start = ex.get("Start_Position", "NA")
+            stop = ex.get("Stop_Position", "NA")
+            exon = ex.get("Affected_Exon(s)", "NA")
+            fc = ex.get("Fold_Change", "NA")
+            cnv_type = ex.get("CNV_Type", "NA")
 
-                exonic_table.write(
-                    f"{k}\t{hugo_symbol}\t{chr}\t" +
-                    f"{start}\t{stop}\t{exon}\t" +
-                    f"{fc}\t{cnv_type}\n")
+            line = f"{k}\t{hugo_symbol}\t{chr_val}\t{start}\t{stop}\t{exon}\t{fc}\t{cnv_type}\n"
+            rows_to_write.append(line)
+
+    if not rows_to_write:
+        logger.warning(
+            "No BRCA exon-level CNV data found across all samples. "
+            "The exonic_BRCA.txt file will not be created."
+        )
+        return
+
+    try:
+        output_file_path = Path(output_file)
+        with output_file_path.open("w") as exonic_table:
+            exonic_table.write(header)
+            exonic_table.writelines(rows_to_write)
+        logger.info(f"Successfully created {output_file_path.name} with {len(rows_to_write)} records.")
+    except Exception as e:
+        logger.error(f"Failed to write output file: {e}")
 
 
 def update_data_clinical_with_exon_info(
@@ -1889,7 +1906,12 @@ def update_data_clinical_with_exon_info(
             with open(data_clin_path, "r") as f:
                 header_lines = [next(f) for _ in range(4)]
 
-            data_clin_df = pd.read_csv(data_clin_path, sep="\t", header=4)
+            data_clin_df = pd.read_csv(
+                data_clin_path, 
+                sep="\t", 
+                header=4, 
+                dtype={"SAMPLE_ID": str}
+            )
             merged_data_clin = pd.merge(data_clin_df, all_exon_dfs, on="SAMPLE_ID", how="left")
 
             new_columns = ["Exonic_BRCA1", "Exonic_BRCA2", "BRCA1_details", "BRCA2_details"]
@@ -2328,7 +2350,8 @@ def walk_folder(
             msi_sites_thr, msi_thr, tmb_thr)
     else:
         new_table_dict_patient = fill_from_file(
-            table_dict_patient, file_input_sample, msi_thr, tmb_thr)
+            table_dict_patient, file_input_sample, msi_thr, tmb_thr)        
+        combined_dict = {}
 
     write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient)
 

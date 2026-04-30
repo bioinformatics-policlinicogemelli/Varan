@@ -1463,6 +1463,7 @@ def write_report_extract(original_study: str, new_study: str,
     else:
         filters = {}
         cancer_type = None
+        sample_type = None
 
     case_list1 = Path(original_study) / "case_lists"
     case_list2 = Path(new_study) / "case_lists"
@@ -1896,6 +1897,7 @@ def write_report_remove(
     else:
         filters = {}
         cancer_type = None
+        sample_type = None
 
     case_list1 = Path(original_study) / "case_lists"
     case_list2 = Path(new_study) / "case_lists"
@@ -2329,5 +2331,35 @@ def extract_cancer_type_from_html(report: str | Path) -> str | None:
     return cancer_type
 
 
-#def extract_sample_type_from_html(report: str | Path) -> str | None:
-# TODO
+def extract_sample_type_from_html(report: str | Path) -> str | None:
+    """Extract the sample type information from an HTML report file.
+
+    This function searches the HTML report for the section indicating the sample type
+    and returns its value if found.
+
+    Args:
+        report (str | Path): Path to the HTML report file.
+
+    Returns:
+        str or None: The extracted sample type as a string, or None if not found.
+    """
+    sample_type = None
+    report = Path(report)
+
+    try:
+        with report.open(encoding="utf-8") as file:
+            html_content = file.read()
+
+        sample_type_match = re.search(
+            r"<p><strong>\s*SAMPLE TYPE:\s*</strong>\s*(.*?)\s*</p>",
+            html_content, 
+            re.DOTALL | re.IGNORECASE
+        )
+
+        if sample_type_match:
+            sample_type = sample_type_match.group(1).strip()
+
+    except Exception as e:
+        return None
+
+    return sample_type
