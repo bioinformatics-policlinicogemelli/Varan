@@ -329,7 +329,7 @@ def cnv_type_from_folder(input_path: str,
 
             annotate = df_table_filt[[
                 "Tumor_Sample_Barcode", "Hugo_Symbol",
-                "seg.mean", "Copy_Number_Alteration"]].merge(
+                "FC", "Copy_Number_Alteration"]].merge(
                     input_file[["Tumor_Sample_Barcode",
                                 "ONCOTREE_CODE", "TC"]],
                     on="Tumor_Sample_Barcode")
@@ -412,18 +412,18 @@ def cnv_type_from_folder(input_path: str,
             # CNVKIT_algorithm filter
             if not cna["TC"].isna().all():
                 cna["Copy_Number_Alteration"]=0
-                cna.loc[(cna["seg.mean"]<c[0]
+                cna.loc[(cna["FC"]<c[0]
                          ), "Copy_Number_Alteration"]=-2
-                cna.loc[(cna["seg.mean"]>=c[0]
-                         )&(cna["seg.mean"]<c[1]
+                cna.loc[(cna["FC"]>=c[0]
+                         )&(cna["FC"]<c[1]
                             ), "Copy_Number_Alteration"]=-1
-                cna.loc[(cna["seg.mean"]>=c[1]
-                         )&(cna["seg.mean"]<c[3]
+                cna.loc[(cna["FC"]>=c[1]
+                         )&(cna["FC"]<c[3]
                             ), "Copy_Number_Alteration"]=0
-                cna.loc[(cna["seg.mean"]>=c[3]
-                         )&(cna["seg.mean"]<c[5]
+                cna.loc[(cna["FC"]>=c[3]
+                         )&(cna["FC"]<c[5]
                             ), "Copy_Number_Alteration"]=1
-                cna.loc[cna["seg.mean"]>=c[5],
+                cna.loc[cna["FC"]>=c[5],
                         "Copy_Number_Alteration"]=2
 
             else:
@@ -438,6 +438,7 @@ def cnv_type_from_folder(input_path: str,
             cna["Tumor_Sample_Barcode"] = cna[
                 "Tumor_Sample_Barcode"].str.replace(
                     ".cnv.bam", "", regex=False)
+
             data_cna = cna.pivot_table(
                 index="Hugo_Symbol",
                 columns="Tumor_Sample_Barcode",
@@ -1453,7 +1454,7 @@ def fill_fusion_from_temp(
         fusion_table.write(header)
 
         for fusion_file in fusion_files:
-            ff = pd.read_csv(fusion_input, sep="\t")
+            ff = pd.read_csv(fusion_input, sep="\t", dtype=str)
 
             required_columns = {
                 "Sample_Id",
@@ -1470,7 +1471,7 @@ def fill_fusion_from_temp(
             logger.info(f"Fusions found in {fusion_file}")
             min_read_count = 15
             for fus in ff.itertuples(index=False):
-                if (fus.Sample_Id in clin_file["SAMPLE_ID"].to_numpy() and
+                if (str(fus.Sample_Id).strip() in clin_file["SAMPLE_ID"].astype(str).to_numpy() and
                 int(fus.Normal_Paired_End_Read_Count) >= min_read_count):
                     fusion_table.write("\t".join(map(str, fus)) + "\n")
 
@@ -1562,7 +1563,7 @@ def fill_fusion_from_combined(
 
                     if eval("int(fus['Normal_Paired_End_Read_Count'])" + thr_fus):
                         fusion_table.write(
-                            k + "\tSOMATIC\tFUSION\t" +
+                            str(k).strip() + "\tSOMATIC\tFUSION\t" +
                             str(site1_hugo_symbol) + "\t" +
                             str(site2_hugo_symbol) + "\t" +
                             fus["Normal_Paired_End_Read_Count"] + "\t" +
@@ -2261,19 +2262,31 @@ def walk_folder(
                     logger.warning("data.sv is empty. File removed.")
 
         if oncokb and fusion_table_file.exists():
-            data_sv = pd.read_csv(fusion_table_file, sep="\t")
-            input_file = pd.read_csv(clin_sample_path, sep="\t")
+            data_sv = pd.read_csv(fusion_table_file, sep="\t", dtype=str)
+            input_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
             fusion_table_file_out = annotate_fusion(
                 cancer, fusion_table_file, data_sv, input_file)
 
             if "o" in filters:
-                fus_file = pd.read_csv(fusion_table_file_out, sep="\t")
+                fus_file = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
                 fus_file = filter_oncokb(fus_file)
                 fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
 
-            data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t")
+            data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
             with contextlib.suppress(KeyError):
                 data_sv_tmp = data_sv_tmp.drop(["SAMPLE_ID", "ONCOTREE_CODE"], axis=1)
+
+
+            if "Normal_Paired_End_Read_Count" in data_sv_tmp.columns:
+                data_sv_tmp["Normal_Paired_End_Read_Count"] = pd.to_numeric(data_sv_tmp["Normal_Paired_End_Read_Count"], errors='coerce')
+                data_sv_tmp = data_sv_tmp.sort_values(by="Normal_Paired_End_Read_Count", ascending=False)
+                col_subset = [col for col in data_sv_tmp.columns if col != "Normal_Paired_End_Read_Count"]
+
+                data_sv_tmp = data_sv_tmp.drop_duplicates(subset=col_subset, keep='first')
+                data_sv_tmp["Normal_Paired_End_Read_Count"] = data_sv_tmp["Normal_Paired_End_Read_Count"].astype(str).str.replace(r'\.0$', '', regex=True)
+
+            else:
+                data_sv_tmp = data_sv_tmp.drop_duplicates(keep='first')
 
             data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
             os.system(f"mv {fusion_table_file_out} {fusion_table_file}")

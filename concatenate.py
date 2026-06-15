@@ -47,16 +47,35 @@ def concatenate_files(file_list: list[str], output_file: str) -> None:
     None
 
     """
+    header_written = False
+
     with Path(output_file).open("w") as out_file:
-        for i, file_name in enumerate(file_list):
+        for file_name in file_list:
             with Path(file_name).open() as in_file:
                 lines = in_file.readlines()
-                if "Hugo_Symbol" not in lines[0]:
-                    del lines[0]
-                lines = [x.replace(".bam", "") for x in lines]
-                if i > 0:
-                    lines = lines[1:]
-                out_file.write("".join(lines))
+                
+                clean_lines = []
+                for line in lines:
+                    if line.startswith("#"):
+                        continue  
+
+                    if not line.strip():
+                        continue
+    
+                    clean_lines.append(line.replace(".bam", ""))
+
+                if not clean_lines:
+                    continue  
+
+                if not header_written:
+                    if "Hugo_Symbol" in clean_lines[0]:
+                        out_file.write("".join(clean_lines))
+                        header_written = True
+                else:
+                    if "Hugo_Symbol" in clean_lines[0]:
+                        out_file.write("".join(clean_lines[1:]))
+                    else:
+                        out_file.write("".join(clean_lines))
 
     if not Path(output_file).exists():
         logger.critical(f"Something went wrong while writing {output_file}.")

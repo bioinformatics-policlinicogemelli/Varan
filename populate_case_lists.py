@@ -48,7 +48,7 @@ def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
 
     """
     try:
-        data_sv = pd.read_csv(Path(folder) / "data_sv.txt", sep="\t")
+        data_sv = pd.read_csv(Path(folder) / "data_sv.txt", sep="\t", dtype={"Sample_Id": str})
     except pd.errors.EmptyDataError:
         logger.exception("data_sv.txt is empty, skipping this step!")
         return()
@@ -60,7 +60,7 @@ def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
     case_list_name = "Samples with SV data"
     case_list_category = "all_cases_with_sv_data"
     case_list_description = "Samples with SV data (" + str(nsamples) + " sample(s))"
-    case_list_ids = "\t".join([str(s) for s in sample_ids])
+    case_list_ids = "\t".join([str(s).strip() for s in sample_ids if pd.notna(s)])
 
     dictionary_file = {
         "cancer_study_identifier": project_id,
@@ -95,7 +95,7 @@ def populate_cases_cna(project_id: str, folder: str, cases_list_dir: str,
 
     """
     try:
-        data_cna = pd.read_csv(Path(folder) / "data_cna.txt", sep="\t")
+        data_cna = pd.read_csv(Path(folder) / "data_cna.txt", sep="\t", dtype=str)
     except pd.errors.EmptyDataError:
         logger.error("data_cna.txt is empty, skipping this step!")
         return
@@ -142,11 +142,11 @@ def populate_cases_sequenced(project_id: str, folder: str, cases_list_dir: str,
     """
     try:
         data_sequenced = pd.read_csv(Path(folder) / "data_mutations_extended.txt",
-                                    sep="\t", low_memory=False, 
-                                    dtype={"Tumor_Sample_Barcode": str})
+                                    sep="\t", low_memory=False, dtype={"Tumor_Sample_Barcode": str})
     except pd.errors.EmptyDataError:
         logger.error("data_mutations_extended.txt is empty, skipping this step!")
         return
+
     nsamples = len(data_sequenced["Tumor_Sample_Barcode"].unique())
     sample_ids = list(data_sequenced["Tumor_Sample_Barcode"].unique())
 

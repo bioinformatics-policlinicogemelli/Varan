@@ -308,7 +308,7 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
     mode = "a" if table_path.exists() else "w"
     with vcf_path.open() as vcf, table_path.open(mode) as table:
         if mode != "a":
-            table.write("ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\tgene\tdiscrete\tcnv_unadjusted\tcnv_adjusted\n")
+            table.write("ID\tchrom\tloc.start\tloc.end\tnum.mark\tFC\tgene\tdiscrete\tcnv_unadjusted\tcnv_adjusted\n")
 
         for line in vcf:
             if line.startswith("##fileformat"):
