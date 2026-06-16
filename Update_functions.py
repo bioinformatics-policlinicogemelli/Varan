@@ -293,13 +293,26 @@ def update_sv(oldfile_path: str,
     """
     df_old = pd.read_csv(oldfile_path, sep="\t")
     df_new = pd.read_csv(newfile_path, sep="\t")
+
     merged_df = pd.concat(
         [df_old, df_new], axis=0, join="outer", ignore_index=True)
-    merged_df=merged_df.drop_duplicates(
+
+    merged_df["Normal_Paired_End_Read_Count"] = pd.to_numeric(
+        merged_df["Normal_Paired_End_Read_Count"], errors="coerce"
+    ).fillna(0)
+
+    merged_df = merged_df.sort_values(
+        by="Normal_Paired_End_Read_Count", ascending=False
+    )
+
+    merged_df = merged_df.drop_duplicates(
         subset=["Sample_Id",
                 "Site1_Hugo_Symbol",
                 "Site2_Hugo_Symbol",
-                "SV_Status", "Class"], keep="last")
+                "SV_Status", "Class"], 
+        keep="first"
+    )
+
     output_file = Path(output_folder) / "data_sv.txt"
     merged_df.to_csv(output_file, sep="\t", index=False)
 
