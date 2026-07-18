@@ -624,7 +624,7 @@ def write_report_main(
             <div class="content">
             <p><strong>ONCOKB:</strong> include {', '.join([
                 item.strip()
-                for item in extract_key_value(my_filters, "ONCOKB_FILTER")
+                for item in extract_key_value(my_filters, "ONCOKB_FILTER_SNV")
                 .strip('[]')
                 .replace('"', '')
                 .split(',')
@@ -864,13 +864,13 @@ def write_filters_report() -> list[str]:
 
     """
     sections_to_include = {
-            "Filters": ["BENIGN", "CLIN_SIG", "CONSEQUENCES", "ONCOKB_FILTER",
+            "Filters": ["BENIGN", "CLIN_SIG", "CONSEQUENCES", "ONCOKB_FILTER_SNV",
                         "t_VAF_min", "t_VAF_min_novel", "t_VAF_max",
                         "AF", "POLYPHEN", "IMPACT", "SIFT"],
-            "Cna": ["PLOIDY", "CNVKIT_algorithm"],
+            "Cna": ["PLOIDY", "CNVKIT_algorithm", "ONCOKB_FILTER_CNV"],
             "TMB": ["THRESHOLD_TMB"],
             "MSI": ["THRESHOLD_SITES", "THRESHOLD_MSI"],
-            "FUSION": ["THRESHOLD_FUSION"],
+            "FUSION": ["THRESHOLD_FUSION", "ONCOKB_FILTER_FUSION"],
         }
 
     conf_content = []

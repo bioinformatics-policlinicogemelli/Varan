@@ -68,23 +68,31 @@ def check_bool(key_value: str) -> bool:
     return bool_key_value
 
 
-def filter_oncokb(df: pd.DataFrame) -> None:
+def filter_oncokb(df: pd.DataFrame, section: str, key: str) -> pd.DataFrame:
     """Filter the input based on 'ONCOGENIC' column.
 
-    This function is intended to retain only mutations with
-    oncogenicity annotations matching those defined as relevant
-    in the configuration.
+    This function is intended to retain only rows with oncogenicity
+    annotations matching those defined as relevant in the configuration.
+    SNV, CNV and fusion data each have their own independent conf.ini
+    setting (ONCOKB_FILTER_SNV, ONCOKB_FILTER_CNV, ONCOKB_FILTER_FUSION)
+    rather than sharing a single value, since a lab may want e.g. to keep
+    CNV VUS while excluding SNV VUS - callers must pass the section/key
+    that matches the data type being filtered.
 
     Args:
         df (pd.DataFrame): A pandas DataFrame that includes an 'ONCOGENIC' column,
-                           typically a MAF (Mutation Annotation Format) table.
+                           typically a MAF, CNA or fusion (data_sv) table.
+        section (str): conf.ini section holding the filter (e.g. "Filters",
+            "Cna", "FUSION").
+        key (str): conf.ini key holding the filter within that section (e.g.
+            "ONCOKB_FILTER_SNV", "ONCOKB_FILTER_CNV", "ONCOKB_FILTER_FUSION").
 
     Returns:
         pd.DataFrame: A filtered DataFrame containing only rows where 'ONCOGENIC'
                       matches the allowed values from config.
 
     """
-    oncokb_filter = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
+    oncokb_filter = ast.literal_eval(config.get(section, key))
 
     return df[df["ONCOGENIC"].isin(oncokb_filter)]
 
@@ -332,9 +340,7 @@ def filter_main(input_path: str,folder: str,
                 file_to_filter = file_to_filter[file_to_filter["FILTER"]=="PASS"]
 
             if oncokb and "o" in filters:
-                oncokb_filter = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
-                file_to_filter = file_to_filter[
-                    file_to_filter["ONCOGENIC"].isin(oncokb_filter)]
+                file_to_filter = filter_oncokb(file_to_filter, "Filters", "ONCOKB_FILTER_SNV")
 
             if "v" in filters and "t_AF" not in file_to_filter.columns \
                     and "t_VF" not in file_to_filter.columns:

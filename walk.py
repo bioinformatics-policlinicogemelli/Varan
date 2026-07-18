@@ -51,7 +51,6 @@ VEP_PATH = config.get("Paths", "VEP_PATH")
 VEP_DATA = config.get("Paths", "VEP_DATA")
 CLINV = config.get("Paths", "CLINV")
 PLOIDY = int(config.get("Cna", "PLOIDY"))
-ONCOKB_FILTER = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
 SAMPLE_TYPE = (config.get("Sample_Type", "TYPE").strip().strip('"').strip("'").upper())
 THRESHOLD_MSI_LIQUID = float(config.get("MSI", "THRESHOLD_MSI_LIQUID"))
 
@@ -394,7 +393,7 @@ def cnv_type_from_folder(input_path: str,
                 name = "annotated_oncokb_CNA_ndiscrete.txt"
                 cna = pd.read_csv(out, sep="\t",
                                   dtype={"Copy_Number_Alteration":int})
-                cna = cna[cna["ONCOGENIC"].isin(ONCOKB_FILTER)]
+                cna = filter_oncokb(cna, "Cna", "ONCOKB_FILTER_CNV")
             else:
                 out = temppath
                 name = "CNA_ndiscrete.txt"
@@ -2298,7 +2297,7 @@ def walk_folder(
 
                 if "o" in filters:
                     fus_file = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
-                    fus_file = filter_oncokb(fus_file)
+                    fus_file = filter_oncokb(fus_file, "FUSION", "ONCOKB_FILTER_FUSION")
                     fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
 
                 data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)

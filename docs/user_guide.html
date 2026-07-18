@@ -322,7 +322,7 @@ t_VAF_max = &lt; float &gt;
 t_VAF_min_novel = &lt; float &gt;
 AF = &lt; string &gt;
 drop_NA_AF = &lt; boolean &gt;
-ONCOKB_FILTER = &lt; ['string','string',...] &gt;
+ONCOKB_FILTER_SNV = &lt; ['string','string',...] &gt;
 CLIN_SIG = &lt; ['string','string',...] &gt;
 CONSEQUENCES = &lt; ['string','string',...] &gt;
 POLYPHEN = &lt; ['string','string',...] &gt;
@@ -336,7 +336,8 @@ SIFT = &lt; ['string','string',...] &gt;</pre>
             <pre>[Cna]
 HEADER_CNV = &lt; ['string','string',...] &gt;
 PLOIDY = &lt; int &gt;
-CNVkit = &lt; boolean &gt;</pre>
+CNVkit = &lt; boolean &gt;
+ONCOKB_FILTER_CNV = &lt; ['string','string',...] &gt;</pre>
 
             <p>⚠️ Ploidy will be used to evaluate copy number discretization using <a href="https://cnvkit.readthedocs.io/en/stable/pipeline.html">cnvkit formula</a>.</p>
 
@@ -360,7 +361,8 @@ THRESHOLD_MSI = &lt; string &gt;</pre>
             <h6>FUSION</h6>
             <p>Here Fusions thresholds can be specified.</p>
             <pre>[FUSION]
-THRESHOLD_FUSION = &lt; string &gt;</pre>
+THRESHOLD_FUSION = &lt; string &gt;
+ONCOKB_FILTER_FUSION = &lt; ['string','string',...] &gt;</pre>
 
             ⚠️ THRESHOLD can be populated with &lt; / &gt; / &lt;= / &gt;= val (i.e., THRESHOLD_FUSION = &gt;=15).
 
@@ -498,7 +500,7 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
                     </tr>
                     <tr>
                         <td style="text-align: center;"><span class="highlight">o</span></td>
-                        <td>Filters MAF mutations with ONCOGENIC values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the ONCOKB_FILTER field. This requires the OncoKB annotation (-k).</td>
+                        <td>Filters MAF mutations with ONCOGENIC values <ins>different</ins> from those specified in the <i>conf.ini</i> file under the ONCOKB_FILTER_SNV field (CNV and fusion data use their own independent ONCOKB_FILTER_CNV / ONCOKB_FILTER_FUSION fields). This requires the OncoKB annotation (-k).</td>
                     </tr>
                     <tr>
                         <td style="text-align: center;"><span class="highlight">c</span></td>
