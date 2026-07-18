@@ -28,6 +28,7 @@ import re
 import shutil
 import sys
 from configparser import ConfigParser
+from datetime import datetime
 from pathlib import Path
 
 from loguru import logger
@@ -74,6 +75,7 @@ def extract_main(oldpath: str,
         None
 
     """
+    start_time = datetime.now().astimezone().strftime("%d/%m/%Y, %H:%M:%S")
     logger.info(
         f"extract_main args [old_path:{oldpath}, "
         f"extract_path:{extract_path}, output_folder:{output}]")
@@ -136,7 +138,7 @@ def extract_main(oldpath: str,
     number_for_graph = validate_output(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
-    write_report_extract(oldpath, output, number_for_graph)
+    write_report_extract(oldpath, output, number_for_graph, start_time)
 
     logger.success("The process ended without errors")
     logger.success("Successfully extracted sample(s)!")

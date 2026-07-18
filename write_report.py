@@ -267,6 +267,7 @@ def write_report_main(
     filters: str,
     number_for_graph: int,
     oncokb: bool = False,
+    start_time: str = "",
 ) -> None:
     """Generate an HTML report summarizing the results of a VARAN analysis.
 
@@ -303,6 +304,8 @@ def write_report_main(
     shutil.copy("styles.css", Path(output_folder) / "img" / "styles.css")
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
+    start_time_html = (
+        f"<h3>Analysis started on {start_time}</h3>" if start_time else "")
 
     output_folder = Path(output_folder)
 
@@ -368,6 +371,7 @@ def write_report_main(
         </header>
 
         <h2>Report generate on {date}</h2>
+        {start_time_html}
 
         <div class="container">
             <section class="general-info">
@@ -822,7 +826,7 @@ def extract_key_value(filters: list[str], key_name: str) -> str | None:
 ###########################
 
 def write_report_update(original_study: Path, updating_with: Path,
-new_study: Path, number_for_graph: int) -> None:
+new_study: Path, number_for_graph: int, start_time: str = "") -> None:
     """Create an HTML update report comparing an original study with a new update.
 
     Parameters
@@ -856,6 +860,8 @@ new_study: Path, number_for_graph: int) -> None:
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
+    start_time_html = (
+        f"<h3>Analysis started on {start_time}</h3>" if start_time else "")
 
     limit = 4
 
@@ -993,6 +999,7 @@ new_study: Path, number_for_graph: int) -> None:
         </header>
 
         <h2>Report generate on {date}</h2>
+        {start_time_html}
         <div class="container">
             <div class="section-title">General Information</div>
                 <div class="content">
@@ -1384,7 +1391,7 @@ def compare_sample_file_update(
 ###########################
 
 def write_report_extract(original_study: str, new_study: str,
-    number_for_graph: int) -> None:
+    number_for_graph: int, start_time: str = "") -> None:
     """Generate an HTML report comparing original and new studies.
 
     Copies logo and styles, extracts sample data and filters,
@@ -1413,6 +1420,8 @@ def write_report_extract(original_study: str, new_study: str,
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
+    start_time_html = (
+        f"<h3>Analysis started on {start_time}</h3>" if start_time else "")
 
     limit = 4
 
@@ -1497,6 +1506,7 @@ def write_report_extract(original_study: str, new_study: str,
         </header>
 
         <h2>Generate on {date}</h2>
+        {start_time_html}
 
         <div class="container">
             <div class="section-title">General Information</div>
@@ -1815,6 +1825,7 @@ def write_report_remove(
     original_study: str | Path,
     new_study: str | Path,
     number_for_graph: int,
+    start_time: str = "",
 ) -> None:
     """Generate an HTML report summarizing sample removals and study updates.
 
@@ -1847,6 +1858,8 @@ def write_report_remove(
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
+    start_time_html = (
+        f"<h3>Analysis started on {start_time}</h3>" if start_time else "")
 
     limit = 4
 
@@ -1939,6 +1952,7 @@ def write_report_remove(
         </header>
 
         <h2>Generate on {date}</h2>
+        {start_time_html}
 
         <div class="container">
             <div class="section-title">General Information</div>

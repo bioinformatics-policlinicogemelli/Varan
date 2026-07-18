@@ -35,6 +35,7 @@ import re
 import shutil
 import sys
 from configparser import ConfigParser
+from datetime import datetime
 from pathlib import Path
 
 from loguru import logger
@@ -74,6 +75,7 @@ def delete_main(oldpath: str, removepath: str, output: str,
         None
 
     """
+    start_time = datetime.now().astimezone().strftime("%d/%m/%Y, %H:%M:%S")
     logger.info(f"delete_main args [old_path:{oldpath}, remove_path:{removepath}, "
     f"destination_folder:{output}]")
     logger.info("Checking input...")
@@ -143,7 +145,7 @@ def delete_main(oldpath: str, removepath: str, output: str,
     number_for_graph = validate_output(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
-    write_report_remove(oldpath, output, number_for_graph)
+    write_report_remove(oldpath, output, number_for_graph, start_time)
 
     logger.success("The process ended without errors")
     logger.success("Successfully removed sample(s)!")

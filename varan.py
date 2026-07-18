@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 import subprocess
 from typing import TYPE_CHECKING, NoReturn
@@ -121,6 +122,7 @@ def varan(
 
     """
     if not any([update, extract, remove]):
+        start_time = datetime.now().astimezone().strftime("%d/%m/%Y, %H:%M:%S")
 
         logger.info(
             f"Varan args [input:{varan_input}, output_folder:{output_folder}, "
@@ -188,6 +190,7 @@ def varan(
             cancer,
             oncokb,
             filters,
+            start_time,
             )
 
 
@@ -301,7 +304,8 @@ if __name__ == "__main__":
 
     # FILTER BLOCK
     parser.add_argument("-f", "--Filter", required=False, default="",
-                        help=("Select filter for SNV [d -> filter, p -> filter==PASS, "
+                        help=("Select filter for SNV [d -> drop rows with ALT=='.' or "
+                        "FILTER!='PASS' (on the raw VCF), p -> filter==PASS (on the MAF), "
                         "v-> vaf, o-> Oncokb, a -> AF, q -> Consequence, y-> polyphens,"
                         " c -> clin_sig, n -> novel, i -> Impact]"))
 
