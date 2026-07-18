@@ -2367,7 +2367,7 @@ def walk_folder(
             msi_sites_thr, msi_thr, tmb_thr)
     else:
         new_table_dict_patient = fill_from_file(
-            table_dict_patient, file_input_sample, msi_thr, tmb_thr)        
+            table_dict_patient, file_input_sample, msi_thr, tmb_thr)
         combined_dict = {}
 
     write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient,
