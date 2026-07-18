@@ -2024,6 +2024,73 @@ def build_exon_df(output_folder: Path, exonic, sample_id: str) -> pd.DataFrame:
     return pd.DataFrame([row])
 
 
+def update_data_clinical_with_hrd_info(
+    combined_output: Path,
+    combined_dict: dict,
+    output_folder: Path) -> None:
+    """Update data_clinical_sample.txt with HRD/GIS biomarker info.
+
+    Genomic Instability Score, Tumor Fraction and Ploidy are only reported by
+    DRAGEN for samples run with the TSO500 HRD feature enabled - for every
+    other sample these three new columns are just "NA", the same way
+    update_data_clinical_with_exon_info() layers BRCA exon-level info onto
+    this same file without touching the rest of it.
+
+    Args:
+        combined_output (Path): Directory containing combined output files.
+        combined_dict (dict): Mapping of {sample_id: path_to_tsv}.
+        output_folder (Path): Output directory where data_clinical_sample.txt is located.
+
+    """
+    data_clin_path = Path(output_folder) / "data_clinical_sample.txt"
+
+    if combined_output.is_dir() and any(combined_output.iterdir()):
+        all_gis_rows = []
+
+        for sample_id, tsv_path in combined_dict.items():
+            try:
+                gis = tsv.get_gis(Path(tsv_path))
+            except Exception as e:
+                logger.error(f"Error while reading GIS/HRD info for sample {sample_id}: {e}")
+                gis = {"GIS": "NA", "Tumor_Fraction": "NA", "Ploidy": "NA"}
+
+            all_gis_rows.append({
+                "SAMPLE_ID": sample_id,
+                "GENOMIC_INSTABILITY_SCORE": gis["GIS"],
+                "TUMOR_FRACTION": gis["Tumor_Fraction"],
+                "PLOIDY": gis["Ploidy"],
+            })
+
+        if all_gis_rows:
+            all_gis_df = pd.DataFrame(all_gis_rows)
+
+            with open(data_clin_path, "r") as f:
+                header_lines = [next(f) for _ in range(4)]
+
+            data_clin_df = pd.read_csv(
+                data_clin_path,
+                sep="\t",
+                header=4,
+                dtype={"SAMPLE_ID": str}
+            )
+            merged_data_clin = pd.merge(data_clin_df, all_gis_df, on="SAMPLE_ID", how="left")
+
+            new_columns = ["GENOMIC_INSTABILITY_SCORE", "TUMOR_FRACTION", "PLOIDY"]
+
+            updated_headers = [
+                header_lines[0].rstrip("\n") + "\t" + "\t".join(new_columns) + "\n",
+                header_lines[1].rstrip("\n") + "\t" + "\t".join(new_columns) + "\n",
+                header_lines[2].rstrip("\n") + "\t" + "\t".join(["NUMBER"] * len(new_columns)) + "\n",
+                header_lines[3].rstrip("\n") + "\t" + "\t".join(["1"] * len(new_columns)) + "\n",
+            ]
+
+            with open(data_clin_path, "w") as f:
+                f.writelines(updated_headers)
+                merged_data_clin.to_csv(f, sep="\t", index=False)
+        else:
+            logger.warning("No sample data available to update HRD/GIS clinical info.")
+
+
 def walk_folder(
     input_path: list,
     multiple: bool,
@@ -2405,6 +2472,8 @@ def walk_folder(
                            combined_output_used=bool(combined_dict))
 
     update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)
+
+    update_data_clinical_with_hrd_info(combined_output, combined_dict, output_folder)
 
     logger.success("Walk script completed!\n")
 

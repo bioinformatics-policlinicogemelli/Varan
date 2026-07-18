@@ -76,6 +76,45 @@ def get_msi_tmb(input_file: str, sample_type: str) -> dict:
         return data
 
 
+def get_gis(input_file: str) -> dict:
+    """Extract Genomic Instability Score, Tumor Fraction and Ploidy from a file.
+
+    These three values live in the [GIS] section of a CombinedVariantOutput
+    file, which DRAGEN only writes when the TSO500 HRD feature was enabled for
+    that run - for a plain TSO500 run the section is absent entirely (not
+    present-but-empty), so every value below stays "NA" unless actually found,
+    the same way get_msi_tmb handles optional fields.
+
+    Parameters
+    ----------
+    input_file : Path
+        The path to the CombinedVariantOutput file.
+
+    Returns
+    -------
+    dict
+        A dictionary with "GIS", "Tumor_Fraction" and "Ploidy" - "NA" for any
+        value not present in the file (i.e. non-HRD samples).
+
+    """
+    data = {"GIS": "NA", "Tumor_Fraction": "NA", "Ploidy": "NA"}
+
+    with input_file.open() as tsv_file:
+        for riga in tsv_file.read().splitlines():
+            campi = riga.split(sep="\t")
+            if len(campi) < 2:
+                continue
+
+            if "Genomic Instability Score" in riga:
+                data["GIS"] = campi[1]
+            if "Tumor Fraction" in riga:
+                data["Tumor_Fraction"] = campi[1]
+            if "Ploidy" in riga:
+                data["Ploidy"] = campi[1]
+
+    return data
+
+
 def split_hugo_symbols(hugo_symbol: str) -> str:
     """Split a Hugo symbol into multiple gene symbols.
 
