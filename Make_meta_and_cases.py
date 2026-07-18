@@ -160,7 +160,7 @@ def create_meta_mutations(cancer: str, project_id: str, profile: str,
     profile_in_analysis_tab = "TRUE"
     profile_name = "Mutations"
 
-    if profile == " ":
+    if profile == "":
         profile = "Sequencing of " + cancer.capitalize() + " tumor."
 
     data_filename = "data_mutations_extended.txt"
@@ -355,8 +355,8 @@ def meta_case_main(
 
     elif len(old_study_info)>0 and old_study_info[-1]:
         version = extract_version_str(output_folder)
-        project_id = old_study_info[0]+version
-        project_name = old_study_info[1]+version.replace("_"," ")
+        project_id = old_study_info[0].strip()+version
+        project_name = old_study_info[1].strip()+version.replace("_"," ")
 
     description=config.get("Project","DESCRIPTION")
     profile_mut=config.get("Project","PROFILE_MUT")
