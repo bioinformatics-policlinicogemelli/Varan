@@ -85,18 +85,28 @@ def create_random_name_folder() -> str:
     return(str(temporary))
 
 
-def clear_scratch() -> None:
-    """Remove all directories inside the `tmp` directory.
+def clear_scratch(folder: str | None = None) -> None:
+    """Remove the scratch subfolder created for this run, if any.
+
+    Only removes the exact folder passed in (as returned by
+    `create_random_name_folder()` for this run) - never scans/clears the whole
+    `scratch/` directory, since that would delete other runs' still-in-use
+    temporary files when multiple varan.py processes run in parallel from the
+    same working directory.
+
+    Args:
+        folder (str | None): Path to this run's own scratch subfolder, or None
+            if this run never created one (e.g. resume=True).
 
     Returns:
         None
 
     """
-    tmp = "scratch"
-    for root, dirs, _ in os.walk(tmp):
-        for directory in dirs:
-            to_rem=Path(root) / directory
-            shutil.rmtree(to_rem)
+    if folder is None:
+        return
+    to_rem = Path(folder)
+    if to_rem.exists():
+        shutil.rmtree(to_rem)
 
 
 def get_cnv_from_folder(input_foldercnv: str) -> list:
@@ -126,7 +136,7 @@ def get_sample_id_from_cnv(cnv_vcf: str) -> str:
     if "_CopyNumberVariants.vcf" in cnv_vcf:
         sample=cnv_vcf.replace("_CopyNumberVariants.vcf", ".bam")
     else:
-        sample=cnv_vcf.replace("vcf", "bam")
+        sample="bam".join(cnv_vcf.rsplit("vcf", 1))
     return sample
 
 
@@ -308,9 +318,11 @@ def cnv_type_from_folder(input_path: str,
         if cnv_kit:
             if not Path(input_path).is_file():
                 input_file = pd.read_csv(
-                    Path(input_path) / "sample.tsv", sep="\t")
+                    Path(input_path) / "sample.tsv", sep="\t",
+                    dtype={"SAMPLE_ID": str})
             else:
-                input_file = pd.read_csv(input_path, sep="\t")
+                input_file = pd.read_csv(input_path, sep="\t",
+                                          dtype={"SAMPLE_ID": str})
 
             if "TC" not in input_file.columns:
                 input_file["TC"] = np.nan
@@ -508,7 +520,7 @@ def get_sample_id_from_snv(snv_vcf: str) -> str:
     if "MergedSmallVariants.genome.vcf" in snv_vcf:
         sample = snv_vcf.replace("_MergedSmallVariants.genome.vcf", ".bam")
     else:
-        sample = snv_vcf.replace("vcf", "bam")
+        sample = "bam".join(snv_vcf.rsplit("vcf", 1))
     return sample
 
 
@@ -1212,7 +1224,7 @@ def extract_multiple_cnv(multiple_vcf: str, input_dir: str) -> None:
             subprocess.run(cmd_extract, stdout=f, check=True)
     except subprocess.CalledProcessError as e:
         msg = f"Error during vcf-query: {e}"
-        raise RuntimeError(msg) from err
+        raise RuntimeError(msg) from e
 
     with sample_id_txt.open() as f:
         for line in f:
@@ -1418,7 +1430,7 @@ def transform_input(
         cnv_path = config.get("Multiple", "CNV")
         combout = config.get("Multiple", "COMBOUT")
 
-        check_folders(output_folder, snv_path, cnv_path, combout)
+        check_folders(output_folder, snv_path, cnv_path, combout, "multiple")
 
     else:
         tsv_file = pd.read_csv(tsv, sep="\t", dtype="string", keep_default_na=False)
@@ -1458,7 +1470,8 @@ def fill_fusion_from_temp(
         fusion_table.write(header)
 
         for fusion_file in fusion_files:
-            ff = pd.read_csv(fusion_input, sep="\t", dtype=str)
+            ff = pd.read_csv(Path(input_path) / "FUSIONS" / fusion_file,
+                              sep="\t", dtype=str)
 
             required_columns = {
                 "Sample_Id",
@@ -1662,7 +1675,13 @@ def fill_from_combined(
         try:
             tmv_msi = tsv.get_msi_tmb(Path(v), SAMPLE_TYPE)
         except Exception:
-            logger.error(f"Something went wrong with sample {k}!")
+            logger.error(f"Something went wrong reading CombinedOutput for sample "
+                         f"{k}! MSI/TMB set to NA for this sample.")
+            # Keep table_dict_patient[k] the same length as every successfully
+            # processed sample (4 appends below) - otherwise
+            # pd.DataFrame.from_dict(table_dict_patient) in write_clinical_sample
+            # raises "All arrays must be of the same length" for the whole batch.
+            table_dict_patient[k].extend(["NA", "NA", "NA", "NA"])
             continue
 
         if (
@@ -2209,6 +2228,7 @@ def walk_folder(
         exon_file_output = Path(output_folder) / "exon_CNA_data.txt"
         write_exon_brca(exon_file_output, combined_dict)
 
+    temporary = None
     if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
         logger.info("Managing SNV files...")
         s_id_path_snv = snv_type_from_folder(input_folder_snv, case_folder_arr)
@@ -2230,7 +2250,7 @@ def walk_folder(
                 run_vcf2maf(cl, k)
 
     logger.info("Clearing scratch folder...")
-    clear_scratch()
+    clear_scratch(temporary)
 
 
     ###############################
@@ -2265,21 +2285,28 @@ def walk_folder(
                     fusion_table_file.unlink()
                     logger.warning("data.sv is empty. File removed.")
 
-        if oncokb and fusion_table_file.exists():
-            data_sv = pd.read_csv(fusion_table_file, sep="\t", dtype=str)
-            input_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
-            fusion_table_file_out = annotate_fusion(
-                cancer, fusion_table_file, data_sv, input_file)
+        if fusion_table_file.exists():
+            # Dedup always runs here, regardless of OncoKB annotation - a run
+            # without --oncokb must not ship duplicate rows in data_sv.txt either,
+            # since cBioPortal validation rejects those the same way either way.
+            if oncokb:
+                data_sv = pd.read_csv(fusion_table_file, sep="\t", dtype=str)
+                input_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
+                fusion_table_file_out = annotate_fusion(
+                    cancer, fusion_table_file, data_sv, input_file)
 
-            if "o" in filters:
-                fus_file = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
-                fus_file = filter_oncokb(fus_file)
-                fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
+                if "o" in filters:
+                    fus_file = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
+                    fus_file = filter_oncokb(fus_file)
+                    fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
 
-            data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
-            with contextlib.suppress(KeyError):
-                data_sv_tmp = data_sv_tmp.drop(["SAMPLE_ID", "ONCOTREE_CODE"], axis=1)
-
+                data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
+                with contextlib.suppress(KeyError):
+                    data_sv_tmp = data_sv_tmp.drop(
+                        ["SAMPLE_ID", "ONCOTREE_CODE"], axis=1)
+            else:
+                fusion_table_file_out = fusion_table_file
+                data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
 
             if "Normal_Paired_End_Read_Count" in data_sv_tmp.columns:
                 data_sv_tmp["Normal_Paired_End_Read_Count"] = pd.to_numeric(data_sv_tmp["Normal_Paired_End_Read_Count"], errors='coerce')
@@ -2293,7 +2320,8 @@ def walk_folder(
                 data_sv_tmp = data_sv_tmp.drop_duplicates(keep='first')
 
             data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
-            os.system(f"mv {fusion_table_file_out} {fusion_table_file}")
+            if fusion_table_file_out != fusion_table_file:
+                os.system(f"mv {fusion_table_file_out} {fusion_table_file}")
 
 
     ##############################
