@@ -42,6 +42,10 @@ Full walk-through with synthetic test data (raw files → validated study in und
 
 Every setting - reference files, filter thresholds, OncoKB annotation, clinical header customization - lives in a single `conf.ini` file, which can be pointed at explicitly with `-C <path>` if you keep several around (e.g. per assay type or per environment).
 
+### Workflow orchestration (experimental)
+
+A [`Snakefile`](Snakefile) wraps Varan's four top-level operations (create/update/extract/remove) as Snakemake rules driven by [`config.yaml`](config.yaml), adding dependency tracking, per-run logs and conda-environment management on top of the existing CLI - without changing any pipeline logic. It's a starting point, not yet exercised against a real Snakemake install or cluster environment: review `config.yaml` and test before relying on it.
+
 ## Core Operations
 
 | Operation | Flag | What it does |

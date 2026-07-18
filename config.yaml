@@ -1,0 +1,33 @@
+# Config for the Snakemake wrapper (see Snakefile).
+#
+# Each operation's "args" string is passed straight through to varan.py -
+# fill it in the same way you would call varan.py directly on the command
+# line, minus -C/--config (added automatically from conf_path below).
+
+# Placeholder: same environment for all four rules for now, as agreed -
+# replace with the four per-stage environments once they exist, and update
+# each rule's `conda:` directive in the Snakefile to point at its own.
+conda_env: "vep"
+
+conf_path: "conf.ini"
+
+create:
+  args: "-i test_folder/Input -o test_folder/Output/output_test -c mixed"
+  output_folder: "test_folder/Output/output_test"
+
+# NOTE on output_folder below: update/extract/remove all append a "_v1",
+# "_v2", ... suffix to whatever base path is passed to -o (see
+# versioning.create_newest_version_folder) - the -o value and output_folder
+# below must both already include that suffix for the run you're about to
+# do, and it must be bumped by hand before re-running into a fresh folder.
+update:
+  args: "-u -p test_folder/Output/output_test_v1 -n test_folder/Output/new_data -o test_folder/Output/updated_study_v1"
+  output_folder: "test_folder/Output/updated_study_v1"
+
+extract:
+  args: "-e -p test_folder/Output/output_test_v1 -s test_folder/Input/extract_list.tsv -o test_folder/Output/extract_study_v1"
+  output_folder: "test_folder/Output/extract_study_v1"
+
+remove:
+  args: "-r -p test_folder/Output/output_test_v1 -s test_folder/Input/remove_list.tsv -o test_folder/Output/remove_study_v1"
+  output_folder: "test_folder/Output/remove_study_v1"
