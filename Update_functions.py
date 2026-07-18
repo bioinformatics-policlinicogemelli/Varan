@@ -171,8 +171,8 @@ def update_cna_hg19(oldfile_path: str, newfile_path: str, output_folder: str) ->
         None
 
     """
-    old = pd.read_csv(oldfile_path, sep="\t")
-    new = pd.read_csv(newfile_path, sep="\t")
+    old = pd.read_csv(oldfile_path, sep="\t", dtype={"ID": str})
+    new = pd.read_csv(newfile_path, sep="\t", dtype={"ID": str})
 
     updated = pd.concat([old, new])
     updated = updated.drop_duplicates(
@@ -200,8 +200,8 @@ def update_cna_hg19_fc(oldfile_path: str,
         None
 
     """
-    old = pd.read_csv(oldfile_path, sep="\t")
-    new = pd.read_csv(newfile_path, sep="\t")
+    old = pd.read_csv(oldfile_path, sep="\t", dtype={"ID": str})
+    new = pd.read_csv(newfile_path, sep="\t", dtype={"ID": str})
 
     updated = pd.concat([old, new])
     updated = updated.drop_duplicates(

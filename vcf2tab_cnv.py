@@ -284,7 +284,8 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
     tc_available = False
     sample_tc = None
     if sample_info_path.exists():
-        tc_tbl = pd.read_csv(Path(sample_info_path, "sample.tsv"), sep="\t")
+        tc_tbl = pd.read_csv(Path(sample_info_path, "sample.tsv"), sep="\t",
+                             dtype={"SAMPLE_ID": str})
         if "TC" in tc_tbl.columns:
             tc_available = True
             tc_row = tc_tbl[tc_tbl["SAMPLE_ID"] == sample]

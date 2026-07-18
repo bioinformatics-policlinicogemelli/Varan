@@ -93,9 +93,8 @@ def extract_clinical_patient(oldpath: str,
     idx_sample=np.argwhere(sample.to_numpy() == "SAMPLE_ID")[0][1]
     idx_patient=np.argwhere(sample.to_numpy() == "PATIENT_ID")[0][1]
 
-    patient_ids = list(
-        sample[sample.iloc[:, idx_sample].astype(str).isin(sample_ids)]
-        [sample.iloc[0,idx_patient]])
+    sample_mask = sample.iloc[:, idx_sample].astype(str).isin(sample_ids)
+    patient_ids = list(sample.iloc[:, idx_patient][sample_mask])
 
     header = file.loc[0:4,:]
     data = file.loc[4:,:]
@@ -126,7 +125,7 @@ def extract_cna_hg19(file_path: str,
         None
 
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", dtype={"ID": str})
     extracted = file[file["ID"].astype(str).isin(sample_ids)]
     outpath=Path(output_folder) / "data_cna_hg19.seg"
     extracted.to_csv(outpath, index=False, sep="\t")
@@ -146,7 +145,7 @@ def extract_cna_hg19_fc(file_path: str,
         None
 
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", dtype={"ID": str})
     extracted = file[file["ID"].astype(str).isin(sample_ids)]
     outpath=Path(output_folder) / "data_cna_hg19.seg.fc.txt"
     extracted.to_csv(outpath, index=False, sep="\t")

@@ -87,12 +87,12 @@ def delete_clinical_patient(
             sample.iloc[:, idx_sample].astype(str).isin(sample_ids)
             ].iloc[:, idx_sample])
 
-    filtered_sample = sample.iloc[:, idx_sample].astype(str).isin(patient_ids)
+    filtered_sample = sample.iloc[:, idx_patient].astype(str).isin(patient_ids)
     if len(sample[filtered_sample]) > len(sample_ids):
         pzt_list=sample[sample.iloc[:, idx_patient].astype(str).isin(patient_ids)]
         pzt_dup = [
             pzt_list[
-                pzt_list.duplicated(subset=sample.iloc[0, idx_sample])
+                pzt_list.duplicated(subset=sample.columns[idx_patient])
                 ].iloc[0,1]]
 
         for p_dup in pzt_dup:
@@ -120,7 +120,7 @@ def delete_cna_hg19(file_path: str, sample_ids: list[str], output_folder: str) -
         None
 
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", dtype={"ID": str})
     filtered = file[~file["ID"].astype(str).isin(sample_ids)]
     output_path = Path(output_folder) / "data_cna_hg19.seg"
     filtered.to_csv(output_path, index=False, sep="\t")
@@ -141,7 +141,7 @@ def delete_cna_hg19_fc(
         None
 
     """
-    file = pd.read_csv(file_path, sep="\t")
+    file = pd.read_csv(file_path, sep="\t", dtype={"ID": str})
     filtered = file[~file["ID"].astype(str).isin(sample_ids)]
 
     output_path = Path(output_folder) / "data_cna_hg19.seg.fc.txt"
@@ -197,16 +197,10 @@ def delete_sv(file_path: str, sample_ids: list[str], output_folder: str) -> None
         None
 
     """
-    file_path = Path(file_path)
-    output_file = Path(output_folder) / "data_sv.txt"
-
-    with file_path.open() as old_file, output_file.open("w") as of:
-        for line in old_file:
-            if not any(word in line for word in sample_ids):
-                list_split = line.split("\t\t")
-                list_strip = [elem.strip() for elem in list_split]
-                new_row = "\t".join(list_strip) + "\n"
-                of.write(new_row)
+    old_file = pd.read_csv(file_path, sep="\t", dtype=str)
+    new_file = old_file[~old_file["Sample_Id"].astype(str).isin(sample_ids)]
+    output_path = Path(output_folder) / "data_sv.txt"
+    new_file.to_csv(output_path, sep="\t", index=False)
 
 
 def delete_caselist_cna(
