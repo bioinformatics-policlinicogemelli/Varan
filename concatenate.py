@@ -204,13 +204,14 @@ def concatenate_main(
     logger.info("Checking data_mutations_extended...")
     with output_file.open() as data_mut:
         all_data_mut = data_mut.readlines()
-        if (len(all_data_mut) == 1):
+        if (len(all_data_mut) <= 1):
             output_file.unlink()
             logger.warning("data_mutations_extended is empty. File removed.")
 
     if output_file.exists():
         data_mut = pd.read_csv(output_file, sep="\t", dtype=str)
         data_mut = data_mut.drop_duplicates(keep="last")
+        data_mut.to_csv(output_file, sep="\t", index=False)
 
     if Path(output_file).exists():
         logger.info(f"Extracting data_mutations_extended from {input_folder} folder")
