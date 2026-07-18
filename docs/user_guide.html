@@ -725,6 +725,7 @@ study_name
 ├── data_mutations_extended.txt
 ├── data_sv.txt
 ├── img
+├── intermediate (****)
 ├── MAF_Filtered or MAF_Onco_filtered(*)
 ├── MAF_OncoKB (**)
 ├── maf or maf.zip (***)
@@ -741,6 +742,7 @@ study_name
             <p>(*) Filtered MAF files will be stored in the MAF_Onco_filtered or MAF_Filtered folders, depending on whether the MAFs were annotated with OncoKB.</p>
             <p>(**) MAF_OncoKB folder will be created only if the <code>-k</code> option is set and will contain all the MAF with OncoKB annotations.</p>
             <p>(***) A folder containing MAF files. It will be zipped if <code>ZIP_MAF</code> is set as True in <i>conf.ini</i>.</p>
+            <p>(****) Staging files produced while building the CNA table (e.g. <i>temp_cna_toannotate.txt</i>, <i>CNV_ann/</i>, <i>CNV_annotated_merged.txt</i>, <i>CNA_ndiscrete.txt</i>/<i>annotated_oncokb_CNA_ndiscrete.txt</i>) - not meant to be opened directly, kept here instead of the study root so the final, cBioPortal-loadable files stand out. Only created when CNVKIT_algorithm = True.</p>
 
             <h4 id="varan-reports">Varan Reports</h4>
 

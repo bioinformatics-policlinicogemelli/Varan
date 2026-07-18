@@ -316,6 +316,9 @@ def cnv_type_from_folder(input_path: str,
         cnv_kit = check_bool(cnv_kit)
 
         if cnv_kit:
+            intermediate_dir = Path(output_folder) / "intermediate"
+            intermediate_dir.mkdir(parents=True, exist_ok=True)
+
             if not Path(input_path).is_file():
                 input_file = pd.read_csv(
                     Path(input_path) / "sample.tsv", sep="\t",
@@ -345,12 +348,12 @@ def cnv_type_from_folder(input_path: str,
                                 "ONCOTREE_CODE", "TC"]],
                     on="Tumor_Sample_Barcode")
 
-            temppath = Path(output_folder) / "temp_cna_toannotate.txt"
+            temppath = intermediate_dir / "temp_cna_toannotate.txt"
             annotate.to_csv(temppath, index=False, sep="\t")
 
             if oncokb:
 
-                out_can_ann=Path(output_folder) / "CNV_ann"
+                out_can_ann=intermediate_dir / "CNV_ann"
                 out_can_ann.mkdir(exist_ok=True)
 
                 oncokb_key = config.get("OncoKB", "ONCOKB")
@@ -364,7 +367,7 @@ def cnv_type_from_folder(input_path: str,
                     "toannotate.txt", f"annotated_{sample_df}.txt")
 
                     df_tmp=temppath_df[temppath_df["Tumor_Sample_Barcode"]==sample_df]
-                    df_path=Path(output_folder) / "tmp_ann.txt"
+                    df_path=intermediate_dir / "tmp_ann.txt"
                     df_tmp.to_csv(df_path, sep="\t", index=False)
 
 
@@ -387,7 +390,7 @@ def cnv_type_from_folder(input_path: str,
                     [pd.read_csv(f, sep="\t") for f in all_ann_files],
                     ignore_index=True
                 )
-                out = Path(output_folder) / "CNV_annotated_merged.txt"
+                out = intermediate_dir / "CNV_annotated_merged.txt"
                 merged_df.to_csv(out, sep="\t", index=False)
 
                 name = "annotated_oncokb_CNA_ndiscrete.txt"
@@ -434,7 +437,7 @@ def cnv_type_from_folder(input_path: str,
                 cna.loc[sample_mask & (cna["FC"] >= thresholds[3]) & (cna["FC"] < thresholds[5]), "Copy_Number_Alteration"] = 1
                 cna.loc[sample_mask & (cna["FC"] >= thresholds[5]), "Copy_Number_Alteration"] = 2
 
-            cna.to_csv(Path(output_folder) / name,
+            cna.to_csv(intermediate_dir / name,
                        index=True, sep="\t")
 
             cna["Tumor_Sample_Barcode"] = cna[
