@@ -1594,6 +1594,91 @@ def fill_fusion_from_combined(
                             fus["Event_Info"] + " Fusion\tYes\n")
 
 
+def fill_splice_from_combined(
+    fusion_table_file: str,
+    combined_dict: dict[str, str],
+    thr_splice: str) -> None:
+    """Add splice variant events from combined variant output to data_sv.txt.
+
+    Splice variants are written as intragenic structural variant rows (same
+    gene on both Site1/Site2, Class="SPLICE") into the same data_sv.txt table
+    fusions use, but deliberately called *after* the fusion pipeline's
+    OncoKB annotation step (annotate_fusion/FusionAnnotator.py) rather than
+    folded into it - that annotator expects a real two-gene fusion pair, and
+    running a same-gene "fusion" through it would be meaningless at best.
+
+    Rebuilds the file rather than blindly appending, so calling this twice
+    on the same output folder (e.g. on resume) can't accumulate duplicate
+    splice rows: any pre-existing Class="SPLICE" rows are dropped first,
+    then this run's rows are added back.
+
+    NOTE ON VERIFICATION: see tsv.get_splice_variants() - the row format
+    this depends on has not been exercised against a real populated
+    [Splice Variants] section, only against its header.
+
+    Args:
+        fusion_table_file (str): data_sv.txt path (may not exist yet if the
+            fusion pipeline found no fusions and removed it).
+        combined_dict (dict[str, str]): Map sampleID to CombinedVariantOutput file path.
+        thr_splice (str): Threshold expression for filtering read count (e.g. ">=15").
+
+    Returns:
+        None
+
+    """
+    logger.info("Adding splice variants to data_sv.txt file...")
+
+    fusion_table_path = Path(fusion_table_file)
+    header = (
+        "Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\t"
+        "Normal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n")
+
+    existing_lines = []
+    if fusion_table_path.exists():
+        with fusion_table_path.open() as f:
+            existing_lines = f.readlines()
+        if existing_lines:
+            header = existing_lines[0]
+            existing_lines = [
+                line for line in existing_lines[1:]
+                if len(line.split("\t")) <= 2 or line.split("\t")[2] != "SPLICE"]
+
+    new_rows = []
+    for k, v in combined_dict.items():
+        splice_variants = []
+        try:
+            splice_variants = tsv.get_splice_variants(Path(v))
+        except Exception:
+            logger.error("Something went wrong while reading Splice Variants "
+            f"section for sample {k}")
+
+        for sv in splice_variants:
+            gene = sv["Gene"]
+            ssr = sv["Splice_Supporting_Reads"]
+            try:
+                if not eval("int(ssr)" + thr_splice):
+                    continue
+            except (ValueError, TypeError):
+                logger.warning(
+                    f"Non-numeric splice supporting read count for {gene} "
+                    f"in sample {k}, skipping.")
+                continue
+
+            event_info = f"Exon {sv['Affected_Exon']} splice variant"
+            new_rows.append(
+                str(k).strip() + "\tSOMATIC\tSPLICE\t" +
+                str(gene) + "\t" + str(gene) + "\t" +
+                ssr + "\t" + event_info + "\tYes\n")
+
+    if not new_rows and not existing_lines:
+        return
+
+    with fusion_table_path.open("w") as fusion_table:
+        fusion_table.write(header)
+        fusion_table.writelines(existing_lines)
+        fusion_table.writelines(new_rows)
+
+
 def check_data_cna(data_cna_path: str) -> None:
     """Check if CNA data file is empty; remove file if empty.
 
@@ -2330,6 +2415,7 @@ def walk_folder(
 
         fusion_table_file = Path(output_folder) / "data_sv.txt"
         fusion_folder = Path(input_folder) / "FUSIONS"
+        combined_dict = {}
 
         combined_output_folder = Path(input_folder) / "CombinedOutput"
         if (
@@ -2392,6 +2478,16 @@ def walk_folder(
             data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
             if fusion_table_file_out != fusion_table_file:
                 os.system(f"mv {fusion_table_file_out} {fusion_table_file}")
+
+        ###############################
+        ###   GET SPLICE VARIANTS   ###
+        ###############################
+        # Runs after the fusion block above (annotation included) has fully
+        # finished, so splice rows are never sent through the fusion-specific
+        # OncoKB annotator.
+        if combined_dict:
+            thr_splice = config.get("SPLICE", "THRESHOLD_SPLICE")
+            fill_splice_from_combined(fusion_table_file, combined_dict, thr_splice)
 
 
     ##############################

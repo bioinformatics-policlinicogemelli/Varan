@@ -188,6 +188,52 @@ def get_fusions(input_file: str) -> list[dict[str, str]]:
         return fusions
 
 
+def get_splice_variants(input_file: str) -> list[dict[str, str]]:
+    """Extract splice variant events from a CombinedVariantOutput file.
+
+    NOTE ON VERIFICATION: this only had the "[Splice Variants]" section
+    *header* to go on - Gene / Affected Exon / Breakpoint 1 / Breakpoint 2 /
+    Splice Supporting Reads / Reference Reads Transcript - every real example
+    file available while writing this showed "NA" (no splice variant calls),
+    so the row-splitting logic below has never been exercised against a real
+    populated row. Treat this as unverified until checked against one.
+
+    Parameters
+    ----------
+    input_file : Path
+        Path to the input file containing splice variant data.
+
+    Returns
+    -------
+    list of dict
+        A list of dictionaries, one per splice variant event, with keys
+        "Gene", "Affected_Exon", "Breakpoint_1", "Breakpoint_2",
+        "Splice_Supporting_Reads" and "Reference_Reads_Transcript".
+
+    """
+    with input_file.open() as file:
+        lines = file.readlines()
+        splice_variants = []
+        for i in range(len(lines)):
+            if "[Splice Variants]" in lines[i]:
+                for j in range(i + 2, len(lines)):
+                    if lines[j].strip() in ("NA", ""):
+                        break
+                    fields = lines[j].strip().split("\t")
+                    if len(fields) < 6:
+                        continue
+                    gene, affected_exon, bp1, bp2, ssr, ref_reads = fields[:6]
+                    splice_variants.append({
+                        "Gene": gene,
+                        "Affected_Exon": affected_exon,
+                        "Breakpoint_1": bp1,
+                        "Breakpoint_2": bp2,
+                        "Splice_Supporting_Reads": ssr,
+                        "Reference_Reads_Transcript": ref_reads})
+                break
+        return splice_variants
+
+
 def get_exons(input_file: str) -> list[dict[str, str]]:
     """Extract BRCA exon-level CNV information from a given input file.
 
