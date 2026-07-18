@@ -185,6 +185,37 @@ def delete_mutations(file_path: str, sample_ids: list[str], output_folder: str) 
     filtered.to_csv(output_path, index=False, sep="\t")
 
 
+def delete_generic_by_sample_id(
+    file_path: str,
+    sample_ids: list[str],
+    output_folder: str,
+    id_column: str = "Sample_Id") -> None:
+    """Remove all rows for the given sample_ids from a generic Sample_Id-keyed file.
+
+    Works regardless of how many rows a sample has (e.g. exon-level CNA data can have
+    one row per gene per sample) - reusable for any future per-sample multi-row file
+    without writing a new delete_* function each time.
+
+    Args:
+        file_path (str): Path to the input file (must have an `id_column` column).
+        sample_ids (list[str]): List of sample IDs to remove.
+        output_folder (str): Directory to save the filtered file.
+        id_column (str): Name of the sample-id column in the file.
+
+    Returns:
+        None
+
+    """
+    file_path = Path(file_path)
+    file = pd.read_csv(file_path, sep="\t", dtype=str)
+    if id_column not in file.columns:
+        logger.warning(f"{file_path.name}: column '{id_column}' not found, skipping.")
+        return
+    filtered = file[~file[id_column].astype(str).isin(sample_ids)]
+    output_path = Path(output_folder) / file_path.name
+    filtered.to_csv(output_path, index=False, sep="\t")
+
+
 def delete_sv(file_path: str, sample_ids: list[str], output_folder: str) -> None:
     """Remove structural variation records containing specific sample IDs.
 
@@ -201,118 +232,6 @@ def delete_sv(file_path: str, sample_ids: list[str], output_folder: str) -> None
     new_file = old_file[~old_file["Sample_Id"].astype(str).isin(sample_ids)]
     output_path = Path(output_folder) / "data_sv.txt"
     new_file.to_csv(output_path, sep="\t", index=False)
-
-
-def delete_caselist_cna(
-    file_path: str,
-    sample_ids: list[str],
-    output_folder: str) -> None:
-    """Update CNA case list by removing specified sample IDs.
-
-    Args:
-        file_path (str): Path to the case list file for CNA.
-        sample_ids (list[str]): Sample IDs to be excluded.
-        output_folder (str): Directory to save the new case list file.
-
-    Returns:
-        None
-
-    """
-    file_path = Path(file_path)
-    with file_path.open() as file:
-
-        for raw_line in file:
-            line = raw_line.strip()
-            if line.startswith("case_list_ids"):
-                samples = line.split(":")[1].split("\t")
-                samples=list(map(str.strip, samples))
-                updated = [elem for elem in samples if elem not in sample_ids]
-
-        output_path = Path(output_folder) / "cases_cna.txt"
-        with output_path.open("w") as filtered:
-            file.seek(0)
-            for raw_line in file:
-                if raw_line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r"\d+", raw_line)[0]
-                    line = raw_line.replace(n_old_samples, str(len(updated)))
-
-                if raw_line.startswith("case_list_ids"):
-                    line = "case_list_ids:" + "\t".join(updated)
-                filtered.write(line)
-
-
-def delete_caselist_sequenced(
-    file_path: str,
-    sample_ids: list[str],
-    output_folder: str) -> None:
-    """Update sequenced case list by removing specified sample IDs.
-
-    Args:
-        file_path (str): Path to the sequenced case list file.
-        sample_ids (list[str]): Sample IDs to exclude.
-        output_folder (str): Directory to save the updated case list.
-
-    Returns:
-        None
-
-    """
-    file_path = Path(file_path)
-    with file_path.open() as file:
-        for raw_line in file:
-            line = raw_line.strip()
-            if line.startswith("case_list_ids"):
-                samples = line.split(":")[1].split("\t")
-                samples=list(map(str.strip, samples))
-                updated = [elem for elem in samples if elem not in sample_ids]
-
-        output_path = Path(output_folder) / "cases_sequenced.txt"
-        with output_path.open("w") as filtered:
-            file.seek(0)
-            for raw_line in file:
-                if raw_line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r"\d+", raw_line)[0]
-                    line = raw_line.replace(n_old_samples, str(len(updated)))
-
-                if raw_line.startswith("case_list_ids"):
-                    line = "case_list_ids:" + "\t".join(updated)
-                filtered.write(line)
-
-
-def delete_caselist_sv(
-    file_path: str,
-    sample_ids: list[str],
-    output_folder: str) -> None:
-    """Update structural variation case list by removing sample IDs.
-
-    Args:
-        file_path (str): Path to the SV case list file.
-        sample_ids (list[str]): Sample IDs to be excluded.
-        output_folder (str): Directory to save the new case list file.
-
-    Returns:
-        None
-
-    """
-    file_path = Path(file_path)
-    with file_path.open() as file:
-        for raw_line in file:
-            line = raw_line.strip()
-            if line.startswith("case_list_ids"):
-                samples = line.split(":")[1].split("\t")
-                samples = list(map(str.strip, samples))
-                updated = [elem for elem in samples if elem not in sample_ids]
-
-        output_path = Path(output_folder) / "cases_sv.txt"
-        with output_path.open("w") as filtered:
-            file.seek(0)
-            for raw_line in file:
-                if raw_line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r"\d+", raw_line)[0]
-                    line = raw_line.replace(n_old_samples, str(len(updated)))
-
-                if raw_line.startswith("case_list_ids"):
-                    line = "case_list_ids:" + "\t".join(updated)
-                filtered.write(line)
 
 
 def check_sample_list(remove_path: str, oldpath: str) -> None:
@@ -381,6 +300,7 @@ def delete_all_data(oldpath: str, sample_ids: list, output: str) -> None:
         ("data_cna.txt", delete_cna, True),
         ("data_mutations_extended.txt", delete_mutations, True),
         ("data_sv.txt", delete_sv, True),
+        ("exon_CNA_data.txt", delete_generic_by_sample_id, True),
     ]
 
     for filename, deleter, use_path in file_to_delete:

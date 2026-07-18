@@ -225,6 +225,37 @@ def extract_sv(file_path: str,
     new_file.to_csv(outpath,sep="\t",index=False)
 
 
+def extract_generic_by_sample_id(
+    file_path: str,
+    sample_ids: list[str],
+    output_folder: str,
+    id_column: str = "Sample_Id") -> None:
+    """Extract all rows for the given sample_ids from a generic Sample_Id-keyed file.
+
+    Works regardless of how many rows a sample has (e.g. exon-level CNA data can have
+    one row per gene per sample) - reusable for any future per-sample multi-row file
+    without writing a new extract_* function each time.
+
+    Args:
+        file_path (str): Path to the input file (must have an `id_column` column).
+        sample_ids (list[str]): List of sample IDs to extract.
+        output_folder (str): Path to the output directory.
+        id_column (str): Name of the sample-id column in the file.
+
+    Returns:
+        None
+
+    """
+    file_path = Path(file_path)
+    file = pd.read_csv(file_path, sep="\t", dtype=str)
+    if id_column not in file.columns:
+        logger.warning(f"{file_path.name}: column '{id_column}' not found, skipping.")
+        return
+    extracted = file[file[id_column].astype(str).isin(sample_ids)]
+    outpath = Path(output_folder) / file_path.name
+    extracted.to_csv(outpath, sep="\t", index=False)
+
+
 def check_sample_list(extract_path: str, oldpath: str) -> None:
     """Validate the sample list file and check consistency with clinical sample data.
 
@@ -298,6 +329,7 @@ def extract_all_data(oldpath: str, sample_ids: list, output: str) -> None:
         ("data_cna.txt", extract_cna, True),
         ("data_mutations_extended.txt", extract_mutations, True),
         ("data_sv.txt", extract_sv, True),
+        ("exon_CNA_data.txt", extract_generic_by_sample_id, True),
     ]
 
     for filename, extractor, use_path in file_extractors:

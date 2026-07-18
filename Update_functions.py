@@ -323,126 +323,30 @@ def update_sv(oldfile_path: str,
     logger.info("data_sv.txt updated!")
 
 
-def update_caselist_cna(oldfile_path: str,
-                        newfile_path: str,
-                        output_folder: str) -> None:
-    """Update cases' CNA data inside cases_cna.txt file.
+def update_generic_by_sample_id(
+    oldfile_path: Path, newfile_path: Path, output_folder: Path) -> None:
+    """Update a generic Sample_Id-keyed file by appending the new study's rows.
 
-    This function reads the original tab separated version txt file,
-    insert new rows with the cases' CNA data founded inside the new txt
-    file and save the updated file.
+    Works regardless of how many rows a sample has (e.g. exon-level CNA data can have
+    one row per gene per sample) - reusable for any future per-sample multi-row file
+    without writing a new update_* function each time. All rows from the new study are
+    added to the old ones; exact-duplicate rows are collapsed (keeping the newest).
 
     Args:
-        oldfile_path (str): Path to the original cases_cna.
-        newfile_path (str): Path to the new cases_cna.
-        output_folder (str): Path to the output folder.
+        oldfile_path (Path): Path to the file in the original study folder.
+        newfile_path (Path): Path to the same-named file in the incoming study folder.
+        output_folder (Path): Path to the output folder.
 
     Returns:
         None
 
     """
-    with Path(oldfile_path).open() as old:
-        with Path(newfile_path).open() as new:
-            for raw_line in new:
-                line = raw_line.strip()
-                if line.startswith("case_list_ids"):
-                    new_samples = line.split(":")[1]
-                    len_new_sample = len(new_samples.split("\t"))
-
-        outpath=Path(output_folder) / "cases_cna.txt"
-        with outpath.open("w") as updated:
-            for raw_line in old:
-                if raw_line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r"\d+", raw_line)[0]
-                    line = raw_line.replace(
-                        n_old_samples, str(int(n_old_samples) + len_new_sample))
-                if raw_line.startswith("case_list_ids"):
-                    new_samples_filtered =[
-                        sample for sample in new_samples.split("\t")
-                        if sample not in raw_line]
-                    line = "\t".join([raw_line, "\t".join(new_samples_filtered)])
-                updated.write(line)
-
-
-def update_caselist_sequenced(oldfile_path: str,
-                              newfile_path: str,
-                              output_folder: str) -> None:
-    """Update cases' sequenced data inside cases_sequenced.txt file.
-
-    This function reads the originalfile from the given 'oldfile_path',
-    insert new rows founded inside the new txt file from the given 'newfile_path'
-    and save the updated file named 'cases_sequenced.txt.
-
-    Args:
-        oldfile_path (str): Path to the original cases_sequenced.
-        newfile_path (str): Path to the new cases_sequenced.
-        output_folder (str): Path to the output folder.
-
-    Returns:
-        None
-
-    """
-    with Path(oldfile_path).open() as old:
-        with Path(newfile_path).open() as new:
-            for raw_line in new:
-                line = raw_line.strip()
-                if line.startswith("case_list_ids"):
-                    new_samples = line.split(":")[1]
-                    len_new_sample = len(new_samples.split("\t"))
-        outpath=Path(output_folder) / "cases_sequenced.txt"
-        with outpath.open("w") as updated:
-            for raw_line in old:
-                if raw_line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r"\d+", raw_line)[0]
-                    line = raw_line.replace(
-                        n_old_samples, str(int(n_old_samples) + len_new_sample))
-                if raw_line.startswith("case_list_ids"):
-                    new_samples_filtered = [
-                        sample for sample in new_samples.split("\t")
-                        if sample not in raw_line]
-                    line = "\t".join([raw_line, "\t".join(new_samples_filtered)])
-                updated.write(line)
-
-
-def update_caselist_sv(oldfile_path: str,
-                       newfile_path: str,
-                       output_folder: str) -> None:
-    """Update cases' structural variation (SV) data inside cases_sv.txt file.
-
-    This function reads the original file from the given 'oldfile_path',
-    insert new rows with the cases' SV data founded inside 'newfile_path'
-    and save the updated file named 'cases_sv.txt'.
-
-    Args:
-        oldfile_path (str): Path to the original cases_sv.
-        newfile_path (str): Path to the new cases_sv.
-        output_folder (str): Path to the output folder.
-
-    Returns:
-        None
-
-    """
-    with Path(oldfile_path).open() as old:
-        with Path(newfile_path).open() as new:
-            for raw_line in new:
-                line = raw_line.strip()
-                if line.startswith("case_list_ids"):
-                    new_samples = line.split(":")[1]
-                    len_new_sample = len(new_samples.split("\t"))
-
-        outpath=Path(output_folder) / "cases_sv.txt"
-        with outpath.open("w") as updated:
-            for raw_line in old:
-                if raw_line.startswith("case_list_description"):
-                    n_old_samples = re.findall(r"\d+", raw_line)[0]
-                    line = raw_line.replace(
-                        n_old_samples, str(int(n_old_samples) + len_new_sample))
-                if raw_line.startswith("case_list_ids"):
-                    new_samples_filtered = [
-                        sample for sample in new_samples.split("\t")
-                        if sample not in raw_line]
-                    line = "\t".join([raw_line, "\t".join(new_samples_filtered)])
-                updated.write(line)
+    old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
+    new = pd.read_csv(newfile_path, sep="\t", dtype=str)
+    merged = pd.concat([old, new], ignore_index=True).drop_duplicates(keep="last")
+    output_file = Path(output_folder) / Path(oldfile_path).name
+    merged.to_csv(output_file, sep="\t", index=False)
+    logger.info(f"{Path(oldfile_path).name} updated!")
 
 
 def check_files(oldpath: str,
@@ -474,7 +378,8 @@ def check_files(oldpath: str,
     "data_cna_hg19.seg.fc.txt": update_cna_hg19_fc,
     "data_cna.txt": update_cna,
     "data_mutations_extended.txt": update_mutations,
-    "data_sv.txt": update_sv}
+    "data_sv.txt": update_sv,
+    "exon_CNA_data.txt": update_generic_by_sample_id}
 
     o_data = Path(oldpath) / file_name
     n_data = Path(newpath) / file_name
@@ -495,50 +400,6 @@ def check_files(oldpath: str,
     else:
         logger.warning(f"'{file_name}' not found in either folder. Skipping.")
 
-
-def check_files_cases(oldpath: str,
-                      newpath: str,
-                      output_caseslists: str,
-                      file_name: str) -> None:
-    """Dispatch and/or copy case list files between study versions.
-
-    Checks for a given case list file in both old and new paths:
-      - If present in both: calls `update_caselist_*` function to merge.
-      - If only in one: copies it to the output 'case_lists' folder.
-      - If in neither: logs a warning and skips.
-
-    Args:
-        oldpath (str): Path to the previous version folder.
-        newpath (str): Path to the incoming data folder.
-        output_caseslists (str): Path to the target 'case_lists' output folder.
-        file_name (str): Name of the case list file to process,
-            e.g. "cases_cna.txt", "cases_sequenced.txt", or "cases_sv.txt".
-
-    Returns:
-        None
-
-    """
-    o_data = Path(oldpath) / "case_lists" / file_name
-    n_data = Path(newpath) / "case_lists" / file_name
-    if o_data.exists() and n_data.exists():
-        if file_name == "cases_cna.txt":
-            update_caselist_cna(o_data,n_data,output_caseslists)
-        elif file_name == "cases_sequenced.txt":
-            update_caselist_sequenced(o_data,n_data,output_caseslists)
-        elif file_name == "cases_sv.txt":
-            update_caselist_sv(o_data,n_data,output_caseslists)
-    elif o_data.exists() and not n_data.exists():
-        logger.warning(
-            f"{file_name} was not found in path 2 case_lists folder. "
-                       "The file is being copied from path 1.")
-        shutil.copy(o_data, output_caseslists)
-    elif not o_data.exists() and n_data.exists():
-        logger.warning(
-            f"{file_name} was not found in path 1 case_lists folder. "
-            "The file is being copied from path 2.")
-        shutil.copy(n_data, output_caseslists)
-    else:
-        logger.warning(f"{file_name} not found in 'case_lists' folders. Skipping")
 
 def copy_logo(oldpath: str, output: str) -> None:
     """Copy 'logo_VARAN.png' old folder to the new output folder.

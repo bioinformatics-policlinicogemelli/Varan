@@ -33,7 +33,6 @@ from loguru import logger
 from filter_clinvar import check_bool
 from Make_meta_and_cases import meta_case_main
 from Update_functions import (
-    check_files_cases,
     copy_metadata_files,
     prepare_output_folder,
     safe_check_file,
@@ -89,17 +88,13 @@ def update_main(oldpath: str, newpath: str,
 
     file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt",
                   "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt",
-                  "data_mutations_extended.txt", "data_sv.txt"]
+                  "data_mutations_extended.txt", "data_sv.txt", "exon_CNA_data.txt"]
 
     for file in file_names:
         safe_check_file(oldpath, newpath, output, file)
 
     check_all_data(output)
     remove_meta(output)
-
-    check_files_cases(oldpath, newpath, output_caseslists,"cases_cna.txt")
-    check_files_cases(oldpath, newpath, output_caseslists,"cases_sequenced.txt")
-    check_files_cases(oldpath, newpath, output_caseslists,"cases_sv.txt")
 
     cancer, study_info = extract_info_from_meta(oldpath)
     study_info.append(oldpath)
