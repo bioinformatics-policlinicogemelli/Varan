@@ -26,6 +26,7 @@ flexible customization of thresholds and accepted values for each filter.
 
 import ast
 import os
+import subprocess
 import shutil
 import sys
 from configparser import ConfigParser
@@ -288,13 +289,17 @@ def filter_main(input_path: str,folder: str,
                 for _, row in input_file.iterrows():
                     if str(row["SAMPLE_ID"]) in file_no:
                         cancer_onco = row["ONCOTREE_CODE"] or cancer
-                        os.system(f"python3 oncokb-annotator/MafAnnotator.py "
-                        f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
-                        f"-b {config.get('OncoKB', 'ONCOKB')}")
+                        subprocess.run([
+                            "python3", "oncokb-annotator/MafAnnotator.py",
+                            "-i", str(f), "-o", str(file_path),
+                            "-t", cancer_onco.upper(),
+                            "-b", config.get("OncoKB", "ONCOKB")], check=True)
             else:
-                os.system(f"python3 oncokb-annotator/MafAnnotator.py "
-                f"-i {f} -o {file_path} -t {cancer.upper()} "
-                f"-b {config.get('OncoKB', 'ONCOKB')}")
+                subprocess.run([
+                    "python3", "oncokb-annotator/MafAnnotator.py",
+                    "-i", str(f), "-o", str(file_path),
+                    "-t", cancer.upper(),
+                    "-b", config.get("OncoKB", "ONCOKB")], check=True)
 
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
         out_filter = maf_oncokb_path
@@ -332,11 +337,18 @@ def filter_main(input_path: str,folder: str,
                 file_to_filter = file_to_filter[
                     file_to_filter["ONCOGENIC"].isin(oncokb_filter)]
 
-            if "v" in filters:
+            if "v" in filters and "t_AF" not in file_to_filter.columns \
+                    and "t_VF" not in file_to_filter.columns:
+                logger.warning(
+                    f"Neither t_AF nor t_VF column found in {file} - skipping the "
+                    "VAF filter for this file instead of crashing the whole batch.")
+
+            elif "v" in filters:
                 t_vaf_min = float(config.get("Filters", "t_VAF_min"))
                 t_vaf_max = float(config.get("Filters", "t_VAF_max"))
 
-                temp = file_to_filter.dropna(subset=["t_AF"])
+                temp = (file_to_filter.dropna(subset=["t_AF"])
+                        if "t_AF" in file_to_filter.columns else pd.DataFrame())
 
                 if len(temp) == 0:
                     vaf_colname = "t_VF"
