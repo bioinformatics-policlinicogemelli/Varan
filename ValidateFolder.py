@@ -56,7 +56,7 @@ from write_report import write_report_main
 config = ConfigParser()
 config_file = config.read("conf.ini")
 
-def cbio_validation(output_folder: str) -> None:
+def cbio_validation(output_folder: str) -> str:
     """Execute cBioPortal's validateData.py script on the specified output folder.
 
     Args:
@@ -65,10 +65,14 @@ def cbio_validation(output_folder: str) -> None:
     Behavior:
         - Runs a subprocess to invoke the cBioPortal validator.
         - Logs different outcomes based on the validator's return code.
-        - Generates an HTML report in the output folder.
+        - Generates an HTML report in the output folder (report_validate.html).
 
     Returns:
-        None
+        str: "PASS" (no errors/warnings), "REVIEW" (warnings only) or "FAIL"
+            (errors) - or "UNKNOWN" if the validator subprocess itself couldn't
+            be started. This never blocks the pipeline: a failed/reviewed
+            validation is reported, not raised - Varan studies are used for
+            more than just cBioPortal upload, so the run must still finish.
 
     """
     config = ConfigParser()
@@ -96,23 +100,28 @@ def cbio_validation(output_folder: str) -> None:
         )
     except subprocess.SubprocessError as e:
         logger.error(f"Validation subprocess failed to start: {e}")
-        return
+        return "UNKNOWN"
 
     if result.returncode == 1:
         logger.error(
-            f"Error: {result.stderr.strip()} "
-            f"Check the report file in the study folder for more info!",
+            f"cBioPortal validation FAILED: {result.stderr.strip()} "
+            f"Check {report_path} for details. Continuing anyway - see the "
+            "Warnings section of the report for the study's validation status.",
         )
-    elif result.returncode in [2, 3]:
+        return "FAIL"
+    if result.returncode in (2, 3):
         logger.warning(
-            f"{result.stderr.strip()} "
-            f"Check the report file in the study folder for details!",
+            f"cBioPortal validation needs REVIEW: {result.stderr.strip()} "
+            f"Check {report_path} for details.",
         )
-    elif result.returncode == 0:
+        return "REVIEW"
+    if result.returncode == 0:
         logger.success(
             "The validation proceeded without errors and warnings! "
             "The study is ready to be uploaded!",
         )
+        return "PASS"
+    return "UNKNOWN"
 
 def clean_multi(input_folder: str, folder: str, file: str) -> None:
     """Remove a specified file or directory from a nested path.
@@ -242,62 +251,63 @@ def validate_output(
         - Cleans up temporary input files.
 
     Returns:
-        int: Number of variants used in report (from plot function).
-
-    Raises:
-        Exception: If validation fails.
+        int: Number of variants used in report (from plot function). A failed or
+            reviewed cBioPortal validation never raises - it's surfaced instead
+            in the Warnings section of the generated report.
 
     """
     validate_folder_log(folder)
-    val = cbio_validation(folder)
+    validation_status = cbio_validation(folder)
 
     cases_path = Path(folder) / "case_lists"
     if cases_path.exists() and not any(cases_path.iterdir()):
         shutil.rmtree(cases_path)
-    if val != 1:
-        number_for_graph = int(create_barplots(folder))
-        if not block2:
-            write_report_main(
-                folder, cancer, filters, number_for_graph, oncokb, start_time)
 
-            maf_path = Path(folder) / "maf"
-            snv_path = Path(folder) / "snv_filtered"
-            temp_path = Path(folder) / "temp"
+    # Validation failing/needing review is reported (see validation_status in the
+    # report's Warnings section, and report_validate.html for detail) but never
+    # blocks the run - Varan studies are used for more than just cBioPortal
+    # upload, so processing must finish either way.
+    number_for_graph = int(create_barplots(folder))
+    if not block2:
+        write_report_main(
+            folder, cancer, filters, number_for_graph, oncokb, start_time,
+            validation_status)
 
-            if maf_path.exists():
-                zip_maf = config.get("Zip", "ZIP_MAF")
-                zip_maf = check_bool(zip_maf)
-                if not any(maf_path.iterdir()):
-                    shutil.rmtree(maf_path)
+        maf_path = Path(folder) / "maf"
+        snv_path = Path(folder) / "snv_filtered"
+        temp_path = Path(folder) / "temp"
 
-                elif zip_maf:
-                    logger.info("Zipping maf folder...")
-                    shutil.make_archive(maf_path, "zip", maf_path)
-                    logger.info("Deleting unzipped maf folder...")
-                    shutil.rmtree(maf_path)
+        if maf_path.exists():
+            zip_maf = config.get("Zip", "ZIP_MAF")
+            zip_maf = check_bool(zip_maf)
+            if not any(maf_path.iterdir()):
+                shutil.rmtree(maf_path)
 
-            zip_snv_filtered = config.get("Zip", "ZIP_SNV_FILTERED")
-            zip_snv_filtered = check_bool(zip_snv_filtered)
+            elif zip_maf:
+                logger.info("Zipping maf folder...")
+                shutil.make_archive(maf_path, "zip", maf_path)
+                logger.info("Deleting unzipped maf folder...")
+                shutil.rmtree(maf_path)
 
-            if snv_path.exists() and zip_snv_filtered:
-                logger.info("Zipping snv_filtered folder...")
-                shutil.make_archive(str(snv_path), "zip", str(snv_path))
-                logger.info("Deleting unzipped snv_filtered folder...")
-                shutil.rmtree(snv_path)
+        zip_snv_filtered = config.get("Zip", "ZIP_SNV_FILTERED")
+        zip_snv_filtered = check_bool(zip_snv_filtered)
 
-            if temp_path.exists():
-                shutil.rmtree(temp_path)
+        if snv_path.exists() and zip_snv_filtered:
+            logger.info("Zipping snv_filtered folder...")
+            shutil.make_archive(str(snv_path), "zip", str(snv_path))
+            logger.info("Deleting unzipped snv_filtered folder...")
+            shutil.rmtree(snv_path)
 
-            if multi and varan_input is not None:
-                clean_multi(varan_input[0], "CNV", "single_sample_vcf")
-                clean_multi(varan_input[0], "CNV", "sample_id.txt")
-                clean_multi(varan_input[0], "SNV", "single_sample_vcf")
-                clean_multi(varan_input[0], "SNV", "sample_id.txt")
+        if temp_path.exists():
+            shutil.rmtree(temp_path)
 
-        return number_for_graph
+        if multi and varan_input is not None:
+            clean_multi(varan_input[0], "CNV", "single_sample_vcf")
+            clean_multi(varan_input[0], "CNV", "sample_id.txt")
+            clean_multi(varan_input[0], "SNV", "single_sample_vcf")
+            clean_multi(varan_input[0], "SNV", "sample_id.txt")
 
-    error_msg = "Validation Failed!"
-    raise RuntimeError(error_msg)
+    return number_for_graph
 
 
 def copy_maf(oldpath: str, output: str, copy_maf: bool, zip_maf: bool) -> None:
@@ -350,16 +360,26 @@ def copy_maf(oldpath: str, output: str, copy_maf: bool, zip_maf: bool) -> None:
         with zipfile.ZipFile(final_zip, "r") as zip_existing:
             zip_existing.extractall(output_maf_dir)
 
-    #TODO bug 
-    # common_suffix = detect_common_suffix(maf_dir, sample_ids)
-    common_suffix = ".hard-filtered.FILTERED.vcf.maf"
+    common_suffix = detect_common_suffix(maf_dir, sample_ids)
+    if common_suffix is None:
+        logger.warning(
+            f"Could not auto-detect a MAF filename suffix from any sample_id in "
+            f"{maf_dir}; falling back to the default '.hard-filtered.FILTERED.vcf.maf'.")
+        common_suffix = ".hard-filtered.FILTERED.vcf.maf"
 
+    copied = 0
     for sample in sample_ids:
         file_name = f"{sample}{common_suffix}"
         old_file = maf_dir / file_name
         new_file = output_maf_dir / file_name
         if old_file.exists():
             shutil.copy2(old_file, new_file)
+            copied += 1
+
+    if copied == 0 and len(sample_ids) > 0:
+        logger.warning(
+            f"0 of {len(sample_ids)} expected MAF files were copied from {maf_dir} "
+            f"(suffix used: '{common_suffix}') - maf.zip may end up empty.")
 
     if maf_zip_path.exists() and maf_dir.exists():
         shutil.rmtree(maf_dir)
@@ -385,7 +405,7 @@ def extract_maf_zip_if_needed(maf_zip_path: Path, maf_dir: Path) -> None:
             zip_maf_file.extractall(maf_dir)
 
 
-def detect_common_suffix(maf_dir: Path, sample_ids: list[str]) -> str:
+def detect_common_suffix(maf_dir: Path, sample_ids: list[str]) -> str | None:
     """Detect the most common suffix among MAF files based on sample IDs.
 
     Args:
@@ -393,11 +413,15 @@ def detect_common_suffix(maf_dir: Path, sample_ids: list[str]) -> str:
         sample_ids (list[str]): List of sample identifiers.
 
     Returns:
-        str: The most common file suffix associated with the sample IDs.
+        str | None: The most common file suffix associated with the sample IDs,
+            or None if no MAF filename contains any of the sample IDs at all.
 
     Behavior:
         - Iterates through MAF files and identifies the most frequent suffix
-          following each sample ID.
+          following each sample ID. The sample ID is matched anywhere in the
+          filename (not only at the start), so a filename with a prefix before
+          the sample ID (e.g. "run123_SAMPLE1.hard-filtered...maf") is still
+          detected correctly.
 
     """
     sorted_samples = sorted(sample_ids, key=len, reverse=True)
@@ -406,12 +430,14 @@ def detect_common_suffix(maf_dir: Path, sample_ids: list[str]) -> str:
     for file_path in maf_dir.iterdir():
         file_name = file_path.name
         for sample in sorted_samples:
-            if file_name.startswith(sample):
-                candidate = file_name[len(sample):]
+            if sample in file_name:
+                candidate = file_name.split(sample, 1)[1]
                 if candidate:
                     suffix_counter[candidate] += 1
                 break
 
+    if not suffix_counter:
+        return None
     common_suffix, _ = suffix_counter.most_common(1)[0]
     return common_suffix
 
