@@ -875,6 +875,7 @@ def write_clinical_sample(
     clin_samp_path: str,
     output_folder: str,
     table_dict: dict,
+    combined_output_used: bool = False,
 ) -> None:
     """Write the `data_clinical_sample.txt` file by merging sample and metrics data.
 
@@ -886,6 +887,11 @@ def write_clinical_sample(
         clin_samp_path (str): Path to the input clinical sample TSV file.
         output_folder (str): Directory where the final file will be saved.
         table_dict (dict): Dictionary containing metrics (MSI, TMB) by sample ID.
+        combined_output_used (bool): True if `table_dict` was built from a real
+            CombinedOutput folder (fill_from_combined); False if it was built as a
+            fallback straight from sample.tsv (fill_from_file). Used to log which
+            source MSI/TMB actually came from, and to avoid comparing sample.tsv
+            against itself when no CombinedOutput was ever provided.
 
     Raises:
         NameError: If expected columns or header definitions are missing or incorrect.
@@ -923,19 +929,27 @@ def write_clinical_sample(
             2: "TMB",
             3: "MSI_THR",
             4:"TMB_THR"})
-        try:
-            msi_notna = data_clin_samp["MSI"].notna().any()
-            tmb_notna = data_clin_samp["TMB"].notna().any()
+        source = "CombinedOutput" if combined_output_used else "sample.tsv"
+        logger.info(
+            f"MSI/TMB values written to data_clinical_sample.txt were taken from {source}.")
 
-            if msi_notna or tmb_notna:
-                msi_mismatch = (data_clin_samp["MSI"] != combout_df["MSI"]).any()
-                tmb_mismatch = (data_clin_samp["TMB"] != combout_df["TMB"]).any()
+        try:
+            if combined_output_used:
+                msi_sample = pd.to_numeric(data_clin_samp["MSI"], errors="coerce")
+                msi_combined = pd.to_numeric(combout_df["MSI"], errors="coerce")
+                tmb_sample = pd.to_numeric(data_clin_samp["TMB"], errors="coerce")
+                tmb_combined = pd.to_numeric(combout_df["TMB"], errors="coerce")
+
+                msi_mismatch = ((msi_sample != msi_combined)
+                                 & msi_sample.notna() & msi_combined.notna()).any()
+                tmb_mismatch = ((tmb_sample != tmb_combined)
+                                 & tmb_sample.notna() & tmb_combined.notna()).any()
 
                 if msi_mismatch or tmb_mismatch:
                     logger.warning(
-                        "MSI and/or TMB values are reported in sample.tsv and "
-                        "CombinedOutput but they do not match! CombinedOutput "
-                        "values were selected by default")
+                        "MSI and/or TMB values reported in sample.tsv differ from "
+                        "the ones computed from CombinedOutput! CombinedOutput "
+                        "values were used, sample.tsv values were discarded.")
             try:
                 data_clin_samp = data_clin_samp.drop(
                     columns=["MSI", "TMB", "MSI_THR", "TMB_THR"])
@@ -2283,7 +2297,7 @@ def walk_folder(
                 col_subset = [col for col in data_sv_tmp.columns if col != "Normal_Paired_End_Read_Count"]
 
                 data_sv_tmp = data_sv_tmp.drop_duplicates(subset=col_subset, keep='first')
-                data_sv_tmp["Normal_Paired_End_Read_Count"] = data_sv_tmp["Normal_Paired_End_Read_Count"].astype(str).str.replace(r'\.0$', '', regex=True)
+                data_sv_tmp["Normal_Paired_End_Read_Count"] = data_sv_tmp["Normal_Paired_End_Read_Count"].astype(str).str.replace(r'\.0$', '', regex=True).replace('nan', '')
 
             else:
                 data_sv_tmp = data_sv_tmp.drop_duplicates(keep='first')
@@ -2366,7 +2380,8 @@ def walk_folder(
             table_dict_patient, file_input_sample, msi_thr, tmb_thr)        
         combined_dict = {}
 
-    write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient)
+    write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient,
+                           combined_output_used=bool(combined_dict))
 
     update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)
 

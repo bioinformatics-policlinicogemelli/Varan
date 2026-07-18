@@ -291,15 +291,32 @@ def update_sv(oldfile_path: str,
         None
 
     """
-    df_old = pd.read_csv(oldfile_path, sep="\t")
-    df_new = pd.read_csv(newfile_path, sep="\t")
+    df_old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
+    df_new = pd.read_csv(newfile_path, sep="\t", dtype=str)
     merged_df = pd.concat(
         [df_old, df_new], axis=0, join="outer", ignore_index=True)
-    merged_df=merged_df.drop_duplicates(
-        subset=["Sample_Id",
-                "Site1_Hugo_Symbol",
-                "Site2_Hugo_Symbol",
-                "SV_Status", "Class"], keep="last")
+
+    # Dedup exactly like the fresh-creation path in walk.py: match cBioPortal's own
+    # StructuralVariantValidator.UNIQUENESS_COLUMNS (which includes breakpoint
+    # position/chromosome, not just the gene pair), so we neither merge two
+    # genuinely distinct fusion calls between the same genes, nor leave in place
+    # rows cBioPortal itself would reject as duplicates. Among true duplicates,
+    # keep the one with the highest Normal_Paired_End_Read_Count.
+    if "Normal_Paired_End_Read_Count" in merged_df.columns:
+        merged_df["Normal_Paired_End_Read_Count"] = pd.to_numeric(
+            merged_df["Normal_Paired_End_Read_Count"], errors="coerce")
+        merged_df = merged_df.sort_values(
+            by="Normal_Paired_End_Read_Count", ascending=False)
+        col_subset = [col for col in merged_df.columns
+                      if col != "Normal_Paired_End_Read_Count"]
+        merged_df = merged_df.drop_duplicates(subset=col_subset, keep="first")
+        merged_df["Normal_Paired_End_Read_Count"] = (
+            merged_df["Normal_Paired_End_Read_Count"]
+            .astype(str).str.replace(r"\.0$", "", regex=True)
+            .replace("nan", ""))
+    else:
+        merged_df = merged_df.drop_duplicates(keep="first")
+
     output_file = Path(output_folder) / "data_sv.txt"
     merged_df.to_csv(output_file, sep="\t", index=False)
 
