@@ -57,11 +57,18 @@ SAMPLE_TYPE = (config.get("Sample_Type", "TYPE").strip().strip('"').strip("'").u
 THRESHOLD_MSI_LIQUID = float(config.get("MSI", "THRESHOLD_MSI_LIQUID"))
 
 output_filtered = "snv_filtered"
-tmp = "scratch"
 
 
-def create_random_name_folder() -> str:
-    """Create a temporary folder with a random name.
+def create_random_name_folder(output_folder: str) -> str:
+    """Create a temporary scratch folder with a random name inside output_folder.
+
+    Scratch lives at `output_folder/scratch/<random>` instead of a shared,
+    cwd-relative `scratch/` folder, so each run's temp files are namespaced
+    under its own output folder - no more collision risk when several
+    varan.py processes run in parallel from the same working directory.
+
+    Args:
+        output_folder (str): The study's output folder for this run.
 
     Returns:
         str: Path to the created temporary folder.
@@ -69,15 +76,10 @@ def create_random_name_folder() -> str:
     """
     folder_name = "".join(
         secrets.choice(string.ascii_lowercase + string.digits) for _ in range(10))
-    tmp = "scratch"
-    temporary = Path(tmp) / folder_name
+    temporary = Path(output_folder) / "scratch" / folder_name
 
     try:
-        temporary.mkdir()
-    except FileNotFoundError as err:
-        logger.critical(f"Scratch folder '{tmp}' not found!")
-        msg = "Error in create_random_name_folder: exiting from walk script!"
-        raise(FileNotFoundError(msg)) from err
+        temporary.mkdir(parents=True)
     except Exception as err:
         logger.critical("Something went wrong while creating the vep tmp folder")
         msg = "Error in create_random_name_folder: exiting from walk script!"
@@ -254,8 +256,8 @@ def cnv_type_from_folder(input_path: str,
             sample_id = get_sample_id_from_cnv(case_folder)
 
             if sample_id in sid_path:
-                with Path("sampleID_dup.log").open("w") as dup_path:
-                    dup_path.write(sample_id + "\t" + "cnv_vcf")
+                with (Path(output_folder) / "sampleID_dup.log").open("a") as dup_path:
+                    dup_path.write(sample_id + "\t" + "cnv_vcf\n")
             else:
                 if multiple:
                     sid_path[sample_id] = Path(
@@ -525,12 +527,16 @@ def get_sample_id_from_snv(snv_vcf: str) -> str:
 
 
 def snv_type_from_folder(input_pat: str,
-                         snv_vcf_files: list) -> dict:
+                         snv_vcf_files: list,
+                         output_folder: str) -> dict:
     """Map sample IDs to their full SNV paths, handling duplicates.
 
     Args:
         input_pat (str): Path to the folder containing SNV files.
         snv_vcf_files (list): List of SNV VCF filenames.
+        output_folder (str): The study's output folder, where sampleID_dup.log
+            and noParsed_snv.log are written (read back into the report's
+            Warnings section).
 
     Returns:
         dict: Mapping from sample ID (as BAM filename) to full SNV file path.
@@ -543,12 +549,12 @@ def snv_type_from_folder(input_pat: str,
             snv_vcf = case_folder
             sample_id = get_sample_id_from_snv(case_folder)
             if sample_id in sid_path:
-                with Path("sampleID_dup.log").open("w") as dup:
-                    dup.write(sample_id + "\t" + "snv_vcf")
+                with (Path(output_folder) / "sampleID_dup.log").open("a") as dup:
+                    dup.write(sample_id + "\t" + "snv_vcf\n")
             else:
                 sid_path[sample_id] = str(Path(input_pat) / snv_vcf)
         except Exception:
-            with Path("noParsed_snv.log").open("a") as log_noparsed:
+            with (Path(output_folder) / "noParsed_snv.log").open("a") as log_noparsed:
                 log_noparsed.write("[WARNING]" + case_folder + "\n")
         c = c + 1
 
@@ -2195,9 +2201,6 @@ def walk_folder(
     input_folder_snv = Path(input_folder_snv)
 
     if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
-        tmp = Path("scratch")
-        tmp.mkdir(parents=True, exist_ok=True)
-
         if multiple:
             multivcf = next(f for f in input_folder_snv.iterdir() if f.suffix == ".vcf")
             extract_multiple_snv(multivcf, input_folder_snv)
@@ -2231,7 +2234,8 @@ def walk_folder(
     temporary = None
     if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
         logger.info("Managing SNV files...")
-        s_id_path_snv = snv_type_from_folder(input_folder_snv, case_folder_arr)
+        s_id_path_snv = snv_type_from_folder(
+            input_folder_snv, case_folder_arr, output_folder)
 
         logger.info("Checking maf folder...")
         maf_path = Path(output_folder) / "maf"
@@ -2244,7 +2248,7 @@ def walk_folder(
                 s_id_path_snv = vcf_filtering(
                 s_id_path_snv, output_folder, output_filtered)
 
-            temporary = create_random_name_folder()
+            temporary = create_random_name_folder(output_folder)
             for k, v in s_id_path_snv.items():
                 cl = vcf2maf_constructor(v, temporary, output_folder)
                 run_vcf2maf(cl, k)
