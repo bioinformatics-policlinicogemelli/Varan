@@ -100,8 +100,11 @@
 
     <h2>Features</h2>
     <ul class="content">
-        <li><b>Study Creation</b>: Generates a validated study folder from raw VCF files, ready for upload to cBioPortal.</li>
-        <li><b>Study Manipulation</b>: Enables study modification by merging studies or extracting/removing samples.</li>
+        <li><b>Study Creation</b>: Generates a validated study folder from raw VCF/MAF files or Illumina TSO500 output, ready for upload to cBioPortal.</li>
+        <li><b>Study Manipulation</b>: Enables study modification by merging studies or extracting/removing samples, always producing a new, version-tracked folder.</li>
+        <li><b>TSO500-aware</b>: Reads TMB, MSI, fusions, HRD/Genomic Instability Score and exon-level BRCA1/BRCA2 CNVs directly from Illumina's <code>CombinedVariantOutput</code>/<code>MetricsOutput</code> files.</li>
+        <li><b>Configurable, not hardcoded</b>: SNV, CNV and fusion oncogenicity filters are each independently tunable in <code>conf.ini</code>, and the config file itself can be swapped per run with <code>-C &lt;path&gt;</code>.</li>
+        <li><b>Validated by construction</b>: every run is checked against cBioPortal's own offline validator, with an HTML report summarizing the result.</li>
     </ul>
 
     <a href="quickstart.html"><h2>Quick Start</h2></a>

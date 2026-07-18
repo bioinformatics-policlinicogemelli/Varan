@@ -366,6 +366,13 @@ ONCOKB_FILTER_FUSION = &lt; ['string','string',...] &gt;</pre>
 
             ⚠️ THRESHOLD can be populated with &lt; / &gt; / &lt;= / &gt;= val (i.e., THRESHOLD_FUSION = &gt;=15).
 
+            <h6>SPLICE</h6>
+            <p>Here the read-count threshold for splice variants (read from the <i>CombinedVariantOutput</i> <code>[Splice Variants]</code> section) can be specified, independently from the FUSION threshold above.</p>
+            <pre>[SPLICE]
+THRESHOLD_SPLICE = &lt; string &gt;</pre>
+
+            ⚠️ THRESHOLD_SPLICE can be populated with &lt; / &gt; / &lt;= / &gt;= val (i.e., THRESHOLD_SPLICE = &gt;=15). Splice variants are written to <i>data_sv.txt</i> as intragenic structural variant rows (same gene on both sites, <code>Class = SPLICE</code>) and are not passed through OncoKB fusion annotation, since that annotator is built for two-gene fusion pairs.
+
             <h6>ClinicalSample</h6>
             <p>Users can customize column names and data types for the <i>data_clinical_sample.txt</i> file.</p>
             <pre>[ClinicalSample]
@@ -460,6 +467,12 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
                 <td>-m --multiple</td>
                 <td><p align="justify">Add this option to specify that the input is a multi-sample vcf file (a single VCF containing information from multiple patients)</p></td>
                 <td style="text-align: center;">boolean</td>
+                <td style="text-align: center;">No</td>
+                </tr>
+                <tr>
+                <td>-C --config</td>
+                <td><p align="justify">Add this option to point Varan at a specific <i>conf.ini</i> file for this run, instead of the default <i>./conf.ini</i>. Useful when keeping several configurations around (e.g. one per assay type or per environment)</p></td>
+                <td style="text-align: center;">string</td>
                 <td style="text-align: center;">No</td>
                 </tr>
             </tbody>
@@ -681,6 +694,12 @@ ANNOTATIONS = &lt; ['string','string',...] &gt;</pre>
                     <td>string</td>
                     <td>Only if the -N option is selected</td>
                 </tr>
+                <tr>
+                    <td>-C --config</td>
+                    <td><p align="justify">Add this option to point Varan at a specific <i>conf.ini</i> file for this run, instead of the default <i>./conf.ini</i></p></td>
+                    <td>string</td>
+                    <td style="text-align: center;">No</td>
+                </tr>
             </tbody>
             </table>
 
@@ -743,6 +762,8 @@ study_name
             <p>(**) MAF_OncoKB folder will be created only if the <code>-k</code> option is set and will contain all the MAF with OncoKB annotations.</p>
             <p>(***) A folder containing MAF files. It will be zipped if <code>ZIP_MAF</code> is set as True in <i>conf.ini</i>.</p>
             <p>(****) Staging files produced while building the CNA table (e.g. <i>temp_cna_toannotate.txt</i>, <i>CNV_ann/</i>, <i>CNV_annotated_merged.txt</i>, <i>CNA_ndiscrete.txt</i>/<i>annotated_oncokb_CNA_ndiscrete.txt</i>) - not meant to be opened directly, kept here instead of the study root so the final, cBioPortal-loadable files stand out. Only created when CNVKIT_algorithm = True.</p>
+
+            <p align="justify">When input is sourced from Illumina TSO500 <i>CombinedVariantOutput</i> files, <i>data_clinical_sample.txt</i> also gains a few extra columns automatically: <code>EXONIC_BRCA1</code>/<code>EXONIC_BRCA2</code> (exon-level CNV status, from the <code>[Exon-Level CNVs]</code> section) and <code>GENOMIC_INSTABILITY_SCORE</code>/<code>TUMOR_FRACTION</code>/<code>PLOIDY</code> (from the <code>[GIS]</code> section, populated only for samples run with the TSO500 HRD feature enabled - "NA" otherwise). Splice variants from the <code>[Splice Variants]</code> section, when present, are added to <i>data_sv.txt</i> as their own rows (<code>Class = SPLICE</code>).</p>
 
             <h4 id="varan-reports">Varan Reports</h4>
 
