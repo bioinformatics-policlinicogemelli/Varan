@@ -23,6 +23,7 @@ data review and interpretation.
 from __future__ import annotations
 
 import ast
+import json
 import os
 import re
 import shutil
@@ -147,6 +148,91 @@ def get_vep_version(vep_executable: str = "vep") -> str | None:
         return None
 
 
+def write_provenance(output_folder: str, **fields: str | None) -> None:
+    """Write service/provenance.json: software versions and run metadata.
+
+    Lives in a "service" folder alongside "img", not in the study root, so it
+    doesn't show up as one more file the user has to make sense of - it's
+    machine-readable bookkeeping, not part of the clinical output. extract and
+    remove read this back instead of recomputing/re-claiming tool versions for
+    tools they may not actually invoke (e.g. VEP isn't run during an extract).
+
+    Args:
+        output_folder (str): The study's output folder for this run.
+        **fields: Arbitrary provenance fields (varan_version, python_version,
+            clinvar_update, vep_version, analysis_start_time, ...).
+
+    Returns:
+        None
+
+    """
+    service_dir = Path(output_folder) / "service"
+    service_dir.mkdir(parents=True, exist_ok=True)
+    with (service_dir / "provenance.json").open("w") as f:
+        json.dump(fields, f, indent=2, default=str)
+
+
+def read_provenance(study_folder: str) -> dict | None:
+    """Read service/provenance.json from a study folder, if present.
+
+    Args:
+        study_folder (str): Path to a study folder that may hold provenance
+            written by an earlier `write_provenance` call.
+
+    Returns:
+        dict | None: The provenance fields, or None if the file is missing or
+            unreadable (e.g. an older study created before this existed).
+
+    """
+    path = Path(study_folder) / "service" / "provenance.json"
+    if not path.exists():
+        return None
+    try:
+        with path.open() as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def render_provenance_html(label: str, provenance: dict | None) -> str:
+    """Render a compact "Software Environment" block from a provenance dict.
+
+    Used by extract/remove/update to show the versions of the study they
+    derive from, instead of recomputing/re-claiming tool usage they didn't
+    actually invoke themselves (e.g. VEP isn't run during an extract).
+
+    Args:
+        label (str): Heading for this block, e.g. "Source study" or
+            "Original study" / "Incoming data" (update shows both).
+        provenance (dict | None): Fields as written by `write_provenance`, or
+            None if the source study predates provenance tracking.
+
+    Returns:
+        str: The HTML block, or "" if there is nothing to show.
+
+    """
+    if not provenance:
+        return ""
+    field_labels = {
+        "varan_version": "Varan Version",
+        "python_version": "Python Version",
+        "clinvar_update": "ClinVar Last Update",
+        "vep_version": "VEP Version",
+        "analysis_start_time": "Analysis Started",
+        "report_generated": "Source Report Generated",
+    }
+    rows = [
+        f"<p><strong>{field_label}:</strong> {provenance[key]}</p>"
+        for key, field_label in field_labels.items()
+        if provenance.get(key)
+    ]
+    if not rows:
+        return ""
+    return (
+        f'<div class="content"><p><strong>{label}</strong></p>'
+        + "".join(rows) + "</div>")
+
+
 def extract_sample_list(filecase: str) -> list[str]:
     """Extract a list of sample IDs from a metadata file.
 
@@ -216,6 +302,71 @@ def ghost_sample(output_folder: str) -> list[str]:
     return list(ghosts)
 
 
+def build_warnings_section(
+    output_folder: str,
+    ghosts: list[str],
+    validation_status: str | None = None,
+) -> str:
+    """Build a single HTML "Warnings" section collecting everything worth flagging.
+
+    Centralizes what used to be scattered across an inline mention (ghost samples)
+    and log files nobody reads unless something already looks wrong
+    (noParsed_snv.log, noParsed_cnv.log, sampleID_dup.log). The cBioPortal
+    validation result is shown here too, as a simple status - full validator
+    detail lives in its own dedicated report_validate.html, linked from here.
+
+    Args:
+        output_folder (str): The study's output folder for this run.
+        ghosts (list[str]): Sample IDs present in clinical data but with no
+            detected SNV/CNA/SV alterations (see `ghost_sample`).
+        validation_status (str | None): "PASS" / "REVIEW" / "FAIL", or None if
+            this report type doesn't run cBioPortal validation (update/extract/
+            remove don't - only walk does).
+
+    Returns:
+        str: The HTML for the section, or "" if there is nothing to warn about.
+
+    """
+    output_path = Path(output_folder)
+    items = []
+
+    if validation_status is not None:
+        link = ""
+        if (output_path / "report_validate.html").exists():
+            link = ' — <a href="report_validate.html">validation report</a>'
+        items.append(
+            f"<p><strong>&#9888; cBioPortal validation:</strong> "
+            f"{validation_status}{link}</p>")
+
+    if ghosts:
+        items.append(
+            f"<p><strong>&#9888; Ghost samples</strong> (present in clinical data, "
+            f"no SNV/CNA/SV alterations found after filtering): {ghosts}</p>")
+
+    for log_name, label in [
+        ("noParsed_snv.log", "SNV VCF files that failed to parse"),
+        ("noParsed_cnv.log", "CNV VCF files that failed to parse"),
+        ("sampleID_dup.log", "Duplicate sample IDs encountered"),
+    ]:
+        log_path = output_path / log_name
+        if log_path.exists():
+            content = log_path.read_text().strip()
+            if content:
+                entries = "; ".join(line for line in content.splitlines() if line)
+                items.append(
+                    f"<p><strong>&#9888; {label}</strong> "
+                    f"({log_name}): {entries}</p>")
+
+    if not items:
+        return ""
+
+    return (
+        '<section class="warnings">'
+        '<div class="section-title">Warnings</div>'
+        '<div class="content">' + "".join(items) + "</div>"
+        "</section>")
+
+
 def get_samples(file: str, sample_list: set[str], output_folder: str) -> set[str]:
     """Extract sample id from genomic data file and update the existing sample set.
 
@@ -268,6 +419,7 @@ def write_report_main(
     number_for_graph: int,
     oncokb: bool = False,
     start_time: str = "",
+    validation_status: str | None = None,
 ) -> None:
     """Generate an HTML report summarizing the results of a VARAN analysis.
 
@@ -326,6 +478,15 @@ def write_report_main(
     python_version = get_python_version()
     clinvar_update = get_clinvar_update_date(config)
     vep_version = get_vep_version(Path(vep_path, "vep"))
+
+    write_provenance(
+        output_folder,
+        varan_version=varan_version,
+        python_version=python_version,
+        clinvar_update=clinvar_update,
+        vep_version=vep_version,
+        analysis_start_time=start_time,
+        report_generated=datetime.now().astimezone().strftime("%d/%m/%Y, %H:%M:%S"))
 
     if versioning.old_version_exists:
         name = re.search(r"^(.+_v)[0-9]+$", output_folder.name).group(1)
@@ -416,18 +577,9 @@ def write_report_main(
                     <p><strong>Total Patient(s):</strong> {new_pt_nr}</p>
                 </div>"""
 
-    if ghosts:
-        html_content += (
-            f"""
-            <div class="content">
-                <p><strong><span>&#9888;</span></strong>
-                The following samples do not have any detected
-                alterations in the performed analysis: {ghosts}</p>
-            </div>"""
-        )
-
     html_content += """</section>"""
 
+    html_content += build_warnings_section(output_folder, ghosts, validation_status)
 
     html_content += """
         <section class="filters">
@@ -1025,15 +1177,16 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
                 </div>
     """
 
-    if ghosts:
-        html_content += (
-            f"""
-            <div class="content">
-                <p><strong><span>&#9888;</span></strong>
-                The following samples are not present in cnv,
-                snv and fusions after filtering: {ghosts}</p>
-            </div>"""
-        )
+    original_provenance = read_provenance(original_study)
+    incoming_provenance = read_provenance(updating_with)
+    write_provenance(
+        new_study,
+        original_study=original_provenance,
+        incoming_data=incoming_provenance)
+    html_content += render_provenance_html("Original study", original_provenance)
+    html_content += render_provenance_html("Incoming data", incoming_provenance)
+
+    html_content += build_warnings_section(new_study, ghosts)
 
     if updated_clin_sample:
         html_content += (
@@ -1527,15 +1680,12 @@ def write_report_extract(original_study: str, new_study: str,
                     <p><strong>Total Samples:</strong> {total_samples}</p>
                 </div>"""
 
-    if ghosts:
-        html_content += (
-            f"""
-            <div class="content">
-                <p><strong><span>&#9888;</span></strong>
-                The following samples are not present in cnv,
-                snv and fusions after filtering: {ghosts}</p>
-            </div>"""
-        )
+    source_provenance = read_provenance(original_study)
+    if source_provenance:
+        write_provenance(new_study, **source_provenance)
+    html_content += render_provenance_html("Source study", source_provenance)
+
+    html_content += build_warnings_section(new_study, ghosts)
 
     html_content += """
             <div class="section-title">Detailed Overview</div>
@@ -1673,7 +1823,10 @@ def write_report_extract(original_study: str, new_study: str,
                 <p><strong>SIFT</strong>: {filters["SIFT"]}</p>
             </div>"""
 
-    if filters != {}:
+    keys_to_check = {"PLOIDY", "CNVKIT_algorithm", "THRESHOLD_TMB",
+    "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
+
+    if filters != {} and all(key in filters for key in keys_to_check):
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
@@ -1973,15 +2126,12 @@ def write_report_remove(
                     <p><strong>Total Samples:</strong> {total_samples}</p>
                 </div>"""
 
-    if ghosts:
-        html_content += (
-            f"""
-            <div class="content">
-                <p><strong><span>&#9888;</span></strong>
-                The following samples are not present in cnv,
-                snv and fusions after filtering: {ghosts}</p>
-            </div>"""
-        )
+    source_provenance = read_provenance(original_study)
+    if source_provenance:
+        write_provenance(new_study, **source_provenance)
+    html_content += render_provenance_html("Source study", source_provenance)
+
+    html_content += build_warnings_section(new_study, ghosts)
 
     html_content += """
             <div class="section-title">Detailed Overview</div>
@@ -2108,7 +2258,10 @@ def write_report_remove(
                 <p><strong>SIFT</strong>: {filters["SIFT"]}</p>
             </div>"""
 
-    if filters != {}:
+    keys_to_check = {"PLOIDY", "CNVKIT_algorithm", "THRESHOLD_TMB",
+    "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
+
+    if filters != {} and all(key in filters for key in keys_to_check):
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
