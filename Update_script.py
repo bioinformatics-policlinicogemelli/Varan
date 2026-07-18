@@ -25,6 +25,7 @@ Includes:
 
 import sys
 from configparser import ConfigParser
+from datetime import datetime
 from pathlib import Path
 
 from loguru import logger
@@ -33,12 +34,11 @@ from filter_clinvar import check_bool
 from Make_meta_and_cases import meta_case_main
 from Update_functions import (
     check_files_cases,
-    copy_logo,
     copy_metadata_files,
     prepare_output_folder,
     safe_check_file,
 )
-from ValidateFolder import copy_maf, validate_output
+from ValidateFolder import check_all_data, copy_maf, remove_meta, validate_output
 from versioning import extract_info_from_meta
 from write_report import write_report_update
 
@@ -61,6 +61,7 @@ def update_main(oldpath: str, newpath: str,
         None
 
     """
+    start_time = datetime.now().astimezone().strftime("%d/%m/%Y, %H:%M:%S")
     logger.info("Starting update_main script:")
     logger.info(
     f"update_main args [oldpath:{oldpath}, newpath:{newpath}, "
@@ -79,8 +80,6 @@ def update_main(oldpath: str, newpath: str,
     output, no_out, output_caseslists = prepare_output_folder(
         oldpath, output, overwrite)
 
-    copy_logo(oldpath, output)
-
     logger.info("Great! Everything is ready to start")
 
     oldpath = Path(oldpath)
@@ -94,6 +93,9 @@ def update_main(oldpath: str, newpath: str,
 
     for file in file_names:
         safe_check_file(oldpath, newpath, output, file)
+
+    check_all_data(output)
+    remove_meta(output)
 
     check_files_cases(oldpath, newpath, output_caseslists,"cases_cna.txt")
     check_files_cases(oldpath, newpath, output_caseslists,"cases_sequenced.txt")
@@ -114,7 +116,7 @@ def update_main(oldpath: str, newpath: str,
     number_for_graph = validate_output(output, None, False, True, None, None, None)
 
     logger.info("Starting writing report_VARAN.html...")
-    write_report_update(oldpath, newpath, output, number_for_graph)
+    write_report_update(oldpath, newpath, output, number_for_graph, start_time)
 
     logger.success("The process ended without errors")
     logger.success("Successfully updated study!")

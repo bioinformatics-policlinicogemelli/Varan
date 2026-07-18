@@ -221,6 +221,7 @@ def validate_output(
     cancer: str | None = None,
     oncokb: str | None = None,
     filters: dict | None = None,
+    start_time: str = "",
 ) -> int:
     """Perform complete validation and post-processing for a cBioPortal study folder.
 
@@ -256,7 +257,8 @@ def validate_output(
     if val != 1:
         number_for_graph = int(create_barplots(folder))
         if not block2:
-            write_report_main(folder, cancer, filters, number_for_graph, oncokb)
+            write_report_main(
+                folder, cancer, filters, number_for_graph, oncokb, start_time)
 
             maf_path = Path(folder) / "maf"
             snv_path = Path(folder) / "snv_filtered"
@@ -491,5 +493,6 @@ def check_all_data(output_folder: str | Path) -> None:
                 file_df = pd.read_csv(file_path, sep="\t")
                 if len(file_df) < 1:
                     file_path.unlink()
-            except Exception as e:
+            except pd.errors.EmptyDataError as e:
+                logger.warning(f"{filename} is empty or unreadable ({e}). Removing it.")
                 file_path.unlink()
