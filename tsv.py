@@ -92,8 +92,9 @@ def split_hugo_symbols(hugo_symbol: str) -> str:
     """
     for symbol in [";", "-", "/"]:
         if symbol in hugo_symbol:
-            split_symbols = hugo_symbol.split(symbol)
-    return split_symbols
+            return hugo_symbol.split(symbol)
+    msg = f"No known separator (';', '-', '/') found in Hugo Symbol: {hugo_symbol!r}"
+    raise ValueError(msg)
 
 
 def get_fusions(input_file: str) -> list[dict[str, str]]:
@@ -175,7 +176,7 @@ def get_exons(input_file: str) -> list[dict[str, str]]:
         exonic = []
         for i in range(len(lines)):
             if "[Exon-Level CNVs]" in lines[i]:
-                for j in range(i + 2, i + 4):
+                for j in range(i + 2, min(i + 4, len(lines))):
                     line = lines[j].strip()
                     if line.endswith("\tNA") or "NA" in line.split("\t")[1:]:
                         continue
