@@ -38,15 +38,18 @@ if TYPE_CHECKING:
 
 from loguru import logger
 
-from concatenate import concatenate_main
-from Delete_script import delete_main
-from ExtractSamples_script import extract_main
-from filter_clinvar import filter_main
-from Make_meta_and_cases import meta_case_main
-from Update_script import update_main
-from ValidateFolder import validate_output
-from walk import walk_folder
-from write_report import get_git_version
+from config_loader import set_config_path
+from versioning import get_git_version
+
+# NOTE: the rest of Varan's own modules (concatenate, Delete_script,
+# ExtractSamples_script, filter_clinvar, Make_meta_and_cases, Update_script,
+# ValidateFolder, walk, write_report) are intentionally *not* imported here.
+# They each read conf.ini at their own module's import time, so importing
+# them before --config has been parsed would make that flag a no-op. They're
+# imported further down, inside `if __name__ == "__main__":`, right after
+# set_config_path() is called. get_git_version() lives in versioning.py
+# specifically so the --version banner (built before argument parsing) can
+# be printed without pulling in a conf.ini-dependent module early.
 
 def logo() -> None:
     """Print the ASCII art logo for the Varan pipeline."""
@@ -337,8 +340,28 @@ if __name__ == "__main__":
         help=(
             "Add this argument if you want to give a custom name to the extract study"))
 
+    # CONFIG BLOCK
+    parser.add_argument(
+        "-C", "--config", required=False, default="conf.ini",
+        help="Path to the conf.ini file to use for this run (default: ./conf.ini)")
+
     try:
         args = parser.parse_args()
+
+        # Set the conf.ini path *before* importing any other Varan module -
+        # every one of them reads conf.ini at import time, so this ordering
+        # is what makes --config actually take effect instead of being
+        # silently ignored. See config_loader.py for the full explanation.
+        set_config_path(args.config)
+
+        from concatenate import concatenate_main
+        from Delete_script import delete_main
+        from ExtractSamples_script import extract_main
+        from filter_clinvar import filter_main
+        from Make_meta_and_cases import meta_case_main
+        from Update_script import update_main
+        from ValidateFolder import validate_output
+        from walk import walk_folder
 
         cancer = args.Cancer
         varan_input = args.varan_input

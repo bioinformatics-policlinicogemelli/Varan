@@ -24,7 +24,6 @@ Includes:
 """
 
 import sys
-from configparser import ConfigParser
 from datetime import datetime
 from pathlib import Path
 
@@ -40,9 +39,9 @@ from Update_functions import (
 from ValidateFolder import check_all_data, copy_maf, remove_meta, validate_output
 from versioning import extract_info_from_meta
 from write_report import write_report_update
+from config_loader import get_config
 
-config = ConfigParser()
-config_file = config.read("conf.ini")
+config = get_config()
 
 
 def update_main(oldpath: str, newpath: str,

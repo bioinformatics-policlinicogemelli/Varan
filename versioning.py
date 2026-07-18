@@ -23,9 +23,36 @@ Includes:
 """
 
 import re
+import subprocess
 from pathlib import Path
 
 from loguru import logger
+
+
+def get_git_version() -> str:
+    """Return Varan's version from the nearest git tag, or "unknown".
+
+    Lives here (not in write_report.py, where it used to be) so varan.py can
+    print the version banner - which happens before argument parsing, and
+    therefore before conf.ini's path is known - without importing a module
+    that reads conf.ini at import time.
+
+    Returns:
+        str: The tag name with a leading "v" stripped, or "unknown" if this
+            isn't a git checkout or no tag exists.
+
+    """
+    try:
+        repo_dir = Path(__file__).resolve().parent
+        version = subprocess.check_output(
+            ["git", "describe", "--tags", "--abbrev=0"],
+            cwd=repo_dir,
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+
+        return version.lstrip("v")
+    except Exception:
+        return "unknown"
 
 
 def extract_version_str(foldername: str) -> str:

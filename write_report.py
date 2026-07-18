@@ -28,7 +28,6 @@ import os
 import re
 import shutil
 import sys
-from configparser import ConfigParser
 from datetime import datetime
 from pathlib import Path
 import subprocess
@@ -36,30 +35,17 @@ import subprocess
 import pandas as pd
 
 import versioning
+from config_loader import get_config
 from filter_clinvar import check_bool
+from versioning import get_git_version
 
-config = ConfigParser()
-config.read("conf.ini")
+config = get_config()
 
 annotations_list = ast.literal_eval(config.get("Annotations", "ANNOTATIONS"))
 vep_cache_version = int(config.get("Paths", "CACHE"))
 vep_path = config.get("Paths", "VEP_PATH")
 sample_type = config.get("Sample_Type", "TYPE")
 ref_genome = config.get("Paths", "REF_FASTA")
-
-
-def get_git_version():
-    try:
-        repo_dir = Path(__file__).resolve().parent
-        version = subprocess.check_output(
-            ["git", "describe", "--tags", "--abbrev=0"],
-            cwd=repo_dir,
-            stderr=subprocess.DEVNULL
-        ).decode().strip()
-
-        return version.lstrip("v")
-    except Exception:
-        return "unknown"
 
 
 def get_python_version() -> str:

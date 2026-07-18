@@ -34,7 +34,6 @@ Requires configuration in a `conf.ini` file and various helper modules:
 import re
 import shutil
 import sys
-from configparser import ConfigParser
 from datetime import datetime
 from pathlib import Path
 
@@ -55,9 +54,9 @@ from versioning import (
     extract_info_from_meta,
     get_version_list)
 from write_report import write_report_remove
+from config_loader import get_config
 
-config = ConfigParser()
-config_file = config.read("conf.ini")
+config = get_config()
 
 
 def delete_main(oldpath: str, removepath: str, output: str,

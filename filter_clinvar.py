@@ -29,16 +29,15 @@ import os
 import subprocess
 import shutil
 import sys
-from configparser import ConfigParser
 from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
 import concatenate
+from config_loader import get_config
 
-config = ConfigParser()
-config_file = config.read("conf.ini")
+config = get_config()
 
 def check_bool(key_value: str) -> bool:
     """Convert a string into a Python boolean.

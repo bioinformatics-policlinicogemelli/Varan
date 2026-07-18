@@ -30,7 +30,6 @@ import string
 import subprocess
 import sys
 import zipfile
-from configparser import ConfigParser
 from pathlib import Path
 
 import numpy as np
@@ -40,11 +39,11 @@ from loguru import logger
 import tsv
 import vcf2tab_cnv
 import vcf_filter
+from config_loader import get_config
 from filter_clinvar import check_bool, filter_oncokb
 from versioning import get_newest_version, get_version_list
 
-config = ConfigParser()
-config_file = config.read("conf.ini")
+config = get_config()
 
 VCF2MAF = config.get("Paths", "VCF2MAF")
 REF_FASTA = config.get("Paths", "REF_FASTA")
@@ -2057,8 +2056,6 @@ def walk_folder(
         f"walk_folder args [input:{input_path}, output_folder:{output_folder}, "
         f"overwrite:{overwrite_output}, resume:{resume}, vcf_type:{vcf_type}, "
         f"filters:{filters}, multiple:{multiple}]")
-
-    config.read("conf.ini")
 
     if not Path(input_path[0]).exists():
         msg = f"No valid file/folder {input_path} found. Check your input path"

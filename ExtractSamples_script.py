@@ -27,7 +27,6 @@ Provides:
 import re
 import shutil
 import sys
-from configparser import ConfigParser
 from datetime import datetime
 from pathlib import Path
 
@@ -48,9 +47,9 @@ from versioning import (
     extract_info_from_meta,
     get_version_list)
 from write_report import write_report_extract
+from config_loader import get_config
 
-config = ConfigParser()
-config_file = config.read("conf.ini")
+config = get_config()
 
 def extract_main(oldpath: str,
                  extract_path: str,

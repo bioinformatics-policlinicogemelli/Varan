@@ -43,18 +43,17 @@ import shutil
 import subprocess
 import sys
 import zipfile
-from configparser import ConfigParser
 from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
+from config_loader import get_config
 from Create_graphs import create_barplots
 from filter_clinvar import check_bool
 from write_report import write_report_main
 
-config = ConfigParser()
-config_file = config.read("conf.ini")
+config = get_config()
 
 def cbio_validation(output_folder: str) -> str:
     """Execute cBioPortal's validateData.py script on the specified output folder.
@@ -75,8 +74,7 @@ def cbio_validation(output_folder: str) -> str:
             more than just cBioPortal upload, so the run must still finish.
 
     """
-    config = ConfigParser()
-    config.read("conf.ini")
+    config = get_config()
 
     logger.info("Starting validation... ")
     logger.warning("Warning: succeeding files may still fail to load (correctly).")
