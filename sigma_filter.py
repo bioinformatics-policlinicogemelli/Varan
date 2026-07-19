@@ -25,9 +25,10 @@ mutations for a trinucleotide-context spectrum to be meaningful. SigMA
 needs a third tier: quality-filtered (PASS + population AF + VAF exclude
 bands) but NOT clinically narrowed.
 
-This reuses filter_clinvar.filter_vaf_exclude_bands() (the new 'g' filter
-primitive) with SigMA's own conf.ini values ([SigMA] section - distinct
-from [Filters]' pancancer VAF thresholds, per explicit request) rather than
+This reuses filter_clinvar.filter_vaf_exclude_bands() (the same
+multi-band exclusion primitive folded into filter_main()'s 'v' flag) with
+SigMA's own conf.ini values ([SigMA] section - distinct from [Filters]'
+pancancer VAF thresholds, per explicit request) rather than
 going through filter_main()'s filters-string dispatch, since the exact
 combination SigMA needs (PASS + population AF + VAF bands, explicitly
 never 'o'/'i') isn't expressible as a single filters string without also
