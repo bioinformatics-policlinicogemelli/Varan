@@ -229,7 +229,15 @@ def delete_sv(file_path: str, sample_ids: list[str], output_folder: str) -> None
 
     """
     old_file = pd.read_csv(file_path, sep="\t", dtype=str)
+    removed = old_file[old_file["Sample_Id"].astype(str).isin(sample_ids)]
     new_file = old_file[~old_file["Sample_Id"].astype(str).isin(sample_ids)]
+    if "Class" in removed.columns:
+        n_splice = (removed["Class"] == "SPLICE").sum()
+        n_fusion = (removed["Class"] == "FUSION").sum()
+        if n_splice or n_fusion:
+            logger.info(
+                f"data_sv.txt: removed {n_fusion} fusion and {n_splice} "
+                "splice variant row(s) for the deleted sample(s).")
     output_path = Path(output_folder) / "data_sv.txt"
     new_file.to_csv(output_path, sep="\t", index=False)
 

@@ -221,6 +221,13 @@ def extract_sv(file_path: str,
     """
     old_file=pd.read_csv(file_path,sep="\t")
     new_file=old_file[old_file["Sample_Id"].isin(sample_ids)]
+    if "Class" in new_file.columns:
+        n_splice = (new_file["Class"] == "SPLICE").sum()
+        n_fusion = (new_file["Class"] == "FUSION").sum()
+        if n_splice or n_fusion:
+            logger.info(
+                f"data_sv.txt: extracted {n_fusion} fusion and {n_splice} "
+                "splice variant row(s) for the requested sample(s).")
     outpath=Path(output_folder) / "data_sv.txt"
     new_file.to_csv(outpath,sep="\t",index=False)
 
