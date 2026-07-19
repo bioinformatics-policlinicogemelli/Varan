@@ -290,15 +290,14 @@ def filter_main(input_path: str,folder: str,
                        - 'q': filter using variant consequence annotations
                        - 'y': filter using PolyPhen predictions
                        - 's': filter using SIFT predictions
-                       - 'g': exclude one or more VAF bands (conf.ini
-                         [Filters] VAF_EXCLUDE_BANDS, a list of [min, max]
-                         pairs) - distinct from 'v''s single min/max range,
-                         see filter_vaf_exclude_bands(). Intended for
-                         scrubbing germline heterozygous/homozygous VAF
-                         clusters (e.g. ~0.5, ~1.0) out of a tumor-only
-                         sample ahead of mutational-signature analysis,
-                         where a single pancancer min-VAF threshold isn't
-                         the right tool.
+                       - 'v' also applies conf.ini [Filters]
+                         VAF_EXCLUDE_BANDS (a list of [min, max] pairs,
+                         default [] = no-op) alongside t_VAF_min/t_VAF_max -
+                         see filter_vaf_exclude_bands(). Unlike the single
+                         min/max range, this can express "keep everything
+                         except these bands", e.g. excluding germline
+                         heterozygous/homozygous VAF clusters (~0.5, ~1.0)
+                         from a tumor-only sample.
         cancer (str): Default cancer code used for OncoKB annotation.
         resume (bool): Whether to resume processing if partial results exist.
         overwrite (bool, optional): If True, overwrite existing OncoKB annotation
@@ -441,24 +440,17 @@ def filter_main(input_path: str,folder: str,
                         (file_to_filter[vaf_colname] > t_vaf_min) &
                         (file_to_filter[vaf_colname] <= t_vaf_max)]
 
-            if "g" in filters and "t_AF" not in file_to_filter.columns \
-                    and "t_VF" not in file_to_filter.columns:
-                logger.warning(
-                    f"Neither t_AF nor t_VF column found in {file} - skipping the "
-                    "VAF exclude-band filter for this file instead of crashing "
-                    "the whole batch.")
-
-            elif "g" in filters:
-                # Independent column detection rather than reusing 'v''s
-                # vaf_colname - 'g' must work whether or not 'v' also ran.
-                g_vaf_colname = ("t_AF"
-                    if "t_AF" in file_to_filter.columns
-                    and file_to_filter["t_AF"].notna().any()
-                    else "t_VF")
+                # VAF_EXCLUDE_BANDS lives alongside t_VAF_min/t_VAF_max in
+                # conf.ini and is folded into the same 'v' flag rather than
+                # needing its own letter, for uniformity with how every
+                # other VAF-related threshold here already works (no extra
+                # opt-in beyond 'v' itself). Empty list (the default) is a
+                # no-op. See filter_vaf_exclude_bands()'s docstring for why
+                # a list of bands, not another single min/max pair.
                 exclude_bands = ast.literal_eval(
                     config.get("Filters", "VAF_EXCLUDE_BANDS"))
                 file_to_filter = filter_vaf_exclude_bands(
-                    file_to_filter, g_vaf_colname, exclude_bands)
+                    file_to_filter, vaf_colname, exclude_bands)
 
             if "a" in filters:
                 af = config.get("Filters", "AF")
