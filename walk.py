@@ -30,6 +30,7 @@ import string
 import subprocess
 import sys
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -386,6 +387,14 @@ def cnv_type_from_folder(input_path: str,
                     df_path.unlink(missing_ok=True)
 
                 all_ann_files = list(out_can_ann.glob("*annotated_*.txt"))
+                if not all_ann_files:
+                    logger.warning(
+                        "No sample in this run had a Copy Number Alteration "
+                        "call of |2| (amplification or deep deletion) to "
+                        "annotate with OncoKB - skipping CNA annotation and "
+                        "leaving data_cna.txt unwritten for this run, "
+                        "consistently with the no-CNVKIT_algorithm path.")
+                    return sid_path
                 merged_df = pd.concat(
                     [pd.read_csv(f, sep="\t") for f in all_ann_files],
                     ignore_index=True
@@ -977,7 +986,31 @@ def write_clinical_sample(
             combout_df, on=["PATIENT_ID", "SAMPLE_ID"])
 
     basic_columns = ["SAMPLE_ID", "PATIENT_ID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
-    other_columns = [*final_data_sample.columns[2:-4]]
+
+    # A pipeline that has no native TMB (or MSI) of its own - e.g. Guardant,
+    # which reports MSI as a text call but never reports TMB at all - must
+    # not be forced to ship a clinical column full of "NA" placeholders.
+    # Only applies to the sample.tsv-driven path (no CombinedOutput source
+    # to fall back on): native TSO500 CombinedOutput ingestion always has
+    # real MSI/TMB values.
+    if not combined_output_used:
+        for marker in ("MSI", "TMB"):
+            thr_col = f"{marker}_THR"
+            if marker in final_data_sample.columns and (
+                final_data_sample[marker].apply(_is_blank_value).all()
+                and final_data_sample[thr_col].apply(_is_blank_value).all()):
+                logger.info(
+                    f"No {marker} value or {marker}_THR was provided for any "
+                    f"sample in this run, and there is no CombinedOutput to "
+                    f"compute it from - dropping {marker}/{thr_col} from "
+                    "data_clinical_sample.txt entirely instead of writing NA.")
+                basic_columns.remove(marker)
+                basic_columns.remove(thr_col)
+                final_data_sample = final_data_sample.drop(columns=[marker, thr_col])
+
+    other_columns = [c for c in final_data_sample.columns
+                      if c not in ("SAMPLE_ID", "PATIENT_ID", "MSI", "TMB",
+                                   "MSI_THR", "TMB_THR")]
     new_cols = [*basic_columns, *other_columns]
 
     final_data_sample = final_data_sample[new_cols]
@@ -996,8 +1029,9 @@ def write_clinical_sample(
     # Add header's third row (HEADER_SAMPLE_TYPE)
     if not conf_header_type:
         header_row = ["STRING"] * len(dataclin_columns)
-        header_row[dataclin_columns.index("MSI")] = "NUMBER"
-        header_row[dataclin_columns.index("TMB")] = "NUMBER"
+        for marker in ("MSI", "TMB"):
+            if marker in dataclin_columns:
+                header_row[dataclin_columns.index(marker)] = "NUMBER"
         sample_header_type = pd.DataFrame([header_row], columns=dataclin_columns)
     else:
         types_list = conf_header_type.split(",")
@@ -1612,9 +1646,12 @@ def fill_splice_from_combined(
     splice rows: any pre-existing Class="SPLICE" rows are dropped first,
     then this run's rows are added back.
 
-    NOTE ON VERIFICATION: see tsv.get_splice_variants() - the row format
-    this depends on has not been exercised against a real populated
-    [Splice Variants] section, only against its header.
+    NOTE ON VERIFICATION: see tsv.get_splice_variants() - the column names
+    are copied verbatim from real CombinedVariantOutput.tsv headers and
+    cross-checked against Illumina's own release notes, but the row-split
+    for a populated [Splice Variants] line has never been seen in a real
+    file. Every parsed row is logged at INFO level below specifically so
+    the first real one can be spot-checked against the source file.
 
     Args:
         fusion_table_file (str): data_sv.txt path (may not exist yet if the
@@ -1665,6 +1702,15 @@ def fill_splice_from_combined(
                 continue
 
             event_info = f"Exon {sv['Affected_Exon']} splice variant"
+            logger.info(
+                f"Splice variant found for sample {k}: gene={gene}, "
+                f"exon={sv['Affected_Exon']}, breakpoints="
+                f"{sv['Breakpoint_1']}/{sv['Breakpoint_2']}, "
+                f"supporting_reads={ssr}, "
+                f"reference_reads_transcript={sv['Reference_Reads_Transcript']} "
+                "- this is the first code path to see a real populated "
+                "[Splice Variants] row, please spot-check this row against "
+                "the source CombinedVariantOutput.tsv file.")
             new_rows.append(
                 str(k).strip() + "\tSOMATIC\tSPLICE\t" +
                 str(gene) + "\t" + str(gene) + "\t" +
@@ -1703,6 +1749,70 @@ def check_data_cna(data_cna_path: str) -> None:
         logger.error(f"Error reading {input_file}: {e}")
 
 
+def _is_blank_value(value: object) -> bool:
+    """Return True if a MSI/TMB VALUE or THR cell should be treated as empty."""
+    if value is None:
+        return True
+    if isinstance(value, float) and np.isnan(value):
+        return True
+    return str(value).strip().upper() in ("", "NAN", "NA")
+
+
+def _resolve_biomarker_threshold(
+    sample_id: str,
+    marker_name: str,
+    value: object,
+    thr_given: object,
+    compute_thr) -> str:
+    """Resolve a MSI/TMB threshold label for one sample.
+
+    Precedence (identical for MSI and TMB, per explicit user design so the
+    input can carry a pipeline's own pre-computed threshold - e.g. Guardant
+    - instead of forcing everything through conf.ini's thresholds):
+
+    - THR pre-filled in the input -> keep it as-is, never overwritten by
+      conf.ini. Logged as a warning (conf.ini threshold ignored) if VALUE is
+      also populated, or as info (THR trusted alone) if VALUE is empty.
+    - THR empty, VALUE populated -> compute from conf.ini's own threshold,
+      exactly as before.
+    - Neither populated -> "NA".
+
+    Args:
+        sample_id (str): Sample ID, for logging.
+        marker_name (str): "MSI" or "TMB", for logging.
+        value (object): The raw MSI/TMB numeric value cell (may be blank).
+        thr_given (object): The raw MSI_THR/TMB_THR cell (may be blank).
+        compute_thr (Callable[[str], str]): conf.ini-threshold-based
+            classifier, called only when thr_given is blank.
+
+    Returns:
+        str: The resolved threshold label to write to data_clinical_sample.txt.
+
+    """
+    value_present = not _is_blank_value(value)
+    thr_present = not _is_blank_value(thr_given)
+
+    if thr_present:
+        thr_given = str(thr_given).strip()
+        if value_present:
+            logger.warning(
+                f"Sample {sample_id}: {marker_name}_THR is pre-filled "
+                f"('{thr_given}') and {marker_name} value is also populated "
+                f"- keeping the provided {marker_name}_THR and ignoring "
+                f"conf.ini's {marker_name} threshold.")
+        else:
+            logger.info(
+                f"Sample {sample_id}: {marker_name} value is empty but "
+                f"{marker_name}_THR is pre-filled ('{thr_given}') - keeping "
+                "it as-is.")
+        return thr_given
+
+    if value_present:
+        return compute_thr(value)
+
+    return "NA"
+
+
 def fill_from_file(
     table_dict_patient: dict[str, list],
     file_input_clinical: pd.DataFrame,
@@ -1710,9 +1820,17 @@ def fill_from_file(
     tmb_thr: dict[str, str]) -> dict[str, list]:
     """Populate clinical table dictionary with MSI and TMB values and statuses.
 
+    Honors a pre-filled MSI_THR/TMB_THR column in the input (if present) over
+    conf.ini's own thresholds - see _resolve_biomarker_threshold(). This
+    replaces the previous behavior of always recomputing Stable/Unstable and
+    the TMB category from conf.ini, which forced non-Illumina pipelines
+    (e.g. Guardant) that already know their own threshold to encode it via
+    a fake VALUE just to get the right label out.
+
     Args:
         table_dict_patient (dict): Patient clinical data dictionary.
-        file_input_clinical (pd.DataFrame): Clinical input with SAMPLE_ID, MSI, TMB.
+        file_input_clinical (pd.DataFrame): Clinical input with SAMPLE_ID,
+            MSI, TMB and, if present, MSI_THR/TMB_THR.
         msi_thr (str): Threshold condition string for MSI (used with eval).
         tmb_thr (dict): Map of TMB categories to threshold conditions.
 
@@ -1720,27 +1838,34 @@ def fill_from_file(
         dict: Updated clinical data dictionary.
 
     """
-    for k, m, t in zip(
-        file_input_clinical["SAMPLE_ID"],
-        file_input_clinical["MSI"],
-        file_input_clinical["TMB"]):
+    has_msi_thr_col = "MSI_THR" in file_input_clinical.columns
+    has_tmb_thr_col = "TMB_THR" in file_input_clinical.columns
+
+    def compute_msi(m: object) -> str:
+        return "Stable" if eval("float(m)" + msi_thr) else "Unstable"
+
+    def compute_tmb(t: object) -> str:
+        for _k, _v in tmb_thr.items():
+            if eval("float(t)" + _v):
+                return _k
+        logger.warning(f"TMB {t} out of range for {k}")
+        return "Out of threshold ranges"
+
+    for _, row in file_input_clinical.iterrows():
+        k = row["SAMPLE_ID"]
+        m = row["MSI"]
+        t = row["TMB"]
         table_dict_patient[k].append(m)
         table_dict_patient[k].append(t)
 
-        if np.isnan(float(m)):
-            table_dict_patient[k].append("NA")
-        elif eval("float(m)" + msi_thr):
-            table_dict_patient[k].append("Stable")
-        else:
-            table_dict_patient[k].append("Unstable")
+        msi_thr_given = row["MSI_THR"] if has_msi_thr_col else None
+        table_dict_patient[k].append(
+            _resolve_biomarker_threshold(k, "MSI", m, msi_thr_given, compute_msi))
 
-        if not np.isnan(float(t)):
-            for _k, _v in tmb_thr.items():
-                if eval("float(t)" + _v):
-                    table_dict_patient[k].append(_k)
-                    break
-        else:
-            table_dict_patient[k].append("NA")
+        tmb_thr_given = row["TMB_THR"] if has_tmb_thr_col else None
+        table_dict_patient[k].append(
+            _resolve_biomarker_threshold(k, "TMB", t, tmb_thr_given, compute_tmb))
+
     return table_dict_patient
 
 
@@ -2176,34 +2301,65 @@ def update_data_clinical_with_hrd_info(
             logger.warning("No sample data available to update HRD/GIS clinical info.")
 
 
-def walk_folder(
+@dataclass
+class WalkContext:
+    """Shared state produced once by _walk_setup() and read by the four
+    independent stages below (_walk_process_cnv/_snv/_fusion and
+    _walk_write_clinical_tables).
+
+    None of those four stages depends on another's *output* - CNV, SNV,
+    fusion/splice and the clinical tables are each derived only from this
+    setup context - they are simply called in sequence by walk_folder() for
+    simplicity and readable logs. That independence is exactly what lets
+    them be exposed as separate Snakemake rules (see Snakefile) with real
+    per-stage resume/parallelism, instead of the previous single
+    ~400-line walk_folder() that Snakemake could only shell out to as one
+    opaque unit.
+
+    isinputfile mirrors the module-level `isinputfile` global _walk_setup()
+    sets: the four stage functions read that bare global directly (unchanged
+    from the pre-split code), which only survives within a single process.
+    A caller driving each stage from a separate process (e.g. walk_stage.py,
+    for real per-stage Snakemake rules) must restore it from here
+    (`walk.isinputfile = ctx.isinputfile`) before invoking a stage function.
+    """
+
+    output_folder: str
+    input_folder: Path
+    input_path: object
+    patient_tsv: str
+    fusion_tsv: str
+    input_folder_snv: Path
+    input_folder_cnv: Path
+    case_folder_arr: dict
+    case_folder_arr_cnv: dict | None
+    clin_file: pd.DataFrame
+    clin_sample_path: Path
+    multiple: bool
+    oncokb: bool
+    cancer: str
+    filters: str
+    vcf_type: str | None
+    resume: bool
+    isinputfile: bool
+
+
+def _walk_setup(
     input_path: list,
     multiple: bool,
     output_folder: str,
     oncokb: bool,
     cancer: str,
-    overwrite_output: bool = False,
-    resume: bool = False,
-    vcf_type: str | None = None,
-    filters: str = "") -> tuple:
-    """Process input files/folders for SNV, CNV, fusions, and prepare output.
+    overwrite_output: bool,
+    resume: bool,
+    vcf_type: str | None,
+    filters: str) -> WalkContext:
+    """Stage 0: resolve input, create/resume the output folder, and check
+    which of SNV/CNV/CombinedOutput are actually present.
 
-    Args:
-        input_path (list): List with input path(s), either folder(s) or file(s).
-        multiple (bool): Whether multiple samples per file are expected.
-        output_folder (str): Path to the output directory.
-        oncokb (bool): Whether to enable OncoKB annotation.
-        cancer (str): Cancer ID used for validations and annotations.
-        overwrite_output (bool, optional): Overwrite output folder if exists.
-        Defaults to False.
-        resume (bool, optional): Resume from previous run if True. Defaults to False.
-        vcf_type (str | None, optional): Type of VCF to process (snv, cnv, fus, tab).
-        Defaults to None.
-        filters (str, optional): Filters to apply on VCF data. Defaults to "".
-
-    Returns:
-        tuple: Returns output folder path, input path or file, and fusion TSV path.
-
+    Every other stage (_walk_process_cnv/_snv/_fusion,
+    _walk_write_clinical_tables) depends only on this stage's output, not
+    on each other's - see WalkContext and walk_folder().
     """
     logger.info("Starting walk_folder script:")
     logger.info(
@@ -2224,15 +2380,10 @@ def walk_folder(
         isinputfile = True
     validate_input(oncokb, vcf_type, filters, cancer, input_path[0])
 
-
-    ###############################
-    ###      OUTPUT FOLDER      ###
-    ###############################
-
     if not resume or not (Path(output_folder) / "temp").exists():
         output_folder = create_folder(output_folder, overwrite_output, resume)
     else:
-        get_version_list(output_folder)   
+        get_version_list(output_folder)
 
     if not isinputfile:
         input_folder = input_path[0]
@@ -2337,6 +2488,7 @@ def walk_folder(
         vcf_type = "snv"
         logger.info("CNV path was empty, the analysis will exclude CNV")
 
+    case_folder_arr_cnv = None
     if input_folder_cnv.exists() and vcf_type not in ["snv", "fus", "tab"]:
         if multiple:
             multivcf = next(
@@ -2362,145 +2514,178 @@ def walk_folder(
     case_folder_arr = get_snv_from_folder(input_folder_snv)
     logger.info("Everything ok!")
 
-    ###############################
-    ###       SNV AND CNV       ###
-    ###############################
+    return WalkContext(
+        output_folder=output_folder,
+        input_folder=Path(input_folder),
+        input_path=input_path,
+        patient_tsv=patient_tsv,
+        fusion_tsv=fusion_tsv,
+        input_folder_snv=Path(input_folder_snv),
+        input_folder_cnv=Path(input_folder_cnv),
+        case_folder_arr=case_folder_arr,
+        case_folder_arr_cnv=case_folder_arr_cnv,
+        clin_file=clin_file,
+        clin_sample_path=clin_sample_path,
+        multiple=multiple,
+        oncokb=oncokb,
+        cancer=cancer,
+        filters=filters,
+        vcf_type=vcf_type,
+        resume=resume,
+        isinputfile=isinputfile,
+    )
 
-    input_folder_cnv = Path(input_folder_cnv)
-    input_folder_snv = Path(input_folder_snv)
 
-    if input_folder_cnv.exists() and vcf_type not in ["snv", "fus", "tab"]:
+def _walk_process_cnv(ctx: WalkContext) -> None:
+    """Stage: CNV calls (data_cna*.txt) and BRCA exon-level CNV table.
+
+    Depends only on WalkContext, independent of _walk_process_snv/_fusion.
+    """
+    if ctx.input_folder_cnv.exists() and ctx.vcf_type not in ["snv", "fus", "tab"]:
         logger.info("Managing CNV files...")
-        sID_path_cnv = cnv_type_from_folder(input_folder, case_folder_arr_cnv, output_folder, oncokb, cancer, multiple)
+        cnv_type_from_folder(
+            ctx.input_folder, ctx.case_folder_arr_cnv, ctx.output_folder,
+            ctx.oncokb, ctx.cancer, ctx.multiple)
 
-    combined_output_folder = Path(input_folder) / "CombinedOutput"
+    combined_output_folder = Path(ctx.input_folder) / "CombinedOutput"
     if (combined_output_folder.exists()
         and any(f.is_file() for f in combined_output_folder.iterdir())):
         combined_dict = get_combined_variant_output_from_folder(
-            input_folder, clin_file, isinputfile)
+            ctx.input_folder, ctx.clin_file, isinputfile)
 
-        exon_file_output = Path(output_folder) / "exon_CNA_data.txt"
+        exon_file_output = Path(ctx.output_folder) / "exon_CNA_data.txt"
         write_exon_brca(exon_file_output, combined_dict)
 
+
+def _walk_process_snv(ctx: WalkContext) -> None:
+    """Stage: SNV calls -> per-sample vcf2maf (writes maf/*.maf).
+
+    Depends only on WalkContext, independent of _walk_process_cnv/_fusion.
+    """
     temporary = None
-    if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
+    if ctx.input_folder_snv.exists() and ctx.vcf_type not in ["cnv", "fus", "tab"]:
         logger.info("Managing SNV files...")
         s_id_path_snv = snv_type_from_folder(
-            input_folder_snv, case_folder_arr, output_folder)
+            ctx.input_folder_snv, ctx.case_folder_arr, ctx.output_folder)
 
         logger.info("Checking maf folder...")
-        maf_path = Path(output_folder) / "maf"
+        maf_path = Path(ctx.output_folder) / "maf"
         if maf_path.is_dir() and any(f.suffix == ".maf" for f in maf_path.iterdir()):
             logger.info("A non empty maf folder already exists!")
 
-        if not resume:
-            if "d" in filters:
+        if not ctx.resume:
+            if "d" in ctx.filters:
                 logger.info("Filtering out VCFs with dots in ALT column")
                 s_id_path_snv = vcf_filtering(
-                s_id_path_snv, output_folder, output_filtered)
+                    s_id_path_snv, ctx.output_folder, output_filtered)
 
-            temporary = create_random_name_folder(output_folder)
+            temporary = create_random_name_folder(ctx.output_folder)
             for k, v in s_id_path_snv.items():
-                cl = vcf2maf_constructor(v, temporary, output_folder)
+                cl = vcf2maf_constructor(v, temporary, ctx.output_folder)
                 run_vcf2maf(cl, k)
 
     logger.info("Clearing scratch folder...")
     clear_scratch(temporary)
 
 
-    ###############################
-    ###       GET FUSION        ###
-    ###############################
-    if vcf_type not in ["cnv","snv","tab"]:
+def _walk_process_fusion(ctx: WalkContext) -> None:
+    """Stage: RNA fusions + splice variants -> data_sv.txt.
 
-        fusion_table_file = Path(output_folder) / "data_sv.txt"
-        fusion_folder = Path(input_folder) / "FUSIONS"
-        combined_dict = {}
+    Depends only on WalkContext, independent of _walk_process_cnv/_snv.
+    No-op if vcf_type excludes fusions, matching the original gate.
+    """
+    if ctx.vcf_type in ["cnv", "snv", "tab"]:
+        return
 
-        combined_output_folder = Path(input_folder) / "CombinedOutput"
-        if (
-            combined_output_folder.exists()
-            and any(f.is_file() for f in combined_output_folder.iterdir())):
-            logger.info("Getting Fusions infos from CombinedOutput...")
-            thr_fus = config.get("FUSION", "THRESHOLD_FUSION")
-            combined_dict = get_combined_variant_output_from_folder(
-                input_folder, clin_file, isinputfile)
-            fill_fusion_from_combined(fusion_table_file, combined_dict, thr_fus)
+    fusion_table_file = Path(ctx.output_folder) / "data_sv.txt"
+    fusion_folder = Path(ctx.input_folder) / "FUSIONS"
+    combined_dict = {}
 
-        elif fusion_folder.exists() and any(fusion_folder.iterdir()):
-            fusion_files = [f for f in fusion_folder.iterdir() if f.suffix == ".tsv"]
-            if fusion_files:
-                logger.info(f"Getting Fusions infos from {fusion_files[0].name} file.")
-                fill_fusion_from_temp(
-                    input_folder, fusion_table_file, clin_file, fusion_files)
+    combined_output_folder = Path(ctx.input_folder) / "CombinedOutput"
+    if (
+        combined_output_folder.exists()
+        and any(f.is_file() for f in combined_output_folder.iterdir())):
+        logger.info("Getting Fusions infos from CombinedOutput...")
+        thr_fus = config.get("FUSION", "THRESHOLD_FUSION")
+        combined_dict = get_combined_variant_output_from_folder(
+            ctx.input_folder, ctx.clin_file, isinputfile)
+        fill_fusion_from_combined(fusion_table_file, combined_dict, thr_fus)
 
-        if fusion_table_file.exists():
-            with fusion_table_file.open() as data_sv:
-                all_data_sv = data_sv.readlines()
-                if len(all_data_sv) == 1:
-                    fusion_table_file.unlink()
-                    logger.warning("data.sv is empty. File removed.")
+    elif fusion_folder.exists() and any(fusion_folder.iterdir()):
+        fusion_files = [f for f in fusion_folder.iterdir() if f.suffix == ".tsv"]
+        if fusion_files:
+            logger.info(f"Getting Fusions infos from {fusion_files[0].name} file.")
+            fill_fusion_from_temp(
+                ctx.input_folder, fusion_table_file, ctx.clin_file, fusion_files)
 
-        if fusion_table_file.exists():
-            # Dedup always runs here, regardless of OncoKB annotation - a run
-            # without --oncokb must not ship duplicate rows in data_sv.txt either,
-            # since cBioPortal validation rejects those the same way either way.
-            if oncokb:
-                data_sv = pd.read_csv(fusion_table_file, sep="\t", dtype=str)
-                input_file = pd.read_csv(clin_sample_path, sep="\t", dtype=str)
-                fusion_table_file_out = annotate_fusion(
-                    cancer, fusion_table_file, data_sv, input_file)
+    if fusion_table_file.exists():
+        with fusion_table_file.open() as data_sv:
+            all_data_sv = data_sv.readlines()
+            if len(all_data_sv) == 1:
+                fusion_table_file.unlink()
+                logger.warning("data.sv is empty. File removed.")
 
-                if "o" in filters:
-                    fus_file = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
-                    fus_file = filter_oncokb(fus_file, "FUSION", "ONCOKB_FILTER_FUSION")
-                    fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
+    if fusion_table_file.exists():
+        # Dedup always runs here, regardless of OncoKB annotation - a run
+        # without --oncokb must not ship duplicate rows in data_sv.txt either,
+        # since cBioPortal validation rejects those the same way either way.
+        if ctx.oncokb:
+            data_sv = pd.read_csv(fusion_table_file, sep="\t", dtype=str)
+            input_file = pd.read_csv(ctx.clin_sample_path, sep="\t", dtype=str)
+            fusion_table_file_out = annotate_fusion(
+                ctx.cancer, fusion_table_file, data_sv, input_file)
 
-                data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
-                with contextlib.suppress(KeyError):
-                    data_sv_tmp = data_sv_tmp.drop(
-                        ["SAMPLE_ID", "ONCOTREE_CODE"], axis=1)
-            else:
-                fusion_table_file_out = fusion_table_file
-                data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
+            if "o" in ctx.filters:
+                fus_file = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
+                fus_file = filter_oncokb(fus_file, "FUSION", "ONCOKB_FILTER_FUSION")
+                fus_file.to_csv(fusion_table_file_out, index=False, sep="\t")
 
-            if "Normal_Paired_End_Read_Count" in data_sv_tmp.columns:
-                data_sv_tmp["Normal_Paired_End_Read_Count"] = pd.to_numeric(data_sv_tmp["Normal_Paired_End_Read_Count"], errors='coerce')
-                data_sv_tmp = data_sv_tmp.sort_values(by="Normal_Paired_End_Read_Count", ascending=False)
-                col_subset = [col for col in data_sv_tmp.columns if col != "Normal_Paired_End_Read_Count"]
+            data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
+            with contextlib.suppress(KeyError):
+                data_sv_tmp = data_sv_tmp.drop(
+                    ["SAMPLE_ID", "ONCOTREE_CODE"], axis=1)
+        else:
+            fusion_table_file_out = fusion_table_file
+            data_sv_tmp = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)
 
-                data_sv_tmp = data_sv_tmp.drop_duplicates(subset=col_subset, keep='first')
-                data_sv_tmp["Normal_Paired_End_Read_Count"] = data_sv_tmp["Normal_Paired_End_Read_Count"].astype(str).str.replace(r'\.0$', '', regex=True).replace('nan', '')
+        if "Normal_Paired_End_Read_Count" in data_sv_tmp.columns:
+            data_sv_tmp["Normal_Paired_End_Read_Count"] = pd.to_numeric(data_sv_tmp["Normal_Paired_End_Read_Count"], errors='coerce')
+            data_sv_tmp = data_sv_tmp.sort_values(by="Normal_Paired_End_Read_Count", ascending=False)
+            col_subset = [col for col in data_sv_tmp.columns if col != "Normal_Paired_End_Read_Count"]
 
-            else:
-                data_sv_tmp = data_sv_tmp.drop_duplicates(keep='first')
+            data_sv_tmp = data_sv_tmp.drop_duplicates(subset=col_subset, keep='first')
+            data_sv_tmp["Normal_Paired_End_Read_Count"] = data_sv_tmp["Normal_Paired_End_Read_Count"].astype(str).str.replace(r'\.0$', '', regex=True).replace('nan', '')
 
-            data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
-            if fusion_table_file_out != fusion_table_file:
-                os.system(f"mv {fusion_table_file_out} {fusion_table_file}")
+        else:
+            data_sv_tmp = data_sv_tmp.drop_duplicates(keep='first')
 
-        ###############################
-        ###   GET SPLICE VARIANTS   ###
-        ###############################
-        # Runs after the fusion block above (annotation included) has fully
-        # finished, so splice rows are never sent through the fusion-specific
-        # OncoKB annotator.
-        if combined_dict:
-            thr_splice = config.get("SPLICE", "THRESHOLD_SPLICE")
-            fill_splice_from_combined(fusion_table_file, combined_dict, thr_splice)
+        data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
+        if fusion_table_file_out != fusion_table_file:
+            os.system(f"mv {fusion_table_file_out} {fusion_table_file}")
+
+    # Runs after the fusion block above (annotation included) has fully
+    # finished, so splice rows are never sent through the fusion-specific
+    # OncoKB annotator.
+    if combined_dict:
+        thr_splice = config.get("SPLICE", "THRESHOLD_SPLICE")
+        fill_splice_from_combined(fusion_table_file, combined_dict, thr_splice)
 
 
-    ##############################
-    ##       MAKES TABLE       ###
-    ##############################
+def _walk_write_clinical_tables(ctx: WalkContext) -> None:
+    """Stage: data_clinical_patient.txt + data_clinical_sample.txt (MSI/TMB,
+    exon, HRD info).
 
-    table_dict_patient = get_table_from_folder(clin_sample_path)
+    Depends only on WalkContext, independent of _walk_process_cnv/_snv/_fusion
+    - it reads sample.tsv/patient.tsv and CombinedOutput directly, not their
+    output files.
+    """
+    table_dict_patient = get_table_from_folder(ctx.clin_sample_path)
     logger.info("Writing clinical files...")
 
-    if Path(patient_tsv).name.strip() != "":
+    if Path(ctx.patient_tsv).name.strip() != "":
         logger.info("Writing data_clinical_patient.txt file...")
 
-        input_file_path = Path(input_folder) / "patient.tsv"
+        input_file_path = Path(ctx.input_folder) / "patient.tsv"
         data_clin_pat = pd.read_csv(input_file_path, sep="\t", header=0, dtype=str)
 
         data_clin_pat.columns = data_clin_pat.columns.str.upper()
@@ -2522,40 +2707,40 @@ def walk_folder(
 
         # Add header's third row (HEADER_PATIENT_TYPE)
         final_data_pat = add_header_patient_type(
-            patient_tsv, datapat_columns, conf_header_type,
+            ctx.patient_tsv, datapat_columns, conf_header_type,
             final_data_pat)
 
         # Add header's second row (HEADER_PATIENT_LONG)
         final_data_pat = add_header_patient_long(
-            patient_tsv, datapat_columns, conf_header_long,
+            ctx.patient_tsv, datapat_columns, conf_header_long,
             default_row, final_data_pat)
 
         # Add header's first row (HEADER_PATIENT_SHORT)
         final_data_pat = add_header_patient_short(
-            patient_tsv, datapat_columns, conf_header_short,
+            ctx.patient_tsv, datapat_columns, conf_header_short,
             default_row, final_data_pat)
 
         final_data_pat.loc[0:3, "PATIENT_ID"] = final_data_pat.loc[
             0:3, "PATIENT_ID"].apply(lambda x: f"#{x}")
 
-        data_clin_txt = Path(output_folder) / "data_clinical_patient.txt"
+        data_clin_txt = Path(ctx.output_folder) / "data_clinical_patient.txt"
         final_data_pat.to_csv(data_clin_txt, sep="\t", index=False, header=False)
 
     else:
-        write_default_clinical_patient(output_folder, table_dict_patient)
+        write_default_clinical_patient(ctx.output_folder, table_dict_patient)
 
     file_input_sample = pd.read_csv(
-        clin_sample_path, sep="\t", index_col=False, dtype=str)
+        ctx.clin_sample_path, sep="\t", index_col=False, dtype=str)
 
     msi_thr = config.get("MSI", "THRESHOLD_MSI")
     tmb_thr = ast.literal_eval(config.get("TMB", "THRESHOLD_TMB"))
 
-    combined_output = Path(input_folder) / "CombinedOutput"
+    combined_output = Path(ctx.input_folder) / "CombinedOutput"
     if combined_output.exists() and len(list(combined_output.iterdir())) > 0:
         msi_sites_thr = config.get("MSI", "THRESHOLD_SITES")
 
         combined_dict = get_combined_variant_output_from_folder(
-            input_folder, clin_file, isinputfile)
+            ctx.input_folder, ctx.clin_file, isinputfile)
         new_table_dict_patient = fill_from_combined(
             combined_dict, table_dict_patient,
             msi_sites_thr, msi_thr, tmb_thr)
@@ -2564,13 +2749,59 @@ def walk_folder(
             table_dict_patient, file_input_sample, msi_thr, tmb_thr)
         combined_dict = {}
 
-    write_clinical_sample(clin_sample_path, output_folder, new_table_dict_patient,
+    write_clinical_sample(ctx.clin_sample_path, ctx.output_folder, new_table_dict_patient,
                            combined_output_used=bool(combined_dict))
 
-    update_data_clinical_with_exon_info(combined_output, combined_dict, output_folder)
+    update_data_clinical_with_exon_info(combined_output, combined_dict, ctx.output_folder)
 
-    update_data_clinical_with_hrd_info(combined_output, combined_dict, output_folder)
+    update_data_clinical_with_hrd_info(combined_output, combined_dict, ctx.output_folder)
+
+
+def walk_folder(
+    input_path: list,
+    multiple: bool,
+    output_folder: str,
+    oncokb: bool,
+    cancer: str,
+    overwrite_output: bool = False,
+    resume: bool = False,
+    vcf_type: str | None = None,
+    filters: str = "") -> tuple:
+    """Process input files/folders for SNV, CNV, fusions, and prepare output.
+
+    Thin orchestrator over four independent stages - see WalkContext,
+    _walk_setup, _walk_process_cnv, _walk_process_snv, _walk_process_fusion
+    and _walk_write_clinical_tables. CNV, SNV, fusion/splice and the
+    clinical tables each depend only on _walk_setup()'s output, never on
+    each other, which is what makes them safe to expose as independent
+    Snakemake rules (see Snakefile) instead of one opaque shell-out.
+
+    Args:
+        input_path (list): List with input path(s), either folder(s) or file(s).
+        multiple (bool): Whether multiple samples per file are expected.
+        output_folder (str): Path to the output directory.
+        oncokb (bool): Whether to enable OncoKB annotation.
+        cancer (str): Cancer ID used for validations and annotations.
+        overwrite_output (bool, optional): Overwrite output folder if exists.
+        Defaults to False.
+        resume (bool, optional): Resume from previous run if True. Defaults to False.
+        vcf_type (str | None, optional): Type of VCF to process (snv, cnv, fus, tab).
+        Defaults to None.
+        filters (str, optional): Filters to apply on VCF data. Defaults to "".
+
+    Returns:
+        tuple: Returns output folder path, input path or file, and fusion TSV path.
+
+    """
+    ctx = _walk_setup(
+        input_path, multiple, output_folder, oncokb, cancer,
+        overwrite_output, resume, vcf_type, filters)
+
+    _walk_process_cnv(ctx)
+    _walk_process_snv(ctx)
+    _walk_process_fusion(ctx)
+    _walk_write_clinical_tables(ctx)
 
     logger.success("Walk script completed!\n")
 
-    return output_folder, input_path, fusion_tsv
+    return ctx.output_folder, ctx.input_path, ctx.fusion_tsv

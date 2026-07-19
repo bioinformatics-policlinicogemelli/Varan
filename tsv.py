@@ -191,12 +191,23 @@ def get_fusions(input_file: str) -> list[dict[str, str]]:
 def get_splice_variants(input_file: str) -> list[dict[str, str]]:
     """Extract splice variant events from a CombinedVariantOutput file.
 
-    NOTE ON VERIFICATION: this only had the "[Splice Variants]" section
-    *header* to go on - Gene / Affected Exon / Breakpoint 1 / Breakpoint 2 /
-    Splice Supporting Reads / Reference Reads Transcript - every real example
-    file available while writing this showed "NA" (no splice variant calls),
-    so the row-splitting logic below has never been exercised against a real
-    populated row. Treat this as unverified until checked against one.
+    NOTE ON VERIFICATION: the six column names below - Gene / Affected Exon /
+    Breakpoint 1 / Breakpoint 2 / Splice Supporting Reads / Reference Reads
+    Transcript - are not a guess: they are copied verbatim from the
+    "[Splice Variants]" header row of real TSO500 CombinedVariantOutput.tsv
+    files (Illumina always writes the header, even when the section has no
+    calls). Independently cross-checked against Illumina's own TSO500 v2.2
+    Local Run Manager release notes, which describe a defect fix for the
+    "Splice Support Reads" and "Reference Reads Transcript" columns
+    specifically in this file (their values had been swapped) - confirming
+    both are real, plain numeric columns, structurally analogous to the
+    already-verified [Fusions] section's FSR / reference-read-count pair.
+    What remains unverified is only the *row*-splitting for a populated
+    line (every real example file seen so far has "NA", no calls) - by
+    analogy with [Fusions] (tab-separated, Breakpoint columns as
+    "chrom:pos") this is a reasonable inference, not a blind guess, but
+    fill_splice_from_combined() logs every row it parses at INFO level so
+    the first real populated row is easy to spot-check.
 
     Parameters
     ----------

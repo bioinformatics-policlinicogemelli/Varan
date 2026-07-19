@@ -320,7 +320,14 @@ def update_sv(oldfile_path: str,
     output_file = Path(output_folder) / "data_sv.txt"
     merged_df.to_csv(output_file, sep="\t", index=False)
 
-    logger.info("data_sv.txt updated!")
+    if "Class" in merged_df.columns:
+        n_splice = (merged_df["Class"] == "SPLICE").sum()
+        n_fusion = (merged_df["Class"] == "FUSION").sum()
+        logger.info(
+            f"data_sv.txt updated! ({n_fusion} fusion, {n_splice} splice "
+            "variant row(s) after merge/dedup)")
+    else:
+        logger.info("data_sv.txt updated!")
 
 
 def update_generic_by_sample_id(
