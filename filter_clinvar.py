@@ -97,6 +97,51 @@ def filter_oncokb(df: pd.DataFrame, section: str, key: str) -> pd.DataFrame:
     return df[df["ONCOGENIC"].isin(oncokb_filter)]
 
 
+def filter_vaf_exclude_bands(
+    df: pd.DataFrame,
+    vaf_colname: str,
+    exclude_bands: list[tuple[float, float]]) -> pd.DataFrame:
+    """Drop rows whose VAF falls inside one or more excluded bands.
+
+    Unlike the existing single min/max VAF filter (`t_VAF_min`/`t_VAF_max`
+    in conf.ini, applied by the 'v' flag in filter_main below), this drops
+    one or more closed intervals *out of the middle* of the VAF range - the
+    intended use is excluding the germline heterozygous (~0.5) and
+    homozygous (~1.0) VAF clusters that a tumor-only (no matched normal)
+    sample still carries even after population-frequency filtering, before
+    e.g. building a mutational-signature spectrum where those clusters
+    would distort the result. A single min/max bound cannot express "keep
+    everything except 0.45-0.55 and 0.90-1.0" - hence a list of bands
+    rather than one more min/max pair.
+
+    Args:
+        df (pd.DataFrame): A MAF-shaped DataFrame with a numeric-coercible
+            VAF column.
+        vaf_colname (str): Name of the VAF column to check (e.g. "t_AF" or
+            "t_VF" - same ambiguity as the existing 'v' filter, see
+            filter_main).
+        exclude_bands (list[tuple[float, float]]): One or more (min, max)
+            pairs, each a closed interval (min <= vaf <= max) to exclude.
+            An empty list is a no-op (returns df unchanged).
+
+    Returns:
+        pd.DataFrame: df with rows inside any excluded band removed. Rows
+            with a non-numeric/missing VAF are left in place (not this
+            filter's job to drop them - same convention as the 'v' filter,
+            which does its own dropna separately).
+
+    """
+    if not exclude_bands:
+        return df
+
+    vaf_numeric = pd.to_numeric(df[vaf_colname], errors="coerce")
+    in_any_band = pd.Series(data=False, index=df.index)
+    for band_min, band_max in exclude_bands:
+        in_any_band |= (vaf_numeric >= band_min) & (vaf_numeric <= band_max)
+
+    return df[~in_any_band.fillna(False)]
+
+
 def check_clin_sig(row: pd.Series) -> bool:
     """Check clinical significance annotations in the 'CLIN_SIG' field.
 
@@ -245,6 +290,15 @@ def filter_main(input_path: str,folder: str,
                        - 'q': filter using variant consequence annotations
                        - 'y': filter using PolyPhen predictions
                        - 's': filter using SIFT predictions
+                       - 'g': exclude one or more VAF bands (conf.ini
+                         [Filters] VAF_EXCLUDE_BANDS, a list of [min, max]
+                         pairs) - distinct from 'v''s single min/max range,
+                         see filter_vaf_exclude_bands(). Intended for
+                         scrubbing germline heterozygous/homozygous VAF
+                         clusters (e.g. ~0.5, ~1.0) out of a tumor-only
+                         sample ahead of mutational-signature analysis,
+                         where a single pancancer min-VAF threshold isn't
+                         the right tool.
         cancer (str): Default cancer code used for OncoKB annotation.
         resume (bool): Whether to resume processing if partial results exist.
         overwrite (bool, optional): If True, overwrite existing OncoKB annotation
@@ -386,6 +440,25 @@ def filter_main(input_path: str,folder: str,
                     file_to_filter = file_to_filter[
                         (file_to_filter[vaf_colname] > t_vaf_min) &
                         (file_to_filter[vaf_colname] <= t_vaf_max)]
+
+            if "g" in filters and "t_AF" not in file_to_filter.columns \
+                    and "t_VF" not in file_to_filter.columns:
+                logger.warning(
+                    f"Neither t_AF nor t_VF column found in {file} - skipping the "
+                    "VAF exclude-band filter for this file instead of crashing "
+                    "the whole batch.")
+
+            elif "g" in filters:
+                # Independent column detection rather than reusing 'v''s
+                # vaf_colname - 'g' must work whether or not 'v' also ran.
+                g_vaf_colname = ("t_AF"
+                    if "t_AF" in file_to_filter.columns
+                    and file_to_filter["t_AF"].notna().any()
+                    else "t_VF")
+                exclude_bands = ast.literal_eval(
+                    config.get("Filters", "VAF_EXCLUDE_BANDS"))
+                file_to_filter = filter_vaf_exclude_bands(
+                    file_to_filter, g_vaf_colname, exclude_bands)
 
             if "a" in filters:
                 af = config.get("Filters", "AF")
