@@ -1,31 +1,36 @@
 """Snakemake wrapper around the Varan CLI.
 
-`create` is now a real per-stage DAG, not a single opaque shell-out:
+`create` is now a real per-stage DAG end to end, not a single opaque
+shell-out:
 
     walk_setup -> {walk_cnv, walk_snv, walk_fusion, walk_clinical} (parallel)
-               -> create (rest of the pipeline: filter/concatenate/tables/
-                  validation, unchanged - see varan.py's numbered stages
-                  2-5)
+               -> filter -> concatenate -> tables -> validate -> create
 
 walk_setup/walk_cnv/walk_snv/walk_fusion/walk_clinical shell out to
 walk_stage.py, a thin CLI wrapper around walk.py's internal
 _walk_setup/_walk_process_cnv/_walk_process_snv/_walk_process_fusion/
 _walk_write_clinical_tables functions (see walk.py's WalkContext
 docstring for why those four stages are safe to run independently: none
-of them depends on another's output, only on setup's). This means
-`snakemake --cores 4 create` genuinely runs CNV, SNV, fusion and the
-clinical tables in parallel instead of sequentially.
+of them depends on another's output, only on setup's).
 
-Known trade-off (documented rather than hidden): the final `create` rule
-re-invokes `python varan.py -i ... -R ...` to run stages 2-5 (filter,
-concatenate, tables, validation), which are not yet split into their own
-rules. That second call re-enters walk_folder() too, but with resume=True
-and the output folder's "temp" marker already present, so it skips
-`create_folder` (no wipe) and skips re-running vcf2maf (the slowest step,
-already done by walk_snv) - it does however harmlessly re-run the CNV/
-fusion/clinical stages a second time (idempotent overwrite, just wasted
-work). Splitting stages 2-5 out the same way is a natural next step, not
-attempted tonight.
+filter/concatenate/tables/validate shell out to pipeline_stage.py, a thin
+CLI wrapper around varan.py's own filter_main/concatenate_main/
+meta_case_main/validate_output (varan.py's numbered stages 2-5) - unlike
+the four WALK stages, these four are NOT mutually independent: each needs
+the previous one's output on disk (filter needs the maf/ folder,
+concatenate needs filter's output, tables needs the concatenated data,
+validate needs everything). Splitting them into separate rules here isn't
+about running them in parallel with *each other* - it's:
+  1. Real per-stage resume-from-failure: a validation failure no longer
+     forces re-running filter/concatenate/tables from scratch.
+  2. `filter` only depends on walk_snv's output, not on walk_cnv/
+     walk_fusion/walk_clinical too - so with enough cores, filter can
+     start running while CNV/fusion/clinical are still in progress,
+     instead of waiting for all four WALK stages to finish. This is the
+     one real remaining parallelism gap from the WALK-only split.
+
+`create` is now a thin final rule that only waits on `validate`'s output -
+no more re-invoking `python varan.py -R` as a catch-all for stages 2-5.
 
 update/extract/remove do not go through walk_folder at all (they use their
 own update_*/extract_*/delete_* functions, already one function per file
@@ -72,22 +77,30 @@ def _create_setup_args() -> str:
     return args
 
 
-def _create_rest_args() -> str:
-    # Deliberately never passes -w here (the folder was already created, or
-    # not, by walk_setup - re-wiping it now would destroy walk_cnv/walk_snv/
-    # walk_fusion/walk_clinical's output) and always passes -R (the folder's
-    # "temp" marker already exists by this point, so -R makes _walk_setup
-    # skip create_folder entirely and skip re-running vcf2maf - see module
-    # docstring above).
-    args = f"-i {' '.join(_c['input'])} -o {_c['output_folder']} -c {_c['cancer']} -R"
-    if _c.get("multiple"):
-        args += " -m"
+def _filter_args() -> str:
+    args = (
+        f"--input {' '.join(_c['input'])} --output {_c['output_folder']} "
+        f"-c {_c['cancer']} --resume"
+    )
     if _c.get("oncokb"):
-        args += " -k"
-    if _c.get("vcf_type"):
-        args += f" -t {_c['vcf_type']}"
+        args += " --oncokb"
     if _c.get("filters"):
-        args += f" -f {_c['filters']}"
+        args += f" --filters {_c['filters']}"
+    return args
+
+
+def _tables_args() -> str:
+    return f"--output {_c['output_folder']} -c {_c['cancer']}"
+
+
+def _validate_args() -> str:
+    args = f"--input {' '.join(_c['input'])} --output {_c['output_folder']} -c {_c['cancer']}"
+    if _c.get("multiple"):
+        args += " --multiple"
+    if _c.get("oncokb"):
+        args += " --oncokb"
+    if _c.get("filters"):
+        args += f" --filters {_c['filters']}"
     return args
 
 
@@ -166,27 +179,93 @@ rule walk_clinical:
         "python walk_stage.py clinical --ctx {input.ctx} > {log} 2>&1"
 
 
-rule create:
-    """Build a new study folder from raw input (varan.py -i), fanning the
-    walk stage out into walk_setup + {walk_cnv, walk_snv, walk_fusion,
-    walk_clinical} above, then running stages 2-5 (filter/concatenate/
-    tables/validation - see module docstring for the resume=True trade-off)."""
+rule filter:
+    """Stage 2: MAF filtering (varan.py's filter_main). Depends only on
+    walk_snv, not on walk_cnv/walk_fusion/walk_clinical - the one real
+    parallelism gap this branch closes, see module docstring."""
     input:
-        cnv=f"{_c['output_folder']}/.cnv.done",
         snv=f"{_c['output_folder']}/.snv.done",
-        fusion=f"{_c['output_folder']}/.fusion.done",
-        clinical=f"{_c['output_folder']}/.clinical.done",
     output:
-        report=f"{_c['output_folder']}/report_VARAN.html",
+        done=f"{_c['output_folder']}/.filter.done",
     log:
-        "Logs/snakemake_create.log",
+        "Logs/snakemake_filter.log",
     conda:
         config["conda_env"]
     params:
-        args=_create_rest_args(),
+        args=_filter_args(),
         conf=config["conf_path"],
     shell:
-        "python varan.py {params.args} -C {params.conf} > {log} 2>&1"
+        "python pipeline_stage.py -C {params.conf} filter {params.args} > {log} 2>&1"
+
+
+rule concatenate:
+    """Stage 3: concatenate per-sample MAFs (varan.py's concatenate_main)."""
+    input:
+        filter=f"{_c['output_folder']}/.filter.done",
+    output:
+        done=f"{_c['output_folder']}/.concatenate.done",
+    log:
+        "Logs/snakemake_concatenate.log",
+    conda:
+        config["conda_env"]
+    params:
+        oncokb="--oncokb" if _c.get("oncokb") else "",
+        filters=f"--filters {_c['filters']}" if _c.get("filters") else "",
+        output=_c["output_folder"],
+        conf=config["conf_path"],
+    shell:
+        "python pipeline_stage.py -C {params.conf} concatenate "
+        "--output {params.output} {params.oncokb} {params.filters} > {log} 2>&1"
+
+
+rule tables:
+    """Stage 4: meta/case list files (varan.py's meta_case_main). Depends
+    only on concatenate - CNV/fusion/clinical are already on disk from the
+    WALK stages, this stage doesn't re-touch them."""
+    input:
+        concat=f"{_c['output_folder']}/.concatenate.done",
+        cnv=f"{_c['output_folder']}/.cnv.done",
+        fusion=f"{_c['output_folder']}/.fusion.done",
+        clinical=f"{_c['output_folder']}/.clinical.done",
+    output:
+        done=f"{_c['output_folder']}/.tables.done",
+    log:
+        "Logs/snakemake_tables.log",
+    conda:
+        config["conda_env"]
+    params:
+        args=_tables_args(),
+        conf=config["conf_path"],
+    shell:
+        "python pipeline_stage.py -C {params.conf} tables {params.args} > {log} 2>&1"
+
+
+rule validate:
+    """Stage 5: cBioPortal validation + report (varan.py's validate_output)."""
+    input:
+        tables=f"{_c['output_folder']}/.tables.done",
+    output:
+        done=f"{_c['output_folder']}/.validate.done",
+        report=f"{_c['output_folder']}/report_VARAN.html",
+    log:
+        "Logs/snakemake_validate.log",
+    conda:
+        config["conda_env"]
+    params:
+        args=_validate_args(),
+        conf=config["conf_path"],
+    shell:
+        "python pipeline_stage.py -C {params.conf} validate {params.args} > {log} 2>&1"
+
+
+rule create:
+    """Thin final target for the whole create flow - everything real
+    happens in walk_setup/walk_cnv/walk_snv/walk_fusion/walk_clinical/
+    filter/concatenate/tables/validate above."""
+    input:
+        report=f"{_c['output_folder']}/report_VARAN.html",
+    output:
+        touch(f"{_c['output_folder']}/.create.done"),
 
 
 rule update:
