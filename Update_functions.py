@@ -162,6 +162,14 @@ def update_cna_hg19(oldfile_path: str, newfile_path: str, output_folder: str) ->
     insert new rows with the sample CNA data founded inside the new file from
     the given 'newfile_path' and save the updated file.
 
+    Any sample (ID) present in both files is treated as fully reprocessed:
+    all of its old segments are dropped before merging, rather than relying
+    on old and new segments to be identical on (ID, chrom, loc.start,
+    loc.end) to collapse via drop_duplicates. If a sample was re-annotated
+    with different results, its segmentation can shift slightly - matching
+    only on coordinates left stale old segments in place whenever a
+    boundary changed, alongside the new ones.
+
     Args:
         oldfile_path (str): Path to the original CNA data file.
         newfile_path (str): Path to the new CNA data file.
@@ -174,9 +182,10 @@ def update_cna_hg19(oldfile_path: str, newfile_path: str, output_folder: str) ->
     old = pd.read_csv(oldfile_path, sep="\t", dtype={"ID": str})
     new = pd.read_csv(newfile_path, sep="\t", dtype={"ID": str})
 
-    updated = pd.concat([old, new])
-    updated = updated.drop_duplicates(
-        subset=["ID","chrom","loc.start","loc.end"], keep="last")
+    updated_samples = set(old["ID"]) & set(new["ID"])
+    old = old[~old["ID"].isin(updated_samples)]
+
+    updated = pd.concat([old, new], ignore_index=True)
     outpath=Path(output_folder) / "data_cna_hg19.seg"
     updated.to_csv(outpath, index=False, sep="\t")
     logger.info("data_cna_hg19.seg updated!")
@@ -187,9 +196,12 @@ def update_cna_hg19_fc(oldfile_path: str,
                        output_folder: str) -> None:
     """Update fold-change copy number alteration (CNA) data in hg19 format.
 
-    Reads the original and new fold-change CNA segment files (TSV), merges rows,
-    removes duplicates based on segment coordinates and gene, and writes the
-    consolidated data to `data_cna_hg19.seg.fc.txt` in the output folder.
+    Reads the original and new fold-change CNA segment files (TSV) and
+    writes the consolidated data to `data_cna_hg19.seg.fc.txt`.
+
+    Any sample (ID) present in both files is treated as fully reprocessed:
+    all of its old segments are dropped before merging - see update_cna_hg19
+    for why matching only on segment coordinates isn't enough.
 
     Args:
         oldfile_path (str): Path to the original CNA fold-change file.
@@ -203,9 +215,10 @@ def update_cna_hg19_fc(oldfile_path: str,
     old = pd.read_csv(oldfile_path, sep="\t", dtype={"ID": str})
     new = pd.read_csv(newfile_path, sep="\t", dtype={"ID": str})
 
-    updated = pd.concat([old, new])
-    updated = updated.drop_duplicates(
-        subset=["ID","chrom","loc.start","loc.end", "gene"], keep="last")
+    updated_samples = set(old["ID"]) & set(new["ID"])
+    old = old[~old["ID"].isin(updated_samples)]
+
+    updated = pd.concat([old, new], ignore_index=True)
     outpath=Path(output_folder) / "data_cna_hg19.seg.fc.txt"
     updated.to_csv(outpath, index=False, sep="\t")
     logger.info("data_cna_hg19.seg.fc.txt updated!")
@@ -244,6 +257,43 @@ def update_cna(oldfile_path: str,
     logger.info("data_cna.txt updated!")
 
 
+def update_exon_brca_cna(oldfile_path: str,
+                         newfile_path: str,
+                         output_folder: str) -> None:
+    """Update sample columns in the BRCA exon-level CNV Generic Assay matrix.
+
+    Mirrors update_cna's column-intersection replace logic, but for
+    data_exon_brca_cna.txt's shape: two leading id columns
+    (ENTITY_STABLE_ID, NAME) that must be kept as-is rather than treated as
+    a single index column, and CATEGORICAL string values (LOSS/GAIN/NEUTRAL)
+    rather than data_cna.txt's discrete integers - so it can't reuse
+    update_cna directly.
+
+    Args:
+        oldfile_path (str): Path to the original data_exon_brca_cna.txt.
+        newfile_path (str): Path to the new data_exon_brca_cna.txt.
+        output_folder (str): Path to the output folder.
+
+    Returns:
+        None
+
+    """
+    old = pd.read_csv(oldfile_path, sep="\t")
+    new = pd.read_csv(newfile_path, sep="\t")
+
+    id_cols = [c for c in ["ENTITY_STABLE_ID", "NAME"] if c in old.columns]
+    sample_old = [c for c in old.columns if c not in id_cols]
+    sample_new = [c for c in new.columns if c not in id_cols]
+    to_remove = set(sample_old) & set(sample_new)
+
+    old = old.drop(columns=list(to_remove))
+    updated = old.merge(new, on=id_cols, how="outer") if id_cols else pd.concat(
+        [old, new], axis=1)
+    outpath=Path(output_folder) / "data_exon_brca_cna.txt"
+    updated.to_csv(outpath, index=False, sep="\t")
+    logger.info("data_exon_brca_cna.txt updated!")
+
+
 def update_mutations(oldfile_path: str,
                      newfile_path: str,
                      output_folder: str) -> None:
@@ -252,6 +302,17 @@ def update_mutations(oldfile_path: str,
     This function reads the original tab separated version txt file,
     insert new rows with the samples' mutation data founded inside the new txt file
     and save the updated file.
+
+    Any sample (Tumor_Sample_Barcode) present in both files is treated as
+    fully reprocessed: all of its old rows are dropped before merging.
+    Relying on old and new rows to be byte-identical on the Hugo_Symbol:n_AF
+    column range to collapse via drop_duplicates is fragile across two
+    independent annotation runs (a changed ONCOTREE_CODE, a ClinVar/VEP/
+    OncoKB version bump between runs, ...) even when the underlying variant
+    calls are the same - and silently leaves the old, possibly stale, rows
+    in place for any sample whose re-annotated output differs even
+    slightly, alongside the new ones (duplicates, or stale rows for calls
+    that no longer exist).
 
     Args:
         oldfile_path (str): Path to the original data_mutations_extended.
@@ -265,9 +326,10 @@ def update_mutations(oldfile_path: str,
     old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
     new = pd.read_csv(newfile_path, sep="\t", dtype=str)
 
-    updated = pd.concat([old, new])
-    updated=updated.drop_duplicates(
-        subset=updated.loc[:, "Hugo_Symbol":"n_AF"].columns, keep="last")
+    updated_samples = set(old["Tumor_Sample_Barcode"]) & set(new["Tumor_Sample_Barcode"])
+    old = old[~old["Tumor_Sample_Barcode"].isin(updated_samples)]
+
+    updated = pd.concat([old, new], ignore_index=True)
     outpath=Path(output_folder) / "data_mutations_extended.txt"
     updated.to_csv(outpath, index=False, sep="\t")
     logger.info("data_mutation_extended.txt updated!")
@@ -282,6 +344,14 @@ def update_sv(oldfile_path: str,
     insert new rows with the samples' SV data founded inside the new txt file
     and save the updated file named 'data_sv.txt' in the specified 'output_folder'.
 
+    Any sample (Sample_Id) present in both files is treated as fully
+    reprocessed: all of its old rows are dropped before merging, rather
+    than relying on the row-content dedup below (which matches cBioPortal's
+    own uniqueness rules, not sample identity) to catch a re-annotated
+    sample whose fusion/splice calls changed - a call that disappeared
+    between runs would otherwise never collide with anything and would be
+    left behind as a stale row.
+
     Args:
         oldfile_path (str): Path to the original data_sv.
         newfile_path (str): Path to the new data_sv.
@@ -293,6 +363,10 @@ def update_sv(oldfile_path: str,
     """
     df_old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
     df_new = pd.read_csv(newfile_path, sep="\t", dtype=str)
+
+    updated_samples = set(df_old["Sample_Id"]) & set(df_new["Sample_Id"])
+    df_old = df_old[~df_old["Sample_Id"].isin(updated_samples)]
+
     merged_df = pd.concat(
         [df_old, df_new], axis=0, join="outer", ignore_index=True)
 
@@ -331,18 +405,26 @@ def update_sv(oldfile_path: str,
 
 
 def update_generic_by_sample_id(
-    oldfile_path: Path, newfile_path: Path, output_folder: Path) -> None:
-    """Update a generic Sample_Id-keyed file by appending the new study's rows.
+    oldfile_path: Path, newfile_path: Path, output_folder: Path,
+    id_column: str = "Sample_Id") -> None:
+    """Update a generic Sample_Id-keyed file by replacing reprocessed samples.
 
     Works regardless of how many rows a sample has (e.g. exon-level CNA data can have
     one row per gene per sample) - reusable for any future per-sample multi-row file
-    without writing a new update_* function each time. All rows from the new study are
-    added to the old ones; exact-duplicate rows are collapsed (keeping the newest).
+    without writing a new update_* function each time.
+
+    Any sample (`id_column`) present in both files is treated as fully
+    reprocessed: all of its old rows are dropped before merging, instead of
+    relying on old and new rows being byte-identical to collapse via
+    drop_duplicates - which left stale rows behind for any sample whose
+    re-annotated output changed even slightly, exactly like the
+    data_mutations_extended.txt/data_sv.txt bug this mirrors.
 
     Args:
         oldfile_path (Path): Path to the file in the original study folder.
         newfile_path (Path): Path to the same-named file in the incoming study folder.
         output_folder (Path): Path to the output folder.
+        id_column (str): Name of the sample-id column in the file.
 
     Returns:
         None
@@ -350,7 +432,12 @@ def update_generic_by_sample_id(
     """
     old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
     new = pd.read_csv(newfile_path, sep="\t", dtype=str)
-    merged = pd.concat([old, new], ignore_index=True).drop_duplicates(keep="last")
+
+    if id_column in old.columns and id_column in new.columns:
+        updated_samples = set(old[id_column]) & set(new[id_column])
+        old = old[~old[id_column].isin(updated_samples)]
+
+    merged = pd.concat([old, new], ignore_index=True)
     output_file = Path(output_folder) / Path(oldfile_path).name
     merged.to_csv(output_file, sep="\t", index=False)
     logger.info(f"{Path(oldfile_path).name} updated!")
@@ -386,7 +473,8 @@ def check_files(oldpath: str,
     "data_cna.txt": update_cna,
     "data_mutations_extended.txt": update_mutations,
     "data_sv.txt": update_sv,
-    "exon_CNA_data.txt": update_generic_by_sample_id}
+    "exon_CNA_data.txt": update_generic_by_sample_id,
+    "data_exon_brca_cna.txt": update_exon_brca_cna}
 
     o_data = Path(oldpath) / file_name
     n_data = Path(newpath) / file_name
@@ -407,26 +495,6 @@ def check_files(oldpath: str,
     else:
         logger.warning(f"'{file_name}' not found in either folder. Skipping.")
 
-
-def copy_logo(oldpath: str, output: str) -> None:
-    """Copy 'logo_VARAN.png' old folder to the new output folder.
-
-    Args:
-        oldpath (str): path to old folder containing the 'img/logo_VARAN.png' file.
-        output (str): path to output folder where 'logo_VARAN.png' will be copied.
-
-    Returns:
-        None: This function performs file operations and doesn't return a value.
-
-    Raises:
-        FileNotFoundError: If the 'logo_VARAN.png' file is not found.
-
-    """
-    img_path = Path(oldpath) / "img" / "logo_VARAN.png"
-    if Path(img_path).exists():
-        img_output_dir = Path(output) / "img"
-        img_output_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy(img_path, Path(img_output_dir) / "logo_VARAN.png")
 
 def safe_check_file(oldpath: Path, newpath: Path, output: Path, file: str) -> None:
     """Safely checks a file for consistency between old and new study folders.

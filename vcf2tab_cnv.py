@@ -309,7 +309,9 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
     mode = "a" if table_path.exists() else "w"
     with vcf_path.open() as vcf, table_path.open(mode) as table:
         if mode != "a":
-            table.write("ID\tchrom\tloc.start\tloc.end\tnum.mark\tFC\tgene\tdiscrete\tcnv_unadjusted\tcnv_adjusted\n")
+            table.write(
+                "ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\tFC\tgene\t"
+                "discrete\tcnv_unadjusted\tcnv_adjusted\n")
 
         for line in vcf:
             if line.startswith("##fileformat"):
@@ -352,6 +354,7 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
             fc = float(fc)
             if not is_positive(fc, sample):
                 fc = 0.0001
+            log2fc = math.log2(fc)
 
             cn_unadjusted = round(2 * fc)
             
@@ -372,7 +375,9 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
             else:
                 discr = "0"
 
-            table.write(f"{sample}\t{chrom}\t{start}\t{end}\t{qual}\t{fc}\t{gene}\t{discr}\t{cn_unadjusted}\t{cn_adjusted}\n")
+            table.write(
+                f"{sample}\t{chrom}\t{start}\t{end}\t{qual}\t{log2fc}\t{fc}\t{gene}\t"
+                f"{discr}\t{cn_unadjusted}\t{cn_adjusted}\n")
 
 
 def load_table(file_path: str) -> pd.DataFrame:

@@ -177,6 +177,33 @@ def extract_cna(file_path: str,
     extracted.to_csv(outpath, index=True, sep="\t")
 
 
+def extract_exon_brca_cna(file_path: str,
+                          sample_ids: str,
+                          output_folder: str) -> None:
+    """Extract specific samples' columns from the BRCA exon-level CNV Generic Assay matrix.
+
+    Mirrors extract_cna, but for data_exon_brca_cna.txt's shape: two leading
+    id columns (ENTITY_STABLE_ID, NAME) that must always be kept, followed
+    by one column per sample - unlike data_cna.txt's single leading
+    Hugo_Symbol column, so it can't reuse extract_cna directly.
+
+    Args:
+        file_path (str): Path to data_exon_brca_cna.txt.
+        sample_ids (list): List of sample IDs to be extracted from the input file.
+        output_folder (str): Path to the output directory.
+
+    Returns:
+        None
+
+    """
+    file = pd.read_csv(file_path, sep="\t")
+    id_cols = [c for c in ["ENTITY_STABLE_ID", "NAME"] if c in file.columns]
+    columns_to_keep = id_cols + [s for s in sample_ids if s in file.columns]
+    extracted = file.loc[:, columns_to_keep]
+    outpath=Path(output_folder) / "data_exon_brca_cna.txt"
+    extracted.to_csv(outpath, index=False, sep="\t")
+
+
 def extract_mutations(file_path: str,
                       sample_ids: str,
                       output_folder: str) -> None:
@@ -337,6 +364,7 @@ def extract_all_data(oldpath: str, sample_ids: list, output: str) -> None:
         ("data_mutations_extended.txt", extract_mutations, True),
         ("data_sv.txt", extract_sv, True),
         ("exon_CNA_data.txt", extract_generic_by_sample_id, True),
+        ("data_exon_brca_cna.txt", extract_exon_brca_cna, True),
     ]
 
     for filename, extractor, use_path in file_extractors:
