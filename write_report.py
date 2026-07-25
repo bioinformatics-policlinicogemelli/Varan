@@ -180,6 +180,62 @@ def read_provenance(study_folder: str) -> dict | None:
         return None
 
 
+def merge_provenance_value(value1: object, value2: object) -> object:
+    """Merge one provenance field from two source studies into one value.
+
+    Equal values collapse to that single value. Dicts (e.g. "filters") are
+    merged key by key with the same rule, recursively. Anything else that
+    differs - including a key present on only one side - becomes the literal
+    string "Mixed", so a real divergence between the two merged studies stays
+    visible in the result instead of silently picking one side or vanishing.
+
+    Args:
+        value1: Value from the first source study (or None if absent).
+        value2: Value from the second source study (or None if absent).
+
+    Returns:
+        The merged value: the shared value, a key-wise merged dict, or
+        "Mixed".
+
+    """
+    if isinstance(value1, dict) or isinstance(value2, dict):
+        value1 = value1 or {}
+        value2 = value2 or {}
+        return {
+            key: merge_provenance_value(value1.get(key), value2.get(key))
+            for key in value1.keys() | value2.keys()
+        }
+    if value1 == value2 and value1 is not None:
+        return value1
+    return "Mixed"
+
+
+def merge_provenance(provenance1: dict | None, provenance2: dict | None) -> dict:
+    """Merge two studies' provenance dicts into the provenance of their update.
+
+    Keeps the result flat (same shape `write_provenance` produces for walk,
+    extract and remove) regardless of whether provenance1/provenance2 came
+    from walk, update, extract or remove themselves - so a chain of any
+    length and order of these operations keeps deriving sample/cancer type,
+    reference genome and filters correctly, not just studies that trace back
+    directly to a walk run.
+
+    Args:
+        provenance1 (dict | None): Provenance of the first source study.
+        provenance2 (dict | None): Provenance of the second source study.
+
+    Returns:
+        dict: The merged, flat provenance for the resulting study.
+
+    """
+    provenance1 = provenance1 or {}
+    provenance2 = provenance2 or {}
+    return {
+        key: merge_provenance_value(provenance1.get(key), provenance2.get(key))
+        for key in provenance1.keys() | provenance2.keys()
+    }
+
+
 def render_provenance_html(label: str, provenance: dict | None) -> str:
     """Render a compact "Software Environment" block from a provenance dict.
 
@@ -204,6 +260,7 @@ def render_provenance_html(label: str, provenance: dict | None) -> str:
         "python_version": "Python Version",
         "clinvar_update": "ClinVar Last Update",
         "vep_version": "VEP Version",
+        "vep_cache_version": "VEP Cache",
         "analysis_start_time": "Analysis Started",
         "report_generated": "Source Report Generated",
     }
@@ -465,15 +522,6 @@ def write_report_main(
     clinvar_update = get_clinvar_update_date(config)
     vep_version = get_vep_version(Path(vep_path, "vep"))
 
-    write_provenance(
-        output_folder,
-        varan_version=varan_version,
-        python_version=python_version,
-        clinvar_update=clinvar_update,
-        vep_version=vep_version,
-        analysis_start_time=start_time,
-        report_generated=datetime.now().astimezone().strftime("%d/%m/%Y, %H:%M:%S"))
-
     if versioning.old_version_exists:
         name = re.search(r"^(.+_v)[0-9]+$", output_folder.name).group(1)
         actual_version = int(re.search(r"^.+_v([0-9]+)$",\
@@ -571,11 +619,14 @@ def write_report_main(
         <section class="filters">
             <div class="section-title">Filters & Configuration</div>"""
 
+    filters_dict = {}
+
     if any(letter in filters for letter in "d"):
         html_content += """
             <div class="subtitle">VCF Filters</div>"""
 
     if "d" in filters:
+        filters_dict["ALT"] = '!="."'
         html_content += """
                 <div class="content">
                 <p>Keep only VCF rows where <strong>ALT</strong> is different from "."</p>
@@ -586,6 +637,8 @@ def write_report_main(
         html_content += """
             <div class="subtitle">VAF Filters</div>"""
     if "v" in filters:
+        filters_dict["T_VAF_MIN"] = extract_key_value(my_filters, "T_VAF_MIN")
+        filters_dict["T_VAF_MAX"] = extract_key_value(my_filters, "T_VAF_MAX")
         html_content += f"""
             <div class="content">
             <p>
@@ -597,6 +650,8 @@ def write_report_main(
         </div>"""
 
         if "n" in filters:
+            filters_dict["T_VAF_MIN_NOVEL"] = extract_key_value(
+                my_filters, "T_VAF_MIN_NOVEL")
             html_content += (f"""
                 <div class="content">
                 <p><strong>T_VAF_MIN_NOVEL:</strong>
@@ -608,6 +663,8 @@ def write_report_main(
         drop_na_af = config.get("Filters", "drop_NA_AF")
         drop_na_af = check_bool(drop_na_af)
         excl_or_incl = "exclude" if drop_na_af else "include"
+        filters_dict["AF"] = (
+            f'{extract_key_value(my_filters, "AF")} & {excl_or_incl} NA')
 
         html_content += f"""
                 <div class="content">
@@ -620,82 +677,96 @@ def write_report_main(
             <div class="subtitle">MAF Filters</div>"""
 
     if oncokb and "o" in filters:
+        filters_dict["ONCOKB"] = "include " + ", ".join([
+            item.strip()
+            for item in extract_key_value(my_filters, "ONCOKB_FILTER_SNV")
+            .strip('[]')
+            .replace('"', '')
+            .split(',')
+        ])
         html_content += f"""
             <div class="content">
-            <p><strong>ONCOKB:</strong> include {', '.join([
-                item.strip()
-                for item in extract_key_value(my_filters, "ONCOKB_FILTER_SNV")
-                .strip('[]')
-                .replace('"', '')
-                .split(',')
-            ])}</p>
+            <p><strong>ONCOKB:</strong> {filters_dict["ONCOKB"]}</p>
         </div>"""
 
     if "q" in filters:
+        filters_dict["CONSEQUENCES"] = "include " + ", ".join([
+            item.strip()
+            for item in extract_key_value(my_filters, "CONSEQUENCES")
+            .strip('[]')
+            .replace('"', '')
+            .split(',')
+        ])
         html_content += f"""
             <div class="content">
-            <p><strong>CONSEQUENCES:</strong> include {', '.join([
-                item.strip()
-                for item in extract_key_value(my_filters, "CONSEQUENCES")
-                .strip('[]')
-                .replace('"', '')
-                .split(',')
-            ])}</p>
+            <p><strong>CONSEQUENCES:</strong> {filters_dict["CONSEQUENCES"]}</p>
         </div>"""
 
     if "y" in filters:
+        filters_dict["POLYPHEN"] = "include " + ", ".join([
+            item.strip()
+            for item in extract_key_value(my_filters, "POLYPHEN")
+            .strip('[]')
+            .replace('"', '')
+            .split(',')
+        ])
         html_content += f"""
             <div class="content">
-            <p><strong>POLYPHEN:</strong> include {', '.join([
-                item.strip()
-                for item in extract_key_value(my_filters, "POLYPHEN")
-                .strip('[]')
-                .replace('"', '')
-                .split(',')
-            ])}</p>
+            <p><strong>POLYPHEN:</strong> {filters_dict["POLYPHEN"]}</p>
         </div>"""
 
     if "c" in filters:
+        filters_dict["CLIN_SIG"] = "exclude " + ", ".join([
+            item.strip()
+            for item in extract_key_value(my_filters, "CLIN_SIG")
+            .strip('[]')
+            .replace('"', '')
+            .split(',')
+        ])
         html_content += f"""
             <div class="content">
-            <p><strong>CLIN_SIG:</strong> exclude {', '.join([
-                item.strip()
-                for item in extract_key_value(my_filters, "CLIN_SIG")
-                .strip('[]')
-                .replace('"', '')
-                .split(',')
-            ])}</p>
+            <p><strong>CLIN_SIG:</strong> {filters_dict["CLIN_SIG"]}</p>
         </div>"""
 
     if "i" in filters:
+        filters_dict["IMPACT"] = "exclude " + ", ".join([
+            item.strip()
+            for item in extract_key_value(my_filters, "IMPACT")
+            .strip('[]')
+            .replace('"', '')
+            .split(',')
+        ])
         html_content += f"""
             <div class="content">
-            <p><strong>IMPACT:</strong> exclude {', '.join([
-                item.strip()
-                for item in extract_key_value(my_filters, "IMPACT")
-                .strip('[]')
-                .replace('"', '')
-                .split(',')
-            ])}</p>
+            <p><strong>IMPACT:</strong> {filters_dict["IMPACT"]}</p>
         </div>"""
 
     if "s" in filters:
+        filters_dict["SIFT"] = "include " + ", ".join([
+            item.strip()
+            for item in extract_key_value(my_filters, "SIFT")
+            .strip('[]')
+            .replace('"', '')
+            .split(',')
+        ])
         html_content += f"""
             <div class="content">
-            <p><strong>SIFT:</strong> include {', '.join([
-                item.strip()
-                for item in extract_key_value(my_filters, "SIFT")
-                .strip('[]')
-                .replace('"', '')
-                .split(',')
-            ])}</p>
+            <p><strong>SIFT:</strong> {filters_dict["SIFT"]}</p>
         </div>"""
 
     if "p" in filters:
+        filters_dict["FILTER"] = "PASS"
         html_content += """
                 <div class="content">
                  <p><strong>FILTER:</strong> = PASS
             </div>"""
+
+    filters_dict["PLOIDY"] = extract_key_value(my_filters, "PLOIDY")
+    filters_dict["CNVKIT_algorithm"] = extract_key_value(my_filters, "CNVKIT_algorithm")
+    filters_dict["THRESHOLD_TMB"] = extract_key_value(my_filters, "THRESHOLD_TMB")
+    filters_dict["THRESHOLD_SITES"] = extract_key_value(my_filters, "THRESHOLD_SITES")
+    filters_dict["THRESHOLD_MSI"] = extract_key_value(my_filters, "THRESHOLD_MSI")
+    filters_dict["THRESHOLD_FUSION"] = extract_key_value(my_filters, "THRESHOLD_FUSION")
 
     tmb_section = re.sub(r"[{}']", "", extract_section(my_filters, "TMB"))
     tmb_section = re.sub(r"([,:])(?=\S)", r"\1 ", tmb_section)
@@ -721,6 +792,20 @@ def write_report_main(
                 {extract_section(my_filters, "FUSION")}
             </div>
         </section>"""
+
+    write_provenance(
+        output_folder,
+        varan_version=varan_version,
+        python_version=python_version,
+        clinvar_update=clinvar_update,
+        vep_version=vep_version,
+        vep_cache_version=vep_cache_version,
+        sample_type=sample_type,
+        cancer_type=cancer,
+        ref_genome=ref_genome,
+        filters=filters_dict,
+        analysis_start_time=start_time,
+        report_generated=datetime.now().astimezone().strftime("%d/%m/%Y, %H:%M:%S"))
 
     if versioning.old_version_exists and actual_version != 1:
             html_content += f"""
@@ -1085,24 +1170,17 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
         compare_sample_file_update(sv_1, sv_2, new_study)
     )
 
-    old_report = Path(original_study) / "report_VARAN.html"
-    updating_report = Path(updating_with) / "report_VARAN.html"
+    original_provenance = read_provenance(original_study) or {}
+    incoming_provenance = read_provenance(updating_with) or {}
 
-    if old_report.exists() and updating_report.exists():
-        filters1 = extract_filters_from_html(old_report)
-        filters2 = extract_filters_from_html(updating_report)
-        cancer_type1 = extract_cancer_type_from_html(old_report)
-        cancer_type2 = extract_cancer_type_from_html(updating_report)
-        sample_type1 = extract_sample_type_from_html(old_report)
-        sample_type2 = extract_sample_type_from_html(updating_report)
-
-    else:
-        filters1 = {}
-        filters2 = {}
-        cancer_type1 = None
-        cancer_type2 = None
-        sample_type1 = None
-        sample_type2 = None
+    cancer_type1 = original_provenance.get("cancer_type")
+    cancer_type2 = incoming_provenance.get("cancer_type")
+    sample_type1 = original_provenance.get("sample_type")
+    sample_type2 = incoming_provenance.get("sample_type")
+    ref_genome1 = original_provenance.get("ref_genome")
+    ref_genome2 = incoming_provenance.get("ref_genome")
+    filters1 = original_provenance.get("filters", {})
+    filters2 = incoming_provenance.get("filters", {})
 
     order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT",\
     "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "PLOIDY", "CNVKIT_algorithm",\
@@ -1156,6 +1234,11 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
     else:
         html_content += """<p><strong>CANCER TYPE:</strong> Mixed</p>"""
 
+    if (ref_genome1 == ref_genome2) and (ref_genome1 is not None):
+        html_content += f"""<p><strong>REFERENCE GENOME:</strong> {ref_genome1}</p>"""
+    else:
+        html_content += """<p><strong>REFERENCE GENOME:</strong> Mixed</p>"""
+
     html_content += f"""
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
@@ -1163,12 +1246,14 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
                 </div>
     """
 
-    original_provenance = read_provenance(original_study)
-    incoming_provenance = read_provenance(updating_with)
     write_provenance(
         new_study,
-        original_study=original_provenance,
-        incoming_data=incoming_provenance)
+        **merge_provenance(
+            {k: v for k, v in original_provenance.items() if k != "update_sources"},
+            {k: v for k, v in incoming_provenance.items() if k != "update_sources"}),
+        update_sources={
+            "original_study": original_provenance,
+            "incoming_data": incoming_provenance})
     html_content += render_provenance_html("Original study", original_provenance)
     html_content += render_provenance_html("Incoming data", incoming_provenance)
 
@@ -1603,15 +1688,11 @@ def write_report_extract(original_study: str, new_study: str,
                 only_old_sam = []
                 only_old_pat = []
 
-    old_report = Path(original_study) / "report_VARAN.html"
-    if Path(old_report).exists():
-        filters = extract_filters_from_html(old_report)
-        cancer_type = extract_cancer_type_from_html(old_report)
-        sample_type = extract_sample_type_from_html(old_report)
-    else:
-        filters = {}
-        cancer_type = None
-        sample_type = None
+    source_provenance = read_provenance(original_study) or {}
+    cancer_type = source_provenance.get("cancer_type")
+    sample_type = source_provenance.get("sample_type")
+    ref_genome = source_provenance.get("ref_genome")
+    filters = source_provenance.get("filters", {})
 
     case_list1 = Path(original_study) / "case_lists"
     case_list2 = Path(new_study) / "case_lists"
@@ -1660,13 +1741,15 @@ def write_report_extract(original_study: str, new_study: str,
     if cancer_type:
         html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type}</p>"""
 
+    if ref_genome:
+        html_content += f"""<p><strong>REFERENCE GENOME:</strong> {ref_genome}</p>"""
+
     html_content += f"""
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
                     <p><strong>Total Samples:</strong> {total_samples}</p>
                 </div>"""
 
-    source_provenance = read_provenance(original_study)
     if source_provenance:
         write_provenance(new_study, **source_provenance)
     html_content += render_provenance_html("Source study", source_provenance)
@@ -2041,15 +2124,11 @@ def write_report_remove(
                 only_old_sam = []
                 only_old_pat = []
 
-    old_report = Path(original_study) / "report_VARAN.html"
-    if Path(old_report).exists():
-        filters = extract_filters_from_html(old_report)
-        cancer_type = extract_cancer_type_from_html(old_report)
-        sample_type = extract_sample_type_from_html(old_report)
-    else:
-        filters = {}
-        cancer_type = None
-        sample_type = None
+    source_provenance = read_provenance(original_study) or {}
+    cancer_type = source_provenance.get("cancer_type")
+    sample_type = source_provenance.get("sample_type")
+    ref_genome = source_provenance.get("ref_genome")
+    filters = source_provenance.get("filters", {})
 
     case_list1 = Path(original_study) / "case_lists"
     case_list2 = Path(new_study) / "case_lists"
@@ -2106,13 +2185,15 @@ def write_report_remove(
     if cancer_type:
         html_content += f"""<p><strong>CANCER TYPE:</strong> {cancer_type}</p>"""
 
+    if ref_genome:
+        html_content += f"""<p><strong>REFERENCE GENOME:</strong> {ref_genome}</p>"""
+
     html_content += f"""
                     <hr width="100%" size="2" color="#003366" noshade>
                     <p><strong>Total Patients:</strong> {total_patients}</p>
                     <p><strong>Total Samples:</strong> {total_samples}</p>
                 </div>"""
 
-    source_provenance = read_provenance(original_study)
     if source_provenance:
         write_provenance(new_study, **source_provenance)
     html_content += render_provenance_html("Source study", source_provenance)
@@ -2402,117 +2483,3 @@ def compare_sample_file_remove(
     )
 
 
-def extract_filters_from_html(report: str) -> dict | None:
-    """Extract filtering criteria from a given HTML report file.
-
-    This function parses the specified HTML report to extract filtering parameters
-    listed under the filters section and VCF filters subsection. It returns these
-    filters as a dictionary where keys are filter names and values are their criteria.
-
-    Args:
-        report (str): Path to the HTML report file.
-
-    Returns:
-        dict: A dictionary containing filter names as keys and their corresponding
-              filter criteria as values.
-
-    """
-    filters = {}
-    report_path = Path(report)
-    with report_path.open(encoding="utf-8") as file:
-        html_content = file.read()
-
-    fs_match = re.search(
-        r'<section class="filters">.*?</section>', html_content, re.DOTALL)
-    if fs_match:
-        section_text = fs_match.group()
-        p_items = re.findall(
-            r"<p>\s*<strong>([^<]+?)[:]*</strong>\s*[:=]?\s*(.*?)\s*</p>",
-            section_text, re.DOTALL)
-        for key, value in p_items:
-            filters[key.strip().rstrip(":")] = value.strip()
-        other_items = re.findall(
-            r"<strong>([^<]+?)</strong>\s*[:=]?\s*(.*?)(?=<br>|</div>|</section>)",
-            section_text, re.DOTALL)
-        for key, value in other_items:
-            k = key.strip().rstrip(":")
-            if k not in filters:
-                filters[k] = value.strip()
-
-    vcf_match = re.search(
-        r'<div class="subtitle">VCF Filters</div>\s*<div class="content">(.*?)</div>',
-        html_content, re.DOTALL)
-    if vcf_match:
-        content = vcf_match.group(1)
-        alt_match = re.search(
-            (r'Keep only rows where\s*<strong>\s*ALT\s*</strong>\s*'
-            r'is different from\s*"(.*?)"'),
-            content, re.DOTALL)
-        if alt_match:
-            alt_val = alt_match.group(1).strip()
-            filters["ALT"] = f'!="{alt_val}"'
-
-    return filters
-
-
-def extract_cancer_type_from_html(report: str | Path) -> str | None:
-    """Extract the cancer type information from an HTML report file.
-
-    This function searches the HTML report for the section indicating the cancer type
-    and returns its value if found.
-
-    Args:
-        report (str): Path to the HTML report file.
-
-    Returns:
-        str or None: The extracted cancer type as a string, or None if not found.
-
-    """
-    cancer_type = None
-
-    report = Path(report)
-    with report.open(encoding="utf-8") as file:
-        html_content = file.read()
-
-    cancer_type_match = re.search(
-    r"<p><strong>\s*CANCER TYPE:\s*</strong>\s*(.*?)\s*</p>",
-    html_content, re.DOTALL | re.IGNORECASE)
-
-    if cancer_type_match:
-        cancer_type = cancer_type_match.group(1).strip()
-
-    return cancer_type
-
-
-def extract_sample_type_from_html(report: str | Path) -> str | None:
-    """Extract the sample type information from an HTML report file.
-
-    This function searches the HTML report for the section indicating the sample type
-    and returns its value if found.
-
-    Args:
-        report (str | Path): Path to the HTML report file.
-
-    Returns:
-        str or None: The extracted sample type as a string, or None if not found.
-    """
-    sample_type = None
-    report = Path(report)
-
-    try:
-        with report.open(encoding="utf-8") as file:
-            html_content = file.read()
-
-        sample_type_match = re.search(
-            r"<p><strong>\s*SAMPLE TYPE:\s*</strong>\s*(.*?)\s*</p>",
-            html_content, 
-            re.DOTALL | re.IGNORECASE
-        )
-
-        if sample_type_match:
-            sample_type = sample_type_match.group(1).strip()
-
-    except Exception as e:
-        return None
-
-    return sample_type
