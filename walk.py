@@ -2051,7 +2051,9 @@ def validate_input(
         sys.exit(1)
 
 
-def write_exon_brca(output_file: str, combined_dict: dict[str, str]) -> None:
+def write_exon_brca(
+    output_file: str, combined_dict: dict[str, str]
+) -> dict[str, dict[str, dict[str, str]]]:
     """Write a tab-separated file containing BRCA exon-level CNV data.
 
     This function reads exon-level CNV information from a set of input files,
@@ -2061,15 +2063,20 @@ def write_exon_brca(output_file: str, combined_dict: dict[str, str]) -> None:
 
     Args:
         output_file (str): Path to the output file where results will be written.
-        combined_dict (dict[str, str]): Dictionary mapping sample IDs to input file 
+        combined_dict (dict[str, str]): Dictionary mapping sample IDs to input file
         paths. Each file is expected to contain a section with exon-level CNV data.
 
     Returns:
-        None: The function writes to a file and returns nothing.
+        dict[str, dict[str, dict[str, str]]]: The same events, keyed by sample
+            then gene ({sample_id: {gene: {"chromosome", "start", "stop",
+            "exon", "fold_change", "cnv_type"}}}), for callers that need the
+            structured data (e.g. write_exon_brca_generic_assay) without
+            re-parsing the source CombinedVariantOutput files.
 
     """
     logger.info("Checking for exonic BRCA data...")
     rows_to_write = []
+    events_by_sample: dict[str, dict[str, dict[str, str]]] = {}
 
     header = (
         "Sample_Id\tGene\tChromosome\tStart\tStop\t"
@@ -2097,12 +2104,21 @@ def write_exon_brca(output_file: str, combined_dict: dict[str, str]) -> None:
             line = f"{k}\t{hugo_symbol}\t{chr_val}\t{start}\t{stop}\t{exon}\t{fc}\t{cnv_type}\n"
             rows_to_write.append(line)
 
+            events_by_sample.setdefault(k, {})[hugo_symbol] = {
+                "chromosome": chr_val,
+                "start": start,
+                "stop": stop,
+                "exon": exon,
+                "fold_change": fc,
+                "cnv_type": cnv_type,
+            }
+
     if not rows_to_write:
         logger.warning(
             "No BRCA exon-level CNV data found across all samples. "
             "The exonic_BRCA.txt file will not be created."
         )
-        return
+        return events_by_sample
 
     try:
         output_file_path = Path(output_file)
@@ -2112,6 +2128,65 @@ def write_exon_brca(output_file: str, combined_dict: dict[str, str]) -> None:
         logger.info(f"Successfully created {output_file_path.name} with {len(rows_to_write)} records.")
     except Exception as e:
         logger.error(f"Failed to write output file: {e}")
+
+    return events_by_sample
+
+
+def write_exon_brca_generic_assay(
+    output_folder: str,
+    events_by_sample: dict[str, dict[str, dict[str, str]]],
+) -> None:
+    """Write a cBioPortal Generic Assay data file for BRCA exon-level CNVs.
+
+    Derived from the same per-sample/per-gene events write_exon_brca already
+    collected, so this file and exon_CNA_data.txt can't drift apart - one
+    parse of the source CombinedVariantOutput data, two views of it:
+    exon_CNA_data.txt keeps full per-event detail (coordinates, fold change,
+    affected exon) for audit purposes; this file is the coarser
+    LOSS/GAIN/NEUTRAL-per-gene matrix the Generic Assay format requires (one
+    row per entity, one column per sample), so the calls show up as their
+    own oncoprint/study-view track in cBioPortal instead of being invisible
+    outside the two clinical-attribute summary columns. It's a label/value
+    matrix with no genomic-coordinate field, so unlike a real CNA or SV
+    profile it won't appear in position-based views (Genome View, Mutation
+    Mapper) - only in the oncoprint track, study view and comparison plots.
+
+    Kept as a separate profile/track (not merged into data_cna.txt) so it
+    can never be confused with the whole-gene copy-number-alteration values
+    already reported there - BRCA1/BRCA2 keep their normal gene-level CNA
+    row, and this is an independent, additional track.
+
+    Args:
+        output_folder (str): Output directory (data_exon_brca_cna.txt is
+            written there).
+        events_by_sample (dict): {sample_id: {gene: {"cnv_type": "LOSS" |
+            "GAIN", ...}}}, as returned by write_exon_brca.
+
+    Returns:
+        None
+
+    """
+    if not events_by_sample:
+        return
+
+    genes = ["BRCA1", "BRCA2"]
+    samples = sorted(events_by_sample)
+
+    lines = ["ENTITY_STABLE_ID\tNAME\t" + "\t".join(samples) + "\n"]
+    for gene in genes:
+        values = []
+        for sample in samples:
+            cnv_type = events_by_sample.get(sample, {}).get(gene, {}).get("cnv_type")
+            values.append(cnv_type if cnv_type in {"LOSS", "GAIN"} else "NEUTRAL")
+        lines.append(f"{gene}\t{gene} (exon-level)\t" + "\t".join(values) + "\n")
+
+    out_path = Path(output_folder) / "data_exon_brca_cna.txt"
+    try:
+        with out_path.open("w") as f:
+            f.writelines(lines)
+        logger.info(f"Successfully created {out_path.name} for {len(samples)} sample(s).")
+    except Exception as e:
+        logger.error(f"Failed to write {out_path.name}: {e}")
 
 
 def update_data_clinical_with_exon_info(
@@ -2554,7 +2629,8 @@ def _walk_process_cnv(ctx: WalkContext) -> None:
             ctx.input_folder, ctx.clin_file, isinputfile)
 
         exon_file_output = Path(ctx.output_folder) / "exon_CNA_data.txt"
-        write_exon_brca(exon_file_output, combined_dict)
+        exon_events = write_exon_brca(exon_file_output, combined_dict)
+        write_exon_brca_generic_assay(ctx.output_folder, exon_events)
 
 
 def _walk_process_snv(ctx: WalkContext) -> None:

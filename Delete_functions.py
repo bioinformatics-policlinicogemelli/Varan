@@ -148,6 +148,30 @@ def delete_cna_hg19_fc(
     filtered.to_csv(output_path, index=False, sep="\t")
 
 
+def delete_exon_brca_cna(
+    file_path: str, sample_ids: list[str], output_folder: str) -> None:
+    """Remove sample columns from the BRCA exon-level CNV Generic Assay matrix.
+
+    Mirrors delete_cna, but for data_exon_brca_cna.txt's shape: two leading
+    id columns (ENTITY_STABLE_ID, NAME) followed by one column per sample,
+    instead of data_cna.txt's single leading Hugo_Symbol column - so it
+    can't reuse delete_cna directly.
+
+    Args:
+        file_path (str): Path to data_exon_brca_cna.txt.
+        sample_ids (list[str]): List of sample IDs whose columns to remove.
+        output_folder (str): Directory to save the updated file.
+
+    Returns:
+        None
+
+    """
+    file = pd.read_csv(file_path, sep="\t")
+    filtered = file.drop(columns=sample_ids, errors="ignore")
+    output_path = Path(output_folder) / "data_exon_brca_cna.txt"
+    filtered.to_csv(output_path, sep="\t", index=False)
+
+
 def delete_cna(file_path: str, sample_ids: list[str], output_folder: str) -> None:
     """Remove copy number alteration columns for given sample IDs.
 
@@ -309,6 +333,7 @@ def delete_all_data(oldpath: str, sample_ids: list, output: str) -> None:
         ("data_mutations_extended.txt", delete_mutations, True),
         ("data_sv.txt", delete_sv, True),
         ("exon_CNA_data.txt", delete_generic_by_sample_id, True),
+        ("data_exon_brca_cna.txt", delete_exon_brca_cna, True),
     ]
 
     for filename, deleter, use_path in file_to_delete:

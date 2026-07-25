@@ -87,7 +87,8 @@ def update_main(oldpath: str, newpath: str,
 
     file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt",
                   "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt",
-                  "data_mutations_extended.txt", "data_sv.txt", "exon_CNA_data.txt"]
+                  "data_mutations_extended.txt", "data_sv.txt", "exon_CNA_data.txt",
+                  "data_exon_brca_cna.txt"]
 
     for file in file_names:
         safe_check_file(oldpath, newpath, output, file)
