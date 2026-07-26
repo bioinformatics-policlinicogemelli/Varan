@@ -279,12 +279,15 @@ def cnv_type_from_folder(input_path: str,
                                 "ONCOTREE_CODE", "TC"]],
                     on="Tumor_Sample_Barcode")
 
-            temppath = intermediate_dir / "temp_cna_toannotate.txt"
+            # Numbered so the build order of these intermediate artifacts -
+            # what got read to produce what - is obvious just from listing
+            # the intermediate/ folder, without having to read the code.
+            temppath = intermediate_dir / "00_temp_cna_toannotate.txt"
             annotate.to_csv(temppath, index=False, sep="\t")
 
             if oncokb:
 
-                out_can_ann=intermediate_dir / "CNV_ann"
+                out_can_ann=intermediate_dir / "01_CNV_ann"
                 out_can_ann.mkdir(exist_ok=True)
 
                 oncokb_key = config.get("OncoKB", "ONCOKB")
@@ -329,16 +332,16 @@ def cnv_type_from_folder(input_path: str,
                     [pd.read_csv(f, sep="\t") for f in all_ann_files],
                     ignore_index=True
                 )
-                out = intermediate_dir / "CNV_annotated_merged.txt"
+                out = intermediate_dir / "02_CNV_annotated_merged.txt"
                 merged_df.to_csv(out, sep="\t", index=False)
 
-                name = "annotated_oncokb_CNA_ndiscrete.txt"
+                name = "03_annotated_oncokb_CNA_ndiscrete.txt"
                 cna = pd.read_csv(out, sep="\t",
                                   dtype={"Copy_Number_Alteration":int})
                 cna = filter_oncokb(cna, "Cna", "ONCOKB_FILTER_CNV")
             else:
                 out = temppath
-                name = "CNA_ndiscrete.txt"
+                name = "01_CNA_ndiscrete.txt"
                 cna = pd.read_csv(out, sep="\t",
                                   dtype={"Copy_Number_Alteration":int})
 
@@ -390,7 +393,7 @@ def cnv_type_from_folder(input_path: str,
                 cna.loc[sample_mask & (cna["FC"] >= thresholds[5]), "Copy_Number_Alteration"] = 2
 
             cna.to_csv(intermediate_dir / name,
-                       index=True, sep="\t")
+                       index=False, sep="\t")
 
             cna["Tumor_Sample_Barcode"] = cna[
                 "Tumor_Sample_Barcode"].str.replace(
