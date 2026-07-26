@@ -83,7 +83,7 @@ def update_main(oldpath: str, newpath: str,
     oldpath = Path(oldpath)
     output = Path(output)
 
-    copy_metadata_files(Path(oldpath), Path(output))
+    copy_metadata_files(Path(oldpath), Path(newpath), Path(output))
 
     file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt",
                   "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt",

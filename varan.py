@@ -85,6 +85,10 @@ def varan(
     update: bool = False,
     extract: bool = False,
     remove: bool = False,
+    path: str | None = None,
+    new_path: str | None = None,
+    name: str = "",
+    sample_list: str | None = None,
 ) -> None:
     """Run the full Varan pipeline workflow based on provided arguments.
 
@@ -118,6 +122,14 @@ def varan(
         Whether to run the extract samples process, by default False.
     remove : bool, optional
         Whether to run the remove samples process, by default False.
+    path : Optional[str], optional
+        Original study folder path, required when update/extract/remove is True.
+    new_path : Optional[str], optional
+        Incoming data folder path, required when update is True.
+    name : str, optional
+        New study name/rename, used by update/extract/remove.
+    sample_list : Optional[str], optional
+        Path to the sample ID list, required when extract/remove is True.
 
     Returns
     -------
@@ -194,6 +206,7 @@ def varan(
             oncokb,
             filters,
             start_time,
+            analysis_type,
             )
 
 
@@ -203,11 +216,7 @@ def varan(
 
     if update:
         logger.info("Starting Update study")
-        oldpath=args.Path
-        new=args.NewPath
-        new_name = args.Name
-        output_folder=args.output_folder
-        update_main(oldpath, new, output_folder, new_name, overwrite_output)
+        update_main(path, new_path, output_folder, name, overwrite_output)
 
 
     ############################
@@ -216,11 +225,7 @@ def varan(
 
     if remove:
         logger.info("Starting Delete sample(s) from study")
-        oldpath=args.Path
-        removepath=args.SampleList
-        new_name = args.Name
-        output_folder=args.output_folder
-        delete_main(oldpath, removepath, output_folder, new_name, overwrite_output)
+        delete_main(path, sample_list, output_folder, name, overwrite_output)
 
 
     ############################
@@ -229,11 +234,7 @@ def varan(
 
     if extract:
         logger.info("Starting Extract sample(s) from study")
-        oldpath = args.Path
-        removepath = args.SampleList
-        new_name = args.Name
-        output_folder = args.output_folder
-        extract_main(oldpath, removepath, output_folder, new_name, overwrite_output)
+        extract_main(path, sample_list, output_folder, name, overwrite_output)
 
 
 #################################################################################################################
@@ -442,7 +443,11 @@ if __name__ == "__main__":
             multiple,
             update,
             extract,
-            remove)
+            remove,
+            args.Path,
+            args.NewPath,
+            args.Name,
+            args.SampleList)
 
     except ValueError as err:
         logger.critical(f"ValueError: {err}", file=sys.stderr)

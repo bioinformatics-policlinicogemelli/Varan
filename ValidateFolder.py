@@ -53,7 +53,6 @@ from Create_graphs import create_barplots
 from filter_clinvar import check_bool
 from write_report import write_report_main
 
-config = get_config()
 
 def cbio_validation(output_folder: str) -> str:
     """Execute cBioPortal's validateData.py script on the specified output folder.
@@ -81,12 +80,13 @@ def cbio_validation(output_folder: str) -> str:
 
     output_path = Path(output_folder)
     report_path = output_path / "report_validate.html"
+    validator_path = Path(__file__).resolve().parent / "importer" / "validateData.py"
 
     try:
         result = subprocess.run(
             [
                 sys.executable,
-                "importer/validateData.py",
+                str(validator_path),
                 "-s", str(output_path),
                 "-n",
                 "-html", str(report_path),
@@ -229,6 +229,7 @@ def validate_output(
     oncokb: str | None = None,
     filters: dict | None = None,
     start_time: str = "",
+    vcf_type: str | None = None,
 ) -> int:
     """Perform complete validation and post-processing for a cBioPortal study folder.
 
@@ -254,6 +255,12 @@ def validate_output(
             in the Warnings section of the generated report.
 
     """
+    # Fetched locally rather than relying on the module-level `config`
+    # captured at import time - matches cbio_validation's own pattern, so
+    # this can't go stale relative to config_loader.set_config_path() the
+    # way a module-level capture could.
+    config = get_config()
+
     validate_folder_log(folder)
     validation_status = cbio_validation(folder)
 
@@ -269,7 +276,7 @@ def validate_output(
     if not block2:
         write_report_main(
             folder, cancer, filters, number_for_graph, oncokb, start_time,
-            validation_status)
+            validation_status, vcf_type)
 
         maf_path = Path(folder) / "maf"
         snv_path = Path(folder) / "snv_filtered"
@@ -328,6 +335,9 @@ def copy_maf(oldpath: str, output: str, copy_maf: bool, zip_maf: bool) -> None:
         - Dynamically detects file suffix shared across MAF files.
 
     """
+    # Fetched locally, not from the module-level `config` - see validate_output.
+    config = get_config()
+
     copy_maf = config.get("Zip", "COPY_MAF")
     copy_maf = check_bool(copy_maf)
     if not copy_maf:
@@ -478,7 +488,8 @@ def remove_meta(output: str | Path) -> None:
         "data_cna_hg19.seg": "meta_cna_hg19_seg.txt",
         "data_mutations_extended.txt": "meta_mutations_extended.txt",
         "data_sv.txt": "meta_sv.txt",
-        "data_cna.txt": "meta_cna.txt"
+        "data_cna.txt": "meta_cna.txt",
+        "data_exon_brca_cna.txt": "meta_exon_brca_cna.txt",
     }
 
     for data_file, meta_file in file_map.items():
@@ -508,7 +519,9 @@ def check_all_data(output_folder: str | Path) -> None:
         "data_cna_hg19.seg.fc.txt",
         "data_cna.txt",
         "data_mutations_extended.txt",
-        "data_sv.txt"]
+        "data_sv.txt",
+        "data_exon_brca_cna.txt",
+        "exon_CNA_data.txt"]
 
     for filename in file_to_delete:
         file_path = output_folder / filename

@@ -90,16 +90,21 @@ def delete_clinical_patient(
     filtered_sample = sample.iloc[:, idx_patient].astype(str).isin(patient_ids)
     if len(sample[filtered_sample]) > len(sample_ids):
         pzt_list=sample[sample.iloc[:, idx_patient].astype(str).isin(patient_ids)]
-        pzt_dup = [
+        # keep=False flags every row of every patient that appears more than
+        # once in pzt_list (i.e. every patient with more total samples than
+        # just the one(s) being removed) - collecting all of them, not just
+        # the first, is required below to protect every such patient's row
+        # from deletion, not only the first one encountered.
+        pzt_dup = list(
             pzt_list[
-                pzt_list.duplicated(subset=sample.columns[idx_patient])
-                ].iloc[0,1]]
+                pzt_list.duplicated(subset=sample.columns[idx_patient], keep=False)
+                ].iloc[:, idx_patient].unique())
 
         for p_dup in pzt_dup:
-            df_dup = pzt_list[pzt_list.iloc[:,1]==p_dup]
+            df_dup = pzt_list[pzt_list.iloc[:, idx_patient] == p_dup]
             if len(
                 df_dup[
-                    df_dup.iloc[:, 0].astype(str).isin(sample_ids)
+                    df_dup.iloc[:, idx_sample].astype(str).isin(sample_ids)
                     ])<df_dup.shape[0]:
                 patient_ids.remove(p_dup)
 

@@ -87,13 +87,17 @@ def create_random_name_folder(output_folder: str) -> str:
 
 
 def clear_scratch(folder: str | None = None) -> None:
-    """Remove the scratch subfolder created for this run, if any.
+    """Remove this run's scratch subfolder, then the (now-empty) scratch/
+    parent directory itself, so nothing scratch-related is left in the
+    study's output folder.
 
-    Only removes the exact folder passed in (as returned by
-    `create_random_name_folder()` for this run) - never scans/clears the whole
-    `scratch/` directory, since that would delete other runs' still-in-use
-    temporary files when multiple varan.py processes run in parallel from the
-    same working directory.
+    Only ever removes `<output_folder>/scratch/<this run's random name>`
+    and then `<output_folder>/scratch` itself - never scans/clears a shared,
+    cwd-relative `scratch/` directory, since that would risk deleting other
+    runs' still-in-use temporary files when multiple varan.py processes run
+    in parallel from the same working directory. Removing the parent here is
+    still safe: it's namespaced under this run's own output_folder, and this
+    is the only place a scratch subfolder is ever created for that folder.
 
     Args:
         folder (str | None): Path to this run's own scratch subfolder, or None
@@ -108,6 +112,9 @@ def clear_scratch(folder: str | None = None) -> None:
     to_rem = Path(folder)
     if to_rem.exists():
         shutil.rmtree(to_rem)
+    scratch_parent = to_rem.parent
+    if scratch_parent.name == "scratch" and scratch_parent.exists():
+        shutil.rmtree(scratch_parent, ignore_errors=True)
 
 
 def get_cnv_from_folder(input_foldercnv: str) -> list:
@@ -140,83 +147,6 @@ def get_sample_id_from_cnv(cnv_vcf: str) -> str:
         sample="bam".join(cnv_vcf.rsplit("vcf", 1))
     return sample
 
-
-def reshape_cna(my_input: str,
-                cna_df_path: str,
-                cancer: str,
-                output_dir: str) -> str:
-    """Reshape and annotate CNA data and add ONCOTREE code.
-
-    Args:
-        my_input (str): Path to input file or directory.
-        cna_df_path (str): Path to CNA dataframe.
-        cancer (str): ONCOTREE code.
-        output_dir (str): Output directory.
-
-    Returns:
-        str: Path to the intermediate annotated file.
-
-    """
-    my_input_path = Path(my_input)
-    output_path = Path(output_dir) / "temp_cna.txt"
-    if not os.path.is_file(my_input_path):
-        input_file = pd.read_csv(my_input_path / "sample.tsv", sep="\t")
-    else:
-        input_file = pd.read_csv(my_input_path, sep="\t")
-
-    cna_df = pd.read_csv(cna_df_path, sep="\t")
-
-    cna_df=cna_df.rename({"ID":"Tumor_Sample_Barcode","gene":"Hugo_Symbol"},
-                         axis=1)
-    input_file=input_file.rename({"SampleID":"Tumor_Sample_Barcode"}, axis=1)
-
-    if "ONCOTREE_CODE" not in input_file.columns:
-        input_file["ONCOTREE_CODE"] = cancer
-
-    input_file["Tumor_Sample_Barcode"] = input_file["Tumor_Sample_Barcode"] + ".cnv.bam"
-
-    annotate = cna_df[[
-        "Tumor_Sample_Barcode", "Hugo_Symbol", "discrete",
-        "Copy_Number_Alteration"]].merge(
-    input_file[["Tumor_Sample_Barcode", "ONCOTREE_CODE"]],
-    on="Tumor_Sample_Barcode",
-)
-
-    return output_path.name
-
-
-def annotate_cna(path_cna: str, output_folder: str) -> None:
-    """Annotate CNA file using OncoKB and filters oncogenic alterations.
-
-    Args:
-        path_cna (str): Path to CNA input file.
-        output_folder (str): Output directory for results.
-
-    Returns:
-        None
-
-    """
-    out = path_cna.replace(".txt", "2.txt")
-    oncokb_key = config.get("OncoKB", "ONCOKB")
-    cmd = [
-        "python3", "./oncokb-annotator/CnaAnnotator.py",
-        "-i", path_cna,
-        "-o", out,
-        "-f", "individual",
-        "-b", oncokb_key]
-    subprocess.run(cmd, check=True)
-
-    cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration":int})
-    # TODO aggiungere filtering in base a voce inserita nel conf.ini
-    #cna = cna[cna["ONCOGENIC"].isin(["Oncogenic", "Likely Oncogenic"])]
-
-    data_cna = cna.pivot_table(
-        index="Hugo_Symbol",
-        columns="Tumor_Sample_Barcode",
-        values="Copy_Number_Alteration",
-        fill_value=0)
-    outpath = Path(output_folder) / "data_cna.txt"
-    data_cna.to_csv(outpath, index=True, sep="\t")
 
 
 def cnv_type_from_folder(input_path: str,
@@ -373,7 +303,7 @@ def cnv_type_from_folder(input_path: str,
 
 
                     cmd = [
-                        "python3", "./oncokb-annotator/CnaAnnotator.py",
+                        sys.executable, "./oncokb-annotator/CnaAnnotator.py",
                         "-i", str(df_path),
                         "-o", str(out),
                         "-f", "individual",
@@ -440,6 +370,19 @@ def cnv_type_from_folder(input_path: str,
 
                 sample_mask = cna["Tumor_Sample_Barcode"] == sample_id
 
+                # Intentional: thresholds[2] (CN2/CN3 boundary) and
+                # thresholds[4] (CN4/CN5 boundary) are computed but not used
+                # as bucket edges, so a single extra/missing copy (CN3, CN5)
+                # gets folded into the neighboring Neutral/Gain bucket
+                # instead of being called Gain/Amplification on its own.
+                # This is a deliberate conservative choice, not an oversight:
+                # a single-copy gain is often within noise at typical
+                # tumor purity/depth, and clinical CNV calling guidelines
+                # commonly recommend stricter thresholds (e.g. requiring
+                # CN>3 before calling amplification) specifically to avoid
+                # over-calling marginal single-copy gains as clinically
+                # meaningful. Do not "fix" this by using all 6 thresholds
+                # without checking with the wet-lab/clinical team first.
                 cna.loc[sample_mask & (cna["FC"] < thresholds[0]), "Copy_Number_Alteration"] = -2
                 cna.loc[sample_mask & (cna["FC"] >= thresholds[0]) & (cna["FC"] < thresholds[1]), "Copy_Number_Alteration"] = -1
                 cna.loc[sample_mask & (cna["FC"] >= thresholds[1]) & (cna["FC"] < thresholds[3]), "Copy_Number_Alteration"] = 0
@@ -477,32 +420,6 @@ def cnv_type_from_folder(input_path: str,
                                 index=True, sep="\t")
 
     return sid_path
-
-
-def table_to_dict(df: pd.DataFrame) -> dict:
-    """Convert a DataFrame into a dictionary grouped by the 'ID' column.
-
-    Each key is a sample ID, and each value is a list
-    of tuples containing:
-    (chrom, _2, _3, _4, _5, gene, discrete).
-
-    Args:
-        df (pd.DataFrame): Input DataFrame with required columns.
-
-    Returns:
-        dict: Dictionary mapping sample IDs
-        to lists of tuples with SNV data.
-
-    """
-    result = {}
-    for row in df.itertuples(index=False):
-        row_values = (row.chrom,
-                      row._2, row._3, row._4,
-                      row._5, row.gene, row.discrete)
-        if row.ID not in result:
-            result[row.ID] = []
-        result[row.ID].append(row_values)
-    return result
 
 
 def get_snv_from_folder(inputfolder_snv: str) -> list[str]:
@@ -616,10 +533,13 @@ def vcf2maf_constructor(v: str,
 
     """
     cache = config.get("Paths", "CACHE")
-    cmd = "vcf-query -l " + v
+    cmd = ["vcf-query", "-l", v]
     try:
-        tum_id = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
-    except Exception:
+        tum_id = subprocess.check_output(cmd).decode("utf-8").strip()
+    except Exception as err:
+        logger.warning(
+            f"Could not extract the tumor sample ID from {v} via vcf-query "
+            f"({err}) - vcf2maf will be run with an empty --tumor-id.")
         tum_id = ""
 
     if VCF2MAF == "" or REF_FASTA == "" or VEP_PATH == "" or VEP_DATA == "":
@@ -681,6 +601,24 @@ def run_vcf2maf(cl: list, sample: str) -> None:
             logger.warning(sout.stderr.decode("ascii").replace("ERROR: ",""))
         else:
             logger.error(sout.stderr.decode("ascii").replace("ERROR: ",""))
+
+    # stderr text alone is not a reliable failure signal: vcf2maf commonly
+    # logs non-fatal INFO/warning text there even on success (hence only
+    # escalating to ERROR above when "ERROR" literally appears in it) - so
+    # a crash, OOM kill, or timeout that produces no matching stderr text
+    # would otherwise go completely unnoticed. The exit code isn't checked
+    # here on purpose (deliberately, not an oversight): vcf2maf can exit
+    # non-zero on a run that still produced a perfectly good MAF, so it
+    # isn't a trustworthy signal either - checking whether the MAF it was
+    # told to produce actually exists and has content is the one check
+    # that's actually reliable both ways.
+    if "--output-maf" in cl:
+        out_file = Path(cl[cl.index("--output-maf") + 1])
+        if not out_file.exists() or out_file.stat().st_size == 0:
+            logger.error(
+                f"vcf2maf did not produce a non-empty MAF for sample {sample} "
+                f"(expected at {out_file}) - this sample's mutations will be "
+                "missing from the final study.")
 
 
 def create_folder(output_folder: str,
@@ -1382,7 +1320,8 @@ def get_combined_variant_output_from_folder(
 
 
 def check_input_file(
-    output_folder: str, file: str, copy_to: str, sample_id: str) -> None:
+    output_folder: str, file: str, copy_to: str, sample_id: str,
+    relevant: bool = True) -> None:
     """Copy an input file to a temporary folder or log if missing.
 
     Args:
@@ -1390,6 +1329,10 @@ def check_input_file(
         file (str): File path to copy.
         copy_to (str): Subfolder name.
         sample_id (str): ID of the sample (for logging).
+        relevant (bool): Whether this file type is actually part of the
+            selected analysis type (-t). When False, a missing/unset path
+            is expected and not worth a warning - only an unexpected state
+            (path given but the file doesn't exist) still gets logged.
 
     """
     file_path = Path(file)
@@ -1398,8 +1341,9 @@ def check_input_file(
     if file_path.exists():
         os.system(f"cp {file_path} {destination}")
     elif not file:
-        logger.warning(
-            f"No final_path set in conf.ini for sample {sample_id}'s {copy_to}!")
+        if relevant:
+            logger.warning(
+                f"No final_path set in conf.ini for sample {sample_id}'s {copy_to}!")
     else:
         logger.warning(f"{file_path} not found")
 
@@ -1409,8 +1353,14 @@ def check_folders(
     snv_path: str,
     cnv_path: str,
     combout: str,
-    sample_id: str) -> None:
+    sample_id: str,
+    vcf_type: str | None = None) -> None:
     """Check presence of SNV, CNV, and CombinedOutput files for a sample.
+
+    Only warns about a file type that's actually missing or unset for a
+    sample where it's needed - a missing/unset path for a file type
+    excluded by the selected analysis type (-t) is expected, not a problem,
+    and stays silent (see check_input_file's `relevant` flag).
 
     Args:
         output_folder (str): Base output directory.
@@ -1418,13 +1368,16 @@ def check_folders(
         cnv_path (str): Path to CNV file.
         combout (str): Path to CombinedOutput file.
         sample_id (str): ID of the sample.
+        vcf_type (str | None): Selected analysis type restriction (-t), or
+            None if no restriction was given.
 
     """
-    logger.info("Verifying the compilation of the conf.ini file for "
-    f"sample {sample_id}")
-
-    check_input_file(output_folder, snv_path, "SNV", sample_id)
-    check_input_file(output_folder, cnv_path, "CNV", sample_id)
+    check_input_file(
+        output_folder, snv_path, "SNV", sample_id,
+        relevant=vcf_type not in ["cnv", "fus", "tab"])
+    check_input_file(
+        output_folder, cnv_path, "CNV", sample_id,
+        relevant=vcf_type not in ["snv", "fus", "tab"])
     check_input_file(output_folder, combout, "CombinedOutput", sample_id)
 
 
@@ -1433,7 +1386,8 @@ def transform_input(
     clin_pzt: str,
     fusion_tsv: str,
     output_folder: str,
-    multiple: bool) -> str:
+    multiple: bool,
+    vcf_type: str | None = None) -> str:
     """Prepare temp folder structure and copy necessary files.
 
     Args:
@@ -1442,6 +1396,9 @@ def transform_input(
         fusion_tsv (str): Fusion TSV file path.
         output_folder (str): Output directory.
         multiple (bool): Whether input is from multi-sample VCF.
+        vcf_type (str | None): Selected analysis type restriction (-t), used
+            to silence expected-missing-file warnings for file types the
+            current run doesn't need (see check_folders).
 
     Returns:
         str: Path to the temporary folder created.
@@ -1471,7 +1428,7 @@ def transform_input(
         cnv_path = config.get("Multiple", "CNV")
         combout = config.get("Multiple", "COMBOUT")
 
-        check_folders(output_folder, snv_path, cnv_path, combout, "multiple")
+        check_folders(output_folder, snv_path, cnv_path, combout, "multiple", vcf_type)
 
     else:
         tsv_file = pd.read_csv(tsv, sep="\t", dtype="string", keep_default_na=False)
@@ -1482,7 +1439,7 @@ def transform_input(
             cnv_path = row["cnv_path"]
             combout = row["comb_path"]
 
-            check_folders(output_folder, snv_path, cnv_path, combout, sample_id)
+            check_folders(output_folder, snv_path, cnv_path, combout, sample_id, vcf_type)
 
     return str(Path(output_folder) / "temp")
 
@@ -2469,7 +2426,7 @@ def _walk_setup(
         input_path, patient_tsv, fusion_tsv = input_extraction_file(input_path)
         check_multiple_file(input_path, multiple)
         input_folder = transform_input(
-            input_path, patient_tsv, fusion_tsv, output_folder, multiple)
+            input_path, patient_tsv, fusion_tsv, output_folder, multiple, vcf_type)
 
     else:
         logger.critical(f"The input {input_path} isn't a file nor a folder")
@@ -2506,7 +2463,14 @@ def _walk_setup(
         msg = "Error in reading the input file! Please check again."
         raise OSError(msg) from err
 
-    if resume:
+    # MAF/clinical consistency only makes sense when this run actually
+    # processes SNV data (vcf_type is None, or explicitly "snv") - the same
+    # gate _walk_process_snv itself uses. A CNV-only/fusion-only/tab-only
+    # resume (-t cnv/fus/tab -R) never produces a MAF in the first place, so
+    # checking for one here was both pointless and a crash risk (maf_samples
+    # was left undefined - see below - if neither maf/ nor maf.zip existed).
+    if resume and vcf_type not in ["cnv", "fus", "tab"]:
+        maf_samples = None
         if maf_path.exists():
             try:
                 maf_samples = {
@@ -2533,19 +2497,25 @@ def _walk_setup(
                 "and run Varan again.")
                 raise Exception(msg) from err
 
-        clin_samples = set(clin_file["SAMPLE_ID"])
-        clin_in_maf = all(
-            any(clin_sample in maf_sample for maf_sample in maf_samples)
-            for clin_sample in clin_samples)
-        maf_in_clin = all(
-            any(clin_sample in maf_sample for clin_sample in clin_samples)
-            for maf_sample in maf_samples)
+        if maf_samples is None:
+            logger.warning(
+                "Resuming an SNV-inclusive run, but no maf/ folder or maf.zip "
+                "was found to resume from - proceeding as if this were the "
+                "first run for the MAF step.")
+        else:
+            clin_samples = set(clin_file["SAMPLE_ID"])
+            clin_in_maf = all(
+                any(clin_sample in maf_sample for maf_sample in maf_samples)
+                for clin_sample in clin_samples)
+            maf_in_clin = all(
+                any(clin_sample in maf_sample for clin_sample in clin_samples)
+                for maf_sample in maf_samples)
 
-        if not (clin_in_maf and maf_in_clin) and len(maf_samples) != 0:
-            logger.critical("It seems you are resuming an existing study with a "
-            "different set of input samples. Please verify the sample consistency!")
-            msg = "Sample mismatch detected."
-            raise FileNotFoundError(msg)
+            if not (clin_in_maf and maf_in_clin) and len(maf_samples) != 0:
+                logger.critical("It seems you are resuming an existing study with a "
+                "different set of input samples. Please verify the sample consistency!")
+                msg = "Sample mismatch detected."
+                raise FileNotFoundError(msg)
 
         zip_maf = config.get("Zip", "ZIP_MAF")
         zip_maf = check_bool(zip_maf)
@@ -2555,13 +2525,27 @@ def _walk_setup(
     input_folder_snv = Path(input_folder_snv)
     input_folder_cnv = Path(input_folder_cnv)
 
-    if len(list(input_folder_snv.iterdir())) == 0 and vcf_type is None:
-        vcf_type = "cnv"
-        logger.info("SNV path was empty, the analysis will exclude SNV")
+    snv_folder_empty = len(list(input_folder_snv.iterdir())) == 0
+    cnv_folder_empty = len(list(input_folder_cnv.iterdir())) == 0
 
-    if len(list(input_folder_cnv.iterdir())) == 0 and vcf_type is None:
-        vcf_type = "snv"
-        logger.info("CNV path was empty, the analysis will exclude CNV")
+    if vcf_type is None:
+        if snv_folder_empty and not cnv_folder_empty:
+            vcf_type = "cnv"
+            logger.info("SNV path was empty, the analysis will exclude SNV")
+        elif cnv_folder_empty and not snv_folder_empty:
+            vcf_type = "snv"
+            logger.info("CNV path was empty, the analysis will exclude CNV")
+        elif snv_folder_empty and cnv_folder_empty:
+            # Both empty is a valid CombinedOutput-only run (fusions, splice
+            # variants, MSI/TMB all come from CombinedOutput, not SNV/CNV
+            # VCFs). Leaving vcf_type as None here is required: setting it to
+            # "cnv" or "snv" (as a naive single `if` chain would, since the
+            # SNV check would win) makes _walk_process_fusion's
+            # `vcf_type in ["cnv", "snv", "tab"]` gate skip fusion/splice
+            # processing entirely, silently dropping data_sv.txt.
+            logger.info(
+                "SNV and CNV paths were both empty; proceeding with "
+                "CombinedOutput-only processing.")
 
     case_folder_arr_cnv = None
     if input_folder_cnv.exists() and vcf_type not in ["snv", "fus", "tab"]:

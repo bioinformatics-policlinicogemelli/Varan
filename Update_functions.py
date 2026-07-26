@@ -62,13 +62,19 @@ def update_clinical_samples(oldfile_path: str,
 
     """
     #header
+    # Indexed by column *name* (SAMPLE_ID), not position: this file's usual
+    # column order happens to put SAMPLE_ID first, but assuming that instead
+    # of naming it explicitly meant a differently-ordered (e.g. hand-edited,
+    # or PATIENT_ID-first) clinical file would have SAMPLE_ID silently
+    # dropped from old_body_unique below, crashing the later merge on
+    # "SAMPLE_ID" with a KeyError.
     old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
     old_head.columns = old_head.iloc[4].tolist()
-    old_head=old_head.set_index(old_head.columns[0])
+    old_head=old_head.set_index("SAMPLE_ID")
 
     new_head = pd.read_csv(newfile_path, sep="\t", dtype = str, header=None, nrows=5)
     new_head.columns = new_head.iloc[4].tolist()
-    new_head=new_head.set_index(new_head.columns[0])
+    new_head=new_head.set_index("SAMPLE_ID")
 
     only_common_head = np.intersect1d(new_head.columns, old_head.columns)
 
@@ -84,11 +90,11 @@ def update_clinical_samples(oldfile_path: str,
     old_body_unique = old_body.drop(list(only_common_head), axis=1)
     final_body = old_body_unique.merge(new_body, how="outer", on="SAMPLE_ID")
 
-    old_body=old_body.set_index(old_body.columns[0])
-    new_body=new_body.set_index(new_body.columns[0])
+    old_body=old_body.set_index("SAMPLE_ID")
+    new_body=new_body.set_index("SAMPLE_ID")
     common_samples = old_body.index.intersection(new_body.index)
     old_body = old_body.drop(index=common_samples)
-    final_body=final_body.set_index(final_body.columns[0])
+    final_body=final_body.set_index("SAMPLE_ID")
     final_body.update(old_body, overwrite=True, filter_func=None, errors="ignore")
     final_body = final_body.reset_index(drop=False)
 
@@ -118,13 +124,16 @@ def update_clinical_patient(oldfile_path: str,
 
     """
     #header
+    # Indexed by column *name* (PATIENT_ID), not position - see the matching
+    # comment in update_clinical_samples for why position-based indexing is
+    # fragile here.
     old_head = pd.read_csv(oldfile_path, sep="\t", dtype = str, header=None, nrows=5)
     old_head.columns = old_head.iloc[4].tolist()
-    old_head=old_head.set_index(old_head.columns[0])
+    old_head=old_head.set_index("PATIENT_ID")
 
     new_head = pd.read_csv(newfile_path, sep="\t", dtype = str, header=None, nrows=5)
     new_head.columns = new_head.iloc[4].tolist()
-    new_head=new_head.set_index(new_head.columns[0])
+    new_head=new_head.set_index("PATIENT_ID")
 
     only_common_head = np.intersect1d(new_head.columns, old_head.columns)
 
@@ -140,11 +149,11 @@ def update_clinical_patient(oldfile_path: str,
     old_body_unique = old_body.drop(list(only_common_head), axis=1)
     final_body = old_body_unique.merge(new_body, how="outer", on="PATIENT_ID")
 
-    old_body=old_body.set_index(old_body.columns[0])
-    new_body=new_body.set_index(new_body.columns[0])
+    old_body=old_body.set_index("PATIENT_ID")
+    new_body=new_body.set_index("PATIENT_ID")
     common_samples = old_body.index.intersection(new_body.index)
     old_body = old_body.drop(index=common_samples)
-    final_body=final_body.set_index(final_body.columns[0])
+    final_body=final_body.set_index("PATIENT_ID")
     final_body.update(old_body, overwrite=True, filter_func=None, errors="ignore")
     final_body = final_body.reset_index(drop=False)
 
@@ -281,7 +290,14 @@ def update_exon_brca_cna(oldfile_path: str,
     old = pd.read_csv(oldfile_path, sep="\t")
     new = pd.read_csv(newfile_path, sep="\t")
 
-    id_cols = [c for c in ["ENTITY_STABLE_ID", "NAME"] if c in old.columns]
+    # Must be present in *both* files, not just old: merge(on=id_cols)
+    # requires every column in id_cols to exist on both sides, so an
+    # id_cols entry old has but new doesn't (e.g. a schema change that
+    # drops/renames NAME) would otherwise raise KeyError on the missing
+    # column in new instead of just merging on whichever id columns both
+    # files still agree on.
+    id_cols = [c for c in ["ENTITY_STABLE_ID", "NAME"]
+               if c in old.columns and c in new.columns]
     sample_old = [c for c in old.columns if c not in id_cols]
     sample_new = [c for c in new.columns if c not in id_cols]
     to_remove = set(sample_old) & set(sample_new)
@@ -521,26 +537,34 @@ def safe_check_file(oldpath: Path, newpath: Path, output: Path, file: str) -> No
         msg = "Exiting from Update script!"
         raise IndexError(msg) from e
 
-def copy_metadata_files(oldpath: Path, output: Path) -> None:
-    """Copy all metadata files from old study folder to new.
+def copy_metadata_files(oldpath: Path, newpath: Path, output: Path) -> None:
+    """Copy meta_*.txt files forward from both source studies.
 
-    This function is used to transfer configuration or metadata necessary
-    for the updated study version.
+    Copies from oldpath, then adds any meta file that only exists in
+    newpath - e.g. meta_exon_brca_cna.txt when oldpath predates that data
+    type but newpath (a freshly walked batch being merged in) already has
+    it. Only scanning oldpath silently dropped any such new-in-this-batch
+    meta file. Which source wins on a same-named file doesn't matter: every
+    file copied here is just a placeholder for remove_meta's cleanup pass
+    and meta_case_main's proper regeneration afterward, both of which run
+    later in update_main based on the actual merged data.
 
     Args:
         oldpath (Path): Path to previous version of the study folder.
+        newpath (Path): Path to the incoming data folder being merged in.
         output (Path): Path to output (new version) study folder.
 
     Returns:
         None
 
     """
-    meta_files = list(oldpath.glob("*meta*"))
+    meta_files = {f.name: f for f in newpath.glob("*meta*")}
+    meta_files.update({f.name: f for f in oldpath.glob("*meta*")})
     if meta_files:
-        for file in meta_files:
+        for file in meta_files.values():
             shutil.copy(file, output)
     else:
-        logger.warning("No meta files found!")
+        logger.warning("No meta files found in either study folder!")
 
 def prepare_output_folder(oldpath: str,
                           output: str,
