@@ -129,7 +129,17 @@ def split_hugo_symbols(hugo_symbol: str) -> str:
         A list of individual gene symbols.
 
     """
-    for symbol in [";", "-", "/"]:
+    # Checked in this order - '/' before '-' before ';' - not the order
+    # they're listed above, because a compound symbol can contain more than
+    # one of them at once (e.g. "HIPK2;TBXAS1/BRAF"), and only one of them
+    # is the real two-site fusion delimiter. Confirmed against a correctly
+    # annotated real fusion of that exact form: "HIPK2;TBXAS1" is one
+    # contiguous gene identifier (';' there is not a fusion delimiter) and
+    # "BRAF" is the true partner - i.e. the split must happen on '/', not
+    # ';'. Do not reorder this without checking a real annotated example
+    # first - getting the site order wrong here reports the wrong fusion
+    # partner gene.
+    for symbol in ["/", "-", ";"]:
         if symbol in hugo_symbol:
             return hugo_symbol.split(symbol)
     msg = f"No known separator (';', '-', '/') found in Hugo Symbol: {hugo_symbol!r}"
