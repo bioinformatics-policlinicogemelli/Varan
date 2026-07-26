@@ -1674,12 +1674,21 @@ def fill_splice_from_combined(
                 ssr + "\t" + event_info + "\tYes\n")
 
     if not new_rows and not existing_lines:
+        logger.info(
+            "No splice variants found for this batch - data_sv.txt left as "
+            "is (not created if the fusion step above didn't create it "
+            "either).")
         return
 
     with fusion_table_path.open("w") as fusion_table:
         fusion_table.write(header)
         fusion_table.writelines(existing_lines)
         fusion_table.writelines(new_rows)
+
+    logger.info(
+        f"data_sv.txt now has {len(new_rows)} new splice variant row(s) "
+        f"(plus {len(existing_lines)} pre-existing non-splice row(s) carried "
+        "over from the fusion step above, if any).")
 
 
 def check_data_cna(data_cna_path: str) -> None:
@@ -1983,6 +1992,31 @@ def validate_input(
     if oncokb and config.get("OncoKB", "ONCOKB") == "":
         msg = "oncokb option was set but ONCOKB field in conf.ini is empty!"
         raise ValueError(msg)
+
+    # Fail here, before the expensive VEP/vcf2maf step, rather than deep
+    # inside filter_oncokb() after that work is already done: a conf.ini
+    # that predates the SNV/CNV/FUSION split (a single ONCOKB_FILTER used
+    # to cover all three) is otherwise only caught with a raw
+    # configparser.NoOptionError once filtering actually runs.
+    oncokb_filter_checks = []
+    if oncokb and "o" in filters:
+        oncokb_filter_checks.append(("Filters", "ONCOKB_FILTER_SNV"))
+    if oncokb and vcf_type not in ["snv", "fus", "tab"]:
+        oncokb_filter_checks.append(("Cna", "ONCOKB_FILTER_CNV"))
+    if oncokb and "o" in filters and vcf_type not in ["cnv", "snv", "tab"]:
+        oncokb_filter_checks.append(("FUSION", "ONCOKB_FILTER_FUSION"))
+
+    for section, key in oncokb_filter_checks:
+        if not config.has_option(section, key):
+            logger.critical(
+                f"conf.ini is missing '{key}' under [{section}] - required "
+                "for this run's OncoKB filtering. If this conf.ini predates "
+                "the SNV/CNV/FUSION split (a single ONCOKB_FILTER used to "
+                "cover all three), add ONCOKB_FILTER_SNV under [Filters], "
+                "ONCOKB_FILTER_CNV under [Cna] and ONCOKB_FILTER_FUSION "
+                "under [FUSION] - see the conf.ini template.")
+            msg = f"Missing conf.ini option: [{section}] {key}"
+            raise ValueError(msg)
 
     if SAMPLE_TYPE not in {"SOLID", "LIQUID"}:
         raise ValueError('Please select a sample type between "Solid" and "Liquid" in conf.ini.')
@@ -2678,14 +2712,21 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
             fill_fusion_from_temp(
                 ctx.input_folder, fusion_table_file, ctx.clin_file, fusion_files)
 
+    # Report the fusion outcome on its own - fusions and splice variants
+    # (below) are two independent CombinedOutput data types that happen to
+    # share the same data_sv.txt file. Neither one deletes the file itself
+    # if it finds nothing: only the very end of this function does, once
+    # both have had their chance to write to it.
+    n_fusions = 0
     if fusion_table_file.exists():
         with fusion_table_file.open() as data_sv:
-            all_data_sv = data_sv.readlines()
-            if len(all_data_sv) == 1:
-                fusion_table_file.unlink()
-                logger.warning("data.sv is empty. File removed.")
+            n_fusions = max(len(data_sv.readlines()) - 1, 0)
+    if n_fusions:
+        logger.info(f"{n_fusions} fusion call(s) found for this batch.")
+    else:
+        logger.info("No fusion calls found for this batch.")
 
-    if fusion_table_file.exists():
+    if n_fusions:
         # Dedup always runs here, regardless of OncoKB annotation - a run
         # without --oncokb must not ship duplicate rows in data_sv.txt either,
         # since cBioPortal validation rejects those the same way either way.
@@ -2725,10 +2766,23 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
 
     # Runs after the fusion block above (annotation included) has fully
     # finished, so splice rows are never sent through the fusion-specific
-    # OncoKB annotator.
+    # OncoKB annotator. Logs its own found/not-found outcome independently
+    # of the fusion one above (see fill_splice_from_combined).
     if combined_dict:
         thr_splice = config.get("SPLICE", "THRESHOLD_SPLICE")
         fill_splice_from_combined(fusion_table_file, combined_dict, thr_splice)
+
+    # Only now, after both fusions and splice variants have had their
+    # chance to write something, remove data_sv.txt if it ended up with no
+    # rows at all - covers both "neither found anything" and "fusions were
+    # found but all got filtered out by the OncoKB filter above".
+    if fusion_table_file.exists():
+        with fusion_table_file.open() as data_sv:
+            if len(data_sv.readlines()) == 1:
+                fusion_table_file.unlink()
+                logger.warning(
+                    "No fusions or splice variants found for this batch - "
+                    "data_sv.txt removed.")
 
 
 def _walk_write_clinical_tables(ctx: WalkContext) -> None:

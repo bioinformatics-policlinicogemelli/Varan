@@ -25,6 +25,7 @@ flexible customization of thresholds and accepted values for each filter.
 """
 
 import ast
+import configparser
 import os
 import subprocess
 import shutil
@@ -92,7 +93,18 @@ def filter_oncokb(df: pd.DataFrame, section: str, key: str) -> pd.DataFrame:
                       matches the allowed values from config.
 
     """
-    oncokb_filter = ast.literal_eval(config.get(section, key))
+    try:
+        oncokb_filter = ast.literal_eval(config.get(section, key))
+    except (configparser.NoOptionError, configparser.NoSectionError) as err:
+        logger.critical(
+            f"conf.ini is missing '{key}' under [{section}] - required to "
+            "filter OncoKB oncogenicity calls. If this conf.ini predates "
+            "the SNV/CNV/FUSION split (a single ONCOKB_FILTER used to cover "
+            "all three), add ONCOKB_FILTER_SNV under [Filters], "
+            "ONCOKB_FILTER_CNV under [Cna] and ONCOKB_FILTER_FUSION under "
+            "[FUSION] - see the conf.ini template.")
+        msg = f"Missing conf.ini option: [{section}] {key}"
+        raise SystemExit(msg) from err
 
     return df[df["ONCOGENIC"].isin(oncokb_filter)]
 
