@@ -104,7 +104,7 @@ rule walk_setup:
         args=_create_setup_args(),
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py setup {params.args} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} setup {params.args} > {log} 2>&1"
 
 
 rule walk_cnv:
@@ -118,8 +118,10 @@ rule walk_cnv:
         "Logs/snakemake_walk_cnv.log",
     conda:
         config["conda_env"]
+    params:
+        conf=config["conf_path"],
     shell:
-        "python walk_stage.py cnv --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} cnv --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_snv:
@@ -132,8 +134,10 @@ rule walk_snv:
         "Logs/snakemake_walk_snv.log",
     conda:
         config["conda_env"]
+    params:
+        conf=config["conf_path"],
     shell:
-        "python walk_stage.py snv --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} snv --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_fusion:
@@ -147,8 +151,10 @@ rule walk_fusion:
         "Logs/snakemake_walk_fusion.log",
     conda:
         config["conda_env"]
+    params:
+        conf=config["conf_path"],
     shell:
-        "python walk_stage.py fusion --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} fusion --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_clinical:
@@ -162,8 +168,10 @@ rule walk_clinical:
         "Logs/snakemake_walk_clinical.log",
     conda:
         config["conda_env"]
+    params:
+        conf=config["conf_path"],
     shell:
-        "python walk_stage.py clinical --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} clinical --ctx {input.ctx} > {log} 2>&1"
 
 
 rule create:

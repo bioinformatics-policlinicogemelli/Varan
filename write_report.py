@@ -463,6 +463,7 @@ def write_report_main(
     oncokb: bool = False,
     start_time: str = "",
     validation_status: str | None = None,
+    vcf_type: str | None = None,
 ) -> None:
     """Generate an HTML report summarizing the results of a VARAN analysis.
 
@@ -565,8 +566,8 @@ def write_report_main(
             <h1>VARAN</h1>
         </header>
 
-        <h2>Report generate on {date}</h2>
         {start_time_html}
+        <h3>Report generated on {date}</h3>
 
         <div class="container">
             <section class="general-info">
@@ -761,22 +762,48 @@ def write_report_main(
                  <p><strong>FILTER:</strong> = PASS
             </div>"""
 
-    filters_dict["PLOIDY"] = extract_key_value(my_filters, "PLOIDY")
-    filters_dict["CNVKIT_algorithm"] = extract_key_value(my_filters, "CNVKIT_algorithm")
+    # CNA/FUSION info is only meaningful - and only rendered/recorded in
+    # provenance - when this run's analysis type (-t) actually includes that
+    # data type; a -t snv run never touches CNA/fusion thresholds, so
+    # showing them (as if they'd been applied) would be misleading. Same
+    # reasoning for the ONCOKB_FILTER_CNV/FUSION keys specifically: only
+    # relevant if OncoKB annotation actually ran for that data type.
+    cna_included = vcf_type not in ["snv", "fus", "tab"]
+    fusion_included = vcf_type not in ["cnv", "snv", "tab"]
+
     filters_dict["THRESHOLD_TMB"] = extract_key_value(my_filters, "THRESHOLD_TMB")
     filters_dict["THRESHOLD_SITES"] = extract_key_value(my_filters, "THRESHOLD_SITES")
     filters_dict["THRESHOLD_MSI"] = extract_key_value(my_filters, "THRESHOLD_MSI")
-    filters_dict["THRESHOLD_FUSION"] = extract_key_value(my_filters, "THRESHOLD_FUSION")
+
+    if cna_included:
+        filters_dict["PLOIDY"] = extract_key_value(my_filters, "PLOIDY")
+        filters_dict["CNVKIT_algorithm"] = extract_key_value(my_filters, "CNVKIT_algorithm")
+        if oncokb:
+            filters_dict["ONCOKB_FILTER_CNV"] = extract_key_value(
+                my_filters, "ONCOKB_FILTER_CNV")
+
+    if fusion_included:
+        filters_dict["THRESHOLD_FUSION"] = extract_key_value(my_filters, "THRESHOLD_FUSION")
+        if oncokb:
+            filters_dict["ONCOKB_FILTER_FUSION"] = extract_key_value(
+                my_filters, "ONCOKB_FILTER_FUSION")
 
     tmb_section = re.sub(r"[{}']", "", extract_section(my_filters, "TMB"))
     tmb_section = re.sub(r"([,:])(?=\S)", r"\1 ", tmb_section)
 
-    html_content += f"""
+    if cna_included:
+        html_content += f"""
             <div class="subtitle">Copy Number Alterations (CNA)</div>
             <div class="content">
-                {extract_section(my_filters, "Cna")}
-            </div>
+                <p><strong>PLOIDY</strong> = {filters_dict["PLOIDY"]}</p>
+                <p><strong>CNVKIT Algorithm</strong> = {filters_dict["CNVKIT_algorithm"]}</p>"""
+        if oncokb:
+            html_content += f"""
+                <p><strong>ONCOKB_FILTER_CNV</strong> = {filters_dict["ONCOKB_FILTER_CNV"]}</p>"""
+        html_content += """
+            </div>"""
 
+    html_content += f"""
             <div class="subtitle">Tumor Mutational Burden (TMB)</div>
             <div class="content">
                 {tmb_section}
@@ -785,12 +812,20 @@ def write_report_main(
             <div class="subtitle">Microsatellite Instability (MSI)</div>
             <div class="content">
                 {extract_section(my_filters, "MSI")}
-            </div>
+            </div>"""
 
+    if fusion_included:
+        html_content += f"""
             <div class="subtitle">Fusions</div>
             <div class="content">
-                {extract_section(my_filters, "FUSION")}
-            </div>
+                <p><strong>THRESHOLD_FUSION</strong>: {filters_dict["THRESHOLD_FUSION"]}</p>"""
+        if oncokb:
+            html_content += f"""
+                <p><strong>ONCOKB_FILTER_FUSION</strong> = {filters_dict["ONCOKB_FILTER_FUSION"]}</p>"""
+        html_content += """
+            </div>"""
+
+    html_content += """
         </section>"""
 
     write_provenance(
@@ -1214,8 +1249,8 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
             <h1>VARAN - Update</h1>
         </header>
 
-        <h2>Report generate on {date}</h2>
         {start_time_html}
+        <h3>Report generated on {date}</h3>
         <div class="container">
             <div class="section-title">General Information</div>
                 <div class="content">
@@ -1419,17 +1454,19 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
                 <p><strong>SIFT</strong>: {filters1["SIFT"]}</p>
             </div>"""
 
-    keys_to_check = {"PLOIDY", "CNVKIT_algorithm", "THRESHOLD_TMB",
-    "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
+    cna_keys = {"PLOIDY", "CNVKIT_algorithm"}
+    tmb_msi_keys = {"THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI"}
 
-    if common_filters != {} and all(key in filters1 for key in keys_to_check):
+    if common_filters != {} and all(key in filters1 for key in cna_keys):
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
                     <p><strong>PLOIDY</strong> = {filters1["PLOIDY"]}</p>
                     <p><strong>CNVKIT Algorithm</strong> = {filters1["CNVKIT_algorithm"]}</p>
-                </div>
+                </div>"""
 
+    if common_filters != {} and all(key in filters1 for key in tmb_msi_keys):
+        html_content += f"""
                 <div class="subtitle">Tumor Mutational Burden (TMB)</div>
                 <div class="content">
                     <p><strong>THRESHOLD_TMB</strong>: {filters1["THRESHOLD_TMB"]}</p>
@@ -1441,14 +1478,18 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
                         THRESHOLD_SITES</strong>: {filters1["THRESHOLD_SITES"]}
                     </p>
                     <p><strong>THRESHOLD_MSI</strong>: {filters1["THRESHOLD_MSI"]}</p>
-                </div>
+                </div>"""
 
+    if common_filters != {} and "THRESHOLD_FUSION" in filters1:
+        html_content += f"""
                 <div class="subtitle">Fusions</div>
                 <div class="content">
                     <p><strong>
                         THRESHOLD_FUSION</strong>: {filters1["THRESHOLD_FUSION"]}
                     </p>
-                </div>
+                </div>"""
+
+    html_content += """
             </section>
         </section>"""
 
@@ -1725,8 +1766,8 @@ def write_report_extract(original_study: str, new_study: str,
             <h1>VARAN - Extract</h1>
         </header>
 
-        <h2>Generate on {date}</h2>
         {start_time_html}
+        <h3>Report generated on {date}</h3>
 
         <div class="container">
             <div class="section-title">General Information</div>
@@ -1892,17 +1933,19 @@ def write_report_extract(original_study: str, new_study: str,
                 <p><strong>SIFT</strong>: {filters["SIFT"]}</p>
             </div>"""
 
-    keys_to_check = {"PLOIDY", "CNVKIT_algorithm", "THRESHOLD_TMB",
-    "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
+    cna_keys = {"PLOIDY", "CNVKIT_algorithm"}
+    tmb_msi_keys = {"THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI"}
 
-    if filters != {} and all(key in filters for key in keys_to_check):
+    if filters != {} and all(key in filters for key in cna_keys):
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
                     <p><strong>PLOIDY</strong> = {filters["PLOIDY"]}</p>
                     <p><strong>CNVKIT Algorithm</strong> = {filters["CNVKIT_algorithm"]}</p>
-                </div>
+                </div>"""
 
+    if filters != {} and all(key in filters for key in tmb_msi_keys):
+        html_content += f"""
                 <div class="subtitle">Tumor Mutational Burden (TMB)</div>
                 <div class="content">
                     <p><strong>THRESHOLD_TMB</strong>: {filters["THRESHOLD_TMB"]}</p>
@@ -1914,18 +1957,19 @@ def write_report_extract(original_study: str, new_study: str,
                         THRESHOLD_SITES</strong>: {filters["THRESHOLD_SITES"]}
                     </p>
                     <p><strong>THRESHOLD_MSI</strong>: {filters["THRESHOLD_MSI"]}</p>
-                </div>
+                </div>"""
 
+    if filters != {} and "THRESHOLD_FUSION" in filters:
+        html_content += f"""
                 <div class="subtitle">Fusions</div>
                 <div class="content">
                     <p><strong>
                         THRESHOLD_FUSION</strong>: {filters["THRESHOLD_FUSION"]}
                     </p>
-                </div>
-            </section>"""
+                </div>"""
 
-        if filters != {}:
-            html_content += """
+    if filters != {}:
+        html_content += """
             </section>"""
 
     if versioning.old_version_exists and actual_version != 1:
@@ -2169,8 +2213,8 @@ def write_report_remove(
             <h1>VARAN - Remove</h1>
         </header>
 
-        <h2>Generate on {date}</h2>
         {start_time_html}
+        <h3>Report generated on {date}</h3>
 
         <div class="container">
             <div class="section-title">General Information</div>
@@ -2325,17 +2369,19 @@ def write_report_remove(
                 <p><strong>SIFT</strong>: {filters["SIFT"]}</p>
             </div>"""
 
-    keys_to_check = {"PLOIDY", "CNVKIT_algorithm", "THRESHOLD_TMB",
-    "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"}
+    cna_keys = {"PLOIDY", "CNVKIT_algorithm"}
+    tmb_msi_keys = {"THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI"}
 
-    if filters != {} and all(key in filters for key in keys_to_check):
+    if filters != {} and all(key in filters for key in cna_keys):
         html_content += f"""
                 <div class="subtitle">Copy Number Alterations (CNA)</div>
                 <div class="content">
                     <p><strong>PLOIDY</strong> = {filters["PLOIDY"]}</p>
                     <p><strong>CNVKIT Algorithm</strong> = {filters["CNVKIT_algorithm"]}</p>
-                </div>
+                </div>"""
 
+    if filters != {} and all(key in filters for key in tmb_msi_keys):
+        html_content += f"""
                 <div class="subtitle">Tumor Mutational Burden (TMB)</div>
                 <div class="content">
                     <p><strong>THRESHOLD_TMB</strong>: {filters["THRESHOLD_TMB"]}</p>
@@ -2347,14 +2393,19 @@ def write_report_remove(
                         THRESHOLD_SITES</strong>: {filters["THRESHOLD_SITES"]}
                     </p>
                     <p><strong>THRESHOLD_MSI</strong>: {filters["THRESHOLD_MSI"]}</p>
-                </div>
+                </div>"""
 
+    if filters != {} and "THRESHOLD_FUSION" in filters:
+        html_content += f"""
                 <div class="subtitle">Fusions</div>
                 <div class="content">
                     <p><strong>
                         THRESHOLD_FUSION</strong>: {filters["THRESHOLD_FUSION"]}
                     </p>
-                </div>
+                </div>"""
+
+    if filters != {}:
+        html_content += """
             </section>"""
 
     if versioning.old_version_exists and actual_version != 1:

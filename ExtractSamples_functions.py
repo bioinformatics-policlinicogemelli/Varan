@@ -246,8 +246,8 @@ def extract_sv(file_path: str,
         None
 
     """
-    old_file=pd.read_csv(file_path,sep="\t")
-    new_file=old_file[old_file["Sample_Id"].isin(sample_ids)]
+    old_file=pd.read_csv(file_path,sep="\t", dtype=str)
+    new_file=old_file[old_file["Sample_Id"].astype(str).isin(sample_ids)]
     if "Class" in new_file.columns:
         n_splice = (new_file["Class"] == "SPLICE").sum()
         n_fusion = (new_file["Class"] == "FUSION").sum()

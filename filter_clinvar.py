@@ -295,15 +295,23 @@ def filter_main(input_path: str,folder: str,
             if "ONCOTREE_CODE" in input_file.columns:
                 for _, row in input_file.iterrows():
                     if str(row["SAMPLE_ID"]) in file_no:
-                        cancer_onco = row["ONCOTREE_CODE"] or cancer
+                        oncotree_value = row["ONCOTREE_CODE"]
+                        # `or` alone isn't enough: float('nan') is truthy in
+                        # Python, so a missing per-sample ONCOTREE_CODE (NaN,
+                        # not just "") would silently skip the cancer
+                        # fallback and crash a few lines down on .upper().
+                        cancer_onco = (
+                            oncotree_value
+                            if pd.notna(oncotree_value) and oncotree_value
+                            else cancer)
                         subprocess.run([
-                            "python3", "oncokb-annotator/MafAnnotator.py",
+                            sys.executable, "oncokb-annotator/MafAnnotator.py",
                             "-i", str(f), "-o", str(file_path),
                             "-t", cancer_onco.upper(),
                             "-b", config.get("OncoKB", "ONCOKB")], check=True)
             else:
                 subprocess.run([
-                    "python3", "oncokb-annotator/MafAnnotator.py",
+                    sys.executable, "oncokb-annotator/MafAnnotator.py",
                     "-i", str(f), "-o", str(file_path),
                     "-t", cancer.upper(),
                     "-b", config.get("OncoKB", "ONCOKB")], check=True)

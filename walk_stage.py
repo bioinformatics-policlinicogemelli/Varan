@@ -31,12 +31,21 @@ _walk_write_clinical_tables functions the plain `python varan.py -i ...`
 path uses, so this can never drift from that behavior.
 
 Usage (paths below are illustrative - see Snakefile for the real rules):
-    python walk_stage.py setup --ctx-out out/.walk_ctx.pkl \\
+    python walk_stage.py -C custom_conf.ini setup --ctx-out out/.walk_ctx.pkl \\
         --input in_folder --output out -c luad
-    python walk_stage.py cnv --ctx out/.walk_ctx.pkl
-    python walk_stage.py snv --ctx out/.walk_ctx.pkl
-    python walk_stage.py fusion --ctx out/.walk_ctx.pkl
-    python walk_stage.py clinical --ctx out/.walk_ctx.pkl
+    python walk_stage.py -C custom_conf.ini cnv --ctx out/.walk_ctx.pkl
+    python walk_stage.py -C custom_conf.ini snv --ctx out/.walk_ctx.pkl
+    python walk_stage.py -C custom_conf.ini fusion --ctx out/.walk_ctx.pkl
+    python walk_stage.py -C custom_conf.ini clinical --ctx out/.walk_ctx.pkl
+
+`-C/--config` must come before the subcommand (it's a top-level option, not
+per-subcommand) and must be repeated on every one of these calls: each runs
+in its own process, so each needs to be told the conf.ini path again - see
+config_loader.py. `walk` is deliberately NOT imported at module level here:
+it (like every other Varan module) reads conf.ini via config_loader at its
+own import time, so importing it before `set_config_path()` has run would
+silently lock this process to the default conf.ini regardless of -C,
+exactly the bug that broke -C for these stages before this fix.
 """
 from __future__ import annotations
 
@@ -46,17 +55,14 @@ from pathlib import Path
 
 from loguru import logger
 
-import walk
+from config_loader import set_config_path
 
-STAGE_FUNCS = {
-    "cnv": walk._walk_process_cnv,
-    "snv": walk._walk_process_snv,
-    "fusion": walk._walk_process_fusion,
-    "clinical": walk._walk_write_clinical_tables,
-}
+STAGE_NAMES = ["cnv", "snv", "fusion", "clinical"]
 
 
 def _cmd_setup(args: argparse.Namespace) -> None:
+    import walk
+
     ctx = walk._walk_setup(
         input_path=args.input,
         multiple=args.multiple,
@@ -76,6 +82,15 @@ def _cmd_setup(args: argparse.Namespace) -> None:
 
 
 def _cmd_stage(stage_name: str, args: argparse.Namespace) -> None:
+    import walk
+
+    stage_funcs = {
+        "cnv": walk._walk_process_cnv,
+        "snv": walk._walk_process_snv,
+        "fusion": walk._walk_process_fusion,
+        "clinical": walk._walk_write_clinical_tables,
+    }
+
     ctx_path = Path(args.ctx)
     with ctx_path.open("rb") as f:
         ctx: walk.WalkContext = pickle.load(f)
@@ -87,7 +102,7 @@ def _cmd_stage(stage_name: str, args: argparse.Namespace) -> None:
     # stage function. See WalkContext's docstring in walk.py.
     walk.isinputfile = ctx.isinputfile
 
-    STAGE_FUNCS[stage_name](ctx)
+    stage_funcs[stage_name](ctx)
 
     done_marker = ctx_path.parent / f".{stage_name}.done"
     done_marker.touch()
@@ -96,6 +111,10 @@ def _cmd_stage(stage_name: str, args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "-C", "--config", default="conf.ini",
+        help="Path to the conf.ini file this stage should use. Must come "
+        "before the subcommand.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     setup_p = sub.add_parser("setup", help="Resolve input/output paths once.")
@@ -112,7 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     setup_p.add_argument("--filters", default="")
     setup_p.add_argument("--ctx-out", required=True)
 
-    for stage_name in STAGE_FUNCS:
+    for stage_name in STAGE_NAMES:
         stage_p = sub.add_parser(
             stage_name, help=f"Run the {stage_name} stage from a pickled context.")
         stage_p.add_argument("--ctx", required=True)
@@ -122,6 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    set_config_path(args.config)
 
     if args.command == "setup":
         if args.vcf_type not in (None, "snv", "cnv", "fus", "tab"):
