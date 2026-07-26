@@ -58,8 +58,8 @@ def load_clinical_data(outputfolderpath: Path, folder: str) -> tuple:
 CNA_CATEGORIES = {
     -2: ("Deep Deletion (-2)", "#2166AC"),
     -1: ("Shallow Deletion (-1)", "#92C5DE"),
-    1: ("Gain (1)", "#F4A582"),
-    2: ("Amplification (2)", "#B2182B"),
+    1: ("Gain (+1)", "#F4A582"),
+    2: ("Amplification (+2)", "#B2182B"),
 }
 
 # Common MAF Variant_Classification values get a fixed color so the legend
