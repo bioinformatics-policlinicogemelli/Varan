@@ -1,0 +1,3 @@
+SAMPLE_ID	PATIENT_ID	ONCOTREE_CODE	snv_path	cnv_path	comb_path	MSI	TMB	MSI_THR	TMB_THR
+20250630_30ng_22	PT_20250630	COAD	/data/.../20250630_30ng_22.snv.vcf	/data/.../20250630_30ng_22.cnv.vcf		27		Unstable	
+52084217_00102139	PT_52084217	COAD	/data/.../52084217_00102139.snv.vcf	/data/.../52084217_00102139.cnv.vcf				Stable	
