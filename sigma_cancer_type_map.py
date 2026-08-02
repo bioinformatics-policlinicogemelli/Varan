@@ -48,10 +48,11 @@ Read plainly, this says: "medullo" and "ewing" only have trained MVA
 data ("msk", Varan's platform). Calling SigMA with tumor_type="medullo" or
 "ewing" and data="msk" with do_mva=True (Varan's intended clinical use)
 would very likely raise this stop() inside SigMA itself. MDB/ES are left
-mapped below (they ARE valid tumor_type strings) but flagged with
-do_mva_unsafe_for_msk=True so a future caller can decide to skip do_mva,
-skip SigMA entirely, or fall back to "other" for these two OncoTree codes
-specifically - not baked in as a silent default here.
+mapped below (they ARE valid tumor_type strings), but this is a SigMA-
+internal limitation an end user has no way to know about - not a clinical
+judgment call to expose as a toggle. get_sigma_call_params() therefore
+forces do_mva=False for these two automatically and logs a warning,
+rather than leaving the decision to whoever calls SigMA.
 
 The panel-platform ("msk") model list is only explicitly named in that
 same stop() message text as 10 values: eso, osteo, ovary, panc_ad,
@@ -75,6 +76,8 @@ loose size analogy to TSO500 (523 genes), but SigMA's own stated use case.
 """
 
 from __future__ import annotations
+
+from loguru import logger
 
 # DRAFT - verify every code against a live oncotree.mskcc.org lookup before
 # trusting this in a clinical run. Parent/tissue-level codes are included
@@ -164,3 +167,40 @@ def get_sigma_tumor_type(
     if mapped is not None:
         return mapped
     return "other" if fallback_to_other else None
+
+
+def get_sigma_call_params(
+    oncotree_code: str,
+    fallback_to_other: bool = True) -> tuple[str | None, bool]:
+    """Resolve both the SigMA `tumor_type` and whether `do_mva` is safe.
+
+    Varan always runs SigMA against panel data (conf.ini [SigMA]
+    DATA_PLATFORM = "msk"). For tumor_type values in
+    DO_MVA_UNSAFE_FOR_PANEL_DATA ("medullo", "ewing"), SigMA's own source
+    has no trained do_mva=True classifier for panel data - only WES/WGS -
+    and calling it that way is expected to raise SigMA's own stop() error
+    (see module docstring). This isn't a choice to hand to whoever calls
+    SigMA - they have no way to know about this SigMA-internal limitation
+    - so do_mva is forced off here and a warning is logged, rather than
+    exposing a toggle for it.
+
+    Args:
+        oncotree_code (str): The sample's ONCOTREE_CODE, any case.
+        fallback_to_other (bool): See get_sigma_tumor_type().
+
+    Returns:
+        tuple[str | None, bool]: (tumor_type, do_mva) to pass straight
+            into SigMA's run(). tumor_type is None only if
+            fallback_to_other is False and the code is unmapped.
+
+    """
+    tumor_type = get_sigma_tumor_type(oncotree_code, fallback_to_other)
+    if tumor_type in DO_MVA_UNSAFE_FOR_PANEL_DATA:
+        logger.warning(
+            f"SigMA tumor_type '{tumor_type}' (from OncoTree code "
+            f"'{oncotree_code}') has no trained MVA classifier for panel "
+            "data - forcing do_mva=False for this sample (its do_mva=True "
+            "model is WES/WGS-only, not applicable to Varan's panel-based "
+            "pipeline).")
+        return tumor_type, False
+    return tumor_type, True
