@@ -37,6 +37,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+import sigma_runner
 import tsv
 import vcf2tab_cnv
 import vcf_filter
@@ -985,6 +986,27 @@ def write_clinical_sample(
         final_data_sample = data_clin_samp.merge(
             combout_df, on=["PATIENT_ID", "SAMPLE_ID"])
 
+    # SigMA columns only ever appear when -g/--sigma was actually passed for
+    # this run: sigma_runner/_walk_process_snv only ever writes this file
+    # when ctx.sigma is True and at least one sample went through the SigMA
+    # pipeline (see _write_sigma_intermediate). No file -> no columns added,
+    # matching this codebase's existing convention of only showing/recording
+    # a filter's info when that filter was actually applied (see
+    # ONCOKB_FILTER_CNV/ONCOKB_FILTER_FUSION in write_report.py).
+    sigma_path = Path(output_folder) / "intermediate" / "sigma" / "data_sigma.txt"
+    if sigma_path.exists():
+        sigma_df = pd.read_csv(sigma_path, sep="\t", dtype=str)
+        if "SAMPLE_ID" in sigma_df.columns:
+            final_data_sample = final_data_sample.merge(
+                sigma_df, on="SAMPLE_ID", how="left")
+            logger.info(
+                f"Merged SigMA results for {len(sigma_df)} sample(s) into "
+                "data_clinical_sample.txt.")
+        else:
+            logger.warning(
+                f"{sigma_path} exists but has no SAMPLE_ID column - "
+                "skipping SigMA column merge into data_clinical_sample.txt.")
+
     basic_columns = ["SAMPLE_ID", "PATIENT_ID", "MSI", "TMB", "MSI_THR", "TMB_THR"]
 
     # A pipeline that has no native TMB (or MSI) of its own - e.g. Guardant,
@@ -1029,9 +1051,12 @@ def write_clinical_sample(
     # Add header's third row (HEADER_SAMPLE_TYPE)
     if not conf_header_type:
         header_row = ["STRING"] * len(dataclin_columns)
-        for marker in ("MSI", "TMB"):
+        for marker in ("MSI", "TMB", "SIGMA_TOTAL_SNVS", "SIGMA_SIGNATURE3_MVA"):
             if marker in dataclin_columns:
                 header_row[dataclin_columns.index(marker)] = "NUMBER"
+        for marker in ("SIGMA_DO_MVA",):
+            if marker in dataclin_columns:
+                header_row[dataclin_columns.index(marker)] = "BOOLEAN"
         sample_header_type = pd.DataFrame([header_row], columns=dataclin_columns)
     else:
         types_list = conf_header_type.split(",")
@@ -2342,6 +2367,7 @@ class WalkContext:
     vcf_type: str | None
     resume: bool
     isinputfile: bool
+    sigma: bool = False
 
 
 def _walk_setup(
@@ -2353,7 +2379,8 @@ def _walk_setup(
     overwrite_output: bool,
     resume: bool,
     vcf_type: str | None,
-    filters: str) -> WalkContext:
+    filters: str,
+    sigma: bool = False) -> WalkContext:
     """Stage 0: resolve input, create/resume the output folder, and check
     which of SNV/CNV/CombinedOutput are actually present.
 
@@ -2533,6 +2560,7 @@ def _walk_setup(
         vcf_type=vcf_type,
         resume=resume,
         isinputfile=isinputfile,
+        sigma=sigma,
     )
 
 
@@ -2558,7 +2586,8 @@ def _walk_process_cnv(ctx: WalkContext) -> None:
 
 
 def _walk_process_snv(ctx: WalkContext) -> None:
-    """Stage: SNV calls -> per-sample vcf2maf (writes maf/*.maf).
+    """Stage: SNV calls -> per-sample vcf2maf (writes maf/*.maf), optionally
+    followed by per-sample SigMA mutational-signature analysis.
 
     Depends only on WalkContext, independent of _walk_process_cnv/_fusion.
     """
@@ -2580,12 +2609,103 @@ def _walk_process_snv(ctx: WalkContext) -> None:
                     s_id_path_snv, ctx.output_folder, output_filtered)
 
             temporary = create_random_name_folder(ctx.output_folder)
+            sigma_results = []
             for k, v in s_id_path_snv.items():
                 cl = vcf2maf_constructor(v, temporary, ctx.output_folder)
                 run_vcf2maf(cl, k)
 
+                if ctx.sigma:
+                    sigma_results.append(_run_sigma_for_snv_sample(ctx, cl, k))
+
+            if ctx.sigma:
+                _write_sigma_intermediate(ctx.output_folder, sigma_results)
+
     logger.info("Clearing scratch folder...")
     clear_scratch(temporary)
+
+
+def _run_sigma_for_snv_sample(ctx: WalkContext, cl: list, sample_id: str) -> dict:
+    """Run SigMA for one sample right after its vcf2maf conversion.
+
+    Only called when ctx.sigma is True (the -g/--sigma CLI flag). Reads
+    the MAF vcf2maf_constructor/run_vcf2maf were just told to produce (the
+    same "--output-maf" path baked into `cl`, so this can never drift from
+    what vcf2maf actually wrote to), resolves the sample's ONCOTREE_CODE
+    from sample.tsv, and delegates the rest to
+    sigma_runner.run_sigma_for_sample(). Never raises - any problem is
+    logged and reflected in the returned row's SIGMA_STATUS instead, so
+    one sample's SigMA failure never stops the batch (matches this
+    codebase's existing log-and-skip philosophy, e.g. the VAF filter's
+    missing-column handling in sigma_filter.prepare_sigma_maf).
+
+    Args:
+        ctx (WalkContext): Shared setup state.
+        cl (list): The vcf2maf command-line list built by
+            vcf2maf_constructor() for this sample - used only to recover
+            the "--output-maf" path it specifies.
+        sample_id (str): The sample's SAMPLE_ID.
+
+    Returns:
+        dict: A SigMA result row, see sigma_runner.run_sigma_for_sample().
+
+    """
+    try:
+        maf_out_path = Path(cl[cl.index("--output-maf") + 1])
+    except (ValueError, IndexError):
+        logger.warning(
+            f"Sample {sample_id}: could not determine the vcf2maf output MAF "
+            "path - skipping SigMA for this sample.")
+        return sigma_runner.blank_result(sample_id, "ERROR")
+
+    if not maf_out_path.exists() or maf_out_path.stat().st_size == 0:
+        logger.warning(
+            f"Sample {sample_id}: no (or empty) MAF at {maf_out_path} after "
+            "vcf2maf - vcf2maf likely failed for this sample. Skipping "
+            "SigMA for this sample.")
+        return sigma_runner.blank_result(sample_id, "ERROR")
+
+    try:
+        maf_df = pd.read_csv(maf_out_path, sep="\t", dtype=object)
+    except Exception:
+        maf_df = pd.read_csv(maf_out_path, sep="\t", dtype=object, skiprows=1)
+
+    oncotree_code = ""
+    match = ctx.clin_file.loc[ctx.clin_file["SAMPLE_ID"].astype(str) == str(sample_id)]
+    if not match.empty and "ONCOTREE_CODE" in match.columns:
+        oncotree_code = str(match.iloc[0]["ONCOTREE_CODE"])
+
+    if not oncotree_code or oncotree_code.lower() == "nan":
+        logger.warning(
+            f"Sample {sample_id}: no ONCOTREE_CODE found in sample.tsv - "
+            "SigMA's tumor_type mapping will fall through to its "
+            "fallback/'other' handling (see get_sigma_call_params).")
+
+    sigma_dir = Path(ctx.output_folder) / "intermediate" / "sigma"
+    return sigma_runner.run_sigma_for_sample(
+        maf_df, sample_id, oncotree_code, sigma_dir)
+
+
+def _write_sigma_intermediate(output_folder: str, sigma_results: list[dict]) -> None:
+    """Write this run's per-sample SigMA results to a shared intermediate
+    file, so _walk_write_clinical_tables (a separate Snakemake stage/
+    process, see WalkContext's docstring) can pick them up without any
+    in-memory state - the same file-based handoff already used for CNA's
+    intermediate/ artifacts.
+
+    A no-op (no file written) when sigma_results is empty, e.g. because
+    the SNV folder was empty - data_clinical_sample.txt then simply gets
+    no SIGMA_* columns at all, exactly as if -g/--sigma had not been
+    passed for this run.
+    """
+    if not sigma_results:
+        return
+
+    sigma_dir = Path(output_folder) / "intermediate" / "sigma"
+    sigma_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sigma_dir / "data_sigma.txt"
+    pd.DataFrame(sigma_results).to_csv(out_path, sep="\t", index=False)
+    logger.info(
+        f"Wrote SigMA results for {len(sigma_results)} sample(s) to {out_path}")
 
 
 def _walk_process_fusion(ctx: WalkContext) -> None:
@@ -2766,7 +2886,8 @@ def walk_folder(
     overwrite_output: bool = False,
     resume: bool = False,
     vcf_type: str | None = None,
-    filters: str = "") -> tuple:
+    filters: str = "",
+    sigma: bool = False) -> tuple:
     """Process input files/folders for SNV, CNV, fusions, and prepare output.
 
     Thin orchestrator over four independent stages - see WalkContext,
@@ -2788,6 +2909,10 @@ def walk_folder(
         vcf_type (str | None, optional): Type of VCF to process (snv, cnv, fus, tab).
         Defaults to None.
         filters (str, optional): Filters to apply on VCF data. Defaults to "".
+        sigma (bool, optional): Whether to run SigMA mutational-signature
+        analysis per sample (see sigma_runner.run_sigma_for_sample). Defaults
+        to False. All of SigMA's own parameters live in conf.ini's [SigMA]
+        section - this is only the on/off switch.
 
     Returns:
         tuple: Returns output folder path, input path or file, and fusion TSV path.
@@ -2795,7 +2920,7 @@ def walk_folder(
     """
     ctx = _walk_setup(
         input_path, multiple, output_folder, oncokb, cancer,
-        overwrite_output, resume, vcf_type, filters)
+        overwrite_output, resume, vcf_type, filters, sigma)
 
     _walk_process_cnv(ctx)
     _walk_process_snv(ctx)

@@ -76,19 +76,60 @@ loose size analogy to TSO500 (523 genes), but SigMA's own stated use case.
 
 from __future__ import annotations
 
+from loguru import logger
+
 # DRAFT - verify every code against a live oncotree.mskcc.org lookup before
 # trusting this in a clinical run. Parent/tissue-level codes are included
 # alongside a few common child codes per lineage, not an exhaustive list.
 #
-# DO_MVA_UNSAFE_FOR_PANEL_DATA: SigMA tumor_type values whose MVA (do_mva=
-# True) classifier is verified (R/run.R's gbm_models[[data]] check, see
-# module docstring) to exist only for WES/WGS data, not for panel data
-# (Varan's conf.ini DATA_PLATFORM = "msk"). Calling SigMA with one of these
-# tumor_type values, data="msk", and do_mva=True is expected to raise
-# SigMA's own stop() error. Any future caller must either set do_mva=False
-# for samples mapped to one of these, route them to "other" instead, or
-# skip SigMA for them outright - not decided here.
+# PANEL_DATA_MVA_SAFE_TUMOR_TYPES: the *whitelist* of SigMA tumor_type
+# values confirmed to have a trained do_mva=True classifier on panel
+# ("msk") data - the exact 10 values R/run.R's own stop() message names
+# ("eso, osteo, ovary, panc_ad, panc_en, prost, stomach, uterus, breast,
+# bladder"). Deliberately a whitelist, not a blacklist of just
+# medullo/ewing (an earlier version of this module only special-cased
+# those two): an actual smoke test this round (real R + SigMA install,
+# see SIGMA_INTEGRATION_FEASIBILITY.md / commit history) confirmed that
+# calling SigMA with tumor_type="other" (the fallback model -
+# get_sigma_tumor_type()'s fallback_to_other path), data="msk", and
+# do_mva=True *also* raises the same stop() error - "other" is not in
+# this panel-safe list either, so a blacklist naming only medullo/ewing
+# was incomplete. Any tumor_type not in this set gets do_mva=False on
+# panel data, not just the two originally called out.
+PANEL_DATA_MVA_SAFE_TUMOR_TYPES: frozenset[str] = frozenset({
+    "eso", "osteo", "ovary", "panc_ad", "panc_en", "prost", "stomach",
+    "uterus", "breast", "bladder",
+})
+
+# Kept for backward compatibility / documentation - the two tumor_type
+# values from ONCOTREE_TO_SIGMA that are *named* in SigMA's own source as
+# WES/WGS-only. Superseded by PANEL_DATA_MVA_SAFE_TUMOR_TYPES above for
+# the actual do_mva decision (that whitelist is the confirmed-correct
+# source of truth after the "other" gap found this round), but still
+# accurate as a statement about medullo/ewing specifically.
 DO_MVA_UNSAFE_FOR_PANEL_DATA: frozenset[str] = frozenset({"medullo", "ewing"})
+
+
+def is_mva_safe_for_panel_data(tumor_type: str) -> bool:
+    """Whether SigMA has a trained do_mva=True classifier for `tumor_type`
+    on panel ("msk") data.
+
+    Use this (not direct membership checks against
+    DO_MVA_UNSAFE_FOR_PANEL_DATA) to decide do_mva for a resolved SigMA
+    tumor_type, including the "other" fallback and any manual
+    TUMOR_TYPE_OVERRIDE value from conf.ini - see
+    PANEL_DATA_MVA_SAFE_TUMOR_TYPES's docstring for why the whitelist form
+    is the one that's actually been verified correct.
+
+    Args:
+        tumor_type (str): A SigMA `tumor_type` value.
+
+    Returns:
+        bool: True if do_mva=True is safe to use for this tumor_type on
+            panel data.
+
+    """
+    return tumor_type in PANEL_DATA_MVA_SAFE_TUMOR_TYPES
 
 ONCOTREE_TO_SIGMA: dict[str, str] = {
     # Breast
@@ -164,3 +205,56 @@ def get_sigma_tumor_type(
     if mapped is not None:
         return mapped
     return "other" if fallback_to_other else None
+
+
+def get_sigma_call_params(
+    oncotree_code: str,
+    fallback_to_other: bool = True) -> tuple[str | None, bool]:
+    """Resolve an OncoTree code to the (tumor_type, do_mva) pair walk.py
+    needs to actually invoke SigMA for one sample.
+
+    This is the single entry point walk.py's per-sample SigMA wiring
+    should call - it wraps get_sigma_tumor_type() and additionally
+    resolves do_mva via is_mva_safe_for_panel_data(), so a caller never
+    has to remember to check tumor_type against the panel-safe whitelist
+    itself (including the "other" fallback - see
+    PANEL_DATA_MVA_SAFE_TUMOR_TYPES's docstring for why a plain
+    medullo/ewing blacklist is not enough).
+
+    Args:
+        oncotree_code (str): The sample's ONCOTREE_CODE, any case.
+        fallback_to_other (bool): Forwarded to get_sigma_tumor_type() -
+            see there. Normally sourced from conf.ini's [SigMA]
+            FALLBACK_TO_OTHER.
+
+    Returns:
+        tuple[str | None, bool]: (tumor_type, do_mva).
+            tumor_type is None only when the code is unmapped and
+            fallback_to_other is False - callers must treat that as
+            "skip SigMA for this sample", not call SigMA with
+            tumor_type=None.
+            do_mva is always resolved for Varan's panel-data
+            (DATA_PLATFORM = msk) use: True only for the confirmed
+            panel-safe tumor_type values (see
+            PANEL_DATA_MVA_SAFE_TUMOR_TYPES), False (with a logged
+            warning) for everything else, including "other" and
+            medullo/ewing. The raw Signature_3_ml/exp_sig3/rat_sig3
+            features are still computed either way - only the
+            GBM-combined Signature_3_mva score and pass_mva/
+            pass_mva_strict calls are skipped when do_mva is False.
+
+    """
+    tumor_type = get_sigma_tumor_type(oncotree_code, fallback_to_other)
+    if tumor_type is None:
+        return None, False
+
+    do_mva = is_mva_safe_for_panel_data(tumor_type)
+    if not do_mva:
+        logger.warning(
+            f"OncoTree code '{oncotree_code}' maps to SigMA tumor_type "
+            f"'{tumor_type}', which has no trained panel-data (do_mva) "
+            "classifier - forcing do_mva=False for this sample. Only the "
+            "raw Signature_3 likelihood/exposure features will be "
+            "computed, not the Signature_3_mva score or pass_mva calls.")
+
+    return tumor_type, do_mva
