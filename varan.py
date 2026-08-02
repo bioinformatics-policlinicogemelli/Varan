@@ -48,16 +48,19 @@ from versioning import get_git_version
 # They each read conf.ini at their own module's import time, so importing
 # them before --config has been parsed would make that flag a no-op. They're
 # imported further down, inside `if __name__ == "__main__":`, right after
-# set_config_path() is called. get_git_version() lives in versioning.py
-# specifically so the --version banner (built before argument parsing) can
-# be printed without pulling in a conf.ini-dependent module early.
+# set_config_path() is called - and, for `walk` specifically, also after
+# this run's [Vendor] PIPELINE has been resolved and reconciled against
+# [Sample_Type] TYPE (see reconcile_sample_type()), since walk.py reads
+# [Sample_Type] TYPE into a module-level global at ITS OWN import time too.
+# get_git_version() lives in versioning.py specifically so the --version
+# banner (built before argument parsing) can be printed without pulling in
+# a conf.ini-dependent module early.
 #
 # vendor_adapters (ADAPTERS) is safe to import up here despite that rule:
 # neither vendor_adapters/__init__.py nor its adapter modules read conf.ini
 # at import time - only their run() functions take conf.ini-derived
 # overrides as plain arguments, resolved lazily inside run_vendor_adapter()
-# below, well after set_config_path() has run. It needs to be available
-# before argument parsing anyway, to build --pipeline's `choices` list.
+# below, well after set_config_path() has run.
 
 def logo() -> None:
     """Print the ASCII art logo for the Varan pipeline."""
@@ -247,45 +250,129 @@ def varan(
 
 #################################################################################################################
 
-def resolve_pipeline(cli_pipeline: str | None) -> str:
-    """Decide which vendor pipeline this run uses.
+# The two flavors of Varan's own pre-existing, no-adapter-needed input
+# path (see README.md's "TSO500-aware" feature and walk.py's own
+# "non-Illumina pipelines (e.g. Guardant)"/"native TSO500 CombinedOutput
+# ingestion" comments - "Illumina" and "TSO500" are this codebase's own,
+# already-established terms for this path, not invented for this feature).
+# Illumina ships two distinct, real TSO500 assay variants - the solid
+# tumor panel and the ctDNA/liquid-biopsy panel - which is exactly the
+# distinction conf.ini's own pre-existing [Sample_Type] TYPE setting
+# already encodes (see walk.py's SAMPLE_TYPE global and its two
+# LIQUID/SOLID-gated call sites around fill_from_combined()'s MSI
+# handling). Selecting one of these two PIPELINE values both confirms "no
+# vendor adapter needed" AND implies its sample type - see
+# reconcile_sample_type().
+ILLUMINA_PIPELINE_SAMPLE_TYPES = {
+    "illumina_solid": "Solid",
+    "illumina_liquid": "Liquid",
+}
 
-    Precedence, matching how -C/--config already overrides the default
-    conf.ini path elsewhere in this codebase: an explicit `--pipeline` CLI
-    value always wins; otherwise fall back to conf.ini's `[Vendor]
-    PIPELINE` (meant for a future GUI to render as a dropdown of known,
-    registered options); otherwise default to "native" - today's existing,
-    unchanged behavior (-i already points at Varan's own sample.tsv/
-    patient.tsv/[fusion.tsv] files, or an already-shaped SNV/CNV/
-    CombinedOutput input folder).
 
-    Deliberately NOT auto-detected from the input file's shape/content:
-    which vendor produced a given raw input is a consequential
-    classification (it picks an entire parsing code path), so it's made an
-    explicit choice here rather than an implicit guess - the same
-    reasoning already applied to medullo/ewing's do_mva handling elsewhere
-    in this codebase. See run_vendor_adapter()'s handling of an adapter
-    finding no data for the supplementary sanity-check heuristic (catches
-    a human picking the wrong vendor, without making that guess the actual
-    dispatch mechanism).
+def resolve_pipeline() -> str:
+    """Read conf.ini's `[Vendor] PIPELINE` - the sole vendor-selection
+    surface (no CLI flag: this is intentionally conf.ini-only, so a
+    future GUI can render it as a single dropdown of known, registered
+    options without a competing CLI override to reconcile).
 
-    Args:
-        cli_pipeline (str | None): The parsed `--pipeline` CLI value, or
-            None if the flag wasn't given.
+    Returns "" if unset/blank - meaning "unspecified", not any particular
+    default. This matters for backward compatibility: an existing
+    deployment's conf.ini may not even have a `[Vendor]` section, and must
+    keep behaving exactly as it did before this feature existed - no
+    vendor adapter runs, and `[Sample_Type] TYPE` is used exactly as
+    literally configured, with no reconciliation applied (see
+    reconcile_sample_type()). Only an explicit, non-blank PIPELINE value
+    (one of ILLUMINA_PIPELINE_SAMPLE_TYPES's two keys, or a name
+    registered in vendor_adapters.ADAPTERS) opts into that reconciliation.
+
+    Deliberately NOT auto-detected from -i's content: which pipeline
+    produced a given raw input is a consequential classification (it
+    picks an entire parsing code path, and now also a sample-type
+    assertion), so it's an explicit conf.ini choice rather than an
+    implicit guess - the same reasoning already applied to the SigMA
+    branch's medullo/ewing do_mva handling. See run_vendor_adapter()'s
+    handling of an adapter finding no data for the supplementary
+    sanity-check heuristic (catches a human picking the wrong vendor,
+    without making that guess the actual dispatch mechanism).
 
     Returns:
-        str: "native", or one of vendor_adapters.ADAPTERS's registered
-            vendor names.
+        str: "" (unspecified/legacy), one of ILLUMINA_PIPELINE_SAMPLE_TYPES's
+            keys, or a vendor_adapters.ADAPTERS name.
 
     """
-    if cli_pipeline:
-        return cli_pipeline
+    return get_config().get("Vendor", "PIPELINE", fallback="").strip()
 
-    conf_pipeline = get_config().get("Vendor", "PIPELINE", fallback="").strip()
-    if conf_pipeline:
-        return conf_pipeline
 
-    return "native"
+def implied_sample_type(pipeline: str) -> str | None:
+    """Return the sample type a given PIPELINE value implies, or None if
+    it doesn't imply one (the blank/legacy pipeline, or a hypothetical
+    future vendor adapter that supports both solid and liquid samples and
+    so declines to declare a fixed `SAMPLE_TYPE`).
+
+    Vendor adapters declare this themselves as a module-level `SAMPLE_TYPE`
+    attribute (e.g. `vendor_adapters/guardant.py`'s `SAMPLE_TYPE =
+    "Liquid"`, since Guardant360 is ctDNA-only) - each vendor's own facts
+    belong in its own module, not hardcoded here.
+    """
+    if pipeline in ILLUMINA_PIPELINE_SAMPLE_TYPES:
+        return ILLUMINA_PIPELINE_SAMPLE_TYPES[pipeline]
+    adapter = ADAPTERS.get(pipeline)
+    return getattr(adapter, "SAMPLE_TYPE", None) if adapter else None
+
+
+def reconcile_sample_type(pipeline: str) -> None:
+    """Unify `[Vendor] PIPELINE` and `[Sample_Type] TYPE` when the chosen
+    pipeline implies a specific sample type, instead of leaving them two
+    independently-set values that can silently drift apart (e.g.
+    PIPELINE=guardant - liquid-only - alongside a forgotten or
+    copy-pasted TYPE=Solid).
+
+    No-op if `pipeline` doesn't imply a sample type (blank/legacy
+    pipeline, or a future both-sample-types-capable vendor) - in that
+    case `[Sample_Type] TYPE` remains exactly what it always was: an
+    independent, manually-set value, unenforced here.
+
+    Otherwise: if `[Sample_Type] TYPE` is blank, auto-fill it from the
+    implied type (removing the need to set it separately - this is the
+    actual redundancy reduction). If it's already set, only proceed if it
+    agrees (case-insensitively) with the implied type; a real mismatch is
+    almost certainly a configuration mistake, so it's raised as a clear,
+    actionable error rather than silently overridden either way (silently
+    trusting conf.ini's existing value would let the mismatch through
+    unnoticed; silently overwriting it would hide a possibly-intentional
+    override some other way).
+
+    Must run *before* `walk` is imported: `walk.py` reads
+    `[Sample_Type] TYPE` into a module-level `SAMPLE_TYPE` global at its
+    own import time, via the same shared `config_loader` singleton this
+    function mutates in place - so anything written here is only visible
+    to `walk.py` if this runs strictly earlier in the process.
+    """
+    implied = implied_sample_type(pipeline)
+    if implied is None:
+        return
+
+    config = get_config()
+    current = config.get("Sample_Type", "TYPE", fallback="").strip().strip('"').strip("'")
+
+    if not current:
+        if not config.has_section("Sample_Type"):
+            config.add_section("Sample_Type")
+        config.set("Sample_Type", "TYPE", implied)
+        logger.info(
+            f"conf.ini's [Sample_Type] TYPE was blank - auto-filled to "
+            f"'{implied}', implied by [Vendor] PIPELINE={pipeline!r}.")
+        return
+
+    if current.upper() != implied.upper():
+        msg = (
+            f"conf.ini's [Sample_Type] TYPE is '{current}', but "
+            f"[Vendor] PIPELINE={pipeline!r} is {implied}-only. Fix the "
+            "mismatch, or leave [Sample_Type] TYPE blank to let PIPELINE "
+            "set it automatically.")
+        raise ValueError(msg)
+
+    # Already consistent - nothing to do.
 
 
 def run_vendor_adapter(
@@ -297,15 +384,26 @@ def run_vendor_adapter(
     those files directly - see MULTIVENDOR_INTEGRATION_NOTES.md for the
     full design rationale.
 
-    `varan_input[0]` is reinterpreted as the vendor's own raw input (e.g.
-    an S3 run folder for the Guardant adapter) rather than an already-built
-    sample.tsv, and is passed straight through to the adapter's own
-    `run(folder=...)` - unchanged from vendor_adapters' existing interface,
-    no new input shape invented here. `varan_input[1]` (patient.tsv), if
-    given, is passed through as-is (no vendor adapter currently generates
-    its own patient.tsv). A third element (a fusion file) is not supported
-    in vendor mode - the adapter always generates its own - and is ignored
-    with a warning if present, rather than silently misused.
+    `varan_input[0]` is reinterpreted as the vendor's own raw input rather
+    than an already-built sample.tsv, and is passed straight through to
+    the adapter's own `run()` - unchanged from vendor_adapters' existing
+    interface, no new input shape invented here. Two modes are supported,
+    matching this exact codebase's own existing is_dir()/is_file()
+    distinction for -i's argument (see walk._walk_setup()):
+
+    - If `varan_input[0]` is a local *file* that exists on disk, it's
+      passed as `run(selection=...)` - a samplesheet-style batch (see
+      vendor_adapters.guardant.run()'s column schema).
+    - Otherwise (an S3 URI, or a local directory, or anything else that
+      isn't an existing local file) it's passed as `run(folder=...)` - a
+      single vendor run folder, auto-discovering every sample's files by
+      convention.
+
+    `varan_input[1]` (patient.tsv), if given, is passed through as-is (no
+    vendor adapter currently generates its own patient.tsv). A third
+    element (a fusion file) is not supported in vendor mode - the adapter
+    always generates its own - and is ignored with a warning if present,
+    rather than silently misused.
 
     Intermediate files (the generated sample.tsv/fusions.tsv, and for
     Guardant, the converted per-sample VCFs) are written under this run's
@@ -318,8 +416,9 @@ def run_vendor_adapter(
     past that point).
 
     Args:
-        pipeline (str): A registered vendor name (never "native" - callers
-            should only call this when a vendor pipeline was selected).
+        pipeline (str): A registered vendor name (never "illumina_solid"/
+            "illumina_liquid"/"" - callers should only call this when an
+            actual adapter-requiring vendor pipeline was selected).
         varan_input (Sequence[str]): The raw `-i` argument list.
         output_folder (str): This run's (not-yet-versioned) output folder.
 
@@ -338,9 +437,9 @@ def run_vendor_adapter(
     if len(varan_input) > 2 and varan_input[2].strip():
         logger.warning(
             "A third -i argument (fusion file) was given together with "
-            f"--pipeline {pipeline}, but vendor mode always generates its "
-            "own fusion file from the raw input - the one you passed is "
-            "being ignored.")
+            f"[Vendor] PIPELINE={pipeline!r}, but vendor mode always "
+            "generates its own fusion file from the raw input - the one "
+            "you passed is being ignored.")
 
     scratch_dir = create_random_name_folder(output_folder)
 
@@ -364,17 +463,27 @@ def run_vendor_adapter(
     overrides = dict(config.items(section)) if config.has_section(section) else {}
     run_kwargs = {**scratch_defaults, **overrides}
 
-    logger.info(f"Running '{pipeline}' vendor adapter against '{raw_input}'...")
-    result = adapter.run(folder=raw_input, **run_kwargs)
+    # Samplesheet (selection.tsv) vs. whole-run-folder mode: same
+    # is_file()/is_dir() distinction -i's argument already uses elsewhere
+    # in this codebase (see walk._walk_setup()) - not a vendor-guessing
+    # heuristic, just "is this a file or a folder".
+    is_samplesheet = Path(raw_input).is_file()
+    kind = "selection" if is_samplesheet else "folder"
+    logger.info(
+        f"Running '{pipeline}' vendor adapter against {kind} '{raw_input}'...")
+    if is_samplesheet:
+        result = adapter.run(selection=raw_input, **run_kwargs)
+    else:
+        result = adapter.run(folder=raw_input, **run_kwargs)
 
     if result is None:
         clear_scratch(scratch_dir)
         msg = (
             f"The '{pipeline}' vendor adapter found no usable data in "
             f"'{raw_input}'. Check that this is really a {pipeline} run "
-            "folder/selection file, and that --pipeline (or conf.ini's "
-            "[Vendor] PIPELINE) matches the vendor that actually produced "
-            "this input - this is not auto-detected.")
+            "folder/selection file, and that conf.ini's [Vendor] PIPELINE "
+            "matches the vendor that actually produced this input - this "
+            "is not auto-detected.")
         raise ValueError(msg)
 
     sample_tsv = str(result["report_path"])
@@ -437,26 +546,13 @@ if __name__ == "__main__":
 
     parser.add_argument("-i", "--varan_input", nargs="+", required=False, type=str,
     help=("list with 1) input folder/sample file tsv (required) "
-    "2) patient tsv 3) fusion file. If --pipeline selects a vendor "
-    "(not 'native'), 1) is instead that vendor's raw run input (e.g. an "
-    "S3 folder) and 3) is not used - the vendor adapter generates its "
-    "own fusion file."))
-
-    parser.add_argument(
-        "--pipeline", required=False, default=None,
-        choices=["native", *sorted(ADAPTERS)],
-        help=(
-            "Which vendor produced -i's input. 'native' (the default if "
-            "neither this flag nor conf.ini's [Vendor] PIPELINE is set) "
-            "means -i already points at Varan's own sample.tsv/patient.tsv/"
-            "[fusion.tsv] or an already-shaped SNV/CNV/CombinedOutput "
-            "folder - today's unchanged behavior. Any other value runs "
-            "that vendor's preprocessing adapter (vendor_adapters/<name>.py) "
-            "against -i's raw input automatically before the rest of the "
-            "pipeline, so you no longer need to run create_Varan_input.py "
-            "yourself first. This is an explicit choice, not "
-            "auto-detected from the input's content - a CLI value here "
-            "always overrides conf.ini's [Vendor] PIPELINE."))
+    "2) patient tsv 3) fusion file. If conf.ini's [Vendor] PIPELINE "
+    "selects a vendor (not blank/illumina_solid/illumina_liquid), 1) is "
+    "instead that vendor's raw input - either a run folder/S3 folder, or "
+    "a local samplesheet file - and 3) is not used, since the vendor "
+    "adapter generates its own fusion file. See MULTIVENDOR_INTEGRATION_"
+    "NOTES.md; vendor selection is conf.ini-only, there is no CLI flag "
+    "for it."))
 
     parser.add_argument("-t", "--analysis_type", required=False,
     choices=["snv", "cnv", "fus", "tab"],
@@ -523,6 +619,27 @@ if __name__ == "__main__":
         # is what makes --config actually take effect instead of being
         # silently ignored. See config_loader.py for the full explanation.
         set_config_path(args.config)
+
+        # VENDOR PIPELINE RESOLUTION + SAMPLE_TYPE RECONCILIATION
+        #
+        # conf.ini-only, explicit selection - see resolve_pipeline()'s
+        # docstring for why there's no --pipeline CLI flag. Must happen
+        # here, before `walk` is imported below: walk.py reads
+        # [Sample_Type] TYPE into a module-level global at ITS OWN import
+        # time, from the same shared config_loader singleton
+        # reconcile_sample_type() mutates in place - anything decided
+        # after that import would be too late for walk.py to see.
+        pipeline = resolve_pipeline()
+        known_pipelines = {"", *ILLUMINA_PIPELINE_SAMPLE_TYPES, *ADAPTERS}
+        if pipeline not in known_pipelines:
+            logger.critical(
+                f"conf.ini's [Vendor] PIPELINE is '{pipeline}', which isn't "
+                "a known value (blank, "
+                f"{', '.join(sorted(ILLUMINA_PIPELINE_SAMPLE_TYPES))}, or a "
+                f"registered vendor: {', '.join(sorted(ADAPTERS)) or '(none registered)'}"
+                "). Fix conf.ini.")
+            sys.exit(1)
+        reconcile_sample_type(pipeline)
 
         from concatenate import concatenate_main
         from Delete_script import delete_main
@@ -599,22 +716,16 @@ if __name__ == "__main__":
                 "Please select only one!")
             sys.exit(1)
 
-        # VENDOR PIPELINE DISPATCH
+        # VENDOR ADAPTER DISPATCH
         #
-        # Explicit selection only (--pipeline, falling back to conf.ini's
-        # [Vendor] PIPELINE, falling back to "native") - never auto-detected
-        # from -i's content. See resolve_pipeline()'s docstring for why.
-        pipeline = resolve_pipeline(args.pipeline)
-        if pipeline not in {"native", *ADAPTERS}:
-            logger.critical(
-                f"conf.ini's [Vendor] PIPELINE is '{pipeline}', which isn't "
-                f"a registered vendor (known: native, "
-                f"{', '.join(sorted(ADAPTERS))}). Fix conf.ini, or pass "
-                "--pipeline explicitly.")
-            sys.exit(1)
-
+        # pipeline was already resolved and validated above (before the
+        # module imports). Only a registered vendor name (not blank, and
+        # not the two adapter-free illumina_solid/illumina_liquid values)
+        # actually needs a conversion step - and only for a "create" run,
+        # never for update/extract/remove (which don't consume -i as raw
+        # vendor input the same way).
         scratch_dir = None
-        if pipeline != "native" and not any([update, extract, remove]):
+        if pipeline in ADAPTERS and not any([update, extract, remove]):
             varan_input, scratch_dir = run_vendor_adapter(
                 pipeline, varan_input, output_folder)
 
