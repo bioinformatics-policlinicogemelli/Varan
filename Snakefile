@@ -65,6 +65,8 @@ def _create_setup_args() -> str:
         args += " --multiple"
     if _c.get("oncokb"):
         args += " --oncokb"
+    if _c.get("sigma"):
+        args += " --sigma"
     if _c.get("vcf_type"):
         args += f" --vcf-type {_c['vcf_type']}"
     if _c.get("filters"):
@@ -84,6 +86,8 @@ def _create_rest_args() -> str:
         args += " -m"
     if _c.get("oncokb"):
         args += " -k"
+    if _c.get("sigma"):
+        args += " -g"
     if _c.get("vcf_type"):
         args += f" -t {_c['vcf_type']}"
     if _c.get("filters"):

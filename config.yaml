@@ -24,6 +24,7 @@ create:
   resume: false
   multiple: false
   oncokb: false
+  sigma: false  # run SigMA mutational-signature analysis per sample (see [SigMA] in conf.ini)
   vcf_type: ""  # one of snv, cnv, fus, tab; empty = auto-detect
   filters: ""
 

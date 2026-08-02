@@ -73,6 +73,7 @@ def _cmd_setup(args: argparse.Namespace) -> None:
         resume=args.resume,
         vcf_type=args.vcf_type,
         filters=args.filters or "",
+        sigma=args.sigma,
     )
     ctx_out = Path(args.ctx_out)
     ctx_out.parent.mkdir(parents=True, exist_ok=True)
@@ -123,6 +124,7 @@ def build_parser() -> argparse.ArgumentParser:
     setup_p.add_argument("-c", "--cancer", required=True)
     setup_p.add_argument("--multiple", action="store_true")
     setup_p.add_argument("--oncokb", action="store_true")
+    setup_p.add_argument("--sigma", action="store_true")
     setup_p.add_argument("--overwrite", action="store_true")
     setup_p.add_argument("--resume", action="store_true")
     setup_p.add_argument(

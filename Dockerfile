@@ -50,6 +50,40 @@ RUN git clone $CBIO_URL
 RUN mv cbioportal-core/scripts/importer .
 RUN rm -r cbioportal-core
 
+#install R + SigMA (mutational signature / HRD analysis, run_sigma.R),
+#only exercised when varan.py is called with -g/--sigma - see
+#SIGMA_INTEGRATION_FEASIBILITY.md and sigma_runner.py for the full design.
+#System libraries here are what SigMA's own Bioconductor/CRAN dependency
+#tree needs to build from source - libuv1-dev/libharfbuzz-dev/
+#libfribidi-dev/libfreetype-dev/libtiff5-dev/libjpeg-dev were added after
+#an actual build of this exact block failed on the 'fs' and 'textshaping'
+#packages (missing uv.h / hb-ft.h respectively), which cascade-failed
+#devtools's own dependency tree (usethis/pkgdown/pkgload/roxygen2/
+#testthat all transitively need 'fs'; ragg/textshaping feed rmarkdown/
+#bslib/shiny) - see SIGMA_INTEGRATION_FEASIBILITY.md's conda-vs-Docker
+#note for why the conda path (prebuilt binaries, no header-hunting) is
+#recommended over this one where a conda/mamba environment is available.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        r-base r-base-dev \
+        libcurl4-openssl-dev libxml2-dev libpng-dev liblzma-dev libbz2-dev \
+        libglpk-dev libuv1-dev libharfbuzz-dev libfribidi-dev \
+        libfreetype-dev libtiff5-dev libjpeg-dev gfortran && \
+    rm -rf /var/lib/apt/lists/*
+
+#Bioconductor packages first (binary/source via BiocManager), then SigMA
+#itself from GitHub (it isn't on CRAN/Bioconductor). Only the hg19 BSgenome
+#is installed - Varan's own pipeline is hg19/GRCh37 end to end today (see
+#conf.ini's VEP_DATA cache and the CNA pipeline's data_cna_hg19.* naming);
+#add BSgenome.Hsapiens.UCSC.hg38 here too if Varan ever grows hg38 support.
+RUN R -e 'install.packages("BiocManager", repos="https://cloud.r-project.org")' && \
+    R -e 'BiocManager::install(c( \
+        "BSgenome", "BSgenome.Hsapiens.UCSC.hg19", "VariantAnnotation", \
+        "GenomicRanges", "IRanges", "gbm", "nnls", "reshape2", "Rmisc", \
+        "DT", "gridExtra", "ggplot2", "devtools"), update = FALSE, ask = FALSE)' && \
+    R -e 'devtools::install_github("parklab/SigMA", dependencies = FALSE, upgrade = "never")' && \
+    R -e 'library(SigMA)'
+
 COPY . /
 
 ENTRYPOINT [ "python3", "/varan.py"]
