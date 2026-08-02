@@ -85,6 +85,7 @@ def varan(
     update: bool = False,
     extract: bool = False,
     remove: bool = False,
+    sigma: bool = False,
 ) -> None:
     """Run the full Varan pipeline workflow based on provided arguments.
 
@@ -118,6 +119,10 @@ def varan(
         Whether to run the extract samples process, by default False.
     remove : bool, optional
         Whether to run the remove samples process, by default False.
+    sigma : bool, optional
+        Whether to run SigMA mutational-signature analysis per sample, by
+        default False. The sole on/off switch - SigMA's own parameters all
+        live in conf.ini's [SigMA] section.
 
     Returns
     -------
@@ -132,7 +137,7 @@ def varan(
             f"filters:{filters}, cancer:{cancer}, oncoKB:{oncokb}, "
             f"analysis_type:{analysis_type}, overwrite_output:{overwrite_output}, "
             f"resume:{resume}, multiple:{multiple}, update:{update}, "
-            f"extract:{extract}, remove:{remove}]")
+            f"extract:{extract}, remove:{remove}, sigma:{sigma}]")
 
         ###########################
         #        1.  WALK         #
@@ -141,7 +146,7 @@ def varan(
         logger.info("Starting preparation study folder")
         output_folder, varan_input, _ = walk_folder(
             varan_input, multiple, output_folder, oncokb, cancer,
-            overwrite_output, resume, analysis_type, filters,
+            overwrite_output, resume, analysis_type, filters, sigma,
             )
 
 
@@ -304,6 +309,13 @@ if __name__ == "__main__":
                         help="OncoKB annotation")
     parser.add_argument("-m", "--multiple", required=False, action="store_true",
                         help="Multiple sample VCF?")
+    parser.add_argument("-g", "--sigma", required=False, action="store_true",
+                        help=("Run SigMA mutational-signature (Signature 3 / HRD) "
+                        "analysis per sample. This is the sole on/off switch - all "
+                        "of SigMA's own parameters (SNV_CUTOFF, TUMOR_TYPE_OVERRIDE, "
+                        "FALLBACK_TO_OTHER, COSMIC_VERSION, LITE_FORMAT, "
+                        "SIGNATURE3_POSITIVE_THRESHOLD, VAF_MIN, VAF_EXCLUDE_BANDS, "
+                        "DATA_PLATFORM, CHECK_MSI) live in conf.ini's [SigMA] section"))
 
     # FILTER BLOCK
     parser.add_argument("-f", "--Filter", required=False, default="",
@@ -372,6 +384,7 @@ if __name__ == "__main__":
         resume=args.resume
         oncokb=args.oncokb
         multiple=args.multiple
+        sigma=args.sigma
 
         update=args.Update
         extract=args.Extract
@@ -442,7 +455,8 @@ if __name__ == "__main__":
             multiple,
             update,
             extract,
-            remove)
+            remove,
+            sigma)
 
     except ValueError as err:
         logger.critical(f"ValueError: {err}", file=sys.stderr)

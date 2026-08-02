@@ -50,6 +50,34 @@ RUN git clone $CBIO_URL
 RUN mv cbioportal-core/scripts/importer .
 RUN rm -r cbioportal-core
 
+#install R + SigMA (mutational signature / HRD analysis, run_sigma.R),
+#only exercised when varan.py is called with -g/--sigma - see
+#SIGMA_INTEGRATION_FEASIBILITY.md and sigma_runner.py for the full design.
+#System libraries here are what SigMA's own Bioconductor/CRAN dependency
+#tree (VariantAnnotation, GenomicRanges, BSgenome, gbm, nnls, ...) needs to
+#build from source - confirmed by an actual smoke-test build of this same
+#dependency set in a throwaway container this round (see commit message/
+#report for details), not guessed from documentation alone.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        r-base r-base-dev \
+        libcurl4-openssl-dev libxml2-dev libpng-dev liblzma-dev libbz2-dev \
+        libglpk-dev gfortran && \
+    rm -rf /var/lib/apt/lists/*
+
+#Bioconductor packages first (binary/source via BiocManager), then SigMA
+#itself from GitHub (it isn't on CRAN/Bioconductor). Only the hg19 BSgenome
+#is installed - Varan's own pipeline is hg19/GRCh37 end to end today (see
+#conf.ini's VEP_DATA cache and the CNA pipeline's data_cna_hg19.* naming);
+#add BSgenome.Hsapiens.UCSC.hg38 here too if Varan ever grows hg38 support.
+RUN R -e 'install.packages("BiocManager", repos="https://cloud.r-project.org")' && \
+    R -e 'BiocManager::install(c( \
+        "BSgenome", "BSgenome.Hsapiens.UCSC.hg19", "VariantAnnotation", \
+        "GenomicRanges", "IRanges", "gbm", "nnls", "reshape2", "Rmisc", \
+        "DT", "gridExtra", "ggplot2", "devtools"), update = FALSE, ask = FALSE)' && \
+    R -e 'devtools::install_github("parklab/SigMA", dependencies = FALSE, upgrade = "never")' && \
+    R -e 'library(SigMA)'
+
 COPY . /
 
 ENTRYPOINT [ "python3", "/varan.py"]
