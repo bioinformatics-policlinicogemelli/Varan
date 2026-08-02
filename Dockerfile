@@ -54,15 +54,21 @@ RUN rm -r cbioportal-core
 #only exercised when varan.py is called with -g/--sigma - see
 #SIGMA_INTEGRATION_FEASIBILITY.md and sigma_runner.py for the full design.
 #System libraries here are what SigMA's own Bioconductor/CRAN dependency
-#tree (VariantAnnotation, GenomicRanges, BSgenome, gbm, nnls, ...) needs to
-#build from source - confirmed by an actual smoke-test build of this same
-#dependency set in a throwaway container this round (see commit message/
-#report for details), not guessed from documentation alone.
+#tree needs to build from source - libuv1-dev/libharfbuzz-dev/
+#libfribidi-dev/libfreetype-dev/libtiff5-dev/libjpeg-dev were added after
+#an actual build of this exact block failed on the 'fs' and 'textshaping'
+#packages (missing uv.h / hb-ft.h respectively), which cascade-failed
+#devtools's own dependency tree (usethis/pkgdown/pkgload/roxygen2/
+#testthat all transitively need 'fs'; ragg/textshaping feed rmarkdown/
+#bslib/shiny) - see SIGMA_INTEGRATION_FEASIBILITY.md's conda-vs-Docker
+#note for why the conda path (prebuilt binaries, no header-hunting) is
+#recommended over this one where a conda/mamba environment is available.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         r-base r-base-dev \
         libcurl4-openssl-dev libxml2-dev libpng-dev liblzma-dev libbz2-dev \
-        libglpk-dev gfortran && \
+        libglpk-dev libuv1-dev libharfbuzz-dev libfribidi-dev \
+        libfreetype-dev libtiff5-dev libjpeg-dev gfortran && \
     rm -rf /var/lib/apt/lists/*
 
 #Bioconductor packages first (binary/source via BiocManager), then SigMA
