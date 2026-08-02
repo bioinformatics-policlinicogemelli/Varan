@@ -1,7 +1,25 @@
-"""Guardant360 (FPG360) vendor adapter: converts a per-sample VCF +
-`.cnv_call.hdr.tsv` + `.msi_call.hdr.tsv` + `_finalmetadata.xml` (fetched
-from an S3 run folder) into the sample.tsv / {run_id}_fusions.tsv shape
-Varan's own `varan.py -i` flag consumes.
+"""Guardant360 (FPG360) vendor adapter: converts a per-sample somatic VCF,
+`.cnv_call.hdr.tsv`, `.msi_call.hdr.tsv`, `.fusion_call.hdr.tsv` and
+`_finalmetadata.xml`/`_metadata.xml` into the sample.tsv /
+{run_id}_fusions.tsv shape Varan's own `varan.py -i` flag consumes.
+
+That's 5 file types total per sample, not 4 - only 2 are actually
+mandatory: the somatic **VCF** and the **metadata XML** (patient ID +
+ONCOTREE code come from it; a sample missing either is skipped entirely).
+**CNV**, **MSI**, and **fusion** reports are each independently optional -
+a sample missing any one of them still gets processed, just without that
+data type (see process_single_sample()'s docstring, and
+MULTIVENDOR_INTEGRATION_NOTES.md's "minimum inputs needed" section for the
+concrete per-mode breakdown).
+
+Two ways to point this adapter at a sample's files (see `run()`):
+1. A whole run folder (`folder=`), auto-discovering every sample's 5 files
+   by Guardant's usual per-run S3 filename/suffix convention.
+2. A samplesheet (`selection=`, a TSV keyed by `sample_id`), where each
+   row can either name a run folder to auto-discover from, or give
+   explicit per-file paths (local or "s3://...") that bypass
+   auto-discovery entirely - useful when a batch doesn't follow the usual
+   convention, or only needs specific samples out of a larger run.
 
 This is the first (reference) vendor adapter under `vendor_adapters/`,
 moved here from the formerly-standalone `create_Varan_input.py` script.
@@ -60,6 +78,14 @@ from vendor_adapters.common import (
 )
 
 NAME = "guardant"
+
+# Guardant360 CDx is a ctDNA (blood plasma) liquid-biopsy assay only - it has
+# no solid-tumor/tissue variant. Declaring this here lets varan.py auto-fill
+# (or validate consistency of) conf.ini's [Sample_Type] TYPE from the
+# selected vendor, instead of requiring it to be set independently and
+# risking drift (PIPELINE=guardant with a forgotten/mismatched TYPE=Solid).
+# See varan.reconcile_sample_type() and MULTIVENDOR_INTEGRATION_NOTES.md.
+SAMPLE_TYPE = "Liquid"
 
 # --- DEFAULT PATHS (deployment-specific; override via run()'s kwargs for
 # a different environment/test setup rather than editing these) ---
@@ -322,67 +348,148 @@ def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
 
 
 def process_single_sample(
-    sid: str, s3_folder: str, run_id_default: str,
+    sid: str, s3_folder: Optional[str], run_id_default: str,
     onco_dict: Tuple[Dict[str, str], set], fusion_table_path: str,
     xml_folder: Optional[str] = None, *,
+    explicit_paths: Optional[Dict[str, str]] = None,
     vcf_base_dir: str = VCF_BASE_DIR, temp_local_dir: str = TEMP_LOCAL_DIR,
 ) -> Optional[SampleRow]:
-    """Fetch one Guardant sample's files from S3, convert them, and return
-    a `SampleRow` (or None if the required VCF/metadata can't be found)."""
+    """Fetch one Guardant sample's files, convert them, and return a
+    `SampleRow` (or None if a required file can't be found).
+
+    Two ways to locate a sample's files, usable together or separately:
+
+    1. **Folder auto-discovery** (`s3_folder`/`xml_folder`, as before this
+       samplesheet-mode extension): filenames are found by suffix + sample
+       ID substring match within an S3 run folder's file listing.
+    2. **Explicit per-file paths** (`explicit_paths`, new): a dict with any
+       of the keys "xml", "vcf", "msi", "cnv", "fus" mapping directly to
+       that file's own path - a local filesystem path, or an "s3://..."
+       URI - bypassing auto-discovery entirely for that file type. This is
+       the escape hatch for a samplesheet batch that doesn't follow
+       Guardant's usual per-run S3 folder/filename convention (see
+       `run()`'s `selection` mode).
+
+    An explicit path always takes precedence over auto-discovery for a
+    given file type. `s3_folder` itself is optional now: a sample whose
+    row supplies every file type it needs via `explicit_paths` doesn't
+    need one.
+
+    "xml" (metadata) and "vcf" are the only two mandatory file types -
+    if neither an explicit path nor folder auto-discovery resolves one of
+    those two, the whole sample is skipped (returns None), same behavior
+    as before this refactor. "msi"/"cnv"/"fus" are each independently
+    optional - this was already true before this refactor (the rest of
+    this function already tolerates any of them being absent), but this
+    refactor makes that graceful-skip reachable through explicit-path/
+    no-folder samplesheet rows too, and logs clearly which data type is
+    being skipped and why, rather than silently proceeding - see the
+    user-facing "no CNV data for this sample" / "MSI/CNV files don't
+    combine well for this sample" scenarios in
+    MULTIVENDOR_INTEGRATION_NOTES.md.
+
+    Local explicit paths are used as-is and are never deleted by this
+    function's own temp-file cleanup (only files this function itself
+    downloaded into `temp_local_dir` are cleaned up) - explicit s3://
+    paths ARE downloaded into `temp_local_dir` like auto-discovered files,
+    and are cleaned up the same way.
+    """
+    explicit_paths = explicit_paths or {}
+    s3_folder = (s3_folder or "").rstrip("/")
     if xml_folder is None:
         xml_folder = s3_folder
+    else:
+        xml_folder = xml_folder.rstrip("/")
 
-    s3_files = list_s3_files(s3_folder)
-    xml_files = list_s3_files(xml_folder) if xml_folder != s3_folder else s3_files
+    def list_folder(folder: str) -> list:
+        return list_s3_files(folder) if folder else []
+
+    s3_files = list_folder(s3_folder)
+    xml_files = list_folder(xml_folder) if xml_folder != s3_folder else s3_files
 
     clean_sid = sid.rstrip("_")
+    owned_paths: set = set()  # our own temp downloads - safe to delete after use
 
-    def find_file_in_list(suffix, files_list):
+    def find_file_in_list(suffix: str, files_list: list) -> Optional[str]:
         for f in files_list if files_list else []:
             if f.endswith(suffix) and clean_sid in f and not f.startswith("AIO"):
                 return f
         return None
 
-    xml_name = find_file_in_list("_finalmetadata.xml", xml_files)
-
-    if not xml_name and xml_folder == s3_folder:
-        backup_folder = s3_folder.rstrip("/") + "_2"
-        print(f"[{sid}] Metadata not found in {s3_folder}. Trying backup path: {backup_folder}")
-        backup_files = list_s3_files(backup_folder)
-        xml_name = find_file_in_list("_finalmetadata.xml", backup_files)
-        if xml_name:
-            xml_folder = backup_folder
-            print(f"[{sid}] Metadata FOUND in backup folder: {xml_name}")
-        else:
-            print(f"[{sid}] Metadata not found in any path.")
+    def fetch_explicit(key: str, path: str) -> Optional[str]:
+        if path.startswith("s3://"):
+            local_p = os.path.join(temp_local_dir, f"{sid}_{key}_{Path(path).name}")
+            if run_cmd(f"aws s3 cp {path} {local_p}"):
+                owned_paths.add(local_p)
+                return local_p
+            print(f"[{sid}] Could not fetch explicit {key} path from S3: {path}")
             return None
-
-    # NOTE: no "comb" (comb_path/CombinedVariantOutput) target - fusions
-    # are routed through common.append_fusions_to_table() instead, see
-    # module docstring.
-    file_targets = {
-        "xml": (xml_name, xml_folder),
-        "vcf": (find_file_in_list(".vcf", s3_files), s3_folder),
-        "msi": (find_file_in_list(".msi_call.hdr.tsv", s3_files), s3_folder),
-        "cnv": (find_file_in_list(".cnv_call.hdr.tsv", s3_files), s3_folder),
-        "fus": (find_file_in_list(".fusion_call.hdr.tsv", s3_files), s3_folder),
-    }
-
-    local_files = {}
-    for key, target in file_targets.items():
-        if target:
-            fname, folder_path = target
-            if fname:
-                local_p = os.path.join(temp_local_dir, f"{sid}_{fname}")
-                if run_cmd(f"aws s3 cp {folder_path.rstrip('/')}/{fname} {local_p}"):
-                    local_files[key] = local_p
-
-    if "vcf" not in local_files:
-        print(f"VCF missing for {sid}")
+        if os.path.exists(path):
+            return path
+        print(f"[{sid}] Explicit {key} path does not exist: {path}")
         return None
 
-    p_id, o_code = get_xml_data(local_files["xml"], onco_dict)
-    m_info = get_msi_data(local_files.get("msi"))
+    def fetch_auto(key: str, fname: str, folder: str) -> Optional[str]:
+        local_p = os.path.join(temp_local_dir, f"{sid}_{fname}")
+        if run_cmd(f"aws s3 cp {folder.rstrip('/')}/{fname} {local_p}"):
+            owned_paths.add(local_p)
+            return local_p
+        print(f"[{sid}] Could not fetch auto-discovered {key} file "
+              f"'{fname}' from {folder}")
+        return None
+
+    def resolve(key: str, suffix: str, folder: str, files_list: list,
+                *, required: bool) -> Optional[str]:
+        explicit = explicit_paths.get(key)
+        if explicit:
+            return fetch_explicit(key, explicit)
+        fname = find_file_in_list(suffix, files_list)
+        if fname and folder:
+            return fetch_auto(key, fname, folder)
+        kind = "Required" if required else "Optional"
+        action = "skipping this sample" if required else "skipping this data type for this sample"
+        print(f"[{sid}] {kind} file type '{key}' not available (no explicit "
+              f"path given, and {'no folder to auto-discover from' if not folder else f'no {suffix} match found'}) "
+              f"- {action}.")
+        return None
+
+    # --- XML metadata (required) - keeps the original backup-folder ("_2")
+    # fallback, but only when relying on folder auto-discovery; an explicit
+    # xml path fully resolves the file, so the fallback doesn't apply.
+    xml_explicit = explicit_paths.get("xml")
+    if xml_explicit:
+        xml_local = fetch_explicit("xml", xml_explicit)
+    elif xml_folder:
+        xml_name = find_file_in_list("_finalmetadata.xml", xml_files)
+        if not xml_name:
+            backup_folder = xml_folder + "_2"
+            print(f"[{sid}] Metadata not found in {xml_folder}. Trying backup path: {backup_folder}")
+            backup_files = list_folder(backup_folder)
+            xml_name = find_file_in_list("_finalmetadata.xml", backup_files)
+            if xml_name:
+                xml_folder = backup_folder
+                print(f"[{sid}] Metadata FOUND in backup folder: {xml_name}")
+        xml_local = fetch_auto("xml", xml_name, xml_folder) if xml_name else None
+    else:
+        xml_local = None
+
+    if not xml_local:
+        print(f"[{sid}] Required file type 'xml' (metadata) not available "
+              "in any path - skipping this sample.")
+        return None
+
+    # --- VCF (required, no backup-folder fallback - same as before) ---
+    vcf_local = resolve("vcf", ".vcf", s3_folder, s3_files, required=True)
+    if not vcf_local:
+        return None
+
+    # --- MSI / CNV / fusion (each independently optional) ---
+    msi_local = resolve("msi", ".msi_call.hdr.tsv", s3_folder, s3_files, required=False)
+    cnv_local = resolve("cnv", ".cnv_call.hdr.tsv", s3_folder, s3_files, required=False)
+    fus_local = resolve("fus", ".fusion_call.hdr.tsv", s3_folder, s3_files, required=False)
+
+    p_id, o_code = get_xml_data(xml_local, onco_dict)
+    m_info = get_msi_data(msi_local)
     run_id_final = m_info["run_id"] if m_info["run_id"] != "UNKNOWN_RUN" else run_id_default
 
     v_out = os.path.join(vcf_base_dir, run_id_final, sid)
@@ -390,17 +497,22 @@ def process_single_sample(
 
     snv_f, cnv_f = os.path.join(v_out, f"{sid}.snv.vcf"), os.path.join(v_out, f"{sid}.cnv.vcf")
 
-    process_vcf(local_files["vcf"], local_files.get("cnv"), snv_f, cnv_f, sid)
+    process_vcf(vcf_local, cnv_local, snv_f, cnv_f, sid)
 
-    fusions_list = load_fusions(local_files.get("fus"))
+    fusions_list = load_fusions(fus_local)
     append_fusions_to_table(fusion_table_path, sid, fusions_list)
 
-    for p in local_files.values():
+    for p in owned_paths:
         if os.path.exists(p):
             os.remove(p)
 
     # comb_path is always blank and TMB/TMB_THR are always blank: Guardant360
     # CDx has no TMB field anywhere in either metadata XML variant checked.
+    # cnv_path is always cnv_f, whether or not .cnv_call.hdr.tsv was found:
+    # process_vcf() always creates a valid CNV VCF (empty/FAIL-only when no
+    # CNV report or no structural rows are available) - unchanged from
+    # before this refactor, "missing CNV report" shows up as an empty/
+    # unattributed CNV VCF, not as a blanked-out cnv_path column.
     return SampleRow(
         sample_id=sid, patient_id=p_id, run_id=run_id_final,
         oncotree_code=o_code, snv_path=snv_f, cnv_path=cnv_f, comb_path="",
@@ -408,15 +520,56 @@ def process_single_sample(
     )
 
 
+# selection.tsv column names recognized as explicit per-file path
+# overrides, keyed by the internal file-type key process_single_sample()
+# uses. Several aliases are accepted per key (e.g. "fusion_path" or
+# "fus_path") since this is meant to be a forgiving, samplesheet-style
+# contract, not a rigid one - any column not listed here is simply
+# ignored (not an error), so a selection.tsv can carry its own extra
+# bookkeeping columns (notes, batch name, etc.) freely.
+_SELECTION_PATH_COLUMNS = {
+    "xml": ("xml_path", "metadata_path", "finalmetadata_path"),
+    "vcf": ("vcf_path", "snv_vcf_path"),
+    "msi": ("msi_path", "msi_call_path"),
+    "cnv": ("cnv_path", "cnv_call_path"),
+    "fus": ("fusion_path", "fus_path", "fusion_call_path"),
+}
+
+
 def run(
     folder: Optional[str] = None, selection: Optional[str] = None, *,
     dict_path: str = DICT_PATH, report_base_dir: str = REPORT_BASE_DIR,
     vcf_base_dir: str = VCF_BASE_DIR, temp_local_dir: str = TEMP_LOCAL_DIR,
 ) -> Optional[Dict[str, object]]:
-    """Convert one Guardant run (`folder`, an S3 run folder) or a batch of
-    samples pulled from arbitrary run folders (`selection`, a TSV with
-    `sample_id`/`s3_path_run` columns) into a sample.tsv + fusions.tsv
-    pair.
+    """Convert one Guardant run (`folder`, an S3 run folder, auto-
+    discovering every sample's files by convention) or a samplesheet-style
+    batch (`selection`, a TSV - see column schema below) into a
+    sample.tsv + fusions.tsv pair.
+
+    `selection`'s only strictly required column is `sample_id`. Every
+    other column is optional and independently recognized when present:
+
+    - `s3_path_run`: an S3 run folder to auto-discover this sample's
+      files from (Guardant's usual filename/suffix convention) - the
+      original, still fully backward-compatible column. Optional now: a
+      row that supplies every file type it needs via the explicit path
+      columns below doesn't need one.
+    - `xml_path` (or `metadata_path`/`finalmetadata_path`), `vcf_path`
+      (or `snv_vcf_path`), `msi_path` (or `msi_call_path`), `cnv_path`
+      (or `cnv_call_path`), `fusion_path` (or `fus_path`/
+      `fusion_call_path`): an explicit path to that one file - a local
+      filesystem path, or an "s3://..." URI - overriding auto-discovery
+      for that file type only. Useful when a batch doesn't follow
+      Guardant's usual per-run folder/filename convention, or when
+      different samples' files live in genuinely different places.
+
+    Any of the per-file columns may be left blank for a given row: `xml`/
+    `vcf` are required (that sample is skipped, with a clear message, if
+    neither an explicit path nor `s3_path_run` auto-discovery resolves
+    them) - `msi`/`cnv`/`fus` are each independently optional (that data
+    type alone is skipped for that sample, with a clear message, rather
+    than failing the whole row). See process_single_sample()'s docstring
+    for the exact resolution order.
 
     Plain function, explicit inputs/outputs (no argparse/sys.argv/module
     globals involved beyond the path defaults above) so this can be called
@@ -469,10 +622,38 @@ def run(
         with open(selection, "r") as f:
             reader = csv.DictReader(f, delimiter="\t")
             for row in reader:
-                sid, s3_folder = row["sample_id"], row["s3_path_run"].rstrip("/")
-                run_id_tmp = os.path.basename(s3_folder).split(".")[0]
+                sid = (row.get("sample_id") or "").strip()
+                if not sid:
+                    print("Skipping a selection row with no sample_id.")
+                    continue
+
+                # s3_path_run is now optional: a row that supplies every
+                # file it needs via the explicit *_path columns below
+                # doesn't need a run folder to auto-discover from at all.
+                s3_folder = (row.get("s3_path_run") or "").strip().rstrip("/")
+
+                # Flexible columns: any of these, if present and non-blank
+                # for this row, is used directly as that file's own path
+                # (local path or s3://...), bypassing folder auto-discovery
+                # for that file type only - see process_single_sample()'s
+                # docstring. Columns not present in this particular
+                # selection.tsv (e.g. an old sample_id/s3_path_run-only
+                # file) are simply never populated here, so behavior for
+                # such files is byte-identical to before this extension.
+                explicit_paths = {}
+                for key, columns in _SELECTION_PATH_COLUMNS.items():
+                    for col in columns:
+                        val = (row.get(col) or "").strip()
+                        if val:
+                            explicit_paths[key] = val
+                            break
+
+                run_id_tmp = (
+                    os.path.basename(s3_folder).split(".")[0]
+                    if s3_folder else main_run_id)
                 res = process_single_sample(
-                    sid, s3_folder, run_id_tmp, onco_dict, fusion_table_path,
+                    sid, s3_folder or None, run_id_tmp, onco_dict, fusion_table_path,
+                    explicit_paths=explicit_paths,
                     vcf_base_dir=vcf_base_dir, temp_local_dir=temp_local_dir)
                 if res:
                     report_data.append(res)

@@ -1,5 +1,278 @@
 # Multi-vendor input generation for Varan — architecture and status
 
+## Round 3: conf.ini-only selection, real pipeline names, sample-type unification, and samplesheet-mode input
+
+This round changes four things about round 2's design, based on direct
+user feedback after using it. **This section is the current, authoritative
+reference for vendor selection and dispatch** - round 2's section below is
+kept for its still-accurate design rationale (scratch-folder reuse, the
+copy-out-of-scratch mechanics, the "adapter finds nothing" sanity check)
+but its `--pipeline` CLI flag and `"native"` pipeline name no longer exist;
+read this section first.
+
+### 1. Vendor selection is now conf.ini-only - no CLI flag
+
+Round 2 added a `--pipeline` CLI flag alongside conf.ini's `[Vendor]
+PIPELINE`, with the flag taking precedence. Removed: `varan.py` no longer
+has a `--pipeline` argument at all. `resolve_pipeline()` now just reads
+`get_config().get("Vendor", "PIPELINE", fallback="").strip()` directly -
+conf.ini is the *only* place vendor selection lives. This matches the
+original framing of conf.ini's `[Vendor] PIPELINE` as "meant for a future
+GUI to render as a dropdown of known, registered options" - a single
+source of truth is simpler for that GUI to drive than a value that can be
+set two different ways with a precedence rule to explain.
+
+### 2. Real pipeline names: `illumina_solid` / `illumina_liquid`, not `native`
+
+The user explicitly rejected `"native"` as too vague and asked for the
+actual, precise name(s) already used for Varan's own built-in ingestion
+path - investigated rather than guessed:
+
+- `README.md` (lines 12, 22): *"Varan turns raw variant-calling output
+  (VCF, MAF, **Illumina TSO500** `CombinedVariantOutput`/`MetricsOutput`,
+  and more)..."* and *"**TSO500-aware.** Reads TMB, MSI, fusions, HRD/
+  Genomic Instability Score, and exon-level BRCA1/BRCA2 CNVs straight out
+  of **Illumina's** `CombinedVariantOutput`/`MetricsOutput` files..."*
+- `walk.py` already uses exactly this vocabulary in its own code comments,
+  independent of anything written for this feature: line ~935's *"native
+  **TSO500** CombinedOutput ingestion"*, and `fill_from_file()`'s
+  docstring (~line 1795): *"...forced **non-Illumina pipelines (e.g.
+  Guardant)** that already know their own threshold to encode it via a
+  fake VALUE..."* - i.e. this codebase already calls Guardant
+  "non-Illumina" and treats "Illumina"/"TSO500" as the term for its own
+  native path, well before this multivendor effort started.
+- `tsv.py` independently cross-references "Illumina's own TSO500 v2.2"
+  documentation for its CombinedVariantOutput.tsv parsing.
+
+So `"illumina"` is not a guess - it's this codebase's own pre-existing
+term for "the built-in path, no adapter needed". The reason for landing on
+**two** values (`illumina_solid`/`illumina_liquid`) rather than one plain
+`illumina` comes from investigating `[Sample_Type] TYPE` (see point 3
+below): Illumina genuinely ships two distinct, separately-named TSO500
+assay variants - a solid-tumor/tissue panel and a ctDNA/liquid-biopsy
+panel - and Varan's own pre-existing `SAMPLE_TYPE` global already branches
+its CombinedOutput MSI handling on exactly that distinction (`walk.py`
+~line 1885: `if SAMPLE_TYPE == "LIQUID": ... elif SAMPLE_TYPE == "SOLID":
+...`, feeding different MSI-stability thresholds - `THRESHOLD_MSI_LIQUID`
+vs. the general `THRESHOLD_MSI` eval string). Naming the two pipeline
+values after the two real assay variants, rather than one generic
+`illumina`, is what lets `PIPELINE` alone determine sample type
+symmetrically for every registered option (see point 3) instead of only
+for vendor adapters like Guardant.
+
+`""` (blank/absent) remains a third, distinct state - deliberately *not*
+defaulted to either `illumina_solid` or `illumina_liquid` - meaning
+"unspecified/legacy": no adapter runs, and `[Sample_Type] TYPE` is used
+exactly as literally configured, with zero reconciliation applied. This
+preserves byte-identical behavior for every conf.ini that predates this
+feature (including one with no `[Vendor]` section at all) or that simply
+doesn't want the extra consistency check. Choosing `illumina_solid` or
+`illumina_liquid` explicitly is a *strict superset* of blank's behavior
+(same "no adapter" input handling) plus the sample-type assertion from
+point 3 - so existing deployments can adopt the new, more precise names
+at their own pace without anything breaking if they don't.
+
+If this specific naming choice (`illumina_solid`/`illumina_liquid`) turns
+out not to match what the team actually calls these two variants
+day-to-day, renaming is a small, contained change: `varan.py`'s
+`ILLUMINA_PIPELINE_SAMPLE_TYPES` dict (one line per value), its two
+mentions in conf.ini/Templates/conf.ini's comments, and this doc section -
+nothing else depends on the exact strings.
+
+**`origin/liquid_samples` branch investigated per the user's suggestion**
+(commit `5f82cbf`, *"add function to get sample_type from report"*, and
+`418fb43`, *"add different behaviour for solid and liquid samples"*):
+this branch is where `[Sample_Type] TYPE` and `walk.py`'s `SAMPLE_TYPE`-
+gated MSI logic were originally introduced (`418fb43`) - now already
+present in `stabilize` via other, earlier merges, so nothing new to port
+from there. `5f82cbf`'s "get sample_type from report" function
+(`write_report.py`'s `extract_sample_type_from_html()`) turned out to be
+unrelated prior art for this specific question: it recovers a *previous
+Varan run's own* recorded sample type by regex-scraping that run's
+already-generated HTML report (for `update`/`extract` operations merging
+into an existing study), not a way to derive sample type from raw vendor
+input. Interesting precedent for "don't make the user re-supply
+information Varan already has/can infer", but not directly reusable here.
+
+### 3. `[Vendor] PIPELINE` now unifies with `[Sample_Type] TYPE` where safe
+
+Implemented in `varan.py`'s new `implied_sample_type()`/
+`reconcile_sample_type()`, called once, immediately after `pipeline` is
+resolved and validated, and *before* `walk` is imported (this ordering is
+required: `walk.py` reads `[Sample_Type] TYPE` into a module-level
+`SAMPLE_TYPE` global at its own import time, from the same shared
+`config_loader` singleton `reconcile_sample_type()` mutates in place -
+anything decided after that import would be invisible to `walk.py`).
+
+- `illumina_solid` → implies `Solid`; `illumina_liquid` → implies
+  `Liquid` (see point 2).
+- A vendor adapter can declare its own fixed sample type as a
+  module-level `SAMPLE_TYPE` attribute - `vendor_adapters/guardant.py`
+  now sets `SAMPLE_TYPE = "Liquid"`, since Guardant360 CDx is ctDNA
+  (blood plasma) only, with no solid-tumor/tissue variant. This lives in
+  the vendor's own module (like `NAME`), not in a lookup table in
+  `varan.py` - each vendor's own facts belong with that vendor.
+- Blank/legacy `PIPELINE`, or a hypothetical future vendor that supports
+  *both* sample types (and so declines to declare a fixed `SAMPLE_TYPE`),
+  implies nothing - `reconcile_sample_type()` is a no-op, and
+  `[Sample_Type] TYPE` stays a fully independent, manually-set value, same
+  as before this feature existed.
+
+**Reconciliation rule**, when a pipeline *does* imply a sample type:
+- `[Sample_Type] TYPE` blank → auto-filled from the implied type (this is
+  the actual redundancy elimination the user asked about: a deployment
+  using `PIPELINE=guardant` no longer needs to *also* set `TYPE=Liquid`
+  separately).
+- `[Sample_Type] TYPE` already set and it agrees (case-insensitively) →
+  no-op, already consistent.
+- `[Sample_Type] TYPE` already set and it *disagrees* → raises a clear
+  `ValueError` naming both conflicting values, rather than silently
+  trusting one over the other. Silently keeping conf.ini's literal value
+  would let a real mismatch (e.g. a copy-pasted `TYPE=Solid` alongside
+  `PIPELINE=guardant`) through unnoticed; silently overwriting it would
+  hide whatever led to that value being set in the first place. An
+  explicit, actionable error is the only option that doesn't guess.
+
+This is intentionally *not* a full redesign of how sample type is
+configured (e.g. removing `[Sample_Type]` entirely, or moving all vendor
+facts into a bigger vendor-capabilities system) - that felt like more
+restructuring than proportionate to what was asked. What's implemented is
+a narrow, well-motivated unification for the cases where it's unambiguous
+(a pipeline/vendor that is provably single-sample-type), while leaving
+`[Sample_Type] TYPE` fully independent everywhere else, exactly as before.
+
+### 4. Samplesheet (`selection.tsv`) mode: flexible columns, explicit per-file paths, graceful per-file skipping
+
+`vendor_adapters.guardant.run()` already had a `selection` parameter
+(round 1) alongside `folder` - a TSV batch mode, previously hardcoded to
+exactly two columns (`sample_id`, `s3_path_run`), auto-discovering each
+sample's files from its own run folder the same way whole-folder mode
+does. This is now extended, in `vendor_adapters/guardant.py`, to match how
+users actually want to run this: against a *subset* of samples from a
+batch, not always a whole run folder, with per-sample flexibility for
+files that don't follow the usual convention.
+
+**Column schema** (only `sample_id` is required; every other column is
+optional and independently recognized - see `_SELECTION_PATH_COLUMNS` and
+`run()`'s docstring in `guardant.py`):
+
+| Column | Required | Purpose |
+|---|---|---|
+| `sample_id` | Yes | Row is skipped (logged) if blank. |
+| `s3_path_run` | No | A run folder to auto-discover this sample's files from (round 1's original column, still fully backward compatible) - optional now: a row supplying every file it needs via the explicit columns below doesn't need one. |
+| `xml_path` (or `metadata_path`/`finalmetadata_path`) | No | Explicit path to this sample's metadata XML - local path or `s3://...` - overrides auto-discovery for this file only. |
+| `vcf_path` (or `snv_vcf_path`) | No | Explicit path to this sample's somatic VCF. |
+| `cnv_path` (or `cnv_call_path`) | No | Explicit path to this sample's `.cnv_call.hdr.tsv`. |
+| `msi_path` (or `msi_call_path`) | No | Explicit path to this sample's `.msi_call.hdr.tsv`. |
+| `fusion_path` (or `fus_path`/`fusion_call_path`) | No | Explicit path to this sample's `.fusion_call.hdr.tsv`. |
+
+Any column not in this table (e.g. a `notes` or `batch_name` column a lab
+wants to keep for its own bookkeeping) is simply ignored, not an error -
+`csv.DictReader` reads by header name, so unrecognized columns cost
+nothing. This is the "flexible columns" the user asked for: not a rigid,
+positional schema, and forgiving of extra columns.
+
+**Explicit path resolution** (`process_single_sample()`'s new
+`explicit_paths` parameter): for each of the 5 file types, an explicit
+path (if given) always wins over folder auto-discovery. A local path is
+used as-is (never deleted - the cleanup step only removes files this
+function itself downloaded into its own temp directory, tracked
+separately, so a samplesheet's own files are never touched). An
+`s3://...` explicit path is downloaded the same way an auto-discovered
+file would be.
+
+**Graceful per-file skipping**: `xml` and `vcf` are the only two mandatory
+file types - if neither an explicit path nor `s3_path_run` auto-discovery
+resolves one of those two for a given sample, that *whole sample* is
+skipped (clearly logged), same as round 1's behavior for a missing VCF.
+`msi`/`cnv`/`fus` are each independently optional - already true before
+this round (the rest of the function already tolerated any of them being
+absent) - what's new is that this graceful-skip path is now reachable
+through the explicit-path/no-folder samplesheet mode too, with a clear,
+per-file-type log message (`"[sample] Optional file type 'X' not
+available (...) - skipping this data type for this sample."`) rather than
+silently proceeding or crashing. This directly covers the scenarios the
+user described - "no CNV data for this sample" and "the CNV/MSI files
+don't combine well for this sample" - by simply leaving that one column
+blank for that one row.
+
+A missing **required** file (e.g. an explicit `vcf_path` that doesn't
+actually exist) skips only that one sample, with a clear log message,
+and processing continues with the rest of the batch - verified with a
+synthetic 3-row selection.tsv (one auto-discovery row, one all-explicit
+row with several optional columns blank, one row with a bad `vcf_path`)
+that produced exactly the two valid samples and skipped the third.
+
+**Wired into `varan.py`'s dispatch**: `run_vendor_adapter()` now decides
+`folder=` vs. `selection=` by checking whether `-i`'s (reinterpreted) raw
+input is an existing local *file* (`Path(raw_input).is_file()`) - if so,
+it's a samplesheet, passed as `selection=`; otherwise (an S3 URI, a local
+directory, or anything else that isn't an existing local file) it's
+passed as `folder=`. This mirrors the *exact same* is_file()/is_dir()
+distinction `-i`'s argument already uses elsewhere in this codebase (see
+`walk._walk_setup()`) - it is a "file vs. folder" structural check, not a
+vendor-identity guess (vendor identity is still 100% explicit, via
+`[Vendor] PIPELINE`).
+
+### Minimum inputs needed to start (concrete answer)
+
+**Whole-folder mode** (`[Vendor] PIPELINE = guardant`, `-i <run_folder>`):
+every sample under that folder needs, at minimum, its own somatic **VCF**
+and **metadata XML** (`_finalmetadata.xml`/`_metadata.xml`) discoverable
+by Guardant's filename/suffix convention (sample ID substring + suffix
+match - see `find_file_in_list()`). `.cnv_call.hdr.tsv`,
+`.msi_call.hdr.tsv`, and `.fusion_call.hdr.tsv` are all optional per
+sample - if absent, that sample is still processed, just without CNV
+gene-attribution / MSI value / fusion calls respectively.
+
+**Samplesheet mode** (`-i <selection.tsv>`): per row, `sample_id` is
+required; then either `s3_path_run` (to auto-discover the same 2
+mandatory + 3 optional files as whole-folder mode) or the explicit
+`xml_path`+`vcf_path` columns (the 2 mandatory ones) must resolve to real
+files, or that row is skipped. `cnv_path`/`msi_path`/`fusion_path` are
+optional in every case.
+
+So, corrected from the "4 files" framing in earlier notes (which omitted
+the fusion report): **5 file types total, 2 mandatory (VCF + metadata
+XML), 3 optional (CNV, MSI, fusion)** - this was already true of round 1's
+code (the optionality of CNV/MSI/fusion was never new), this round mainly
+makes that optionality reachable through samplesheet rows too, with
+clearer logging, and corrects the doc's own miscount.
+
+### Verification performed this round (and its limits)
+
+Same core limitation as rounds 1-2: no real vendor example data on this
+machine. What was actually exercised, via the same mocked local-folder
+harness (S3 helpers monkeypatched to a local directory):
+
+- `resolve_pipeline()` against a blank conf.ini (→ `""`) and a
+  `[Vendor] PIPELINE = ...`-set one.
+- `reconcile_sample_type()` against 5 scenarios: blank pipeline (no-op),
+  `illumina_liquid` with blank `[Sample_Type] TYPE` (auto-filled to
+  `Liquid`), `guardant` with a matching pre-set `TYPE=Liquid` (no-op,
+  consistent), `guardant` with a conflicting `TYPE=Solid` (raised the
+  expected `ValueError`), and an unrecognized pipeline name (`
+  implied_sample_type()` returns `None` gracefully rather than crashing -
+  `varan.py`'s own `known_pipelines` check catches an actually-invalid
+  value separately, before reconciliation ever runs).
+- The real repo's own `conf.ini` (`PIPELINE` blank, `[Sample_Type]
+  TYPE = Liquid`) run through `resolve_pipeline()`/`reconcile_sample_type()`
+  end-to-end confirmed byte-identical behavior: pipeline resolves to `""`,
+  `TYPE` stays `Liquid`, untouched.
+- A synthetic 3-row `selection.tsv` (auto-discovery row, all-explicit-
+  local-paths row with 3 blank optional columns, bad-explicit-path row)
+  run through `guardant.run(selection=...)` directly: produced exactly 2
+  samples, skipped the third with a clear message, correctly left the
+  samplesheet's own local files on disk afterward (not deleted by the
+  temp-file cleanup step).
+- `run_vendor_adapter()`'s `folder=`/`selection=` auto-dispatch, run
+  against both a directory and a file path, correctly chose each mode.
+- `python varan.py --help` confirmed no `--pipeline` flag remains, and
+  `-i`'s help text reflects the new conf.ini-only wording.
+
+Not verified (same as before): a real Guardant S3 run through the real
+`aws` CLI, and the downstream VEP/vcf2maf/OncoKB pipeline stages.
+
 ## Round 2: `varan.py -i` runs a vendor's raw input directly
 
 The first round (below) built `vendor_adapters/` but left it a manual,
@@ -10,6 +283,12 @@ pointing it at a vendor's raw input and running it "just works", the same
 way the existing native (Illumina/CombinedOutput) path already does.
 
 ### Selection mechanism: explicit, not auto-detected
+
+> **Superseded by round 3, point 1**: the `--pipeline` CLI flag described
+> below was removed - conf.ini's `[Vendor] PIPELINE` is now the *only*
+> selection mechanism, no precedence rule needed. The reasoning for
+> explicit-over-auto-detected selection (this subsection's second half)
+> still stands unchanged.
 
 A new `--pipeline` CLI flag on `varan.py` chooses which vendor produced
 `-i`'s input:
@@ -46,22 +325,29 @@ proceeding or failing with a confusing downstream crash — but this never
 substitutes for explicit selection as the actual dispatch mechanism, it
 only helps catch a human picking the wrong one.
 
-**Naming deviation, explained.** The user's own suggested spelling was
-`--pipeline illumina/guardant`. This implementation uses `"native"`
-instead of `"illumina"` for the default/non-vendor value, because the
-existing default path isn't inherently Illumina-specific — it's simply
-"input already in Varan's own canonical sample.tsv/folder shape",
-regardless of which sequencer or vendor produced the files that shape
-wraps. Calling it `"illumina"` would misleadingly vendor-label the one
-option that is explicitly *not* vendor-specific, which cuts against the
-whole point of this rename effort (moving away from vendor-specific
-naming, guardant → multivendor). If this reasoning doesn't hold up under
-real-world usage expectations, renaming `"native"` back to `"illumina"`
-(or something else) is a one-string change in `varan.py`'s `--pipeline`
-`choices=[...]` plus its help text and `resolve_pipeline()`'s docstring —
-nothing structural depends on the exact spelling.
+**Naming deviation, explained (superseded by round 3, point 2).** The
+user's own suggested spelling was `--pipeline illumina/guardant`. This
+implementation used `"native"` instead of `"illumina"` for the
+default/non-vendor value, reasoning that the existing default path isn't
+inherently Illumina-specific. **Round 3 reversed this call**: the user
+rejected `"native"` outright and asked for real investigation rather than
+a guess, which turned up that this codebase's own existing code comments
+already call the non-adapter path "Illumina"/"TSO500" (see round 3, point
+2, for the actual `README.md`/`walk.py` citations) - so `"native"` wasn't
+just imprecise, it was inventing a term this codebase doesn't otherwise
+use. Left here for the historical record of why the *first* naming
+attempt was made and why it didn't hold up; `illumina_solid`/
+`illumina_liquid` are the real, current values.
 
 ### How the raw-folder-to-canonical dispatch works
+
+> **Partially superseded by round 3, point 4**: step 3 below originally
+> always called `adapter.run(folder=...)`. It now checks whether `-i`'s
+> argument is a local file (→ `run(selection=...)`, samplesheet mode) or
+> not (→ `run(folder=...)`, unchanged) - see round 3 for the details.
+> Steps 1/2/4/5/6 and the scratch-folder mechanics are otherwise still
+> accurate, just substitute "a registered vendor name (not blank/
+> illumina_solid/illumina_liquid)" wherever this says `"native"`.
 
 No new input shape was invented at the `vendor_adapters` layer — adapters
 still only take `run(folder=..., selection=..., **kwargs)`, exactly as
@@ -114,14 +400,14 @@ if one is passed, rather than silently doing something unexpected with it.
 
 `varan()` (the pipeline function itself) was not modified at all — every
 line of the vendor dispatch logic lives in `varan.py`'s `__main__` block,
-strictly before the existing `varan(...)` call. `--pipeline native` (or
-omitting the flag with no `[Vendor] PIPELINE` set in conf.ini) reaches
-`varan(...)` with `varan_input` completely untouched from what argparse
-parsed — identical to every prior behavior, including anyone still using
-the manual two-step Guardant flow from round 1 (that flow still works
-unchanged: it just produces a sample.tsv/fusions.tsv pair you can pass to
-`-i` yourself, exactly as before, with `--pipeline` simply never entering
-the picture).
+strictly before the existing `varan(...)` call. Leaving `[Vendor]
+PIPELINE` blank/absent in conf.ini (there's no CLI flag as of round 3 -
+see above) reaches `varan(...)` with `varan_input` completely untouched
+from what argparse parsed — identical to every prior behavior, including
+anyone still using the manual two-step Guardant flow from round 1 (that
+flow still works unchanged: it just produces a sample.tsv/fusions.tsv pair
+you can pass to `-i` yourself, exactly as before, with `[Vendor] PIPELINE`
+staying blank the whole time).
 
 ### Known limitation: not wired into `walk_stage.py`/the Snakemake DAG
 
@@ -384,20 +670,22 @@ this refactor silently resolved any of them:
 
 ### How to run Varan on Guardant samples
 
-**Preferred (round 2):** `python varan.py -i <s3_run_folder> -o <out> -c
-<cancer> --pipeline guardant` — runs the Guardant adapter automatically
-against the raw S3 run folder and continues straight into the full
-pipeline. See "Round 2" above for the mechanics.
+**Preferred (round 2/3):** set `[Vendor] PIPELINE = guardant` in conf.ini
+(no CLI flag - see "Round 3" above), then run `python varan.py -i
+<s3_run_folder_or_selection.tsv> -o <out> -c <cancer>` — runs the Guardant
+adapter automatically (whole-folder or samplesheet mode, auto-detected
+from whether `-i`'s argument is a file or a folder) and continues straight
+into the full pipeline.
 
-**Manual two-step (round 1, still available for a single run folder or
-for the cross-run `selection.tsv` batch mode):** run `python
+**Manual two-step (round 1, always available, e.g. to inspect/hand-edit
+the generated sample.tsv before running the full pipeline):** run `python
 create_Varan_input.py --vendor guardant -f <s3_run_folder>` (or `-s
 <selection.tsv>`) to produce a `sample.tsv`-shaped report and a companion
 `{run_id}_fusions.tsv` yourself, then pass those to `varan.py -i
-sample.tsv "" fusions.tsv` (no `--pipeline` needed - this is the native
-path once the files exist). See `Templates/sample_guardant_example.tsv`
-and `Templates/sample_guardant_example_fusions.tsv` for the expected
-shape.
+sample.tsv "" fusions.tsv` with `[Vendor] PIPELINE` left blank in conf.ini
+(this is the unspecified/legacy path once the files already exist). See
+`Templates/sample_guardant_example.tsv` and
+`Templates/sample_guardant_example_fusions.tsv` for the expected shape.
 
 Column-by-column source mapping (produced by either path — both call the
 same `vendor_adapters.guardant.run()`) is unchanged from the original
