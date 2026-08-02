@@ -14,29 +14,62 @@
 
 """DRAFT mapping from OncoTree code to SigMA's `tumor_type` parameter.
 
-NOT YET VALIDATED - this is a first pass built from general OncoTree
-knowledge, not cross-checked against a live query to oncotree.mskcc.org
-(its API returned 403 to automated fetches while writing this). Every
-entry needs a human check against https://oncotree.mskcc.org before this
-is trusted in a clinical run - that is the explicit next step, not
-something to skip.
+NOT YET FULLY VALIDATED - see SIGMA_INTEGRATION_FEASIBILITY.md at the repo
+root for the complete verification writeup (round 2, 2026-08-02). Updated
+after actually reading SigMA's R source (R/run.R, rdrr.io's rendered
+run() man page) instead of relying on the round-1 draft's paraphrase.
+oncotree.mskcc.org's API still returns 403 to automated fetches (tried
+again, several endpoints/headers) - the child-level OncoTree codes below
+(BRCANOS, HGSOC, PRSCC, UTUC, TSTAD, DSTAD, UMEC, ESCC, PANET, CHDM, MDB,
+etc.) are still NOT independently confirmed against a live OncoTree query
+and remain a human-verification TODO.
 
-SigMA's `tumor_type` parameter only accepts a fixed list of ~13 specific
-values plus a generic "other" model (source: SigMA R/run.R and the
-"Parameter choices" wiki page, both read 2026-07-19):
-    eso, osteo, ovary, panc_ad, panc_en, prost, stomach, uterus, breast,
-    bladder, bone_other, medullo, ewing, other
+CORRECTED: SigMA's `tumor_type` accepts more values than round 1 claimed.
+The official run() documentation (https://rdrr.io/github/parklab/SigMA/man/run.html)
+lists these 17: bladder, bone_other, breast, crc, eso, gbm, lung, lymph,
+medullo, osteo, ovary, panc_ad, panc_en, prost, stomach, thy, uterus.
+Note "ewing" and "other" are each individually confirmed elsewhere in the
+R source (see below) but do NOT appear in that rendered man-page list -
+i.e. this is an inconsistency inside SigMA's own documentation, not
+something introduced here.
 
-"other" is a real, usable pan-cancer fallback model (not a "skip" sentinel)
-- any OncoTree code not covered by ONCOTREE_TO_SIGMA below still gets run
-  through SigMA with tumor_type="other" rather than being excluded outright.
-Whether that's the right call clinically (vs. only running the ~13
-type-specific models and skipping everything else) is a decision to make
-together, not baked into this file - see get_sigma_tumor_type()'s
-`fallback_to_other` argument.
+IMPORTANT, verified straight from R/run.R's do_mva model-availability
+check - this materially affects Varan, whose CNA/SNV pipeline is
+panel-based (conf.ini [SigMA] DATA_PLATFORM = msk) rather than WES/WGS:
 
-Also confirmed while researching this (SigMA "Parameter choices" wiki page):
-`data="msk"` is documented as the intended baseline specifically "for
+    if(do_mva & !custom & sum(tumor_type == names(gbm_models[[data]])) == 0){
+      stop('No built-in MVA models for the tumor_type selected for
+            targetted gene panels for "medullo" or "ewing" whole
+            exome sequencing is available for others set do_mva to FALSE')
+    }
+
+Read plainly, this says: "medullo" and "ewing" only have trained MVA
+(do_mva=TRUE) classifiers for whole-exome/WGS data, NOT for gene-panel
+data ("msk", Varan's platform). Calling SigMA with tumor_type="medullo" or
+"ewing" and data="msk" with do_mva=True (Varan's intended clinical use)
+would very likely raise this stop() inside SigMA itself. MDB/ES are left
+mapped below (they ARE valid tumor_type strings) but flagged with
+do_mva_unsafe_for_msk=True so a future caller can decide to skip do_mva,
+skip SigMA entirely, or fall back to "other" for these two OncoTree codes
+specifically - not baked in as a silent default here.
+
+The panel-platform ("msk") model list is only explicitly named in that
+same stop() message text as 10 values: eso, osteo, ovary, panc_ad,
+panc_en, prost, stomach, uterus, breast, bladder - which is exactly
+ONCOTREE_TO_SIGMA's non-bone/non-ewing/non-medullo coverage below. Common
+oncology-panel tumor types with SigMA models for OTHER platforms - crc
+(colorectal), gbm (glioblastoma), lung, lymph (lymphoma), thy (thyroid) -
+are deliberately NOT added to ONCOTREE_TO_SIGMA: nothing found in the
+public source confirms these have a panel/"msk" MVA model too (as opposed
+to WES/WGS-only), so guessing them in would risk the same stop()-crash
+class of bug as medullo/ewing. Confirming this needs a live R session
+(`names(gbm_models[["msk"]])` after `library(SigMA)`), not another
+doc-reading pass - flagged as an open question in
+SIGMA_INTEGRATION_FEASIBILITY.md.
+
+Also confirmed while researching this (SigMA "Parameter choices" wiki page,
+and independently corroborated by run.R's `data` argument documentation on
+rdrr.io): `data="msk"` is SigMA's own documented starting point "for
 training models on larger gene panels exceeding 300 genes" - not just a
 loose size analogy to TSO500 (523 genes), but SigMA's own stated use case.
 """
@@ -46,6 +79,17 @@ from __future__ import annotations
 # DRAFT - verify every code against a live oncotree.mskcc.org lookup before
 # trusting this in a clinical run. Parent/tissue-level codes are included
 # alongside a few common child codes per lineage, not an exhaustive list.
+#
+# DO_MVA_UNSAFE_FOR_PANEL_DATA: SigMA tumor_type values whose MVA (do_mva=
+# True) classifier is verified (R/run.R's gbm_models[[data]] check, see
+# module docstring) to exist only for WES/WGS data, not for panel data
+# (Varan's conf.ini DATA_PLATFORM = "msk"). Calling SigMA with one of these
+# tumor_type values, data="msk", and do_mva=True is expected to raise
+# SigMA's own stop() error. Any future caller must either set do_mva=False
+# for samples mapped to one of these, route them to "other" instead, or
+# skip SigMA for them outright - not decided here.
+DO_MVA_UNSAFE_FOR_PANEL_DATA: frozenset[str] = frozenset({"medullo", "ewing"})
+
 ONCOTREE_TO_SIGMA: dict[str, str] = {
     # Breast
     "BREAST": "breast",
@@ -88,9 +132,10 @@ ONCOTREE_TO_SIGMA: dict[str, str] = {
     "CHS": "bone_other",
     "CHDM": "bone_other",
     "BONE": "bone_other",
-    # Ewing sarcoma
+    # Ewing sarcoma - see DO_MVA_UNSAFE_FOR_PANEL_DATA: no confirmed panel
+    # ("msk") MVA model, WES/WGS only per SigMA's own source.
     "ES": "ewing",
-    # Medulloblastoma
+    # Medulloblastoma - see DO_MVA_UNSAFE_FOR_PANEL_DATA: same caveat as ES.
     "MDB": "medullo",
 }
 
