@@ -1,5 +1,177 @@
 # Multi-vendor input generation for Varan — architecture and status
 
+## Round 2: `varan.py -i` runs a vendor's raw input directly
+
+The first round (below) built `vendor_adapters/` but left it a manual,
+two-step workflow: run `create_Varan_input.py --vendor guardant ...`
+yourself, then feed its output to `varan.py -i sample.tsv patient.tsv
+fusions.tsv`. This round wires the adapter directly into `varan.py`, so
+pointing it at a vendor's raw input and running it "just works", the same
+way the existing native (Illumina/CombinedOutput) path already does.
+
+### Selection mechanism: explicit, not auto-detected
+
+A new `--pipeline` CLI flag on `varan.py` chooses which vendor produced
+`-i`'s input:
+
+- `--pipeline native` (the default) — today's existing, completely
+  unchanged behavior. `-i` points at Varan's own sample.tsv/patient.tsv/
+  [fusion.tsv] files, or an already-shaped SNV/CNV/CombinedOutput input
+  folder.
+- `--pipeline guardant` (or any other registered vendor name — see
+  `vendor_adapters/__init__.py`'s `ADAPTERS`) — `-i`'s first path is
+  instead that vendor's raw run input, converted automatically before the
+  rest of the pipeline runs.
+
+Precedence: an explicit `--pipeline` on the CLI always wins; otherwise
+`conf.ini`'s new `[Vendor] PIPELINE` key is used; otherwise the default is
+`"native"`. This mirrors how `-C/--config` already overrides the default
+`conf.ini` path elsewhere in this codebase — see `varan.resolve_pipeline()`.
+`[Vendor] PIPELINE` being blank/absent by default, with a fixed set of
+known values (`native` + whatever's registered in `ADAPTERS`), is meant to
+let a future GUI render it as a dropdown, per the user's own framing of
+that option.
+
+**Deliberately not auto-detected from `-i`'s content.** Which vendor
+produced a given raw input is a consequential classification — it picks
+an entire parsing code path — so it's made an explicit choice rather than
+an implicit guess, matching the reasoning already applied elsewhere in
+this same integration effort (the SigMA branch's medullo/ewing `do_mva`
+handling: `12d217d` forced that decision explicitly rather than leaving it
+an implicit per-run choice). A lightweight *supplementary* sanity check
+does exist: if the selected adapter's `run()` finds no usable data in the
+given input, `varan.py` raises a clear, actionable error suggesting the
+wrong `--pipeline` may have been selected, rather than either silently
+proceeding or failing with a confusing downstream crash — but this never
+substitutes for explicit selection as the actual dispatch mechanism, it
+only helps catch a human picking the wrong one.
+
+**Naming deviation, explained.** The user's own suggested spelling was
+`--pipeline illumina/guardant`. This implementation uses `"native"`
+instead of `"illumina"` for the default/non-vendor value, because the
+existing default path isn't inherently Illumina-specific — it's simply
+"input already in Varan's own canonical sample.tsv/folder shape",
+regardless of which sequencer or vendor produced the files that shape
+wraps. Calling it `"illumina"` would misleadingly vendor-label the one
+option that is explicitly *not* vendor-specific, which cuts against the
+whole point of this rename effort (moving away from vendor-specific
+naming, guardant → multivendor). If this reasoning doesn't hold up under
+real-world usage expectations, renaming `"native"` back to `"illumina"`
+(or something else) is a one-string change in `varan.py`'s `--pipeline`
+`choices=[...]` plus its help text and `resolve_pipeline()`'s docstring —
+nothing structural depends on the exact spelling.
+
+### How the raw-folder-to-canonical dispatch works
+
+No new input shape was invented at the `vendor_adapters` layer — adapters
+still only take `run(folder=..., selection=..., **kwargs)`, exactly as
+round 1 left them. All the new logic lives in `varan.py`:
+
+1. `varan.py`'s `__main__` block resolves `pipeline` (see above). If it's
+   not `"native"` (and this isn't an update/extract/remove run, which
+   don't use `-i` the same way), it calls the new
+   `run_vendor_adapter(pipeline, varan_input, output_folder)`.
+2. That function creates a scratch folder via the *same*
+   `create_random_name_folder()`/`clear_scratch()` helpers `walk.py`
+   already uses for VEP's temp files (`<output_folder>/scratch/<random>/`)
+   — reused as-is, not reimplemented. `create_random_name_folder()`
+   creates all needed parent directories (`mkdir(parents=True)`), so this
+   works even though the versioned output folder (`<output_folder>_v1`)
+   doesn't exist yet at this point in the flow — that versioned folder is
+   a *sibling* path (`Path(output_folder).parent / "..._v1"`, see
+   `walk.create_folder()`), never touched by this step.
+3. `varan_input[0]` (the vendor's raw input — e.g. an S3 run folder for
+   Guardant) is passed straight through to `adapter.run(folder=...)`,
+   with `report_base_dir`/`vcf_base_dir`/`temp_local_dir` defaulted to
+   subfolders of that scratch dir (so a normal run leaves nothing behind
+   in any shared/production location) — overridable per-vendor via a new
+   `[Vendor.<name>]` conf.ini section (e.g. `[Vendor.guardant]` /
+   `dict_path = ...`) whose keys are passed straight through as `run()`
+   keyword arguments.
+4. If `run()` returns `None` (no data found), `run_vendor_adapter` clears
+   the scratch folder and raises a `ValueError` with the "wrong vendor
+   selected?" hint mentioned above — caught by `varan.py`'s existing
+   top-level `except ValueError` handler, same as any other input error.
+5. Otherwise, the returned `report_path`/`fusion_table_path` become the
+   new `varan_input = [sample_tsv, patient_tsv_passthrough, fusion_tsv]`,
+   and execution falls straight through into the *same* `varan(...)` call
+   the native path already used — from this point on there is no
+   difference between a vendor-mode run and a hand-built `-i sample.tsv
+   patient.tsv fusions.tsv` run. `transform_input()`/`check_folders()`
+   (inside `_walk_setup()`) copy the referenced VCF/fusion files out of
+   scratch into the run's real output folder during this same call, so
+   nothing downstream depends on scratch surviving past it.
+6. On success, `varan.py` removes the scratch folder after `varan(...)`
+   returns. On failure, it's deliberately left in place for debugging —
+   matching the existing precedent in `walk._walk_process_snv`, whose own
+   VEP scratch folder is likewise only cleared on the success path.
+
+A third `-i` element (a fusion file) is not accepted in vendor mode — the
+adapter always generates its own — and is ignored with a logged warning
+if one is passed, rather than silently doing something unexpected with it.
+
+### Backward compatibility
+
+`varan()` (the pipeline function itself) was not modified at all — every
+line of the vendor dispatch logic lives in `varan.py`'s `__main__` block,
+strictly before the existing `varan(...)` call. `--pipeline native` (or
+omitting the flag with no `[Vendor] PIPELINE` set in conf.ini) reaches
+`varan(...)` with `varan_input` completely untouched from what argparse
+parsed — identical to every prior behavior, including anyone still using
+the manual two-step Guardant flow from round 1 (that flow still works
+unchanged: it just produces a sample.tsv/fusions.tsv pair you can pass to
+`-i` yourself, exactly as before, with `--pipeline` simply never entering
+the picture).
+
+### Known limitation: not wired into `walk_stage.py`/the Snakemake DAG
+
+`walk_stage.py` (used by `Snakefile`'s per-stage `walk_setup`/`cnv`/`snv`/
+`fusion`/`clinical` rules) calls `walk._walk_setup()` directly, bypassing
+`varan.py`'s `__main__` entirely — so `--pipeline` has no effect there
+yet. This was left alone deliberately: it's a separate, lower-level entry
+point explicitly documented as carrying "no pipeline logic" of its own,
+and wiring vendor dispatch into it wasn't part of what was asked this
+round (the Snakemake-DAG migration itself is explicitly out of scope,
+being handled on a separate branch). Anyone driving the Snakemake path
+with a vendor input still needs to run `create_Varan_input.py`
+(or `vendor_adapters.<name>.run(...)`) by hand first, same as round 1.
+
+### Verification performed this round (and its limits)
+
+Same core limitation as round 1: no real vendor example data is available
+on this machine. What was actually verified, using the mocked local-folder
+harness built for this round (S3 helpers monkeypatched to operate on a
+local directory instead of shelling out to `aws s3`):
+
+- `resolve_pipeline()`'s precedence (CLI override > conf.ini > "native"
+  default) was exercised directly against real `ConfigParser` instances.
+- The full `run_vendor_adapter()` dispatch was run end-to-end against a
+  local mock "S3" folder built from the same synthetic Guardant fixtures
+  used in round 1 (one sample's `_finalmetadata.xml`/`.vcf`/
+  `.msi_call.hdr.tsv`/`.cnv_call.hdr.tsv`/`.fusion_call.hdr.tsv`):
+  the generated `sample.tsv` and `fusions.tsv` landed under
+  `<output_folder>/scratch/<random>/`, the SNV/CNV VCF conversion inside
+  it reproduced the same documented behavior confirmed in round 1
+  (PASS-only SNV row, correctly paired CNV rows), MSI/MSI_THR and the
+  fusion rows matched expectations, and `clear_scratch()` correctly
+  removed both the random-named scratch subfolder and its now-empty
+  `scratch/` parent afterward.
+- The no-data failure path (an empty mock run folder) was confirmed to
+  raise the expected `ValueError` with the "wrong vendor?" hint, and to
+  still clean up its scratch folder before raising.
+- `python varan.py --help` was run to confirm `--pipeline {native,
+  guardant}` parses correctly alongside every pre-existing flag.
+
+Not verified: an actual real Guardant S3 run through the real `aws` CLI
+(no AWS credentials/real bucket available here, on top of the pre-existing
+lack of real vendor example files), and the full downstream `varan()`
+pipeline stages (VEP/vcf2maf/OncoKB/etc. — those require external tools
+not installed in this environment and were out of scope for both rounds).
+The dispatch layer itself (argument resolution, adapter invocation,
+scratch lifecycle, error handling) was exercised directly, which is the
+part that changed this round; `varan()`'s own downstream stages are
+unchanged code, already relied upon by every existing native-mode run.
+
 ## Why this doc replaces `GUARDANT_INTEGRATION_NOTES.md`
 
 The original `create_Varan_input.py` was written and debugged
@@ -64,19 +236,35 @@ implementing the interface above, add one line to `ADAPTERS` in
 `vendor_adapters/__init__.py`. No changes to `guardant.py` are required,
 and none of Guardant's verified bug fixes are at risk of being touched.
 
-## Why this stays "extra tooling", not wired into `varan.py`
+## `create_Varan_input.py` remains available standalone
 
-`varan.py`'s own CLI already owns a dense set of single-letter flags
-(`-f`, `-s`, `-c`, ... — see its `-i`/`--varan_input`, which is exactly
-what this preprocessing step's output feeds into) and its core pipeline
-logic is actively evolving with **no test suite** backing it. Wiring
-vendor dispatch directly into `varan.py`'s argument parser would add risk
-to that already-complex, untested surface for no real benefit — this
-preprocessing step runs once, before `-i`, as a separate CLI invocation,
-and there's no workflow reason to merge the two. `create_Varan_input.py`
-remains a standard, documented preprocessing step run ahead of
-`varan.py -i sample.tsv patient.tsv [fusions.tsv]`, now organized as a
-proper package instead of a single monolithic script.
+Superseded as the *only* option by round 2's `varan.py --pipeline`, not
+replaced by it.
+
+Round 1's reasoning below (why vendor dispatch wasn't wired into
+`varan.py`'s own CLI) was superseded by round 2 above: `varan.py
+--pipeline <vendor>` now runs a vendor adapter automatically, so
+`create_Varan_input.py` is no longer the *only* way to invoke one. It's
+still kept around, for two reasons: (1) it's the only way to drive the
+cross-run `selection.tsv` batch mode (`-s`) — round 2 only wired the
+single-run-folder mode (`-f`'s equivalent) into `varan.py -i`, see
+"Known limitation" above; (2) it's useful on its own for inspecting or
+hand-editing a generated `sample.tsv`/`fusions.tsv` before feeding it to
+`varan.py -i` manually, e.g. to debug a conversion without also running
+the full downstream pipeline. Both entry points call the exact same
+`vendor_adapters.<name>.run()` — neither duplicates the other's logic.
+
+Original (round 1) reasoning for keeping `varan.py`'s own CLI free of
+vendor-dispatch argument-parsing logic, which is why round 2's
+`--pipeline` flag was designed as a thin dispatcher rather than
+expanding `varan.py`'s argument surface further: `varan.py`'s own CLI
+already owns a dense set of single-letter flags (`-f`, `-s`, `-c`, ...)
+and its core pipeline logic is actively evolving with **no test suite**
+backing it — so round 2 deliberately added exactly one new flag
+(`--pipeline`) plus one new `varan.py`-local function
+(`run_vendor_adapter()`), calling straight into the unchanged
+`vendor_adapters` interface, rather than growing a parallel argument
+surface inside `vendor_adapters` itself.
 
 The `run()` functions are still plain, explicit-input/output functions
 (not scripts hardwired to `sys.argv` or globals) specifically so this
@@ -194,14 +382,26 @@ this refactor silently resolved any of them:
   specifically to probe the documented bug scenarios, not to simulate a
   full real run.
 
-### How to compile `sample.tsv` for Guardant samples
+### How to run Varan on Guardant samples
 
-Run `python create_Varan_input.py --vendor guardant -f <s3_run_folder>` (or
-`-s <selection.tsv>`) — it produces a `sample.tsv`-shaped report and a
-companion `{run_id}_fusions.tsv`. See
-`Templates/sample_guardant_example.tsv` and
-`Templates/sample_guardant_example_fusions.tsv` for the expected shape.
-Column-by-column source mapping is unchanged from the original notes:
+**Preferred (round 2):** `python varan.py -i <s3_run_folder> -o <out> -c
+<cancer> --pipeline guardant` — runs the Guardant adapter automatically
+against the raw S3 run folder and continues straight into the full
+pipeline. See "Round 2" above for the mechanics.
+
+**Manual two-step (round 1, still available for a single run folder or
+for the cross-run `selection.tsv` batch mode):** run `python
+create_Varan_input.py --vendor guardant -f <s3_run_folder>` (or `-s
+<selection.tsv>`) to produce a `sample.tsv`-shaped report and a companion
+`{run_id}_fusions.tsv` yourself, then pass those to `varan.py -i
+sample.tsv "" fusions.tsv` (no `--pipeline` needed - this is the native
+path once the files exist). See `Templates/sample_guardant_example.tsv`
+and `Templates/sample_guardant_example_fusions.tsv` for the expected
+shape.
+
+Column-by-column source mapping (produced by either path — both call the
+same `vendor_adapters.guardant.run()`) is unchanged from the original
+notes:
 
 | Column | Guardant source | Notes |
 |---|---|---|
