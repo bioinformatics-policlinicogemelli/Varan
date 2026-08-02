@@ -1,6 +1,87 @@
 # SigMA integration — feasibility and cost/benefit analysis
 
-## Status: research/analysis only, no pipeline wiring
+## Status update (round 3): real pipeline wiring built and smoke-tested
+
+The two rounds below (this file's original text, unchanged past this point)
+were research/analysis only. This round built the actual execution path:
+`-g`/`--sigma` CLI flag (varan.py), the expanded `[SigMA]` conf.ini surface,
+`sigma_runner.py` (per-sample orchestration), `run_sigma.R` (the R
+subprocess wrapper), wiring into `walk.py`'s `_walk_process_snv`/
+`write_clinical_sample`, and R + SigMA installed in the Dockerfile.
+
+Unlike the previous two rounds, this one **actually installed R + SigMA in
+a throwaway Docker container and ran the real thing** - not just contract-
+level reasoning from reading source. Two concrete, previously-undiscovered
+bugs were found and fixed as a direct result:
+
+1. **`run(..., return_df = TRUE)` silently ignores `lite_format`.** SigMA's
+   own `run()` only calls `lite_df()` on its internal "write to a file"
+   code path - never on the data frame it returns when `return_df = TRUE`.
+   Since the wrapper always uses `return_df = TRUE` (to read the result
+   back directly rather than relying on SigMA's own output-file-naming
+   convention), `run_sigma.R` now calls `SigMA::lite_df()` itself
+   explicitly whenever `--lite-format TRUE` is passed. Confirmed by an
+   actual before/after run: without this fix the output CSV had ~150 raw
+   columns and no `categ` column at all, regardless of the flag.
+2. **`tumor_type = "other"` (the fallback model) is not panel-("msk")-safe
+   for `do_mva = TRUE` either.** The original mapping module only forced
+   `do_mva = False` for `medullo`/`ewing` (the two values *named* in
+   SigMA's `stop()` error text). An actual run with an unmapped OncoTree
+   code - which falls back to `tumor_type = "other"` - reproduced that
+   same `stop()` error: `"other"` isn't in the 10-value panel-safe list
+   either. `sigma_cancer_type_map.py` now uses that confirmed 10-value
+   whitelist (`PANEL_DATA_MVA_SAFE_TUMOR_TYPES`) directly instead of a
+   blacklist of just two names - `get_sigma_call_params()` correctly
+   forces `do_mva = False` for `"other"` too now.
+
+Also confirmed working end to end this round (real R + SigMA, not
+simulated): a full `sigma_runner.run_sigma_for_sample()` call (Python
+filtering → subprocess → R → parsed result) for a normal sample, a
+`medullo`-mapped sample (do_mva forced off, ran the likelihood/exposure-
+only path without crashing), a below-`SNV_CUTOFF` sample (skipped
+correctly, no R invocation), an unmapped-OncoTree-code sample falling
+back to `"other"` (after the fix above), a missing-Rscript-binary failure
+(logged and skipped, no crash), and a structurally malformed MAF (R-side
+error caught and skipped, no crash). Also verified: the
+`data_clinical_sample.txt` column merge (SigMA columns appear only when
+the intermediate results file exists, i.e. only when `-g` was actually
+used; correct NUMBER/BOOLEAN/STRING header typing).
+
+**Still not independently verified**: the exact OncoTree child-code
+mappings in `ONCOTREE_TO_SIGMA` (same open item as before - needs a live
+`oncotree.mskcc.org` lookup), whether `crc`/`gbm`/`lung`/`lymph`/`thy` have
+panel-safe MVA models (same open item), and a real multi-sample production
+run through the full Varan CLI end to end (only the underlying pieces were
+smoke-tested individually/via a direct driver script, not `python varan.py
+-g ...` on a real input folder).
+
+**Update on the production `Dockerfile`'s R/SigMA block**: building it
+against its real base image (`ensemblorg/ensembl-vep:release_111.0`, not
+just the bioconductor_docker-based smoke test image) surfaced a real
+failure - `devtools` itself failed to install because two of its
+transitive dependencies (`fs`, needing `libuv1-dev`'s `uv.h`; `textshaping`/
+`ragg`, needing `libharfbuzz-dev`'s `hb-ft.h`) couldn't compile without
+headers the original apt package list didn't include. Fixed by adding
+`libuv1-dev libharfbuzz-dev libfribidi-dev libfreetype-dev libtiff5-dev
+libjpeg-dev` to the Dockerfile's apt install line - not re-verified with a
+full rebuild afterward (the initial build alone took ~13 minutes; a
+targeted, source-confirmed fix for the exact two missing headers found,
+but flagged here rather than silently assumed fixed).
+
+## Cluster / conda alternative (no Docker)
+
+For users running Varan via conda/mamba on an HPC cluster rather than
+Docker, see the new **`SIGMA_CONDA_SETUP.md`** - a tested `environment.yml`
+using conda-forge/bioconda binary packages for the entire dependency list
+(including `bioconductor-bsgenome.hsapiens.ucsc.hg19` and `r-rmisc`, both
+confirmed to exist there - nothing needed a CRAN/GitHub fallback except
+SigMA itself, which isn't packaged anywhere and always needs
+`devtools::install_github()` regardless of install path). Notably, this
+conda path sidesteps the whole missing-system-header problem above
+entirely, since conda-forge ships prebuilt binaries - no source
+compilation, no header hunting.
+
+## Status (rounds 1-2): research/analysis only, no pipeline wiring
 
 This is a feasibility report, not a wiring change. `walk_folder()`, `varan.py`,
 and the `Snakefile` are untouched. What *did* change this round: two draft
