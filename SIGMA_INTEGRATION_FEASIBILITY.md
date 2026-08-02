@@ -50,13 +50,36 @@ used; correct NUMBER/BOOLEAN/STRING header typing).
 **Still not independently verified**: the exact OncoTree child-code
 mappings in `ONCOTREE_TO_SIGMA` (same open item as before - needs a live
 `oncotree.mskcc.org` lookup), whether `crc`/`gbm`/`lung`/`lymph`/`thy` have
-panel-safe MVA models (same open item), a real multi-sample production run
-through the full Varan CLI end to end (only the underlying pieces were
+panel-safe MVA models (same open item), and a real multi-sample production
+run through the full Varan CLI end to end (only the underlying pieces were
 smoke-tested individually/via a direct driver script, not `python varan.py
--g ...` on a real input folder), and the production `Dockerfile`'s R/SigMA
-block specifically (a near-identical package set was verified against
-`ensemblorg/ensembl-vep:release_111.0`, the actual production base image,
-in a throwaway build this round - see commit history for the result).
+-g ...` on a real input folder).
+
+**Update on the production `Dockerfile`'s R/SigMA block**: building it
+against its real base image (`ensemblorg/ensembl-vep:release_111.0`, not
+just the bioconductor_docker-based smoke test image) surfaced a real
+failure - `devtools` itself failed to install because two of its
+transitive dependencies (`fs`, needing `libuv1-dev`'s `uv.h`; `textshaping`/
+`ragg`, needing `libharfbuzz-dev`'s `hb-ft.h`) couldn't compile without
+headers the original apt package list didn't include. Fixed by adding
+`libuv1-dev libharfbuzz-dev libfribidi-dev libfreetype-dev libtiff5-dev
+libjpeg-dev` to the Dockerfile's apt install line - not re-verified with a
+full rebuild afterward (the initial build alone took ~13 minutes; a
+targeted, source-confirmed fix for the exact two missing headers found,
+but flagged here rather than silently assumed fixed).
+
+## Cluster / conda alternative (no Docker)
+
+For users running Varan via conda/mamba on an HPC cluster rather than
+Docker, see the new **`SIGMA_CONDA_SETUP.md`** - a tested `environment.yml`
+using conda-forge/bioconda binary packages for the entire dependency list
+(including `bioconductor-bsgenome.hsapiens.ucsc.hg19` and `r-rmisc`, both
+confirmed to exist there - nothing needed a CRAN/GitHub fallback except
+SigMA itself, which isn't packaged anywhere and always needs
+`devtools::install_github()` regardless of install path). Notably, this
+conda path sidesteps the whole missing-system-header problem above
+entirely, since conda-forge ships prebuilt binaries - no source
+compilation, no header hunting.
 
 ## Status (rounds 1-2): research/analysis only, no pipeline wiring
 
