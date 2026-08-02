@@ -15,15 +15,19 @@
 """Build a MAF suitable for SigMA mutational-signature analysis.
 
 Why this is not just filter_main() with a different flag combination:
-SigMA's own make_matrix() (see the SigMA research notes in
-project_future_implementations.md) filters to SNVs only, but does NOT
-filter by VAF and does NOT distinguish germline from somatic - it trusts
-the input is already clean. Varan's *clinical* MAF pipeline goes the other
-direction: filter_main()'s 'o'/'i' flags narrow down to oncogenic/
-high-impact variants only, which would leave far too few passenger
-mutations for a trinucleotide-context spectrum to be meaningful. SigMA
-needs a third tier: quality-filtered (PASS + population AF + VAF exclude
-bands) but NOT clinically narrowed.
+SigMA's own make_matrix() (confirmed by reading its actual R source,
+see SIGMA_INTEGRATION_FEASIBILITY.md at the repo root for the full
+verification writeup) filters to SNVs only (Variant_Type == "SNP", plus a
+single-base-length check on Reference_Allele/Tumor_Seq_Allele2) but does
+NOT filter by VAF and does NOT distinguish germline from somatic - it
+trusts the input is already clean. That SNV-only filtering is therefore
+intentionally NOT duplicated here; this module only needs to handle what
+make_matrix() does not: VAF-based and population-AF-based cleanup. Varan's
+*clinical* MAF pipeline goes the other direction: filter_main()'s 'o'/'i'
+flags narrow down to oncogenic/high-impact variants only, which would
+leave far too few passenger mutations for a trinucleotide-context
+spectrum to be meaningful. SigMA needs a third tier: quality-filtered
+(PASS + population AF + VAF exclude bands) but NOT clinically narrowed.
 
 This reuses filter_clinvar.filter_vaf_exclude_bands() (the same
 multi-band exclusion primitive folded into filter_main()'s 'v' flag) with
@@ -38,7 +42,9 @@ NOT YET WIRED into walk_folder()/Snakemake - this is the filtering
 function only. Where it's called from (per-sample after vcf2maf, or once
 on the concatenated unfiltered MAF) and where its output lands
 (intermediate/sigma/, per the agreed design) is the next piece of this
-branch's work.
+branch's work - see SIGMA_INTEGRATION_FEASIBILITY.md for the
+flag-vs-inline-pipeline recommendation and the proposed [SigMA] conf.ini
+surface that would drive it.
 """
 
 from __future__ import annotations
