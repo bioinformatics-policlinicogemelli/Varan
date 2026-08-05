@@ -55,7 +55,6 @@ PLOIDY = int(config.get("Cna", "PLOIDY"))
 ONCOKB_FILTER = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
 
 output_filtered = "snv_filtered"
-tmp = "scratch"
 
 
 def create_random_name_folder() -> str:
@@ -67,15 +66,10 @@ def create_random_name_folder() -> str:
     """
     folder_name = "".join(
         secrets.choice(string.ascii_lowercase + string.digits) for _ in range(10))
-    tmp = "scratch"
-    temporary = Path(tmp) / folder_name
+    temporary = Path(output_folder) / "scratch" / folder_name
 
     try:
-        temporary.mkdir()
-    except FileNotFoundError as err:
-        logger.critical(f"Scratch folder '{tmp}' not found!")
-        msg = "Error in create_random_name_folder: exiting from walk script!"
-        raise(FileNotFoundError(msg)) from err
+        temporary.mkdir(parents=True)
     except Exception as err:
         logger.critical("Something went wrong while creating the vep tmp folder")
         msg = "Error in create_random_name_folder: exiting from walk script!"
@@ -83,18 +77,22 @@ def create_random_name_folder() -> str:
     return(str(temporary))
 
 
-def clear_scratch() -> None:
-    """Remove all directories inside the `tmp` directory.
+def clear_scratch(folder: str | None = None) -> None:
+    """Remove this run's own scratch subfolder, then the (now-empty) scratch
+    parent.
 
     Returns:
         None
 
     """
-    tmp = "scratch"
-    for root, dirs, _ in os.walk(tmp):
-        for directory in dirs:
-            to_rem=Path(root) / directory
-            shutil.rmtree(to_rem)
+    if folder is None:
+        return
+    to_rem = Path(folder)
+    if to_rem.exists():
+        shutil.rmtree(to_rem)
+    scratch_parent = to_rem.parent
+    if scratch_parent.name == "scratch" and scratch_parent.exists():
+        shutil.rmtree(scratch_parent, ignore_errors=True)
 
 
 def get_cnv_from_folder(input_foldercnv: str) -> list:
@@ -237,13 +235,14 @@ def cnv_type_from_folder(input_path: str,
     sid_path = {}
 
     for case_folder in cnv_vcf_files:
+        mode = "a" if (Path(output_folder) / "data_cna_hg19.seg").exists() else "w"
         try:
             cnv_vcf = case_folder
             sample_id = get_sample_id_from_cnv(case_folder)
 
             if sample_id in sid_path:
-                with Path("sampleID_dup.log").open("w") as dup_path:
-                    dup_path.write(sample_id + "\t" + "cnv_vcf")
+                with (Path(output_folder) / "sampleID_dup.log").open("a") as dup_path:
+                    dup_path.write(sample_id + "\t" + "cnv_vcf\n")
             else:
                 if multiple:
                     sid_path[sample_id] = Path(
@@ -263,7 +262,7 @@ def cnv_type_from_folder(input_path: str,
 
         except Exception:
             logger.warning(f"Error while reading {case_folder}")
-            with Path(output_folder / "noParsed_cnv.log").open("a") as log_noparsed:                
+            with (Path(output_folder) / "noParsed_cnv.log").open("a") as log_noparsed:
                 log_noparsed.write("[WARNING] " + case_folder + "\n")
 
         counter += 1
@@ -501,8 +500,8 @@ def get_sample_id_from_snv(snv_vcf: str) -> str:
     return sample
 
 
-def snv_type_from_folder(input_pat: str,
-                         snv_vcf_files: list) -> dict:
+def snv_type_from_folder(input_pat: str, 
+    snv_vcf_files: list, output_folder: str) -> dict:
     """Map sample IDs to their full SNV paths, handling duplicates.
 
     Args:
@@ -520,12 +519,12 @@ def snv_type_from_folder(input_pat: str,
             snv_vcf = case_folder
             sample_id = get_sample_id_from_snv(case_folder)
             if sample_id in sid_path:
-                with Path("sampleID_dup.log").open("w") as dup:
+                with (Path(output_folder) / "sampleID_dup.log").open("a") as dup:
                     dup.write(sample_id + "\t" + "snv_vcf")
             else:
                 sid_path[sample_id] = str(Path(input_pat) / snv_vcf)
         except Exception:
-            with Path("noParsed_snv.log").open("a") as log_noparsed:
+            with (Path(output_folder) / "noParsed_snv.log").open("a") as log_noparsed:
                 log_noparsed.write("[WARNING]" + case_folder + "\n")
         c = c + 1
 
@@ -2159,9 +2158,10 @@ def walk_folder(
         exon_file_output = Path(output_folder) / "exon_CNA_data.txt"
         write_exon_brca(exon_file_output, combined_dict)
 
+    temporary = None
     if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
         logger.info("Managing SNV files...")
-        s_id_path_snv = snv_type_from_folder(input_folder_snv, case_folder_arr)
+        s_id_path_snv = snv_type_from_folder(input_folder_snv, case_folder_arr, output_folder)
 
         logger.info("Checking maf folder...")
         maf_path = Path(output_folder) / "maf"
@@ -2174,7 +2174,7 @@ def walk_folder(
                 s_id_path_snv = vcf_filtering(
                 s_id_path_snv, output_folder, output_filtered)
 
-            temporary = create_random_name_folder()
+            temporary = create_random_name_folder(output_folder)
             for k, v in s_id_path_snv.items():
                 cl = vcf2maf_constructor(v, temporary, output_folder)
                 run_vcf2maf(cl, k)
