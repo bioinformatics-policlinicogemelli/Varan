@@ -233,11 +233,10 @@ def cnv_type_from_folder(input_path: str,
         A mapping from sample ID to VCF file path used in processing.
 
     """
-    c = 0
+    counter = 0
     sid_path = {}
 
     for case_folder in cnv_vcf_files:
-        mode = "a" if Path("data_cna_hg19.seg").exists() else "w"
         try:
             cnv_vcf = case_folder
             sample_id = get_sample_id_from_cnv(case_folder)
@@ -255,19 +254,19 @@ def cnv_type_from_folder(input_path: str,
                 vcf2tab_cnv.vcf_to_table(
                     sid_path[sample_id], Path(
                         output_folder) / "data_cna_hg19.seg",
-                    sample_id, mode)
+                    sample_id, "w")
                 vcf2tab_cnv.vcf_to_table_fc(
                     input_path,
                     sid_path[sample_id], Path(
                         output_folder) / "data_cna_hg19.seg.fc.txt",
-                    sample_id, mode)
+                    sample_id, "w")
 
         except Exception:
-            with Path("noParsed_cnv.log").open("w") as log_noparsed:
+            logger.warning(f"Error while reading {case_folder}")
+            with Path(output_folder / "noParsed_cnv.log").open("a") as log_noparsed:                
                 log_noparsed.write("[WARNING] " + case_folder + "\n")
-                log_noparsed.close()
 
-        c = c + 1
+        counter += 1
 
     seg_path = Path(output_folder) / "data_cna_hg19.seg"
     segfc_path = Path(output_folder) / "data_cna_hg19.seg.fc.txt"
@@ -281,9 +280,9 @@ def cnv_type_from_folder(input_path: str,
     if segfc_path.exists():
         logger.info("Writing data_cna_hg19.seg.fc.txt succefully completed!")
 
-    ############################
-    ### MANAGE DISCRETE TABLE ##
-    ############################
+        ############################
+        ### MANAGE DISCRETE TABLE ##
+        ############################
 
         logger.info("Starting CNA evaluation (this step could take a while)...")
         df_table = pd.read_csv(
@@ -349,7 +348,6 @@ def cnv_type_from_folder(input_path: str,
                     df_path=Path(output_folder) / "tmp_ann.txt"
                     df_tmp.to_csv(df_path, sep="\t", index=False)
 
-
                     cmd = [
                         "python3", "./oncokb-annotator/CnaAnnotator.py",
                         "-i", str(df_path),
@@ -383,47 +381,38 @@ def cnv_type_from_folder(input_path: str,
                                   dtype={"Copy_Number_Alteration":int})
 
             logger.info("Analyzing cna sample(s)")
-            for _, row in cna.iterrows():
-                try:
-                    tc = int(
-                        input_file[input_file[
-                            "Tumor_Sample_Barcode"] == row[
-                                "Tumor_Sample_Barcode"]]["TC"])
-                except ValueError:
+
+            cna["Copy_Number_Alteration"] = 0
+
+            if cna["TC"].isna().all():
+                logger.warning("TC column is empty or contains only NaNs! "
+                               "This column is required when CNVKIT_algorithm = True!")
+                return sid_path
+
+            for sample_id, sample_df in cna.groupby("Tumor_Sample_Barcode"):
+                tc_val = sample_df["TC"].iloc[0]
+                
+                if pd.isna(tc_val):
+                    logger.warning(f"Skipping sample {sample_id} due to NaN TC value.")
                     continue
-                except Exception as err:
-                    msg = "Something went wrong while reading TC!"
-                    raise(Exception(msg)) from err
+                
+                try:
+                    tc = int(tc_val)
+                except (ValueError, TypeError):
+                    logger.warning(f"Skipping sample {sample_id} due to invalid TC value: {tc_val}")
+                    continue
 
                 purity = tc / 100
                 copy_nums = np.arange(6)
-                c = 2 ** (
-                    np.log2((1 - purity)
-                            + purity * (copy_nums + .5)
-                            / PLOIDY ))
+                thresholds = 2 ** (np.log2((1 - purity) + purity * (copy_nums + .5) / PLOIDY))
 
-            # CNVKIT_algorithm filter
-            if not cna["TC"].isna().all():
-                cna["Copy_Number_Alteration"]=0
-                cna.loc[(cna["seg.mean"]<c[0]
-                         ), "Copy_Number_Alteration"]=-2
-                cna.loc[(cna["seg.mean"]>=c[0]
-                         )&(cna["seg.mean"]<c[1]
-                            ), "Copy_Number_Alteration"]=-1
-                cna.loc[(cna["seg.mean"]>=c[1]
-                         )&(cna["seg.mean"]<c[3]
-                            ), "Copy_Number_Alteration"]=0
-                cna.loc[(cna["seg.mean"]>=c[3]
-                         )&(cna["seg.mean"]<c[5]
-                            ), "Copy_Number_Alteration"]=1
-                cna.loc[cna["seg.mean"]>=c[5],
-                        "Copy_Number_Alteration"]=2
+                sample_mask = cna["Tumor_Sample_Barcode"] == sample_id
 
-            else:
-                logger.warning("TC column is empty or does not exist in sample.tsv! "
-                "This column is required when CNVKIT_algorithm = True! If TC values are not "
-                "available the setting of CNVKIT_algorithmt = False is recommended")
-                return sid_path
+                cna.loc[sample_mask & (cna["seg.mean"] < thresholds[0]), "Copy_Number_Alteration"] = -2
+                cna.loc[sample_mask & (cna["seg.mean"] >= thresholds[0]) & (cna["seg.mean"] < thresholds[1]), "Copy_Number_Alteration"] = -1
+                cna.loc[sample_mask & (cna["seg.mean"] >= thresholds[1]) & (cna["seg.mean"] < thresholds[3]), "Copy_Number_Alteration"] = 0
+                cna.loc[sample_mask & (cna["seg.mean"] >= thresholds[3]) & (cna["seg.mean"] < thresholds[5]), "Copy_Number_Alteration"] = 1
+                cna.loc[sample_mask & (cna["seg.mean"] >= thresholds[5]), "Copy_Number_Alteration"] = 2
 
             cna.to_csv(Path(output_folder) / name,
                        index=True, sep="\t")
@@ -454,7 +443,6 @@ def cnv_type_from_folder(input_path: str,
                                 index=True, sep="\t")
 
     return sid_path
-
 
 def table_to_dict(df: pd.DataFrame) -> dict:
     """Convert a DataFrame into a dictionary grouped by the 'ID' column.

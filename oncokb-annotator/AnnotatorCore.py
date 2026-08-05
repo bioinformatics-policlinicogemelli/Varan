@@ -22,7 +22,7 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 log = logging.getLogger('AnnotatorCore')
 
 # API timeout is set to two minutes
-REQUEST_TIMEOUT = 240
+REQUEST_TIMEOUT = 600
 
 API_REQUEST_RETRY_STATUS_FORCELIST = [429, 500, 502, 503, 504]
 
