@@ -57,7 +57,7 @@ ONCOKB_FILTER = ast.literal_eval(config.get("Filters", "ONCOKB_FILTER"))
 output_filtered = "snv_filtered"
 
 
-def create_random_name_folder() -> str:
+def create_random_name_folder(output_folder: str) -> str:
     """Create a temporary folder with a random name.
 
     Returns:
