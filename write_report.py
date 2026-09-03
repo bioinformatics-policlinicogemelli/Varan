@@ -778,13 +778,13 @@ def write_report_main(
     if cna_included:
         filters_dict["PLOIDY"] = extract_key_value(my_filters, "PLOIDY")
         filters_dict["CNVKIT_algorithm"] = extract_key_value(my_filters, "CNVKIT_algorithm")
-        if oncokb:
+        if oncokb and "o" in filters:
             filters_dict["ONCOKB_FILTER_CNV"] = extract_key_value(
                 my_filters, "ONCOKB_FILTER_CNV")
 
     if fusion_included:
         filters_dict["THRESHOLD_FUSION"] = extract_key_value(my_filters, "THRESHOLD_FUSION")
-        if oncokb:
+        if oncokb and "o" in filters:
             filters_dict["ONCOKB_FILTER_FUSION"] = extract_key_value(
                 my_filters, "ONCOKB_FILTER_FUSION")
 
@@ -797,7 +797,7 @@ def write_report_main(
             <div class="content">
                 <p><strong>PLOIDY</strong> = {filters_dict["PLOIDY"]}</p>
                 <p><strong>CNVKIT Algorithm</strong> = {filters_dict["CNVKIT_algorithm"]}</p>"""
-        if oncokb:
+        if oncokb and "o" in filters:
             html_content += f"""
                 <p><strong>ONCOKB_FILTER_CNV</strong> = {filters_dict["ONCOKB_FILTER_CNV"]}</p>"""
         html_content += """

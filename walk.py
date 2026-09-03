@@ -155,7 +155,8 @@ def cnv_type_from_folder(input_path: str,
                          output_folder: str,
                          oncokb: bool,
                          cancer: str,
-                         multiple: bool) -> dict:
+                         multiple: bool,
+                         filters: str = "") -> dict:
     """Process CNV, converting them in CNA tables and performing annotation.
 
     Args:
@@ -171,6 +172,13 @@ def cnv_type_from_folder(input_path: str,
         Default cancer type to use if ONCOTREE_CODE is not available.
     multiple : bool
         If True, indicates that VCFs are in "CNV/single_sample_vcf"; otherwise in "CNV".
+    filters : str, optional
+        Filter options as string, same as the SNV/fusion `filters` CLI
+        option. Oncogenicity annotation (OncoKB) still runs whenever
+        `oncokb` is True - that alone must not drop any row - but rows
+        are only filtered down to Oncogenic/Likely Oncogenic when "o" is
+        also present here, mirroring the SNV and fusion behavior.
+        Defaults to "" (annotate but do not filter).
 
     Returns:
     dict
@@ -339,7 +347,8 @@ def cnv_type_from_folder(input_path: str,
                 name = "03_annotated_oncokb_CNA_ndiscrete.txt"
                 cna = pd.read_csv(out, sep="\t",
                                   dtype={"Copy_Number_Alteration":int})
-                cna = filter_oncokb(cna, "Cna", "ONCOKB_FILTER_CNV")
+                if "o" in filters:
+                    cna = filter_oncokb(cna, "Cna", "ONCOKB_FILTER_CNV")
             else:
                 out = temppath
                 name = "01_CNA_ndiscrete.txt"
@@ -2029,7 +2038,7 @@ def validate_input(
     oncokb_filter_checks = []
     if oncokb and "o" in filters:
         oncokb_filter_checks.append(("Filters", "ONCOKB_FILTER_SNV"))
-    if oncokb and vcf_type not in ["snv", "fus", "tab"]:
+    if oncokb and "o" in filters and vcf_type not in ["snv", "fus", "tab"]:
         oncokb_filter_checks.append(("Cna", "ONCOKB_FILTER_CNV"))
     if oncokb and "o" in filters and vcf_type not in ["cnv", "snv", "tab"]:
         oncokb_filter_checks.append(("FUSION", "ONCOKB_FILTER_FUSION"))
@@ -2669,7 +2678,7 @@ def _walk_process_cnv(ctx: WalkContext) -> None:
         logger.info("Managing CNV files...")
         cnv_type_from_folder(
             ctx.input_folder, ctx.case_folder_arr_cnv, ctx.output_folder,
-            ctx.oncokb, ctx.cancer, ctx.multiple)
+            ctx.oncokb, ctx.cancer, ctx.multiple, ctx.filters)
 
     combined_output_folder = Path(ctx.input_folder) / "CombinedOutput"
     if (combined_output_folder.exists()
