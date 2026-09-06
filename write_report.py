@@ -335,7 +335,7 @@ def ghost_sample(output_folder: str) -> list[str]:
 
     all_path = output_path / "data_clinical_sample.txt"
     if all_path.exists():
-        all_df = pd.read_csv(all_path, sep="\t", header=4)
+        all_df = pd.read_csv(all_path, sep="\t", header=4, dtype=str)
         all_samples = set(all_df["SAMPLE_ID"])
     else:
         all_samples = set()
@@ -437,7 +437,7 @@ def get_samples(file: str, sample_list: set[str], output_folder: str) -> set[str
     """
     path = Path(output_folder) / file
     if path.exists():
-        dataframe = pd.read_csv(path, sep="\t", low_memory=False)
+        dataframe = pd.read_csv(path, sep="\t", low_memory=False, dtype=str)
         if file == "data_mutations_extended.txt":
             samples = set(dataframe["Tumor_Sample_Barcode"])
         elif file == "data_cna.txt":
@@ -936,7 +936,7 @@ def parse_clinical_sample(output_folder: str) -> tuple[set[str], set[str], int, 
     if not path.exists():
         return set(), set(), 0, 0
 
-    clin_sam = pd.read_csv(path, sep="\t", header=4)
+    clin_sam = pd.read_csv(path, sep="\t", header=4, dtype=str)
     samples = set(clin_sam["SAMPLE_ID"])
     patients = set(clin_sam["PATIENT_ID"])
     return samples, patients, len(samples), len(patients)
