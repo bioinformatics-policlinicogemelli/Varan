@@ -33,6 +33,7 @@ from __future__ import annotations
 import math
 import sys
 from pathlib import Path
+from typing import Dict, Optional
 
 import pandas as pd
 from loguru import logger
@@ -255,15 +256,54 @@ def parse_fc_and_gene(
     return fc, gene
 
 
-def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, sample: str, mode: str) -> None:
-    """Convert VCF CNV to table format with FC, gene, discrete, and CNV adjusted/unadjusted values.
+def load_tc_lookup(sample_info_path: Path) -> tuple[dict[str, float], Optional[str]]:
+    """Load every sample's TC (tumor cellularity, as a 0-1 fraction) from
+    sample.tsv ONCE for the whole batch, instead of re-reading/re-checking
+    it inside vcf_to_table_fc() on every single sample - which previously
+    also re-logged the same "no TC info at all" warning once per sample.
 
     Parameters
     ----------
     sample_info_path : Path
-        Path to the sample.tsv file containing TC (tumor cellularity) per sample.
-    sample_info_path : Path
-        Path to the sample.tsv file containing TC (tumor cellularity) per sample.
+        Directory containing the batch's sample.tsv.
+
+    Returns
+    -------
+    tuple[dict[str, float], str | None]
+        A `{SAMPLE_ID: tc_fraction}` map (only for samples that actually
+        have a usable TC value), and either None (TC info is available,
+        so a per-sample gap is a real per-sample fact worth its own
+        warning) or a single reason string to log once for the whole
+        batch when TC isn't available at all (missing sample.tsv or
+        missing TC column).
+    """
+    sample_info_path = Path(sample_info_path)
+    if not sample_info_path.exists():
+        return {}, f"Sample info file {sample_info_path} not found"
+
+    tc_tbl = pd.read_csv(Path(sample_info_path, "sample.tsv"), sep="\t",
+                         dtype={"SAMPLE_ID": str})
+    if "TC" not in tc_tbl.columns:
+        return {}, f"Column 'TC' not found in {sample_info_path}"
+
+    tc_by_sample = {}
+    for _, row in tc_tbl.iterrows():
+        if pd.isna(row["TC"]):
+            continue
+        tc_by_sample[row["SAMPLE_ID"]] = float(row["TC"]) / 100
+    return tc_by_sample, None
+
+
+def vcf_to_table_fc(tc_lookup: Dict[str, float], vcf_file: str, table_file: str, sample: str, mode: str) -> None:
+    """Convert VCF CNV to table format with FC, gene, discrete, and CNV adjusted/unadjusted values.
+
+    Parameters
+    ----------
+    tc_lookup : dict[str, float]
+        `{SAMPLE_ID: tc_fraction}` map for the whole batch, from
+        load_tc_lookup() - a sample missing from it gets an unadjusted-
+        only CN (logging that gap is the caller's responsibility, since it
+        can decide whether it's a per-sample or a whole-batch fact).
     vcf_file : str
         Path to the input VCF file.
     table_file : str
@@ -281,30 +321,7 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
     vcf_path = Path(vcf_file)
     sample = sample.split(".")[0]
 
-    tc_available = False
-    sample_tc = None
-    if sample_info_path.exists():
-        tc_tbl = pd.read_csv(Path(sample_info_path, "sample.tsv"), sep="\t",
-                             dtype={"SAMPLE_ID": str})
-        if "TC" in tc_tbl.columns:
-            tc_available = True
-            tc_row = tc_tbl[tc_tbl["SAMPLE_ID"] == sample]
-            if not tc_row.empty and not pd.isna(tc_row["TC"].values[0]):
-                sample_tc = float(tc_row["TC"].values[0])/100
-            else:
-                sample_tc = None
-                logger.warning(
-                    f"Sample '{sample}' does not have a TC value. Only unadjusted CN will be calculated."
-                )
-        else:
-            logger.warning(
-                f"Column 'TC' not found in {sample_info_path}. Only unadjusted CN will be calculated."
-            )
-    else:
-        logger.warning(
-            f"Sample info file {sample_info_path} not found. Only unadjusted CN will be calculated."
-        )
-    sample = sample.split(".")[0]
+    sample_tc = tc_lookup.get(sample)
 
     mode = "a" if table_path.exists() else "w"
     with vcf_path.open() as vcf, table_path.open(mode) as table:
@@ -358,7 +375,7 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
 
             cn_unadjusted = round(2 * fc)
             
-            if tc_available and sample_tc is not None and sample_tc > 0:
+            if sample_tc is not None and sample_tc > 0:
                 cn_adjusted = round(2 + 2 * (fc - 1) / sample_tc)
                 if cn_adjusted < 0:
                     cn_adjusted = 0
