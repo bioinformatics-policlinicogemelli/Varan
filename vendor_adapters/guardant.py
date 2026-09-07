@@ -517,6 +517,11 @@ def process_single_sample(
         sample_id=sid, patient_id=p_id, run_id=run_id_final,
         oncotree_code=o_code, snv_path=snv_f, cnv_path=cnv_f, comb_path="",
         msi=m_info["msi_score"], tmb="", msi_thr=m_info["msi_thr"], tmb_thr="",
+        # Passed through as a plain sample.tsv extra column (see SampleRow's
+        # own docstring on `run_id` vs `extra`) so it ends up as a RUN_ID
+        # column in data_clinical_sample.txt via write_clinical_sample()'s
+        # existing generic passthrough - no walk.py changes needed.
+        extra={"RUN_ID": run_id_final},
     )
 
 

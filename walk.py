@@ -116,6 +116,19 @@ def clear_scratch(folder: str | None = None) -> None:
     scratch_parent = to_rem.parent
     if scratch_parent.name == "scratch" and scratch_parent.exists():
         shutil.rmtree(scratch_parent, ignore_errors=True)
+        # create_random_name_folder()'s mkdir(parents=True) may have had to
+        # create the study's output folder itself just to hold this
+        # scratch/ subfolder - e.g. vendor-adapter preprocessing
+        # (run_vendor_adapter() in varan.py) runs against the not-yet-
+        # versioned output folder name, before create_output_folder() ever
+        # creates the real "<name>_v1" folder. Removing scratch/ above can
+        # then leave that now-empty output folder behind. Only ever remove
+        # it when it's completely empty, so a real output folder that
+        # already has pipeline output in it (e.g. walk.py's own mid-run
+        # scratch cleanup) is never touched.
+        output_folder = scratch_parent.parent
+        if output_folder.exists() and not any(output_folder.iterdir()):
+            output_folder.rmdir()
 
 
 def get_cnv_from_folder(input_foldercnv: str) -> list:
