@@ -201,6 +201,18 @@ def cnv_type_from_folder(input_path: str,
     counter = 0
     sid_path = {}
 
+    # Loaded ONCE for the whole batch instead of once per sample inside
+    # vcf_to_table_fc(): TC availability (missing sample.tsv / missing TC
+    # column) is a batch-wide fact, not a per-sample one, so it should log
+    # ONCE - actual per-sample TC gaps are collected below and reported
+    # either as one aggregate line (missing for every sample) or one line
+    # per affected sample (missing for only some), matching how missing
+    # SNV/CNV/CombinedOutput paths are already reported in transform_input.
+    tc_lookup, tc_unavailable_reason = vcf2tab_cnv.load_tc_lookup(input_path)
+    if tc_unavailable_reason:
+        logger.warning(
+            f"{tc_unavailable_reason}. Only unadjusted CN will be calculated.")
+
     for case_folder in cnv_vcf_files:
         try:
             cnv_vcf = case_folder
@@ -221,7 +233,7 @@ def cnv_type_from_folder(input_path: str,
                         output_folder) / "data_cna_hg19.seg",
                     sample_id, "w")
                 vcf2tab_cnv.vcf_to_table_fc(
-                    input_path,
+                    tc_lookup,
                     sid_path[sample_id], Path(
                         output_folder) / "data_cna_hg19.seg.fc.txt",
                     sample_id, "w")
@@ -232,6 +244,20 @@ def cnv_type_from_folder(input_path: str,
                 log_noparsed.write("[WARNING] " + case_folder + "\n")
 
         counter += 1
+
+    if tc_unavailable_reason is None and sid_path:
+        missing_tc = [
+            sid.split(".")[0] for sid in sid_path
+            if sid.split(".")[0] not in tc_lookup]
+        if len(missing_tc) == len(sid_path):
+            logger.warning(
+                "None of the samples have a TC value. Only unadjusted CN "
+                "will be calculated.")
+        else:
+            for sid in missing_tc:
+                logger.warning(
+                    f"Sample '{sid}' does not have a TC value. Only "
+                    "unadjusted CN will be calculated.")
 
     seg_path = Path(output_folder) / "data_cna_hg19.seg"
     segfc_path = Path(output_folder) / "data_cna_hg19.seg.fc.txt"
@@ -1371,8 +1397,8 @@ def get_combined_variant_output_from_folder(
 
 def check_input_file(
     output_folder: str, file: str, copy_to: str, sample_id: str,
-    relevant: bool = True) -> None:
-    """Copy an input file to a temporary folder or log if missing.
+    relevant: bool = True) -> bool:
+    """Copy an input file to a temporary folder, or report it's missing.
 
     Args:
         output_folder (str): Base output directory.
@@ -1384,18 +1410,33 @@ def check_input_file(
             is expected and not worth a warning - only an unexpected state
             (path given but the file doesn't exist) still gets logged.
 
+    Returns:
+        bool: True when `file` is unset for this sample and `relevant` is
+            True - the caller aggregates this flag across the whole sample
+            batch (see check_folders/transform_input) so a config-wide gap
+            (e.g. every Guardant sample's blank comb_path) logs ONE warning
+            instead of repeating the identical line once per sample. A
+            path that was given but doesn't exist on disk is still warned
+            about immediately here, since that message differs per sample.
+
     """
     file_path = Path(file)
     destination = Path(output_folder) / "temp" / copy_to
 
+    # `file` empty (e.g. Guardant's always-blank comb_path) must be checked
+    # BEFORE file_path.exists(): Path("") == Path(".") and the current
+    # directory always exists, so file_path.exists() would be True and this
+    # would try to `cp .` the whole cwd - producing a confusing "cp: -r not
+    # specified" shell error instead of the intended "no path set" warning,
+    # without actually copying anything.
+    if not file:
+        return relevant
+
     if file_path.exists():
         os.system(f"cp {file_path} {destination}")
-    elif not file:
-        if relevant:
-            logger.warning(
-                f"No final_path set in conf.ini for sample {sample_id}'s {copy_to}!")
     else:
         logger.warning(f"{file_path} not found")
+    return False
 
 
 def check_folders(
@@ -1404,13 +1445,13 @@ def check_folders(
     cnv_path: str,
     combout: str,
     sample_id: str,
-    vcf_type: str | None = None) -> None:
+    vcf_type: str | None = None) -> dict[str, bool]:
     """Check presence of SNV, CNV, and CombinedOutput files for a sample.
 
-    Only warns about a file type that's actually missing or unset for a
-    sample where it's needed - a missing/unset path for a file type
-    excluded by the selected analysis type (-t) is expected, not a problem,
-    and stays silent (see check_input_file's `relevant` flag).
+    Only flags a file type that's actually missing or unset for a sample
+    where it's needed - a missing/unset path for a file type excluded by
+    the selected analysis type (-t) is expected, not a problem (see
+    check_input_file's `relevant` flag).
 
     Args:
         output_folder (str): Base output directory.
@@ -1421,14 +1462,23 @@ def check_folders(
         vcf_type (str | None): Selected analysis type restriction (-t), or
             None if no restriction was given.
 
+    Returns:
+        dict[str, bool]: For each of "SNV"/"CNV"/"CombinedOutput", True if
+            this sample has no path set for it (and it's relevant) - the
+            caller aggregates these across the batch (see transform_input)
+            to log one warning per file type instead of one per sample.
+
     """
-    check_input_file(
-        output_folder, snv_path, "SNV", sample_id,
-        relevant=vcf_type not in ["cnv", "fus", "tab"])
-    check_input_file(
-        output_folder, cnv_path, "CNV", sample_id,
-        relevant=vcf_type not in ["snv", "fus", "tab"])
-    check_input_file(output_folder, combout, "CombinedOutput", sample_id)
+    return {
+        "SNV": check_input_file(
+            output_folder, snv_path, "SNV", sample_id,
+            relevant=vcf_type not in ["cnv", "fus", "tab"]),
+        "CNV": check_input_file(
+            output_folder, cnv_path, "CNV", sample_id,
+            relevant=vcf_type not in ["snv", "fus", "tab"]),
+        "CombinedOutput": check_input_file(
+            output_folder, combout, "CombinedOutput", sample_id),
+    }
 
 
 def transform_input(
@@ -1478,18 +1528,47 @@ def transform_input(
         cnv_path = config.get("Multiple", "CNV")
         combout = config.get("Multiple", "COMBOUT")
 
-        check_folders(output_folder, snv_path, cnv_path, combout, "multiple", vcf_type)
+        missing = check_folders(
+            output_folder, snv_path, cnv_path, combout, "multiple", vcf_type)
+        for copy_to, was_missing in missing.items():
+            if was_missing:
+                logger.warning(
+                    f"No final_path set in conf.ini for {copy_to}!")
 
     else:
         tsv_file = pd.read_csv(tsv, sep="\t", dtype="string", keep_default_na=False)
 
+        # Collected per file type instead of warning inline per sample: a
+        # config-wide gap (e.g. every Guardant sample's blank comb_path,
+        # since Guardant never has a CombinedOutput) would otherwise log
+        # the identical line once per sample - see check_input_file.
+        missing_by_type: dict[str, list[str]] = {
+            "SNV": [], "CNV": [], "CombinedOutput": []}
         for _,row in tsv_file.iterrows():
             sample_id = row["SAMPLE_ID"]
             snv_path = row["snv_path"]
             cnv_path = row["cnv_path"]
             combout = row["comb_path"]
 
-            check_folders(output_folder, snv_path, cnv_path, combout, sample_id, vcf_type)
+            missing = check_folders(
+                output_folder, snv_path, cnv_path, combout, sample_id, vcf_type)
+            for copy_to, was_missing in missing.items():
+                if was_missing:
+                    missing_by_type[copy_to].append(sample_id)
+
+        total_samples = len(tsv_file)
+        for copy_to, missing_samples in missing_by_type.items():
+            if not missing_samples:
+                continue
+            if len(missing_samples) == total_samples:
+                logger.warning(
+                    f"No final_path set in conf.ini for {copy_to} on any "
+                    "of the samples!")
+            else:
+                for sample_id in missing_samples:
+                    logger.warning(
+                        f"No final_path set in conf.ini for sample "
+                        f"{sample_id}'s {copy_to}!")
 
     return str(Path(output_folder) / "temp")
 
