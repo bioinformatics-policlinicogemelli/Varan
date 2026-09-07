@@ -25,6 +25,8 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from loguru import logger
+
 # Varan's own data_sv.txt column shape (Sample_Id/SV_Status/Site1_Hugo_Symbol/
 # Site2_Hugo_Symbol are the ones fill_fusion_from_temp() in walk.py actually
 # requires; the rest are carried through as-is). This is Varan's ingestion
@@ -114,7 +116,13 @@ def load_oncotree_dict(dict_path: str) -> Tuple[Dict[str, str], set]:
     name_to_code: Dict[str, str] = {}
     valid_codes = set()
     if dict_path and os.path.exists(dict_path):
-        with open(dict_path, "r", encoding="utf-8") as f:
+        # "utf-8-sig" transparently strips a leading BOM if present (e.g.
+        # a dict.csv saved from Excel as "CSV UTF-8") and behaves exactly
+        # like plain "utf-8" otherwise. Without this, a BOM sticks to the
+        # first header name (turning "code" into "﻿code"), silently
+        # emptying the whole mapping with no error - every diagnosis would
+        # then come back NOT_IN_DICT even though the file "looks" right.
+        with open(dict_path, "r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 if "name" in row and "code" in row:
@@ -122,6 +130,11 @@ def load_oncotree_dict(dict_path: str) -> Tuple[Dict[str, str], set]:
                     code = row["code"].strip().upper()
                     name_to_code[name] = code
                     valid_codes.add(code)
+        if not name_to_code:
+            logger.warning(
+                f"{dict_path} exists but no usable name/code rows were "
+                "read from it - check that its header row is exactly "
+                "'name,code' (or 'code,name') and that it isn't empty.")
     return name_to_code, valid_codes
 
 

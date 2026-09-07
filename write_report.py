@@ -678,7 +678,7 @@ def write_report_main(
             <div class="subtitle">MAF Filters</div>"""
 
     if oncokb and "o" in filters:
-        filters_dict["ONCOKB"] = "include " + ", ".join([
+        filters_dict["ONCOKB_FILTER_SNV"] = "include " + ", ".join([
             item.strip()
             for item in extract_key_value(my_filters, "ONCOKB_FILTER_SNV")
             .strip('[]')
@@ -687,7 +687,7 @@ def write_report_main(
         ])
         html_content += f"""
             <div class="content">
-            <p><strong>ONCOKB:</strong> {filters_dict["ONCOKB"]}</p>
+            <p><strong>ONCOKB_FILTER_SNV:</strong> {filters_dict["ONCOKB_FILTER_SNV"]}</p>
         </div>"""
 
     if "q" in filters:
@@ -779,14 +779,24 @@ def write_report_main(
         filters_dict["PLOIDY"] = extract_key_value(my_filters, "PLOIDY")
         filters_dict["CNVKIT_algorithm"] = extract_key_value(my_filters, "CNVKIT_algorithm")
         if oncokb and "o" in filters:
-            filters_dict["ONCOKB_FILTER_CNV"] = extract_key_value(
-                my_filters, "ONCOKB_FILTER_CNV")
+            filters_dict["ONCOKB_FILTER_CNV"] = "include " + ", ".join([
+                item.strip()
+                for item in extract_key_value(my_filters, "ONCOKB_FILTER_CNV")
+                .strip('[]')
+                .replace('"', '')
+                .split(',')
+            ])
 
     if fusion_included:
         filters_dict["THRESHOLD_FUSION"] = extract_key_value(my_filters, "THRESHOLD_FUSION")
         if oncokb and "o" in filters:
-            filters_dict["ONCOKB_FILTER_FUSION"] = extract_key_value(
-                my_filters, "ONCOKB_FILTER_FUSION")
+            filters_dict["ONCOKB_FILTER_FUSION"] = "include " + ", ".join([
+                item.strip()
+                for item in extract_key_value(my_filters, "ONCOKB_FILTER_FUSION")
+                .strip('[]')
+                .replace('"', '')
+                .split(',')
+            ])
 
     tmb_section = re.sub(r"[{}']", "", extract_section(my_filters, "TMB"))
     tmb_section = re.sub(r"([,:])(?=\S)", r"\1 ", tmb_section)
@@ -799,7 +809,7 @@ def write_report_main(
                 <p><strong>CNVKIT Algorithm</strong> = {filters_dict["CNVKIT_algorithm"]}</p>"""
         if oncokb and "o" in filters:
             html_content += f"""
-                <p><strong>ONCOKB_FILTER_CNV</strong> = {filters_dict["ONCOKB_FILTER_CNV"]}</p>"""
+                <p><strong>ONCOKB_FILTER_CNV:</strong> {filters_dict["ONCOKB_FILTER_CNV"]}</p>"""
         html_content += """
             </div>"""
 
@@ -821,7 +831,7 @@ def write_report_main(
                 <p><strong>THRESHOLD_FUSION</strong>: {filters_dict["THRESHOLD_FUSION"]}</p>"""
         if oncokb:
             html_content += f"""
-                <p><strong>ONCOKB_FILTER_FUSION</strong> = {filters_dict["ONCOKB_FILTER_FUSION"]}</p>"""
+                <p><strong>ONCOKB_FILTER_FUSION:</strong> {filters_dict["ONCOKB_FILTER_FUSION"]}</p>"""
         html_content += """
             </div>"""
 
@@ -1217,7 +1227,7 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
     filters1 = original_provenance.get("filters", {})
     filters2 = incoming_provenance.get("filters", {})
 
-    order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB", "IMPACT",\
+    order = ["T_VAF_MIN", "T_VAF_MIN_NOVEL", "T_VAF_MAX", "AF", "ONCOKB_FILTER_SNV", "IMPACT",\
     "CLIN_SIG", "CONSEQUENCES", "POLYPHEN", "SIFT", "PLOIDY", "CNVKIT_algorithm",\
     "THRESHOLD_TMB", "THRESHOLD_SITES", "THRESHOLD_MSI", "THRESHOLD_FUSION"]
 
@@ -1413,15 +1423,15 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
                 <p><strong>AF</strong>: {filters1["AF"]}</p>
             </div>"""
 
-    if any(filt in common_filters for filt in ["ONCOKB", "CONSEQUENCES", "POLYPHEN",
+    if any(filt in common_filters for filt in ["ONCOKB_FILTER_SNV", "CONSEQUENCES", "POLYPHEN",
     "CLIN_SIG", "IMPACT", "SIFT"]):
         html_content += """
             <div class="subtitle">MAF Filters</div>"""
 
-    if "ONCOKB" in common_filters:
+    if "ONCOKB_FILTER_SNV" in common_filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>ONCOKB</strong>: {filters1["ONCOKB"]}</p>
+                <p><strong>ONCOKB_FILTER_SNV</strong>: {filters1["ONCOKB_FILTER_SNV"]}</p>
             </div>"""
 
     if "CONSEQUENCES" in common_filters:
@@ -1890,17 +1900,17 @@ def write_report_extract(original_study: str, new_study: str,
     if any(
         filt in filters
         for filt in [
-            "ONCOKB", "CONSEQUENCES", "POLYPHEN",
+            "ONCOKB_FILTER_SNV", "CONSEQUENCES", "POLYPHEN",
             "CLIN_SIG", "IMPACT", "SIFT", "FILTER",
         ]
     ):
         html_content += """
             <div class="subtitle">MAF Filters</div>"""
 
-    if "ONCOKB" in filters:
+    if "ONCOKB_FILTER_SNV" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>ONCOKB</strong>: {filters["ONCOKB"]}</p>
+                <p><strong>ONCOKB_FILTER_SNV</strong>: {filters["ONCOKB_FILTER_SNV"]}</p>
             </div>"""
 
     if "CONSEQUENCES" in filters:
@@ -2326,17 +2336,17 @@ def write_report_remove(
     if any(
         filt in filters
         for filt in [
-            "ONCOKB", "CONSEQUENCES", "POLYPHEN",
+            "ONCOKB_FILTER_SNV", "CONSEQUENCES", "POLYPHEN",
             "CLIN_SIG", "IMPACT", "SIFT",
         ]
     ):
         html_content += """
             <div class="subtitle">MAF Filters</div>"""
 
-    if "ONCOKB" in filters:
+    if "ONCOKB_FILTER_SNV" in filters:
         html_content += f"""
                 <div class="content">
-                <p><strong>ONCOKB</strong>: {filters["ONCOKB"]}</p>
+                <p><strong>ONCOKB_FILTER_SNV</strong>: {filters["ONCOKB_FILTER_SNV"]}</p>
             </div>"""
 
     if "CONSEQUENCES" in filters:
