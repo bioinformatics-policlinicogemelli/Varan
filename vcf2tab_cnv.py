@@ -238,10 +238,21 @@ def parse_fc_and_gene(
 
     """
     if version == "VCFv4.1":
-        gene = next(info.split("=")[-1] for info in infos if "ANT" in info)
+        gene = next(
+            (info.split("=")[-1] for info in infos if "ANT" in info), "NA")
         fc = fields[-1] if file_format == "FC" else "."
     elif version == "VCFv4.2":
-        gene = next(info.split("=")[-1] for info in infos if "SEGID" in info)
+        # A default (rather than letting next() raise StopIteration) keeps
+        # one row without a SEGID annotation from taking down the whole
+        # file: an unhandled exception here previously propagated out of
+        # vcf_to_table_fc() and aborted ALL of THIS sample's seg.fc.txt
+        # rows - even the ones already written - while vcf_to_table()
+        # (which doesn't need SEGID) had already finished writing the
+        # sample's full .seg file moments earlier. That's how a sample can
+        # end up present in data_cna_hg19.seg but missing (or partial) in
+        # data_cna_hg19.seg.fc.txt.
+        gene = next(
+            (info.split("=")[-1] for info in infos if "SEGID" in info), "NA")
         format_infos = file_format.split(":")
         sample_infos_split = sample_infos.split(":")
         fc_position = format_infos.index("SM")
