@@ -29,6 +29,7 @@ from loguru import logger
 from config_loader import get_config
 from populate_case_lists import (populate_cases_cna, populate_cases_sequenced,
                                  populate_cases_sv)
+from ValidateFolder import remove_meta
 from versioning import extract_version_str
 
 
@@ -407,6 +408,18 @@ def meta_case_main(
 
 
     ###########  METAFILE FUNCTIONS  ###########
+
+    # A resumed run (-R) writes into an already-existing output folder, so
+    # a data file this run ends up without (e.g. data_sv.txt deleted by
+    # _walk_process_fusion after every fusion turned out empty this time)
+    # can leave behind a meta file from an earlier state in the same
+    # folder - the create_meta_*()-per-data-file guards below only ever
+    # ADD a meta file, they never remove a now-orphaned one. remove_meta()
+    # (already used by Update/Delete/Extract for the same reason) clears
+    # those out first; a no-op on a fresh, single-shot run since no meta
+    # file exists yet to be orphaned.
+    remove_meta(output_folder)
+
     project_id = create_meta_study(
         cancer,
         project_name,
