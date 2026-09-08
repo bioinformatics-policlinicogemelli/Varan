@@ -260,8 +260,18 @@ def cnv_type_from_folder(input_path: str,
                         output_folder) / "data_cna_hg19.seg.fc.txt",
                     sample_id, "w")
 
-        except Exception:
-            logger.warning(f"Error while reading {case_folder}")
+        except Exception as err:
+            # The bare "Error while reading X" below used to be the ONLY
+            # trace of what went wrong - swallowing the actual exception
+            # made it impossible to tell, from the log alone, why a given
+            # sample ended up in noParsed_cnv.log (e.g. distinguishing a
+            # malformed VCF from a missing SEGID/gene annotation from a
+            # sample.tsv lookup failure). Logging it explicitly here is
+            # diagnostic-only - behavior (skip this sample, keep going) is
+            # unchanged.
+            logger.warning(
+                f"Error while reading {case_folder}: "
+                f"{type(err).__name__}: {err}")
             with (Path(output_folder) / "noParsed_cnv.log").open("a") as log_noparsed:
                 log_noparsed.write("[WARNING] " + case_folder + "\n")
 
