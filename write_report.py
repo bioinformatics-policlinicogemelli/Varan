@@ -23,11 +23,13 @@ data review and interpretation.
 from __future__ import annotations
 
 import ast
+import html
 import json
 import os
 import re
 import shutil
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 import subprocess
@@ -274,6 +276,113 @@ def render_provenance_html(label: str, provenance: dict | None) -> str:
     return (
         f'<div class="content"><p><strong>{label}</strong></p>'
         + "".join(rows) + "</div>")
+
+
+def write_report_failure(
+    output_folder: str,
+    error: BaseException,
+    cancer: str | None = None,
+    start_time: str = "",
+    stage: str = "",
+) -> None:
+    """Write report_VARAN.html for a run that did not complete.
+
+    Reuses the same look (logo, styles.css, header/container layout) as a
+    successful run's report, so a failed run leaves behind the same
+    familiar file to open - at the same path/filename a successful run
+    would have used - instead of nothing, with a failure banner and the
+    reason in place of results. Called from a `try`/`except` around each
+    entry point (`varan()`'s create path, `update_main`, `delete_main`,
+    `extract_main`) once that entry point's own output/study folder is
+    known, so it's always written to the actual study folder, never a
+    shared or home-directory location.
+
+    Args:
+        output_folder (str): The study's output folder for this run.
+        error (BaseException): The exception that ended the run.
+        cancer (str | None): Cancer type, if already resolved when the
+            failure happened.
+        start_time (str): When the run started, if known.
+        stage (str): Short label for what was running when it failed
+            (e.g. "MAF filtering"), if known.
+
+    Returns
+    -------
+    None
+
+    """
+    output_path = Path(output_folder)
+    output_path.mkdir(parents=True, exist_ok=True)
+    img_dir = output_path / "img"
+    img_dir.mkdir(parents=True, exist_ok=True)
+
+    logo_src = Path("docs") / "img" / "logo_VARAN.png"
+    logo_dst = img_dir / "logo_VARAN.png"
+    if not logo_dst.exists() and logo_src.exists():
+        shutil.copy(logo_src, logo_dst)
+
+    if Path("styles.css").exists():
+        shutil.copy("styles.css", img_dir / "styles.css")
+
+    now = datetime.now().astimezone()
+    date = now.strftime("%d/%m/%Y, %H:%M:%S")
+    start_time_html = (
+        f"<h3>Analysis started on {html.escape(start_time)}</h3>"
+        if start_time else "")
+    stage_html = (
+        f"<p><strong>Failed during:</strong> {html.escape(stage)}</p>"
+        if stage else "")
+    cancer_html = (
+        f"<p><strong>Cancer Type:</strong> {html.escape(cancer.capitalize())}</p>"
+        if cancer else "")
+
+    error_type = type(error).__name__
+    error_message = html.escape(str(error))
+    error_detail = html.escape(
+        "".join(traceback.format_exception(type(error), error, error.__traceback__)))
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="it">
+    <head>
+        <link rel="stylesheet" type="text/css" href="{Path('img') / 'styles.css'}">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Varan Report - Failed</title>
+    </head>
+    <body>
+        <header>
+            <img src="{Path('img') / 'logo_VARAN.png'}" alt="Logo Varan">
+            <h1>VARAN</h1>
+        </header>
+
+        {start_time_html}
+        <h3>Report generated on {date}</h3>
+
+        <div class="container">
+            <section class="failure">
+                <div class="section-title">Analysis Failed</div>
+                <div class="failure-banner">
+                    <p>&#10060; <strong>This run did not complete successfully.</strong></p>
+                    <p><strong>Reason:</strong> {error_type}: {error_message}</p>
+                </div>
+                <div class="content">
+                    <p><strong>Command Line:</strong> {html.escape(" ".join(sys.argv))}</p>
+                    <p><strong>Study Folder:</strong> {html.escape(output_path.name)}</p>
+                    {cancer_html}
+                    {stage_html}
+                </div>
+                <div class="subtitle">Error Detail</div>
+                <div class="content">
+                    <pre class="error-detail">{error_detail}</pre>
+                </div>
+            </section>
+        </div>
+    </body>
+    </html>
+    """
+
+    (output_path / "report_VARAN.html").write_text(html_content)
 
 
 def extract_sample_list(filecase: str) -> list[str]:

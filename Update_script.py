@@ -39,7 +39,7 @@ from Update_functions import (
 )
 from ValidateFolder import check_all_data, copy_maf, remove_meta, validate_output
 from versioning import extract_info_from_meta
-from write_report import write_report_update
+from write_report import write_report_failure, write_report_update
 from config_loader import get_config
 
 config = get_config()
@@ -79,12 +79,9 @@ def update_main(oldpath: str, newpath: str,
     output, no_out, output_caseslists = prepare_output_folder(
         oldpath, output, overwrite)
 
-    # A copy of the run's log lives inside its own output folder too, in
-    # addition to the one varan.py already attached under this user's home
-    # directory - see attach_file_log_sink()'s docstring for why the home
-    # directory is the default in the first place (a shared cluster working
-    # directory's Logs/ can end up owned by a different user, blocking
-    # everyone else's runs from writing a log at all).
+    # The run's log file lives inside its own output (study) folder - see
+    # attach_file_log_sink()'s docstring for why any failure to write it is
+    # swallowed rather than crashing an otherwise-fine run.
     attach_file_log_sink(
         Path(output), "Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
 
@@ -93,35 +90,51 @@ def update_main(oldpath: str, newpath: str,
     oldpath = Path(oldpath)
     output = Path(output)
 
-    copy_metadata_files(Path(oldpath), Path(newpath), Path(output))
+    # `stage`/`cancer` let the failure report (if the except below fires)
+    # say more than just "it failed" - `cancer` starts as None since it
+    # isn't known until extract_info_from_meta() runs partway through.
+    stage = "Copying metadata files"
+    cancer = None
+    try:
+        copy_metadata_files(Path(oldpath), Path(newpath), Path(output))
 
-    file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt",
-                  "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt",
-                  "data_mutations_extended.txt", "data_sv.txt", "exon_CNA_data.txt",
-                  "data_exon_brca_cna.txt"]
+        file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt",
+                      "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt",
+                      "data_mutations_extended.txt", "data_sv.txt", "exon_CNA_data.txt",
+                      "data_exon_brca_cna.txt"]
 
-    for file in file_names:
-        safe_check_file(oldpath, newpath, output, file)
+        stage = "Merging data files"
+        for file in file_names:
+            safe_check_file(oldpath, newpath, output, file)
 
-    check_all_data(output)
-    remove_meta(output)
+        check_all_data(output)
+        remove_meta(output)
 
-    cancer, study_info = extract_info_from_meta(oldpath)
-    study_info.append(oldpath)
-    study_info.append(no_out)
+        stage = "Creating tables"
+        cancer, study_info = extract_info_from_meta(oldpath)
+        study_info.append(oldpath)
+        study_info.append(no_out)
 
-    meta_case_main(cancer, output, study_info, study_id)
+        meta_case_main(cancer, output, study_info, study_id)
 
-    copy_maf_flag = check_bool(config.get("Zip", "COPY_MAF"))
-    zip_maf_flag = check_bool(config.get("Zip", "ZIP_MAF"))
-    copy_maf(oldpath, output, copy_maf_flag, zip_maf_flag)
-    copy_maf(newpath, output, copy_maf_flag, zip_maf_flag)
+        stage = "Copying MAF files"
+        copy_maf_flag = check_bool(config.get("Zip", "COPY_MAF"))
+        zip_maf_flag = check_bool(config.get("Zip", "ZIP_MAF"))
+        copy_maf(oldpath, output, copy_maf_flag, zip_maf_flag)
+        copy_maf(newpath, output, copy_maf_flag, zip_maf_flag)
 
-    logger.info("Starting Validation Folder...")
-    number_for_graph = validate_output(output, None, False, True, None, None, None)
+        stage = "Validation"
+        logger.info("Starting Validation Folder...")
+        number_for_graph = validate_output(output, None, False, True, None, None, None)
 
-    logger.info("Starting writing report_VARAN.html...")
-    write_report_update(oldpath, newpath, output, number_for_graph, start_time)
+        stage = "Writing report_VARAN.html"
+        logger.info("Starting writing report_VARAN.html...")
+        write_report_update(oldpath, newpath, output, number_for_graph, start_time)
+    except Exception as err:
+        logger.critical(f"Update failed during '{stage}': {err}")
+        write_report_failure(
+            output, err, cancer=cancer, start_time=start_time, stage=stage)
+        raise
 
     logger.success("The process ended without errors")
     logger.success("Successfully updated study!")
