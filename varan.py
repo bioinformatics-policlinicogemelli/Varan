@@ -580,6 +580,13 @@ if __name__ == "__main__":
     parser.add_argument("-R", "--resume", required=False, action="store_true",
                         help="Resume an already started analysis")
 
+    parser.add_argument(
+        "-D", "--dry-run", dest="dry_run", required=False, action="store_true",
+        help=("Validate conf.ini, input files and the output folder's "
+        "versioning, then exit without running anything (no VEP/vcf2maf, "
+        "no vendor download, nothing written to disk). Prints only the "
+        "problems found, or a single all-clear line if there aren't any."))
+
     # ANNOTATION BLOCK
     parser.add_argument("-k", "--oncokb", required=False, action="store_true",
                         help="OncoKB annotation")
@@ -738,6 +745,37 @@ if __name__ == "__main__":
                 "Both resume and overwrite options are selected. "
                 "Please select only one!")
             sys.exit(1)
+
+        # DRY RUN
+        #
+        # Every CLI-consistency check above has already run unconditionally
+        # (a real invocation would have exited by now if one of those
+        # failed) - dry-run only adds the checks that need to actually look
+        # at conf.ini's paths, the input files' content, and the output
+        # folder's existing versions, none of which have been touched yet.
+        # Exits here either way: never falls through to the vendor adapter
+        # dispatch or varan() below.
+        if args.dry_run:
+            from preflight import run_preflight_checks
+            ok = run_preflight_checks(
+                pipeline=pipeline,
+                varan_input=varan_input,
+                cancer=cancer,
+                output_folder=output_folder,
+                oncokb=oncokb,
+                filters=filters,
+                analysis_type=analysis_type,
+                overwrite_output=overwrite_output,
+                resume=resume,
+                sigma=sigma,
+                update=update,
+                extract=extract,
+                remove=remove,
+                path=args.Path,
+                new_path=args.NewPath,
+                sample_list=args.SampleList,
+            )
+            sys.exit(0 if ok else 1)
 
         # VENDOR ADAPTER DISPATCH
         #
