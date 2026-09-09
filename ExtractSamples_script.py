@@ -36,6 +36,7 @@ from ExtractSamples_functions import (
     check_sample_list,
     extract_all_data)
 from filter_clinvar import check_bool
+from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
 from ValidateFolder import (
     copy_maf,
@@ -104,6 +105,15 @@ def extract_main(oldpath: str,
 
     output = create_newest_version_folder(output)
     logger.info(f"Creating a new folder: {output}")
+
+    # A copy of the run's log lives inside its own output folder too, in
+    # addition to the one varan.py already attached under this user's home
+    # directory - see attach_file_log_sink()'s docstring for why the home
+    # directory is the default in the first place (a shared cluster working
+    # directory's Logs/ can end up owned by a different user, blocking
+    # everyone else's runs from writing a log at all).
+    attach_file_log_sink(
+        Path(output), "Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
 
     output_caseslists = Path(output) / "case_lists"
     output_caseslists.mkdir(parents=True, exist_ok=True)

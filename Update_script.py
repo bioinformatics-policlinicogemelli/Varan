@@ -30,6 +30,7 @@ from pathlib import Path
 from loguru import logger
 
 from filter_clinvar import check_bool
+from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
 from Update_functions import (
     copy_metadata_files,
@@ -77,6 +78,15 @@ def update_main(oldpath: str, newpath: str,
 
     output, no_out, output_caseslists = prepare_output_folder(
         oldpath, output, overwrite)
+
+    # A copy of the run's log lives inside its own output folder too, in
+    # addition to the one varan.py already attached under this user's home
+    # directory - see attach_file_log_sink()'s docstring for why the home
+    # directory is the default in the first place (a shared cluster working
+    # directory's Logs/ can end up owned by a different user, blocking
+    # everyone else's runs from writing a log at all).
+    attach_file_log_sink(
+        Path(output), "Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
 
     logger.info("Great! Everything is ready to start")
 
