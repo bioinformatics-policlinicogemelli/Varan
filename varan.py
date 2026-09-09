@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 from loguru import logger
 
 from config_loader import get_config, set_config_path
+from log_utils import attach_file_log_sink
 from vendor_adapters import ADAPTERS
 from versioning import get_git_version
 
@@ -61,32 +62,6 @@ from versioning import get_git_version
 # at import time - only their run() functions take conf.ini-derived
 # overrides as plain arguments, resolved lazily inside run_vendor_adapter()
 # below, well after set_config_path() has run.
-
-def attach_file_log_sink(directory: Path, logfile: str) -> Path | None:
-    """Attach a loguru file sink under `directory`, creating it if needed.
-
-    Never raises. A shared cluster working directory's `Logs/` folder can
-    easily end up owned by whichever user ran Varan there first, with
-    permissions that then block every other user's own runs from writing
-    a log at all - a logging setup problem should never be what crashes an
-    otherwise-fine run, so any failure here (permission denied, read-only
-    filesystem, whatever) is swallowed and logging just falls back to
-    stderr only (already attached separately, unaffected by this).
-
-    Returns the path actually used, or None if it couldn't be created.
-    """
-    try:
-        directory.mkdir(parents=True, exist_ok=True)
-        path = directory / logfile
-        logger.add(
-            path,
-            format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
-            mode="w")
-        return path
-    except OSError as err:
-        logger.warning(f"Could not set up a log file under {directory}: {err}")
-        return None
-
 
 def logo() -> None:
     """Print the ASCII art logo for the Varan pipeline."""
