@@ -44,6 +44,10 @@ Usage (from the repository root, with conf.ini and config.yaml filled in):
     snakemake --cores 1 --use-conda update
     snakemake --cores 1 --use-conda extract
     snakemake --cores 1 --use-conda remove
+
+Or via run.py, which adds per-config locking, PBS cluster submission and a
+run summary on top of the same four targets - see run.py --help:
+    ./run.py -w create -c config.yaml -q 4
 """
 
 configfile: "config.yaml"
@@ -101,7 +105,7 @@ rule walk_setup:
     output:
         ctx=_ctx_pkl,
     log:
-        "Logs/snakemake_walk_setup.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_setup.log",
     conda:
         config["conda_env"]
     params:
@@ -119,7 +123,7 @@ rule walk_cnv:
     output:
         done=f"{_c['output_folder']}/.cnv.done",
     log:
-        "Logs/snakemake_walk_cnv.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_cnv.log",
     conda:
         config["conda_env"]
     params:
@@ -135,7 +139,7 @@ rule walk_snv:
     output:
         done=f"{_c['output_folder']}/.snv.done",
     log:
-        "Logs/snakemake_walk_snv.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_snv.log",
     conda:
         config["conda_env"]
     params:
@@ -152,7 +156,7 @@ rule walk_fusion:
     output:
         done=f"{_c['output_folder']}/.fusion.done",
     log:
-        "Logs/snakemake_walk_fusion.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_fusion.log",
     conda:
         config["conda_env"]
     params:
@@ -169,7 +173,7 @@ rule walk_clinical:
     output:
         done=f"{_c['output_folder']}/.clinical.done",
     log:
-        "Logs/snakemake_walk_clinical.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_clinical.log",
     conda:
         config["conda_env"]
     params:
@@ -191,7 +195,7 @@ rule create:
     output:
         report=f"{_c['output_folder']}/report_VARAN.html",
     log:
-        "Logs/snakemake_create.log",
+        f"{_c['output_folder']}/service/logs/snakemake_create.log",
     conda:
         config["conda_env"]
     params:
@@ -206,7 +210,7 @@ rule update:
     output:
         report=f"{config['update']['output_folder']}/report_VARAN.html",
     log:
-        "Logs/snakemake_update.log",
+        f"{config['update']['output_folder']}/service/logs/snakemake_update.log",
     conda:
         config["conda_env"]
     params:
@@ -221,7 +225,7 @@ rule extract:
     output:
         report=f"{config['extract']['output_folder']}/report_VARAN.html",
     log:
-        "Logs/snakemake_extract.log",
+        f"{config['extract']['output_folder']}/service/logs/snakemake_extract.log",
     conda:
         config["conda_env"]
     params:
@@ -236,7 +240,7 @@ rule remove:
     output:
         report=f"{config['remove']['output_folder']}/report_VARAN.html",
     log:
-        "Logs/snakemake_remove.log",
+        f"{config['remove']['output_folder']}/service/logs/snakemake_remove.log",
     conda:
         config["conda_env"]
     params:
@@ -244,3 +248,45 @@ rule remove:
         conf=config["conf_path"],
     shell:
         "python varan.py {params.args} -C {params.conf} > {log} 2>&1"
+
+
+## ============================================================================
+## Completion notification -- opt-in via `notify_email:` in config.yaml.
+## Omit it and this silently no-ops (harmless for setups that don't want
+## it). Uses the system mail/mailx command with a 15s timeout so a broken
+## mail relay can't hang the pipeline's completion. Fires once per
+## run.py/snakemake invocation, not once per rule/target.
+## ============================================================================
+
+def _notify_email(subject: str, body: str) -> None:
+    email = config.get("notify_email")
+    if not email:
+        return
+    import shutil
+    import subprocess
+    mail_bin = shutil.which("mail") or shutil.which("mailx")
+    if not mail_bin:
+        return
+    try:
+        subprocess.run(
+            [mail_bin, "-s", subject, email],
+            input=body.encode(), check=False, timeout=15)
+    except Exception:
+        pass
+
+
+onsuccess:
+    _notify_email(
+        "[Varan/Snakemake] SUCCESS",
+        "The Varan Snakemake run completed successfully.\n"
+        f"Config file: {config.get('conf_path', 'conf.ini')}\n")
+
+
+onerror:
+    _notify_email(
+        "[Varan/Snakemake] FAILED",
+        "The Varan Snakemake run failed. Each target's own study folder "
+        "has a report_VARAN.html explaining what happened (written even on "
+        "failure - see write_report_failure()), and the per-rule Snakemake "
+        "logs live under that same folder's service/logs/.\n"
+        f"Config file: {config.get('conf_path', 'conf.ini')}\n")

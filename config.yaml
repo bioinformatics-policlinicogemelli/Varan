@@ -11,6 +11,12 @@ conda_env: "vep"
 
 conf_path: "conf.ini"
 
+# Optional: email one address when a run.py/snakemake invocation finishes
+# (success or failure) - see the onsuccess/onerror handlers at the bottom
+# of the Snakefile. Omit this key entirely to opt out (default); requires
+# the system's `mail`/`mailx` command to be configured and working.
+# notify_email: "you@example.org"
+
 
 # create is structured (not a flat args string) because the Snakefile now
 # runs it as a real per-stage DAG (setup -> {cnv, snv, fusion, clinical} in
