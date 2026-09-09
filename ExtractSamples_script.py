@@ -47,7 +47,7 @@ from versioning import (
     create_newest_version_folder,
     extract_info_from_meta,
     get_version_list)
-from write_report import write_report_extract
+from write_report import write_report_extract, write_report_failure
 from config_loader import get_config
 
 config = get_config()
@@ -106,12 +106,9 @@ def extract_main(oldpath: str,
     output = create_newest_version_folder(output)
     logger.info(f"Creating a new folder: {output}")
 
-    # A copy of the run's log lives inside its own output folder too, in
-    # addition to the one varan.py already attached under this user's home
-    # directory - see attach_file_log_sink()'s docstring for why the home
-    # directory is the default in the first place (a shared cluster working
-    # directory's Logs/ can end up owned by a different user, blocking
-    # everyone else's runs from writing a log at all).
+    # The run's log file lives inside its own output (study) folder - see
+    # attach_file_log_sink()'s docstring for why any failure to write it is
+    # swallowed rather than crashing an otherwise-fine run.
     attach_file_log_sink(
         Path(output), "Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
 
@@ -120,34 +117,49 @@ def extract_main(oldpath: str,
 
     logger.info("Great! Everything is ready to start")
 
-    meta_files = Path(oldpath).glob("*meta*")
-    for file in meta_files:
-        shutil.copy(file, output)
+    # `stage`/`cancer` let the failure report (if the except below fires)
+    # say more than just "it failed" - `cancer` starts as None since it
+    # isn't known until extract_info_from_meta() runs partway through.
+    stage = "Extracting samples"
+    cancer = None
+    try:
+        meta_files = Path(oldpath).glob("*meta*")
+        for file in meta_files:
+            shutil.copy(file, output)
 
-    with Path(extract_path).open() as f:
-        sample_ids = [line.strip() for line in f]
+        with Path(extract_path).open() as f:
+            sample_ids = [line.strip() for line in f]
 
-    extract_all_data(oldpath, sample_ids, output)
+        extract_all_data(oldpath, sample_ids, output)
 
-    check_all_data(output)
-    remove_meta(output)
+        check_all_data(output)
+        remove_meta(output)
 
-    cancer, study_info = extract_info_from_meta(oldpath)
-    study_info.append(oldpath)
-    study_info.append(no_out)
-    meta_case_main(cancer, output, study_info, study_id)
+        stage = "Creating tables"
+        cancer, study_info = extract_info_from_meta(oldpath)
+        study_info.append(oldpath)
+        study_info.append(no_out)
+        meta_case_main(cancer, output, study_info, study_id)
 
-    zip_maf_set = config.get("Zip", "ZIP_MAF")
-    zip_maf_set = check_bool(zip_maf_set)
-    copy_maf_set = config.get("Zip", "COPY_MAF")
-    copy_maf_set = check_bool(copy_maf_set)
-    copy_maf(oldpath, output, copy_maf_set, zip_maf_set)
+        stage = "Copying MAF files"
+        zip_maf_set = config.get("Zip", "ZIP_MAF")
+        zip_maf_set = check_bool(zip_maf_set)
+        copy_maf_set = config.get("Zip", "COPY_MAF")
+        copy_maf_set = check_bool(copy_maf_set)
+        copy_maf(oldpath, output, copy_maf_set, zip_maf_set)
 
-    logger.info("Starting Validation Folder...")
-    number_for_graph = validate_output(output, None, False, True, None, None, None)
+        stage = "Validation"
+        logger.info("Starting Validation Folder...")
+        number_for_graph = validate_output(output, None, False, True, None, None, None)
 
-    logger.info("Starting writing report_VARAN.html...")
-    write_report_extract(oldpath, output, number_for_graph, start_time)
+        stage = "Writing report_VARAN.html"
+        logger.info("Starting writing report_VARAN.html...")
+        write_report_extract(oldpath, output, number_for_graph, start_time)
+    except Exception as err:
+        logger.critical(f"Extract failed during '{stage}': {err}")
+        write_report_failure(
+            output, err, cancer=cancer, start_time=start_time, stage=stage)
+        raise
 
     logger.success("The process ended without errors")
     logger.success("Successfully extracted sample(s)!")

@@ -173,76 +173,91 @@ def varan(
             f"resume:{resume}, multiple:{multiple}, update:{update}, "
             f"extract:{extract}, remove:{remove}, sigma:{sigma}]")
 
-        ###########################
-        #        1.  WALK         #
-        ###########################
+        # `stage` tracks what was running when/if the except below fires,
+        # so write_report_failure() can say more than just "it failed" -
+        # updated right before each step starts, not after (a crash inside
+        # a step should still be attributed to that step).
+        stage = "Preparing study folder"
+        try:
+            ###########################
+            #        1.  WALK         #
+            ###########################
 
-        logger.info("Starting preparation study folder")
-        output_folder, varan_input, _ = walk_folder(
-            varan_input, multiple, output_folder, oncokb, cancer,
-            overwrite_output, resume, analysis_type, filters, sigma,
-            )
+            logger.info("Starting preparation study folder")
+            output_folder, varan_input, _ = walk_folder(
+                varan_input, multiple, output_folder, oncokb, cancer,
+                overwrite_output, resume, analysis_type, filters, sigma,
+                )
 
-        # This run's own output folder is only known from here on (walk_folder
-        # just created/resumed it) - a second copy of the log lives there too,
-        # alongside this run's other output, in addition to the one already
-        # attached under this user's home directory. Never raises (see
-        # attach_file_log_sink()) even if the output folder somehow isn't
-        # writable either.
-        attach_file_log_sink(
-            Path(output_folder), "Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
+            # This run's own output folder is only known from here on
+            # (walk_folder just created/resumed it) - the run's log file
+            # lives there, alongside its other output. Never raises (see
+            # attach_file_log_sink()) even if the output folder isn't
+            # writable.
+            attach_file_log_sink(
+                Path(output_folder), "Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
 
-        ###########################
-        #       2. FILTER         #
-        ###########################
+            ###########################
+            #       2. FILTER         #
+            ###########################
 
-        logger.info("Starting MAF filtering")
-        if analysis_type not in ["cnv", "fus", "tab"]:
-            filter_main(
+            stage = "MAF filtering"
+            logger.info("Starting MAF filtering")
+            if analysis_type not in ["cnv", "fus", "tab"]:
+                filter_main(
+                    varan_input,
+                    output_folder,
+                    output_folder,
+                    oncokb,
+                    filters,
+                    cancer,
+                    resume)
+
+
+            ############################
+            #      3. CONCATENATE      #
+            ############################
+
+            stage = "Concatenating mutation file"
+            maf_path = Path(output_folder) / "maf"
+
+            if maf_path.exists() and analysis_type not in ["cnv", "fus", "tab"]:
+                logger.info("Concatenating mutation file")
+                concatenate_main(filters, output_folder, "maf", oncokb)
+
+
+            ###########################################
+            #      4. MAKE AND POPULATE TABLES        #
+            ###########################################
+
+            stage = "Creating tables"
+            logger.info("It's time to create tables!")
+            meta_case_main(cancer, output_folder)
+
+
+            ############################
+            #      5. VALIDATION       #
+            ############################
+
+            stage = "Validation"
+            logger.info("Starting validation...")
+            validate_output(
+                output_folder,
                 varan_input,
-                output_folder,
-                output_folder,
+                multiple,
+                False,
+                cancer,
                 oncokb,
                 filters,
-                cancer,
-                resume)
-
-
-        ############################
-        #      3. CONCATENATE      #
-        ############################
-
-        maf_path = Path(output_folder) / "maf"
-
-        if maf_path.exists() and analysis_type not in ["cnv", "fus", "tab"]:
-            logger.info("Concatenating mutation file")
-            concatenate_main(filters, output_folder, "maf", oncokb)
-
-
-        ###########################################
-        #      4. MAKE AND POPULATE TABLES        #
-        ###########################################
-
-        logger.info("It's time to create tables!")
-        meta_case_main(cancer, output_folder)
-
-
-        ############################
-        #      5. VALIDATION       #
-        ############################
-
-        logger.info("Starting validation...")
-        validate_output(
-            output_folder,
-            varan_input,
-            multiple,
-            False,
-            cancer,
-            oncokb,
-            filters,
-            start_time,
-            analysis_type,
-            )
+                start_time,
+                analysis_type,
+                )
+        except Exception as err:
+            logger.critical(f"Analysis failed during '{stage}': {err}")
+            write_report_failure(
+                output_folder, err, cancer=cancer, start_time=start_time,
+                stage=stage)
+            raise
 
 
     ############################
@@ -653,14 +668,12 @@ if __name__ == "__main__":
     try:
         args = parser.parse_args()
 
-        # -D/--dry-run only ever reads and reports - no file is written
-        # for it, log included. Otherwise, default to this user's own
-        # home directory rather than a shared Logs/ folder relative to
-        # wherever Varan was launched from (see attach_file_log_sink()'s
-        # docstring for why - the exact cluster multi-user permission
-        # problem this replaces).
-        if not args.dry_run:
-            attach_file_log_sink(Path.home() / ".varan" / "logs", logfile)
+        # No log file is attached here anymore: only each run's own study
+        # (output) folder gets a copy, once that folder is known - see the
+        # attach_file_log_sink() calls in varan()/update_main()/extract_main()/
+        # delete_main(). -D/--dry-run never gets one either (it only reads
+        # and reports, nothing is written to disk). Anything logged before
+        # the output folder is resolved only reaches stderr.
 
         # Set the conf.ini path *before* importing any other Varan module -
         # every one of them reads conf.ini at import time, so this ordering
@@ -697,6 +710,7 @@ if __name__ == "__main__":
         from Update_script import update_main
         from ValidateFolder import validate_output
         from walk import clear_scratch, create_random_name_folder, walk_folder
+        from write_report import write_report_failure
 
         cancer = args.Cancer
         varan_input = args.varan_input
@@ -836,6 +850,16 @@ if __name__ == "__main__":
             clear_scratch(scratch_dir)
 
     except ValueError as err:
-        logger.critical(f"ValueError: {err}", file=sys.stderr)
+        logger.critical(f"ValueError: {err}")
+        sys.exit(1)
     except FileNotFoundError as err:
-        logger.critical(f"File not found: {err}", file=sys.stderr)
+        logger.critical(f"File not found: {err}")
+        sys.exit(1)
+    except Exception as err:
+        # Anything else that made it here already had its own
+        # report_VARAN.html written (see the try/except around varan()'s
+        # create path, and around update_main/delete_main/extract_main) -
+        # this is just what makes the process itself report failure too,
+        # e.g. to a caller like Snakemake's onerror.
+        logger.critical(f"{type(err).__name__}: {err}")
+        sys.exit(1)
