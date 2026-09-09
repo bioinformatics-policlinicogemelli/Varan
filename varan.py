@@ -62,6 +62,32 @@ from versioning import get_git_version
 # overrides as plain arguments, resolved lazily inside run_vendor_adapter()
 # below, well after set_config_path() has run.
 
+def attach_file_log_sink(directory: Path, logfile: str) -> Path | None:
+    """Attach a loguru file sink under `directory`, creating it if needed.
+
+    Never raises. A shared cluster working directory's `Logs/` folder can
+    easily end up owned by whichever user ran Varan there first, with
+    permissions that then block every other user's own runs from writing
+    a log at all - a logging setup problem should never be what crashes an
+    otherwise-fine run, so any failure here (permission denied, read-only
+    filesystem, whatever) is swallowed and logging just falls back to
+    stderr only (already attached separately, unaffected by this).
+
+    Returns the path actually used, or None if it couldn't be created.
+    """
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / logfile
+        logger.add(
+            path,
+            format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
+            mode="w")
+        return path
+    except OSError as err:
+        logger.warning(f"Could not set up a log file under {directory}: {err}")
+        return None
+
+
 def logo() -> None:
     """Print the ASCII art logo for the Varan pipeline."""
     logo_text = r"""
@@ -182,6 +208,14 @@ def varan(
             overwrite_output, resume, analysis_type, filters, sigma,
             )
 
+        # This run's own output folder is only known from here on (walk_folder
+        # just created/resumed it) - a second copy of the log lives there too,
+        # alongside this run's other output, in addition to the one already
+        # attached under this user's home directory. Never raises (see
+        # attach_file_log_sink()) even if the output folder somehow isn't
+        # writable either.
+        attach_file_log_sink(
+            Path(output_folder), "Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
 
         ###########################
         #       2. FILTER         #
@@ -531,10 +565,11 @@ if __name__ == "__main__":
         format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
         colorize=True,
         catch=True)
-    logger.add(
-        Path("Logs") / logfile,
-        format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
-        mode="w")
+    # The file sink is attached further down, once args.dry_run is known
+    # (-D never writes one - it's a pure "look, don't touch" check, log
+    # file included) and using a location that doesn't collide with other
+    # users on a shared cluster working directory - see
+    # attach_file_log_sink()'s docstring.
 
     logo()
 
@@ -642,6 +677,15 @@ if __name__ == "__main__":
 
     try:
         args = parser.parse_args()
+
+        # -D/--dry-run only ever reads and reports - no file is written
+        # for it, log included. Otherwise, default to this user's own
+        # home directory rather than a shared Logs/ folder relative to
+        # wherever Varan was launched from (see attach_file_log_sink()'s
+        # docstring for why - the exact cluster multi-user permission
+        # problem this replaces).
+        if not args.dry_run:
+            attach_file_log_sink(Path.home() / ".varan" / "logs", logfile)
 
         # Set the conf.ini path *before* importing any other Varan module -
         # every one of them reads conf.ini at import time, so this ordering
