@@ -217,10 +217,52 @@ def load_fusions(fusion_path: Optional[str]) -> List[Dict[str, str]]:
     return fusions
 
 
-def load_cnv_tsv_ordered(tsv_path: Optional[str]) -> List[Dict]:
-    """Read Guardant's .cnv_call.hdr.tsv, one row per gene, in file order
-    (order matters: process_vcf() pairs these back to VCF structural rows
-    by sequential index).
+# Guardant's CNV VCF gives each structural row a chrom/POS/END but no gene
+# name - .cnv_call.hdr.tsv has the gene name but no coordinates. The two
+# used to be joined by sequential position (Nth VCF structural row <->
+# Nth .cnv_call.hdr.tsv row), which silently desyncs every gene after the
+# first one whenever Guardant omits a structural VCF row for a gene (seen
+# in production data: a gene with copy_number reported as a suspiciously
+# exact "2.0" - unlike every other gene's noisy decimal value - had no
+# corresponding chrom/POS row anywhere in that sample's VCF at all, which
+# shifted every later gene's name back by one and dropped the last gene
+# entirely). This panel's 18 regions have the same chrom/start/end in
+# every sample/run observed so far, so joining by (chrom, POS) instead
+# removes the whole bug class: a missing VCF row just means that one
+# gene's CNV data is unavailable for this sample, it can no longer
+# misattribute every subsequent gene's copy number to the wrong gene.
+# If Guardant ever changes this panel's design (added/moved/removed
+# genes), a VCF row whose (chrom, POS) isn't in this table is handled by
+# the "unrecognized region" fallback in process_vcf() below - printed and
+# skipped, not silently mismapped - and this table needs updating to
+# match the new design.
+_PANEL_COORDS: Dict[Tuple[str, int], str] = {
+    ("chr3", 12625213): "RAF1",
+    ("chr3", 178867762): "PIK3CA",
+    ("chr4", 55095460): "PDGFRA",
+    ("chr4", 55524124): "KIT",
+    ("chr7", 55086710): "EGFR",
+    ("chr7", 92234235): "CDK6",
+    ("chr7", 116328082): "MET",
+    ("chr7", 140413128): "BRAF",
+    ("chr8", 38269047): "FGFR1",
+    ("chr8", 128748215): "MYC",
+    ("chr10", 123237844): "FGFR2",
+    ("chr11", 69455924): "CCND1",
+    ("chr12", 4387352): "CCND2",
+    ("chr12", 25360079): "KRAS",
+    ("chr12", 58146004): "CDK4",
+    ("chr17", 37846325): "ERBB2",
+    ("chr19", 30302898): "CCNE1",
+    ("chrX", 66763863): "AR",
+}
+
+
+def load_cnv_tsv_ordered(tsv_path: Optional[str]) -> Dict[str, Dict]:
+    """Read Guardant's .cnv_call.hdr.tsv into a {gene: {cn, call}} lookup,
+    keyed by gene name so process_vcf() can join it to a VCF structural
+    row by the row's own (chrom, POS) via _PANEL_COORDS, instead of by
+    file/row order.
 
     The original `if cn_value == 2.0: continue` filter is intentionally
     gone: copy_number is a continuous value (e.g. 2.07, 1.84, 3.17) that's
@@ -228,48 +270,48 @@ def load_cnv_tsv_ordered(tsv_path: Optional[str]) -> List[Dict]:
     real filtering already happens in process_vcf() via the `call` column
     (0 = no significant call, 1/2 = deletion/amplification).
     """
-    cnv_list: List[Dict] = []
+    cnv_by_gene: Dict[str, Dict] = {}
     if not tsv_path or not os.path.exists(tsv_path):
-        return cnv_list
+        return cnv_by_gene
     with open(tsv_path, "r") as f:
         lines = f.readlines()
         start = next(
             (i for i, l in enumerate(lines)
              if "gene" in l.lower() and "copy_number" in l.lower()), -1)
         if start == -1:
-            return cnv_list
+            return cnv_by_gene
         f.seek(0)
         [next(f) for _ in range(start)]
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
             try:
-                cnv_list.append({
-                    "gene": row["gene"].strip(),
+                gene = row["gene"].strip()
+                cnv_by_gene[gene] = {
                     "cn": float(row["copy_number"]),
                     "call": row["call"].strip(),
-                })
+                }
             except Exception:
                 continue
-    return cnv_list
+    return cnv_by_gene
 
 
 def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
                  cnv_out: str, sample_id: str) -> None:
     """Split a Guardant VCF into a PASS-only SNV VCF and a per-gene CNV
-    VCF, pairing structural rows to `.cnv_call.hdr.tsv` rows by sequential
-    index.
+    VCF, pairing structural rows to `.cnv_call.hdr.tsv` rows by the row's
+    own (chrom, POS) via _PANEL_COORDS - see that table's comment for why
+    (not sequential index; a missing structural row used to desync every
+    later gene's name).
 
     Preserves (unchanged from the reviewed/corrected version):
       - FILTER=PASS-only SNV rows (germline-contamination fix).
       - Explicit SVTYPE=BND skip, checked BEFORE the structural/SNV split,
         so breakend/fusion-junction rows neither leak into the SNV VCF as
-        pseudo point-mutations nor silently consume a cnv_index slot meant
-        for a real CNV row.
+        pseudo point-mutations nor get looked up as a CNV region.
       - is_struct narrowed to SVTYPE=CNV/DUP/DEL (not the original overly
         broad "SVTYPE=" in info_str, which also matched BND).
     """
-    ordered_cnv_data = load_cnv_tsv_ordered(cnv_tsv_in)
-    cnv_index = 0
+    cnv_by_gene = load_cnv_tsv_ordered(cnv_tsv_in)
     col_header = f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{sample_id}\n"
 
     with open(vcf_in, "r") as f_in, open(snv_out, "w") as f_snv, open(cnv_out, "w") as f_cnv:
@@ -304,8 +346,13 @@ def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
                 continue
 
             if is_struct:
-                if cnv_index < len(ordered_cnv_data):
-                    d = ordered_cnv_data[cnv_index]
+                gene = _PANEL_COORDS.get((cols[0], int(cols[1])))
+                d = cnv_by_gene.get(gene) if gene else None
+                if gene is None:
+                    print(f"[{sample_id}] Structural VCF row at {cols[0]}:{cols[1]} "
+                          "doesn't match any known panel region - leaving it "
+                          "unassigned instead of guessing a gene for it.")
+                if d is not None:
                     fc = round(d["cn"] / 2.0, 4)
 
                     cols[5] = "1"
@@ -321,9 +368,8 @@ def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
                     original_end = next(
                         (x.split("=")[1] for x in info_str.split(";") if x.startswith("END=")),
                         str(int(cols[1]) + 1))
-                    cols[7] = f"SVTYPE=CNV;END={original_end};SEGID={d['gene']}"
+                    cols[7] = f"SVTYPE=CNV;END={original_end};SEGID={gene}"
                     cols[8], cols[9] = "GT:CN:SM", f"0/1:{d['cn']}:{fc}"
-                    cnv_index += 1
                 else:
                     cols[4] = "."
                     cols[5] = "1"
