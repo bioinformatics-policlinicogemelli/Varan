@@ -201,6 +201,19 @@ def cnv_type_from_folder(input_path: str,
     counter = 0
     sid_path = {}
 
+    # vcf_to_table()/vcf_to_table_fc() append to these two files whenever
+    # they already exist on disk (that's how they accumulate rows across
+    # the per-sample loop below). On a fresh output folder that's fine,
+    # but -R/--resume (and the "temp/ already exists" resume path in
+    # transform_input) can hand this function an output_folder left over
+    # from an earlier CNV pass - without clearing these first, that stale
+    # data just gets appended to again, silently tripling (or worse)
+    # every sample's segments with stale seg.mean values mixed in.
+    for stale in ("data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt"):
+        stale_path = Path(output_folder) / stale
+        if stale_path.exists():
+            stale_path.unlink()
+
     # Loaded ONCE for the whole batch instead of once per sample inside
     # vcf_to_table_fc(): TC availability (missing sample.tsv / missing TC
     # column) is a batch-wide fact, not a per-sample one, so it should log
