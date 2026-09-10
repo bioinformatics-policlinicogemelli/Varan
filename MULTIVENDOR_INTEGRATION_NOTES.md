@@ -600,6 +600,11 @@ find and fix the original bugs — those files are gone from this machine.
 Treat the Guardant adapter as logically equivalent to the reviewed
 original script, not as freshly re-validated against real data.
 
+**Update, 2026-09-10:** the CNV path specifically *has* now been
+re-validated against real Guardant files (VCF + `.cnv_call.hdr.tsv`,
+pulled from `s3://fpg360/ivd/flowcentral/`) - see bug fix 7 below, found
+by exactly this kind of real-data check.
+
 ## Guardant-specific notes (carried forward from `GUARDANT_INTEGRATION_NOTES.md`)
 
 ### Verified bug fixes (unchanged, now living in `vendor_adapters/guardant.py`)
@@ -625,6 +630,23 @@ original script, not as freshly re-validated against real data.
    (`common.append_fusions_to_table`), never through a synthesized
    `CombinedVariantOutput.tsv`/`comb_path` — `comb_path` is always blank
    for Guardant samples.
+7. **CNV gene assignment no longer relies on sequential `cnv_index`
+   pairing.** Bug fix 3/4 above only closed the BND-interleaving trigger
+   for this failure mode - there was a second, more common one: Guardant
+   sometimes omits the structural VCF row for a gene entirely (seen on a
+   real sample: a gene's `copy_number` in `.cnv_call.hdr.tsv` was a
+   suspiciously exact `2.0`, unlike every other gene's noisy decimal
+   value, with no matching chrom/POS row anywhere in that sample's VCF).
+   Since `cnv_index` only advances when a structural row is consumed, the
+   missing row desynced it for every gene after that point - each later
+   CNV row silently took on the *previous* gene's name, and the last gene
+   in the list was dropped entirely. `process_vcf()` now looks up the
+   gene for each structural row by its own `(chrom, POS)` against a
+   static `_PANEL_COORDS` table (this panel's 18 regions have identical
+   coordinates across every sample/run seen so far) and then looks up
+   that gene's `cn`/`call` from `.cnv_call.hdr.tsv` by name - `cnv_index`
+   is gone. A coordinate not in `_PANEL_COORDS` (e.g. a future panel
+   redesign) is printed and left unassigned rather than guessed.
 
 ### Open questions — NOT resolved, still need a human call
 
