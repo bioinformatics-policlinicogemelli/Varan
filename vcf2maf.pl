@@ -466,20 +466,7 @@ unless( $inhibit_vep ) {
     $vep_cmd .= " --uniprot --hgvs --symbol --numbers --domains --gene_phenotype --canonical";
     $vep_cmd .= " --protein --biotype --uniprot --tsl --variant_class --shift_hgvs 1";
     $vep_cmd .= " --check_existing --total_length --allele_number --no_escape --xref_refseq";
-    # mane first: without it, --pick_order fell back to Ensembl's own
-    # legacy "canonical" flag, which for some genes (e.g. BRCA1:
-    # ENST00000471181) disagrees with the MANE Select transcript
-    # (ENST00000357654 for BRCA1) that OncoKB and most modern clinical
-    # annotation treats as the reference - same amino acid position means
-    # a different residue on each transcript, so OncoKB's API rejects an
-    # HGVSp-based query built from the non-MANE transcript's numbering
-    # (REFERENCE_ALLELE_MISMATCH) and returns "Unknown" for a real,
-    # actionable finding. Confirmed against real data (BRCA1 p.Gln1806Ter
-    # on ENST00000471181 == p.Gln1785Ter on MANE/OncoKB's ENST00000357654,
-    # Genomic_Change resolves the OncoKB side but this fixes it at the
-    # source so the MAF's own reported transcript/HGVSp matches what
-    # OncoKB, ClinVar, etc. expect).
-    $vep_cmd .= " --failed 1 --vcf --flag_pick_allele --pick_order mane,canonical,tsl,biotype,rank,ccds,length";
+    $vep_cmd .= " --failed 1 --vcf --flag_pick_allele --pick_order canonical,tsl,biotype,rank,ccds,length";
     $vep_cmd .= " --dir '$vep_data' --fasta '$ref_fasta' --format vcf --input_file '$input_vcf' --output_file '$output_vcf'";
     $vep_cmd .= " --force_overwrite" if( $vep_overwrite );
     # Change options based on whether we are running in offline mode or not
