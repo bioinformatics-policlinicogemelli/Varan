@@ -89,7 +89,7 @@ SAMPLE_TYPE = "Liquid"
 
 # --- DEFAULT PATHS (deployment-specific; override via run()'s kwargs for
 # a different environment/test setup rather than editing these) ---
-DICT_PATH = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/Preprocessing_Files/dict.csv"
+DICT_PATH = "/data/data_storage/research/Kulesko_Michele/Varan-Sviluppo/dict.csv"
 REPORT_BASE_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/Varan_Input"
 VCF_BASE_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/processed_VCF"
 TEMP_LOCAL_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/tmp"
