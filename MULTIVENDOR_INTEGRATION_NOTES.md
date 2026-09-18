@@ -438,10 +438,11 @@ local directory instead of shelling out to `aws s3`):
   the generated `sample.tsv` and `fusions.tsv` landed under
   `<output_folder>/scratch/<random>/`, the SNV/CNV VCF conversion inside
   it reproduced the same documented behavior confirmed in round 1
-  (PASS-only SNV row, correctly paired CNV rows), MSI/MSI_THR and the
-  fusion rows matched expectations, and `clear_scratch()` correctly
-  removed both the random-named scratch subfolder and its now-empty
-  `scratch/` parent afterward.
+  (PASS-only SNV row - since reverted, see the 2026-09-18 update note
+  above; correctly paired CNV rows), MSI/MSI_THR and the fusion rows
+  matched expectations, and `clear_scratch()` correctly removed both the
+  random-named scratch subfolder and its now-empty `scratch/` parent
+  afterward.
 - The no-data failure path (an empty mock run folder) was confirmed to
   raise the expected `ValueError` with the "wrong vendor?" hint, and to
   still clean up its scratch folder before raising.
@@ -605,14 +606,36 @@ re-validated against real Guardant files (VCF + `.cnv_call.hdr.tsv`,
 pulled from `s3://fpg360/ivd/flowcentral/`) - see bug fix 7 below, found
 by exactly this kind of real-data check.
 
+**Update, 2026-09-18:** bug fix 1 (PASS-only SNV filtering) has been
+**reverted** as an adapter-level, unconditional behavior. It duplicated
+varan.py's own `-f d`/`-f p` filters, but did so *before* the user's `-f`
+choice was even read, with no flag able to undo it - a Guardant sample
+never had non-PASS rows to inspect regardless of what `-f` was passed, and
+`-f d`/`-f p` were silently no-ops for this vendor specifically (they had
+nothing left to filter). `process_vcf()` now writes every SNV row through
+unfiltered, FILTER column intact, same as a non-adapter raw-VCF input
+would look to the rest of the pipeline; PASS-filtering only happens now if
+the user opts in via `-f d` and/or `-f p`. The synthetic-fixture result
+described just above ("exactly one SNV row survives") reflects the old,
+now-reverted behavior and is being kept as a historical record of what was
+verified at the time, not current behavior.
+
 ## Guardant-specific notes (carried forward from `GUARDANT_INTEGRATION_NOTES.md`)
 
 ### Verified bug fixes (unchanged, now living in `vendor_adapters/guardant.py`)
 
-1. **Germline contamination.** SNV VCF output only carries `FILTER=PASS`
-   rows. In the real example VCF this was originally letting through 225
-   `FILTER=FAIL`/germline rows against 118 real somatic `FILTER=PASS`
-   calls.
+1. **Germline contamination — reverted 2026-09-18, see update note above
+   the table.** SNV VCF output no longer force-filters on `FILTER=PASS`;
+   every row from the source VCF is carried through, FILTER column
+   untouched. In the real example VCF that originally motivated this fix,
+   225 `FILTER=FAIL`/germline rows were leaking through unfiltered against
+   118 real somatic `FILTER=PASS` calls - keeping FILTER intact means
+   those 225 rows are still in the output VCF, same as before this fix
+   existed, but now `-f d`/`-f p` (both already PASS-filter the same way,
+   at the raw-VCF and MAF stage respectively - see `vcf_filter.py` /
+   `filter_clinvar.py`) can actually see and act on them, which they
+   couldn't while the adapter silently pre-filtered every sample before
+   either flag's code ever ran.
 2. **Dead filter removed.** The `if cn_value == 2.0: continue` check in
    `load_cnv_tsv_ordered` never fired (copy_number is continuous, e.g.
    2.07/1.84/3.17) and is gone; the real filtering is the `call` column
@@ -718,7 +741,7 @@ notes:
 | `SAMPLE_ID` | `finalmetadata.xml` AccessionId / `_metadata.xml` AccessionId | |
 | `PATIENT_ID` | `finalmetadata.xml` SubjectId (or AccessionId again for the RUO/QCI-only path, which has no SubjectId) | |
 | `ONCOTREE_CODE` | `finalmetadata.xml` Diagnosis, mapped via `dict.csv` | unreviewed open question, see above |
-| `snv_path` | `{sample}.snv.vcf` | PASS-only, no germline contamination |
+| `snv_path` | `{sample}.snv.vcf` | unfiltered (all FILTER values); PASS-only only if `-f d`/`-f p` is used |
 | `cnv_path` | `{sample}.cnv.vcf` | correctly gene-attributed |
 | `comb_path` | — | always blank |
 | `MSI` | `.msi_call.hdr.tsv` `msi_score` | real number |
