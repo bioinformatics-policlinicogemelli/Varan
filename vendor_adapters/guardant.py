@@ -31,8 +31,18 @@ the Varan FUSIONS/*.tsv writer) live in `vendor_adapters/common.py` - see
 that module's docstring for why the split is drawn there.
 
 Every documented, verified bug fix from the original review is preserved
-here unchanged (see MULTIVENDOR_INTEGRATION_NOTES.md for the full list):
-  1. SNV VCF only carries FILTER=PASS rows (germline contamination fix).
+here unchanged (see MULTIVENDOR_INTEGRATION_NOTES.md for the full list),
+with one deliberate change from that review (see point 1):
+  1. SNV VCF carries every row from the source VCF, FILTER column
+     untouched - PASS-only was the original review's fix (germline rows
+     were leaking through unfiltered), but forcing it here meant varan.py's
+     own `-f d` (raw-VCF PASS filter) and `-f p` (MAF-level PASS filter)
+     were silently no-ops for Guardant samples: the non-PASS rows were
+     already gone before either flag's code ever ran, with no way to opt
+     back into seeing them. PASS-filtering is now exclusively `-f`'s job
+     (`vcf_filter.py` for `d`, `filter_clinvar.py` for `p`), same as for
+     any other vendor's input - the adapter no longer makes that call for
+     the user.
   2. The dead `cn_value == 2.0` check is gone (never fired; the real
      filtering already happens via the `call` column in process_vcf()).
   3/4. SVTYPE=BND (fusion breakend) rows are explicitly skipped before the
@@ -297,14 +307,19 @@ def load_cnv_tsv_ordered(tsv_path: Optional[str]) -> Dict[str, Dict]:
 
 def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
                  cnv_out: str, sample_id: str) -> None:
-    """Split a Guardant VCF into a PASS-only SNV VCF and a per-gene CNV
-    VCF, pairing structural rows to `.cnv_call.hdr.tsv` rows by the row's
-    own (chrom, POS) via _PANEL_COORDS - see that table's comment for why
-    (not sequential index; a missing structural row used to desync every
-    later gene's name).
+    """Split a Guardant VCF into an SNV VCF and a per-gene CNV VCF, pairing
+    structural rows to `.cnv_call.hdr.tsv` rows by the row's own
+    (chrom, POS) via _PANEL_COORDS - see that table's comment for why (not
+    sequential index; a missing structural row used to desync every later
+    gene's name).
+
+    The SNV VCF carries every non-structural row as-is, FILTER column
+    included - no PASS-only filtering here (see the module docstring's
+    point 1 for why: that's `-f d`/`-f p`'s job downstream in varan.py, so
+    the user actually controls it instead of it being force-applied before
+    they get a say).
 
     Preserves (unchanged from the reviewed/corrected version):
-      - FILTER=PASS-only SNV rows (germline-contamination fix).
       - Explicit SVTYPE=BND skip, checked BEFORE the structural/SNV split,
         so breakend/fusion-junction rows neither leak into the SNV VCF as
         pseudo point-mutations nor get looked up as a CNV region.
@@ -376,8 +391,6 @@ def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
                     cols[6] = "FAIL"
                 f_cnv.write("\t".join(cols) + "\n")
             else:
-                if cols[6] != "PASS":
-                    continue
                 try:
                     format_keys = cols[8].split(":")
                     sample_vals = cols[9].split(":")
