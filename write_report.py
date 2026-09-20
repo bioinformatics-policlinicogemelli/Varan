@@ -938,7 +938,7 @@ def write_report_main(
             <div class="subtitle">Fusions</div>
             <div class="content">
                 <p><strong>THRESHOLD_FUSION</strong>: {filters_dict["THRESHOLD_FUSION"]}</p>"""
-        if oncokb:
+        if oncokb and "o" in filters:
             html_content += f"""
                 <p><strong>ONCOKB_FILTER_FUSION:</strong> {filters_dict["ONCOKB_FILTER_FUSION"]}</p>"""
         html_content += """
