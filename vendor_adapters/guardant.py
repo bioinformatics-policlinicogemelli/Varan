@@ -82,6 +82,7 @@ from vendor_adapters.common import (
     append_fusions_to_table,
     get_incremental_report_path,
     list_s3_files,
+    list_s3_files_with_timestamp,
     load_oncotree_dict,
     run_cmd,
     write_sample_tsv,
@@ -668,6 +669,28 @@ def run(
             if xml_files:
                 xml_folder = backup_folder
                 print(f"Found {len(xml_files)} metadata file(s) in the backup folder.")
+
+        # A resequenced/repeated sample can leave more than one
+        # _finalmetadata.xml resolving to the same sample id in the same run
+        # folder. Keep only the most recently written one per sample id -
+        # write_clinical_sample()/fill_from_file() in walk.py assume exactly
+        # one sample.tsv row per SAMPLE_ID and crash with an opaque
+        # "All arrays must be of the same length" otherwise.
+        files_by_sid: Dict[str, List[str]] = {}
+        for xml_f in xml_files:
+            sid = xml_f.replace("_finalmetadata.xml", "").split("_")[-1]
+            files_by_sid.setdefault(sid, []).append(xml_f)
+
+        xml_timestamps = dict(list_s3_files_with_timestamp(xml_folder))
+        xml_files = []
+        for sid, files in files_by_sid.items():
+            if len(files) > 1:
+                chosen = max(files, key=lambda f: xml_timestamps.get(f, ""))
+                print(f"Sample {sid}: multiple _finalmetadata.xml found "
+                      f"({', '.join(files)}) - keeping the most recent ({chosen}).")
+                xml_files.append(chosen)
+            else:
+                xml_files.append(files[0])
 
         fusion_table_path = os.path.join(report_base_dir, f"{main_run_id}_fusions.tsv")
         for xml_f in xml_files:
