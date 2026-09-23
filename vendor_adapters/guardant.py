@@ -143,13 +143,29 @@ CNV_SPECIFIC = [
 ]
 
 
+def resolve_oncotree_from_diagnosis(
+        raw_diag: str, onco_info: Tuple[Dict[str, str], set]) -> str:
+    """Map a free-text diagnosis string to an ONCOTREE code via the shared
+    dict.csv lookup - factored out of get_xml_data() so a selection.tsv's
+    own `diagnosis` column (no metadata XML available) can use the exact
+    same mapping without duplicating it.
+    """
+    name_to_code, valid_codes = onco_info
+    raw_diag = raw_diag.strip()
+    diag_lower, diag_upper = raw_diag.lower(), raw_diag.upper()
+    if diag_lower in name_to_code:
+        return name_to_code[diag_lower]
+    if diag_upper in valid_codes:
+        return diag_upper
+    return f"NOT_IN_DICT ({raw_diag})"
+
+
 def get_xml_data(xml_path: str, onco_info: Tuple[Dict[str, str], set]) -> Tuple[str, str]:
     """Parse Guardant's `_finalmetadata.xml`/`_metadata.xml` for
     SubjectId/AccessionId and Diagnosis, mapping Diagnosis to an ONCOTREE
     code via the shared dict.csv lookup. Unchanged from the original
     script's logic - not reviewed further this pass (see module docstring
     open questions)."""
-    name_to_code, valid_codes = onco_info
     p_id, o_code = "N/A", "UNKNOWN"
     try:
         root = ET.parse(xml_path).getroot()
@@ -161,15 +177,7 @@ def get_xml_data(xml_path: str, onco_info: Tuple[Dict[str, str], set]) -> Tuple[
                         break
         for diag in root.iter():
             if diag.tag.split("}")[-1] == "Diagnosis" and diag.text:
-                raw_diag = diag.text.strip()
-                diag_lower = raw_diag.lower()
-                diag_upper = raw_diag.upper()
-                if diag_lower in name_to_code:
-                    o_code = name_to_code[diag_lower]
-                elif diag_upper in valid_codes:
-                    o_code = diag_upper
-                else:
-                    o_code = f"NOT_IN_DICT ({raw_diag})"
+                o_code = resolve_oncotree_from_diagnosis(diag.text, onco_info)
                 break
     except Exception:
         pass
@@ -412,6 +420,9 @@ def process_single_sample(
     onco_dict: Tuple[Dict[str, str], set], fusion_table_path: str,
     xml_folder: Optional[str] = None, *,
     explicit_paths: Optional[Dict[str, str]] = None,
+    explicit_patient_id: Optional[str] = None,
+    explicit_oncotree_code: Optional[str] = None,
+    explicit_diagnosis: Optional[str] = None,
     vcf_base_dir: str = VCF_BASE_DIR, temp_local_dir: str = TEMP_LOCAL_DIR,
 ) -> Optional[SampleRow]:
     """Fetch one Guardant sample's files, convert them, and return a
@@ -435,17 +446,35 @@ def process_single_sample(
     row supplies every file type it needs via `explicit_paths` doesn't
     need one.
 
-    "xml" (metadata) and "vcf" are the only two mandatory file types -
-    if neither an explicit path nor folder auto-discovery resolves one of
-    those two, the whole sample is skipped (returns None), same behavior
-    as before this refactor. "msi"/"cnv"/"fus" are each independently
-    optional - this was already true before this refactor (the rest of
-    this function already tolerates any of them being absent), but this
-    refactor makes that graceful-skip reachable through explicit-path/
-    no-folder samplesheet rows too, and logs clearly which data type is
-    being skipped and why, rather than silently proceeding - see the
-    user-facing "no CNV data for this sample" / "MSI/CNV files don't
-    combine well for this sample" scenarios in
+    "vcf" is always mandatory - if neither an explicit path nor folder
+    auto-discovery resolves it, the whole sample is skipped (returns None).
+    "xml" (metadata) is normally mandatory the same way, UNLESS the caller
+    already knows this sample's identity directly - a batch of samples
+    scattered across old run folders/local copies, with no per-sample
+    `_finalmetadata.xml` at hand, but whose patient_id/oncotree are already
+    known (e.g. from an existing Varan sample.tsv) doesn't need one:
+
+    - `explicit_patient_id`: used as this sample's PATIENT_ID whenever
+      given, overriding whatever the XML would have produced.
+    - `explicit_oncotree_code`: used as-is (uppercased) as this sample's
+      ONCOTREE_CODE whenever given - takes precedence over
+      `explicit_diagnosis` if both are given.
+    - `explicit_diagnosis`: a free-text diagnosis, mapped to an ONCOTREE
+      code via the same dict.csv lookup the XML's own <Diagnosis> field
+      uses (see resolve_oncotree_from_diagnosis()) - only consulted when
+      `explicit_oncotree_code` is blank.
+
+    If no xml (explicit or auto-discovered) is available, `explicit_patient_id`
+    plus at least one of `explicit_oncotree_code`/`explicit_diagnosis` become
+    required instead - the sample is skipped (with a clear message) if
+    neither source of identity is available. "msi"/"cnv"/"fus" are each
+    independently optional - this was already true before this refactor
+    (the rest of this function already tolerates any of them being
+    absent), but this refactor makes that graceful-skip reachable through
+    explicit-path/no-folder samplesheet rows too, and logs clearly which
+    data type is being skipped and why, rather than silently proceeding -
+    see the user-facing "no CNV data for this sample" / "MSI/CNV files
+    don't combine well for this sample" scenarios in
     MULTIVENDOR_INTEGRATION_NOTES.md.
 
     Local explicit paths are used as-is and are never deleted by this
@@ -533,9 +562,17 @@ def process_single_sample(
     else:
         xml_local = None
 
-    if not xml_local:
-        print(f"[{sid}] Required file type 'xml' (metadata) not available "
-              "in any path - skipping this sample.")
+    has_direct_oncotree = bool(explicit_oncotree_code or explicit_diagnosis)
+
+    if not xml_local and not explicit_patient_id:
+        print(f"[{sid}] No metadata source for patient_id available (no xml "
+              "in any path, and no explicit patient_id given) - skipping "
+              "this sample.")
+        return None
+    if not xml_local and not has_direct_oncotree:
+        print(f"[{sid}] No metadata source for oncotree_code available (no "
+              "xml in any path, and no explicit oncotree_code/diagnosis "
+              "given) - skipping this sample.")
         return None
 
     # --- VCF (required, no backup-folder fallback - same as before) ---
@@ -548,7 +585,18 @@ def process_single_sample(
     cnv_local = resolve("cnv", ".cnv_call.hdr.tsv", s3_folder, s3_files, required=False)
     fus_local = resolve("fus", ".fusion_call.hdr.tsv", s3_folder, s3_files, required=False)
 
-    p_id, o_code = get_xml_data(xml_local, onco_dict)
+    p_id, o_code = get_xml_data(xml_local, onco_dict) if xml_local else ("N/A", "UNKNOWN")
+
+    # Explicit values (from a selection.tsv row) always win over whatever
+    # the XML produced (or the "N/A"/"UNKNOWN" defaults above when there's
+    # no XML at all) - oncotree_code beats diagnosis when both are given.
+    if explicit_patient_id:
+        p_id = explicit_patient_id
+    if explicit_oncotree_code:
+        o_code = explicit_oncotree_code.strip().upper()
+    elif explicit_diagnosis:
+        o_code = resolve_oncotree_from_diagnosis(explicit_diagnosis, onco_dict)
+
     m_info = get_msi_data(msi_local)
     run_id_final = m_info["run_id"] if m_info["run_id"] != "UNKNOWN_RUN" else run_id_default
 
@@ -600,6 +648,19 @@ _SELECTION_PATH_COLUMNS = {
     "fus": ("fusion_path", "fus_path", "fusion_call_path"),
 }
 
+# selection.tsv column names recognized as direct VALUES (not file paths)
+# for a sample's identity - the escape hatch for a batch with no
+# per-sample metadata XML at hand, but whose patient_id/oncotree are
+# already known (e.g. samples curated from an existing Varan sample.tsv).
+# See process_single_sample()'s docstring for the exact precedence rules
+# (explicit values always win over XML-derived ones; oncotree_code wins
+# over diagnosis).
+_SELECTION_VALUE_COLUMNS = {
+    "patient_id": ("patient_id",),
+    "oncotree_code": ("oncotree_code", "oncotree"),
+    "diagnosis": ("diagnosis",),
+}
+
 
 def run(
     folder: Optional[str] = None, selection: Optional[str] = None, *,
@@ -635,6 +696,20 @@ def run(
     type alone is skipped for that sample, with a clear message, rather
     than failing the whole row). See process_single_sample()'s docstring
     for the exact resolution order.
+
+    - `patient_id`, and `oncotree_code` (or `oncotree`) / `diagnosis`: a
+      row that already knows this sample's identity - e.g. samples curated
+      from an existing Varan sample.tsv, scattered across old run folders
+      with no per-sample metadata XML at hand - can give it directly
+      instead of `xml_path`. `oncotree_code` is used as-is; `diagnosis` is
+      a free-text diagnosis mapped through the same dict.csv lookup the
+      XML's own <Diagnosis> field uses, and is only consulted when
+      `oncotree_code` is blank. Whichever of these is given always
+      overrides the XML-derived value too, if an `xml_path` also happens
+      to be given/discoverable for that row. Without any `xml_path`, this
+      row still needs `patient_id` AND at least one of `oncotree_code`/
+      `diagnosis` - missing either skips the sample with a clear message,
+      same as a missing `xml_path` does otherwise.
 
     Plain function, explicit inputs/outputs (no argparse/sys.argv/module
     globals involved beyond the path defaults above) so this can be called
@@ -735,12 +810,27 @@ def run(
                             explicit_paths[key] = val
                             break
 
+                # Same idea as explicit_paths above, but for direct
+                # patient_id/oncotree_code/diagnosis VALUES rather than file
+                # paths - see process_single_sample()'s docstring and
+                # _SELECTION_VALUE_COLUMNS.
+                explicit_values = {}
+                for key, columns in _SELECTION_VALUE_COLUMNS.items():
+                    for col in columns:
+                        val = (row.get(col) or "").strip()
+                        if val:
+                            explicit_values[key] = val
+                            break
+
                 run_id_tmp = (
                     os.path.basename(s3_folder).split(".")[0]
                     if s3_folder else main_run_id)
                 res = process_single_sample(
                     sid, s3_folder or None, run_id_tmp, onco_dict, fusion_table_path,
                     explicit_paths=explicit_paths,
+                    explicit_patient_id=explicit_values.get("patient_id"),
+                    explicit_oncotree_code=explicit_values.get("oncotree_code"),
+                    explicit_diagnosis=explicit_values.get("diagnosis"),
                     vcf_base_dir=vcf_base_dir, temp_local_dir=temp_local_dir)
                 if res:
                     report_data.append(res)
