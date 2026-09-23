@@ -1446,7 +1446,26 @@ def check_input_file(
         return relevant
 
     if file_path.exists():
-        os.system(f"cp {file_path} {destination}")
+        # SNV/CNV are copied under a filename built from THIS sample's own
+        # already-known sample_id, not the source file's original name -
+        # get_sample_id_from_snv()/get_sample_id_from_cnv() recover the
+        # sample id straight back from these exact suffixes further down
+        # the pipeline. Some inputs (e.g. a raw DRAGEN VCF straight off the
+        # caller, not yet renamed by TSO500's own local-app post-
+        # processing) are named after an unrelated internal id instead of
+        # the SAMPLE_ID this sample.tsv row actually uses - copying under
+        # the original name would then silently attribute this sample's
+        # CNV/SNV data to the wrong (or no) sample downstream. Skipped for
+        # "multiple" (-m) mode, whose shared multi-sample file is handled
+        # entirely differently and isn't a per-sample copy at all.
+        rename_suffix = {
+            "SNV": "_MergedSmallVariants.genome.vcf",
+            "CNV": "_CopyNumberVariants.vcf",
+        }.get(copy_to)
+        if rename_suffix and sample_id != "multiple":
+            shutil.copy(file_path, destination / f"{sample_id}{rename_suffix}")
+        else:
+            os.system(f"cp {file_path} {destination}")
     else:
         logger.warning(f"{file_path} not found")
     return False
