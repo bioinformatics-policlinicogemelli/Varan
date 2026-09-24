@@ -286,8 +286,12 @@ def load_cnv_tsv_ordered(tsv_path: Optional[str]) -> Dict[str, Dict]:
     The original `if cn_value == 2.0: continue` filter is intentionally
     gone: copy_number is a continuous value (e.g. 2.07, 1.84, 3.17) that's
     essentially never exactly 2.0, so it never excluded anything - the
-    real filtering already happens in process_vcf() via the `call` column
-    (0 = no significant call, 1/2 = deletion/amplification).
+    real filtering already happens in process_vcf() via the `call` column.
+    Guardant360 CDx's CNV calling is amplification-only (it never reports
+    deletions): `call` 1/2 are both confirmed amplifications at different
+    confidence tiers (e.g. focal vs. less clear) - both are reportable
+    calls and process_vcf() writes both as `<DUP>`. `call` 0 and 3 (and
+    anything else) are not significant and are excluded.
     """
     cnv_by_gene: Dict[str, Dict] = {}
     if not tsv_path or not os.path.exists(tsv_path):
@@ -381,6 +385,10 @@ def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
 
                     cols[5] = "1"
 
+                    # call 1/2 are both confirmed amplifications (different
+                    # confidence tiers - Guardant360 CDx never calls
+                    # deletions), so both become <DUP>; 0/3/anything else
+                    # is not significant - see load_cnv_tsv_ordered().
                     call_val = str(d["call"]).strip()
                     if call_val in ["1", "2"]:
                         cols[4] = "<DUP>"
