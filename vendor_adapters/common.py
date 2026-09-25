@@ -103,6 +103,25 @@ def list_s3_files(s3_folder: str) -> List[str]:
     return [line.split()[-1] for line in output.splitlines()]
 
 
+def list_s3_files_with_timestamp(s3_folder: str) -> List[Tuple[str, str]]:
+    """List (file name, last-modified timestamp) pairs directly under an S3
+    folder. The timestamp is `aws s3 ls`'s own "YYYY-MM-DD HH:MM:SS" string,
+    which sorts correctly with plain string comparison - used to pick the
+    most recent of several same-sample files (e.g. a resequenced sample with
+    more than one `_finalmetadata.xml`) without needing to parse it further.
+    """
+    output = run_cmd(f"aws s3 ls {s3_folder.rstrip('/')}/")
+    if not output:
+        return []
+    pairs = []
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        pairs.append((parts[-1], f"{parts[0]} {parts[1]}"))
+    return pairs
+
+
 def load_oncotree_dict(dict_path: str) -> Tuple[Dict[str, str], set]:
     """Load a vendor-diagnosis -> ONCOTREE_CODE lookup from a dict.csv with
     `name`/`code` columns.

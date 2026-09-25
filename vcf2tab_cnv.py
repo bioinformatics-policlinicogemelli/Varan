@@ -133,13 +133,40 @@ def extract_header_positions(header_line: str, sample: str) -> dict:
 
     """
     fields_names = [x.strip() for x in header_line.split("\t")]
+    format_idx = fields_names.index("FORMAT")
+    sample_columns = fields_names[format_idx + 1:]
+
+    if sample in sample_columns:
+        sample_format = fields_names.index(sample)
+    elif len(sample_columns) == 1:
+        # Every CNV VCF this codebase processes is tumor-only (no matched
+        # NORMAL column), so there's never any ambiguity about which
+        # column is "the sample" even when it isn't literally named after
+        # it - e.g. a raw DRAGEN VCF names its one sample column after an
+        # internal library id instead of the SAMPLE_ID Varan tracks it as.
+        # Falling back to it positionally instead of failing outright only
+        # matters for that single-sample case: with more than one sample
+        # column (a real multi-sample VCF), which one to use genuinely is
+        # ambiguous without a name match, so that case still raises below.
+        logger.warning(
+            f"CNV VCF's sample column is named '{sample_columns[0]}', not "
+            f"'{sample}' - using it anyway since it's this file's only "
+            "sample column.")
+        sample_format = format_idx + 1
+    else:
+        msg = (f"Sample '{sample}' not found among this VCF's "
+               f"{len(sample_columns)} sample columns "
+               f"({', '.join(sample_columns)}) - can't tell which one it is.")
+        raise ValueError(msg)
+
     return {
         "chrom": fields_names.index("#CHROM"),
         "info": fields_names.index("INFO"),
         "start": fields_names.index("POS"),
         "qual": fields_names.index("QUAL"),
-        "format_infos": fields_names.index("FORMAT"),
-        "sample_format": fields_names.index(sample),
+        "alt": fields_names.index("ALT"),
+        "format_infos": format_idx,
+        "sample_format": sample_format,
     }
 
 
@@ -338,14 +365,14 @@ def vcf_to_table_fc(tc_lookup: Dict[str, float], vcf_file: str, table_file: str,
                 continue
 
             if line.startswith("#"):
-                fields_names = [x.strip() for x in line.split("\t")]
-                chrom_position = fields_names.index("#CHROM")
-                info_position = fields_names.index("INFO")
-                start_position = fields_names.index("POS")
-                qual_position = fields_names.index("QUAL")
-                alt_position = fields_names.index("ALT")
-                format_position = fields_names.index("FORMAT")
-                sample_position = fields_names.index(sample)
+                positions = extract_header_positions(line, sample)
+                chrom_position = positions["chrom"]
+                info_position = positions["info"]
+                start_position = positions["start"]
+                qual_position = positions["qual"]
+                alt_position = positions["alt"]
+                format_position = positions["format_infos"]
+                sample_position = positions["sample_format"]
                 continue
 
             fields = line.strip().split("\t")
