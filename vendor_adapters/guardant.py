@@ -57,11 +57,15 @@ with one deliberate change from that review (see point 1):
 
 Still-open questions carried forward from the original notes (NOT resolved
 here - see MULTIVENDOR_INTEGRATION_NOTES.md):
-  - `fill_fusion_from_temp()`'s hardcoded `min_read_count=15` in walk.py is
-    independent of both conf.ini's THRESHOLD_FUSION and Guardant's own
-    `call=1` confidence flag - a real, Guardant-confirmed fusion with <15
-    supporting molecules is silently dropped. Needs a human call on
-    whether 15 is the right cutoff for Guardant's molecule-count scale.
+  - Resolved 2026-09-25: `fill_fusion_from_temp()`'s hardcoded
+    `min_read_count=15` is gone - it now takes conf.ini's [FUSION]
+    THRESHOLD_FUSION (same value/eval pattern already used by the native
+    CombinedOutput fusion path, fill_fusion_from_combined()), so a single
+    setting governs both paths instead of one being invisible to it.
+    Still independent of Guardant's own `call` confidence flag by design -
+    that's a separate, vendor-side signal this module still never reads
+    for fusions (see the CNV note above the bug-fix list for the same
+    question on the CNV side, where `call` values ARE read).
   - ONCOTREE_CODE mapping via dict.csv: unchanged from the original
     script's logic, not reviewed further.
   - "Golden" extra fields (BRCA Reversion, AutoQC metrics): the mechanism

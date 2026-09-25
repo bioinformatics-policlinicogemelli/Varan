@@ -676,19 +676,24 @@ verified at the time, not current behavior.
 These are carried forward unchanged from the original notes. Nothing in
 this refactor silently resolved any of them:
 
-- **`fill_fusion_from_temp()`'s hardcoded `min_read_count = 15`** in
-  `walk.py` (currently at line ~1530) is applied independent of
-  `conf.ini`'s `THRESHOLD_FUSION` (used only by the CombinedOutput fusion
-  path) and independent of Guardant's own `call=1` confidence flag. In
-  the real example data, `RET-NCOA4` was a real Guardant-confirmed fusion
-  (`call=1`) with only 10 supporting molecules — it would be **silently
-  dropped** by this hardcoded threshold even though Guardant's own
-  algorithm already validated it. Whether 15 is the right cutoff for
-  Guardant's molecule-count scale (not necessarily comparable to
-  Illumina's read-count scale, which the CombinedOutput path was
-  presumably tuned against) is unresolved. If/when this gets addressed,
-  do it as a deliberate, documented decision (e.g. a vendor-aware
-  threshold or reading it from `conf.ini`), not a quiet number change.
+- **RESOLVED 2026-09-25 — `fill_fusion_from_temp()`'s hardcoded
+  `min_read_count = 15`** in `walk.py`. It used to apply independent of
+  `conf.ini`'s `THRESHOLD_FUSION` (previously used only by the
+  CombinedOutput fusion path) and independent of Guardant's own `call=1`
+  confidence flag. Confirmed against two separate pieces of real data,
+  months apart: `RET-NCOA4` in the original review, and independently
+  `FGFR2-GMNN` (RUO_0210, 2026032020) found via `validate_varan_calls.py`
+  - both real, Guardant-confirmed fusions (`call=1`) with 10 supporting
+  molecules, both **silently dropped** by the hardcoded 15 cutoff. Fixed
+  by having `fill_fusion_from_temp()` take the same `thr_fus` string
+  `fill_fusion_from_combined()` already used, read once in
+  `_walk_process_fusion()` and passed to whichever of the two fusion
+  paths actually runs - one conf.ini setting now governs both, instead of
+  one path silently ignoring it. Still independent of Guardant's own
+  `call` flag by design (unchanged) - this module still never reads
+  Guardant's confidence flag for fusions, same as it never did for SNVs
+  (see the FILTER discussion elsewhere in this doc for the SNV side of
+  that same "which vendor signal does Varan trust" question).
 - **`ONCOTREE_CODE` mapping via `dict.csv`** (`load_oncotree_dict` in
   `common.py`, called from `get_xml_data` in `guardant.py`): unchanged
   from the original script's logic, not reviewed further this pass either.
@@ -750,5 +755,7 @@ notes:
 | `TMB_THR` | — | blank, same reasoning as `TMB` |
 
 Fusions: separate `{run_id}_fusions.tsv`, passed as the third `-i`
-argument to `varan.py`. See the `min_read_count=15` open question above
-before trusting it blindly for a real batch.
+argument to `varan.py`. The `min_read_count=15` issue noted above is
+resolved (now reads conf.ini's `THRESHOLD_FUSION` like every other fusion
+path) - set that value deliberately for a real batch rather than assuming
+the default fits Guardant's molecule-count scale.

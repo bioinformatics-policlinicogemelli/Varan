@@ -1590,7 +1590,8 @@ def fill_fusion_from_temp(
     input_path: str,
     fusion_table_file: str,
     clin_file: pd.DataFrame,
-    fusion_files: list) -> None:
+    fusion_files: list,
+    thr_fus: str) -> None:
     """Collect fusion events from temp directory into a unified table.
 
     Args:
@@ -1598,6 +1599,14 @@ def fill_fusion_from_temp(
         fusion_table_file (str): Output file path for combined fusions.
         clin_file (pd.DataFrame): Clinical file to match SAMPLE_IDs.
         fusion_files (list): List of fusion TSV filenames.
+        thr_fus (str): Threshold expression for filtering read count (e.g.
+            ">=15"), same conf.ini [FUSION] THRESHOLD_FUSION value and same
+            eval pattern as fill_fusion_from_combined() - previously this
+            path had its own separate hardcoded `min_read_count = 15`,
+            silently dropping a Guardant-confirmed fusion (call=1) with
+            fewer supporting molecules regardless of what THRESHOLD_FUSION
+            was configured to, and regardless of any vendor's own
+            confidence flag for that call.
 
     """
     logger.info(f"Found {len(fusion_files)} Fusion file(s)")
@@ -1626,10 +1635,9 @@ def fill_fusion_from_temp(
                 logger.info(f"No Fusions found in {fusion_file}")
                 continue
             logger.info(f"Fusions found in {fusion_file}")
-            min_read_count = 15
             for fus in ff.itertuples(index=False):
                 if (str(fus.Sample_Id).strip() in clin_file["SAMPLE_ID"].astype(str).to_numpy() and
-                int(fus.Normal_Paired_End_Read_Count) >= min_read_count):
+                eval("int(fus.Normal_Paired_End_Read_Count)" + thr_fus)):
                     fusion_table.write("\t".join(map(str, fus)) + "\n")
 
 
@@ -2931,13 +2939,15 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
     fusion_table_file = Path(ctx.output_folder) / "data_sv.txt"
     fusion_folder = Path(ctx.input_folder) / "FUSIONS"
     combined_dict = {}
+    # Shared by both branches below - same conf.ini [FUSION] THRESHOLD_FUSION
+    # value applies regardless of which fusion source produced the table.
+    thr_fus = config.get("FUSION", "THRESHOLD_FUSION")
 
     combined_output_folder = Path(ctx.input_folder) / "CombinedOutput"
     if (
         combined_output_folder.exists()
         and any(f.is_file() for f in combined_output_folder.iterdir())):
         logger.info("Getting Fusions infos from CombinedOutput...")
-        thr_fus = config.get("FUSION", "THRESHOLD_FUSION")
         combined_dict = get_combined_variant_output_from_folder(
             ctx.input_folder, ctx.clin_file, isinputfile)
         fill_fusion_from_combined(fusion_table_file, combined_dict, thr_fus)
@@ -2947,7 +2957,8 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
         if fusion_files:
             logger.info(f"Getting Fusions infos from {fusion_files[0].name} file.")
             fill_fusion_from_temp(
-                ctx.input_folder, fusion_table_file, ctx.clin_file, fusion_files)
+                ctx.input_folder, fusion_table_file, ctx.clin_file, fusion_files,
+                thr_fus)
 
     # Report the fusion outcome on its own - fusions and splice variants
     # (below) are two independent CombinedOutput data types that happen to
