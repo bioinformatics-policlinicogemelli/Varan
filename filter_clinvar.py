@@ -284,16 +284,40 @@ def filter_main(input_path: str,folder: str,
             file = Path(f).name
             file_no = file.replace(".maf", "") + extension
             file_path = maf_oncokb_path / file_no
+
+            # -q Genomic_Change: without it, MafAnnotator.py's own default
+            # (AnnotatorCore.resolve_query_type()) picks HGVSp_Short
+            # whenever that column exists, which it always does coming out
+            # of vcf2maf. That queries OncoKB "by protein change", which is
+            # ambiguous whenever vcf2maf's chosen transcript for a gene
+            # differs from OncoKB's own canonical one (same genomic
+            # variant, different amino-acid position on each transcript) -
+            # confirmed against real data: a real, pathogenic, clinically
+            # actionable BRCA1 nonsense mutation (rs80356969) came back
+            # "Unknown"/excluded via HGVSp_Short (OncoKB's own API replies
+            # with a REFERENCE_ALLELE_MISMATCH error - reference amino acid
+            # doesn't match on OncoKB's canonical transcript, ENST00000357654
+            # vs vcf2maf's ENST00000471181), but correctly "Likely
+            # Oncogenic" via Genomic_Change on the exact same variant. The
+            # genomic coordinates (Chromosome/Start_Position/
+            # Reference_Allele/Tumor_Seq_Allele2) are already in every MAF
+            # here and unambiguous regardless of transcript choice, so this
+            # also isn't a one-off fix for BRCA1 specifically - any gene
+            # where the two tools' canonical transcripts disagree is at
+            # risk, and OncoKB's own canonical-transcript assignment can
+            # itself drift over time independently of anything in Varan.
             if "ONCOTREE_CODE" in input_file.columns:
                 for _, row in input_file.iterrows():
                     if str(row["SAMPLE_ID"]) in file_no:
                         cancer_onco = row["ONCOTREE_CODE"] or cancer
                         os.system(f"python3 oncokb-annotator/MafAnnotator.py "
                         f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
+                        f"-q Genomic_Change "
                         f"-b {config.get('OncoKB', 'ONCOKB')}")
             else:
                 os.system(f"python3 oncokb-annotator/MafAnnotator.py "
                 f"-i {f} -o {file_path} -t {cancer.upper()} "
+                f"-q Genomic_Change "
                 f"-b {config.get('OncoKB', 'ONCOKB')}")
 
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
