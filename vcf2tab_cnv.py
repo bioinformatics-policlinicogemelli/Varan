@@ -38,6 +38,8 @@ from typing import Dict, Optional
 import pandas as pd
 from loguru import logger
 
+from cnv_focality import classify_focality
+
 
 def is_positive(number: float, sample: str) -> bool:
     """Check if a number is positive, otherwise log a warning for the given sample.
@@ -355,7 +357,7 @@ def vcf_to_table_fc(tc_lookup: Dict[str, float], vcf_file: str, table_file: str,
         if mode != "a":
             table.write(
                 "ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\tFC\tgene\t"
-                "discrete\tcnv_unadjusted\tcnv_adjusted\n")
+                "discrete\tcnv_unadjusted\tcnv_adjusted\tcnv_class\n")
 
         for line in vcf:
             if line.startswith("##fileformat"):
@@ -419,9 +421,12 @@ def vcf_to_table_fc(tc_lookup: Dict[str, float], vcf_file: str, table_file: str,
             else:
                 discr = "0"
 
+            cnv_class = classify_focality(chrom, start, end)
+            cnv_class = cnv_class if cnv_class is not None else "NA"
+
             table.write(
                 f"{sample}\t{chrom}\t{start}\t{end}\t{qual}\t{log2fc}\t{fc}\t{gene}\t"
-                f"{discr}\t{cn_unadjusted}\t{cn_adjusted}\n")
+                f"{discr}\t{cn_unadjusted}\t{cn_adjusted}\t{cnv_class}\n")
 
 
 def load_table(file_path: str) -> pd.DataFrame:
