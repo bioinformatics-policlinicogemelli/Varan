@@ -1192,7 +1192,13 @@ def extract_key_value(filters: list[str], key_name: str) -> str | None:
     """
     pattern = rf"{key_name}\s*=\s*(.+)"
     for line in filters:
-        match = re.search(pattern, line)
+        # write_filters_report() uppercases every key it writes (e.g.
+        # "CNVKIT_algorithm" -> "CNVKIT_ALGORITHM = ..."), so a case-
+        # sensitive match here against the mixed-case key name used at the
+        # call sites (e.g. extract_key_value(my_filters, "CNVKIT_algorithm"))
+        # never matches - always returning "N/A" regardless of the actual
+        # conf.ini value.
+        match = re.search(pattern, line, re.IGNORECASE)
         if match:
             return match.group(1).strip().strip('"').strip("'")
     return "N/A"
