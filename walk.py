@@ -1446,26 +1446,13 @@ def check_input_file(
         return relevant
 
     if file_path.exists():
-        # SNV/CNV are copied under a filename built from THIS sample's own
-        # already-known sample_id, not the source file's original name -
-        # get_sample_id_from_snv()/get_sample_id_from_cnv() recover the
-        # sample id straight back from these exact suffixes further down
-        # the pipeline. Some inputs (e.g. a raw DRAGEN VCF straight off the
-        # caller, not yet renamed by TSO500's own local-app post-
-        # processing) are named after an unrelated internal id instead of
-        # the SAMPLE_ID this sample.tsv row actually uses - copying under
-        # the original name would then silently attribute this sample's
-        # CNV/SNV data to the wrong (or no) sample downstream. Skipped for
-        # "multiple" (-m) mode, whose shared multi-sample file is handled
-        # entirely differently and isn't a per-sample copy at all.
-        rename_suffix = {
-            "SNV": "_MergedSmallVariants.genome.vcf",
-            "CNV": "_CopyNumberVariants.vcf",
-        }.get(copy_to)
-        if rename_suffix and sample_id != "multiple":
-            shutil.copy(file_path, destination / f"{sample_id}{rename_suffix}")
-        else:
-            os.system(f"cp {file_path} {destination}")
+        # Copied under the source file's own original name - no longer
+        # forced into a fixed SAMPLE_ID-based filename. That rename (once
+        # here, for get_sample_id_from_snv()/get_sample_id_from_cnv() to
+        # recover the sample id from a fixed suffix downstream) hid the
+        # file's real origin and wasn't needed for this pipeline's actual
+        # inputs, which already carry the sample id in their own name.
+        shutil.copy(file_path, destination)
     else:
         logger.warning(f"{file_path} not found")
     return False
@@ -1806,6 +1793,15 @@ def fill_splice_from_combined(
                 line for line in existing_lines[1:]
                 if len(line.split("\t")) <= 2 or line.split("\t")[2] != "SPLICE"]
 
+    # Splice rows only ever populate the base 8 columns (they skip
+    # FusionAnnotator, see this function's docstring) - but `header` may
+    # carry extra OncoKB columns already added by the fusion step above, so
+    # each row must be padded to the SAME width as the real header, not a
+    # hardcoded 8, or cBioPortal's validator rejects it ("Expected N columns
+    # based on header, found 8").
+    n_extra_cols = max(0, len(header.rstrip("\n").split("\t")) - 8)
+    extra_cols = "\t" * n_extra_cols
+
     new_rows = []
     for k, v in combined_dict.items():
         splice_variants = []
@@ -1840,7 +1836,7 @@ def fill_splice_from_combined(
             new_rows.append(
                 str(k).strip() + "\tSOMATIC\tSPLICE\t" +
                 str(gene) + "\t" + str(gene) + "\t" +
-                ssr + "\t" + event_info + "\tYes\n")
+                ssr + "\t" + event_info + "\tYes" + extra_cols + "\n")
 
     if not new_rows and not existing_lines:
         logger.info(
