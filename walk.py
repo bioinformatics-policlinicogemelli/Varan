@@ -686,6 +686,85 @@ def run_vcf2maf(cl: list, sample: str) -> None:
                 "missing from the final study.")
 
 
+def _read_vcf_header_and_data(vcf_path: str) -> tuple[list[str], list[str]]:
+    """Split a VCF's lines into (header lines incl. #CHROM row, data rows)."""
+    with open(vcf_path) as f:
+        lines = f.readlines()
+    header_lines = [ln for ln in lines if ln.startswith("#")]
+    data_lines = [ln for ln in lines if not ln.startswith("#")]
+    return header_lines, data_lines
+
+
+def split_colocated_variants(vcf_path: str, work_dir: str) -> list[str]:
+    """vcf2maf keeps only the first VCF record for a given (CHROM, POS) when
+    two or more records share it - a known limitation, seen in practice on
+    a real Guardant case where the same homopolymer-adjacent indel position
+    carried two independently valid (Guardant call==1) calls (an insertion
+    and a deletion), and only the first survived into the MAF.
+
+    This scans vcf_path for such groups and writes every record AFTER the
+    first one in each group into its own single-variant VCF under
+    work_dir, so it can be run through vcf2maf separately by the caller.
+    The original vcf_path is left untouched
+    (its first-of-group record still goes through the normal single
+    vcf2maf run exactly as before - no change to today's behavior for the
+    common, non-colliding case).
+
+    Returns the list of extra VCF paths created (empty if no collision).
+    """
+    header_lines, data_lines = _read_vcf_header_and_data(vcf_path)
+    by_pos: dict[tuple[str, str], list[str]] = {}
+    for line in data_lines:
+        fields = line.split("\t")
+        if len(fields) < 2:
+            continue
+        by_pos.setdefault((fields[0], fields[1]), []).append(line)
+
+    extra_paths = []
+    base = Path(vcf_path)
+    for (chrom, pos), rows in by_pos.items():
+        if len(rows) < 2:
+            continue
+        for i, row in enumerate(rows[1:], start=1):
+            extra_path = Path(work_dir) / f"{base.stem}.colocated_{chrom}_{pos}_{i}{base.suffix}"
+            with open(extra_path, "w") as f:
+                f.writelines(header_lines)
+                f.write(row)
+            extra_paths.append(str(extra_path))
+    return extra_paths
+
+
+def recover_colocated_variants(v: str, temporary: str, output_folder: str,
+                               sample: str) -> None:
+    """Call after the normal vcf2maf run for sample `sample` on VCF `v`:
+    detects any variant(s) that shared a POS with another valid call in
+    the same VCF (see split_colocated_variants) and, for each one, runs
+    vcf2maf again on it alone, writing its own MAF into output_folder's
+    `maf/` folder next to the sample's main one - recovering calls that
+    vcf2maf's own same-POS handling would otherwise silently drop.
+
+    No merging into the main MAF is done here on purpose: the later
+    OncoKB-annotation + concatenation stage (filter_clinvar.py /
+    concatenate.py) already globs every *.maf file under `maf/` and folds
+    them all into data_mutations_extended.txt regardless of how many
+    files exist per sample - writing this extra MAF there is enough for
+    it to be picked up and annotated exactly like any other, with no risk
+    of double-counting the sample's main variants.
+    """
+    extra_vcfs = split_colocated_variants(v, temporary)
+    if not extra_vcfs:
+        return
+    logger.warning(
+        f"{sample}: found {len(extra_vcfs)} variant(s) sharing a genomic "
+        "position with another valid call in this sample's VCF - vcf2maf "
+        "only keeps one call per position, so re-running it separately "
+        "for each extra one; its MAF will be picked up by the normal "
+        "OncoKB-annotation/concatenation stage like any other.")
+    for extra_vcf in extra_vcfs:
+        cl_extra = vcf2maf_constructor(extra_vcf, temporary, output_folder)
+        run_vcf2maf(cl_extra, sample)
+
+
 def create_folder(output_folder: str,
                   overwrite_output: bool, resume: bool) -> Path:
     """Create versioned output folder for storing results.
@@ -2847,6 +2926,7 @@ def _walk_process_snv(ctx: WalkContext) -> None:
             for k, v in s_id_path_snv.items():
                 cl = vcf2maf_constructor(v, temporary, ctx.output_folder)
                 run_vcf2maf(cl, k)
+                recover_colocated_variants(v, temporary, ctx.output_folder, k)
 
                 if ctx.sigma:
                     sigma_results.append(_run_sigma_for_snv_sample(ctx, cl, k))
