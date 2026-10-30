@@ -379,7 +379,7 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
 
         data_sv_tmp.to_csv(fusion_table_file_out, index=False, sep="\t")
         if fusion_table_file_out != fusion_table_file:
-            os.system(f"mv {fusion_table_file_out} {fusion_table_file}")
+            Path(fusion_table_file_out).replace(fusion_table_file)
 
     # Runs after the fusion block above (annotation included) has fully
     # finished, so splice rows are never sent through the fusion-specific
@@ -397,16 +397,19 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
     # populate_case_lists.ensure_sv_file()): that's the study's "0 of N
     # tested" structural-variant profile.
     if fusion_table_file.exists():
+        # Counted first, file closed before it may be removed below (an
+        # open file can't be deleted on Windows).
         with fusion_table_file.open() as data_sv:
-            if len(data_sv.readlines()) == 1:
-                tested = read_profiled_samples(ctx.output_folder).get("sv")
-                if tested:
-                    logger.warning(
-                        "No fusions or splice variants found for this batch - "
-                        f"data_sv.txt kept header-only: {len(tested)} sample(s) "
-                        "were tested for them.")
-                else:
-                    fusion_table_file.unlink()
-                    logger.warning(
-                        "No fusions or splice variants found for this batch - "
-                        "data_sv.txt removed.")
+            header_only = len(data_sv.readlines()) == 1
+        if header_only:
+            tested = read_profiled_samples(ctx.output_folder).get("sv")
+            if tested:
+                logger.warning(
+                    "No fusions or splice variants found for this batch - "
+                    f"data_sv.txt kept header-only: {len(tested)} sample(s) "
+                    "were tested for them.")
+            else:
+                fusion_table_file.unlink()
+                logger.warning(
+                    "No fusions or splice variants found for this batch - "
+                    "data_sv.txt removed.")

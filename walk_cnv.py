@@ -373,7 +373,7 @@ def cnv_type_from_folder(input_path: str,
 
             # astype(int): cBioPortal only accepts discrete CNA values
             # written as integers ("2", not "2.0") - same as the branch below.
-            data_cna = cna.pivot_table(
+            data_cna = _one_call_per_gene(cna).pivot_table(
                 index="Hugo_Symbol",
                 columns="Tumor_Sample_Barcode",
                 values="Copy_Number_Alteration", fill_value=0).astype(int)
@@ -387,7 +387,7 @@ def cnv_type_from_folder(input_path: str,
                 "Tumor_Sample_Barcode"].str.replace(
                     ".cnv.bam", "", regex=True)
 
-            data_cna = df_table_filt.pivot_table(
+            data_cna = _one_call_per_gene(df_table_filt).pivot_table(
                 index="Hugo_Symbol",
                 columns="Tumor_Sample_Barcode",
                 values="Copy_Number_Alteration",
@@ -397,6 +397,36 @@ def cnv_type_from_folder(input_path: str,
                                 index=True, sep="\t")
 
     return sid_path
+
+
+def _one_call_per_gene(calls: pd.DataFrame) -> pd.DataFrame:
+    """Keep one discrete call per (sample, gene), the most extreme one.
+
+    data_cna.txt is built from data_cna_hg19.seg.fc.txt, one row per
+    segment: a gene split into several segments (a partial gain/loss, or a
+    caller writing both a gene-level and smaller records), or a SAMPLE_ID
+    listed twice in sample.tsv, gives the same gene more than one call in
+    one sample. Averaging them (pivot_table's default) and truncating to an
+    integer could turn -1 and -2 into -1; instead the call with the
+    largest absolute value is kept, and every duplicate is logged -
+    loudly when the calls disagree in direction (gain vs. loss).
+    """
+    keys = ["Tumor_Sample_Barcode", "Hugo_Symbol"]
+    value = "Copy_Number_Alteration"
+    duplicated = calls[calls.duplicated(keys, keep=False)]
+    for (sample_id, gene), group in duplicated.groupby(keys):
+        values = sorted(int(v) for v in group[value])
+        if values[0] < 0 < values[-1]:
+            logger.warning(
+                f"{sample_id} {gene}: conflicting CNA calls {values} (gain and "
+                "loss) from different segments - keeping the most extreme one. "
+                "Check this gene's segments.")
+        else:
+            logger.warning(
+                f"{sample_id} {gene}: {len(values)} CNA calls {values} from "
+                "different segments - keeping the most extreme one.")
+    order = calls[value].astype(int).abs().sort_values(ascending=False, kind="stable").index
+    return calls.loc[order].drop_duplicates(keys, keep="first")
 
 
 def extract_multiple_cnv(multiple_vcf: str, input_dir: str) -> None:

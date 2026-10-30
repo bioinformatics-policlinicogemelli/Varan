@@ -966,7 +966,8 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
     if ctx.vcf_type not in ["cnv", "fus", "tab"]:
         profiled["sequenced"] = has_input("snv_path", "SNV")
     if ctx.vcf_type not in ["snv", "fus", "tab"]:
-        profiled["cna"] = has_input("cnv_path", "CNV", "cnv_tested")
+        profiled["cna"] = _with_cna_evaluable(
+            ctx, has_input("cnv_path", "CNV", "cnv_tested"))
     if ctx.vcf_type not in ["cnv", "snv", "tab"]:
         comb_dir = Path(ctx.input_folder) / "CombinedOutput"
         files = [f for f in comb_dir.iterdir() if f.is_file()] if comb_dir.is_dir() else []
@@ -1028,6 +1029,25 @@ def sample_ids_by_file(ctx: WalkContext, column: str, folder: str) -> dict[str, 
             f"{', '.join(sorted(shared))} - their sample ids are taken from "
             "the file names instead.")
     return {p.name: s for s, p in by_sample.items() if p.name not in shared}
+
+
+def _with_cna_evaluable(ctx: WalkContext, sample_ids: list[str]) -> list[str]:
+    """Drop the CNV samples whose discrete CNA calls won't be computed: with
+    [Cna] CNVKIT_algorithm = True the calls need the sample's tumor content
+    (sample.tsv TC) and a sample without one is skipped - listing it as
+    tested would tell cBioPortal "no alteration" instead of "not evaluated"."""
+    if not check_bool(config.get("Cna", "CNVKIT_algorithm", fallback="False")):
+        return sample_ids
+    clin = ctx.clin_file.fillna("")
+    tc = {str(r.get("SAMPLE_ID", "")).strip(): str(r.get("TC", "")).strip()
+          for r in clin.to_dict("records")}
+    missing = [s for s in sample_ids if not tc.get(s)]
+    if missing:
+        logger.warning(
+            f"No TC (tumor content) in sample.tsv for {', '.join(missing)}: with "
+            "[Cna] CNVKIT_algorithm = True their discrete CNA calls can't be "
+            "computed, so they are not listed as tested for CNAs.")
+    return [s for s in sample_ids if tc.get(s)]
 
 
 def _tested_flag(row: dict, column: str) -> bool | None:
