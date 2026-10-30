@@ -192,8 +192,8 @@ def create_general_plot(limited_dic: dict, output_folder: str) -> None:
     autolabel_ver(ax, rects2)
 
     fig.tight_layout()
-    plt.show()
     plt.savefig(Path(output_folder) / "img" / "general.png")
+    plt.close(fig)
 
 def create_barplots(output_folder: str) -> int:
     """Generate bar plots of clinical and genomic data from multiple dataset versions.
@@ -293,6 +293,7 @@ def create_barplots(output_folder: str) -> int:
                          va="center", ha="left", fontsize=8)
 
     plt.savefig(Path(output_folder) / "img" / "genes.png")
+    plt.close(fig)
 
     return len(old_versions)
 
