@@ -178,7 +178,8 @@ def _check_header_config(issues: Issues, config) -> None:
         if not value:
             continue
         declared = len(value.split(","))
-        minimum = len(SAMPLE_TSV_COLUMNS) - 3  # snv/cnv/comb_path get dropped
+        # snv/cnv/comb_path and cnv_tested/fusion_tested get dropped
+        minimum = len(SAMPLE_TSV_COLUMNS) - 5
         if declared < minimum:
             _warn(
                 issues,
@@ -188,6 +189,28 @@ def _check_header_config(issues: Issues, config) -> None:
                 "SigMA, vendor passthrough, ...) will likely make the real "
                 "count mismatch and abort the run late, right when "
                 "data_clinical_sample.txt is written.")
+
+
+def _check_gene_panel_config(issues: Issues) -> None:
+    """[GenePanel] is optional (see gene_panels.py): say what's missing,
+    never fail the run over it."""
+    from gene_panels import NO_PANEL_WARNING, configured_panels, read_gene_list
+    panels = configured_panels()
+    if not panels:
+        _warn(issues, NO_PANEL_WARNING)
+        return
+    panel_dir = get_config().get("GenePanel", "PANEL_DIR", fallback="").strip()
+    if panel_dir and not Path(panel_dir).is_dir():
+        _warn(issues, f"conf.ini [GenePanel] PANEL_DIR not found: {panel_dir}")
+        return
+    for panel_id in dict.fromkeys(panels.values()):
+        if read_gene_list(panel_id) is None:
+            _warn(
+                issues,
+                f"No gene list for panel '{panel_id}' "
+                f"({panel_dir or '[GenePanel] PANEL_DIR not set'}): it must "
+                "already be loaded in cBioPortal, and Varan won't export it "
+                "or check events against it.")
 
 
 # ------------------------------------------------------------- versioning
@@ -640,6 +663,7 @@ def run_preflight_checks(
     _check_conf_paths(issues, config, sigma)
     _check_oncokb_config(issues, config, oncokb, filters, analysis_type)
     _check_header_config(issues, config)
+    _check_gene_panel_config(issues)
     _check_output_folder(issues, output_folder, overwrite_output, resume)
 
     if not cancer:

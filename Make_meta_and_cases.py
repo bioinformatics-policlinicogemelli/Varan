@@ -27,6 +27,8 @@ from pathlib import Path
 from loguru import logger
 
 from config_loader import get_config
+from gene_panels import (build_gene_panel_matrix, create_meta_gene_panel_matrix,
+                         finalize_gene_panel_matrix)
 from populate_case_lists import (ensure_sv_file, pad_unaltered_cna_samples,
                                  populate_cases_cna,
                                  populate_cases_sequenced, populate_cases_sv,
@@ -426,11 +428,17 @@ def meta_case_main(
     # (already used by Update/Delete/Extract for the same reason) clears
     # those out first; a no-op on a fresh, single-shot run since no meta
     # file exists yet to be orphaned.
-    if profiled is None:
+    # No profiled samples passed in = a study being created (update/extract/
+    # remove always pass their source studies' ones).
+    creating = profiled is None
+    if creating:
         profiled = read_profiled_samples(output_folder)
     # Before any meta file is written: a header-only data_sv.txt (samples
     # tested for fusions, none found) still needs its meta_sv.txt.
     ensure_sv_file(output_folder, profiled.get("sv"))
+    if creating:
+        build_gene_panel_matrix(output_folder, profiled)
+    finalize_gene_panel_matrix(output_folder)
     remove_meta(output_folder)
 
     project_id = create_meta_study(
@@ -470,6 +478,8 @@ def meta_case_main(
     if (output_folder_path / "data_exon_brca_cna.txt").exists():
         create_meta_generic_assay_exon_brca(project_id, output_folder)
         logger.info("meta_exon_brca_cna.txt created!")
+
+    create_meta_gene_panel_matrix(project_id, output_folder)
 
     ########### CASE LIST FUNCTION ###########
 

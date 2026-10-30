@@ -21,6 +21,7 @@ pipelines for study customization or data sanitization.
 
 """
 
+from functools import partial
 import re
 import sys
 from pathlib import Path
@@ -342,6 +343,8 @@ def delete_all_data(oldpath: str, sample_ids: list, output: str) -> None:
         ("data_sv.txt", delete_sv, True),
         ("exon_CNA_data.txt", delete_generic_by_sample_id, True),
         ("data_exon_brca_cna.txt", delete_exon_brca_cna, True),
+        ("data_gene_panel_matrix.txt",
+         partial(delete_generic_by_sample_id, id_column="SAMPLE_ID"), True),
     ]
 
     for filename, deleter, use_path in file_to_delete:

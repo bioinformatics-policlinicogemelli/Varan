@@ -490,6 +490,7 @@ def remove_meta(output: str | Path) -> None:
         "data_sv.txt": "meta_sv.txt",
         "data_cna.txt": "meta_cna.txt",
         "data_exon_brca_cna.txt": "meta_exon_brca_cna.txt",
+        "data_gene_panel_matrix.txt": "meta_gene_panel_matrix.txt",
     }
 
     for data_file, meta_file in file_map.items():

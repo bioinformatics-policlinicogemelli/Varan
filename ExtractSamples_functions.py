@@ -24,6 +24,7 @@ Intended for use in genomic data pre-processing pipelines.
 
 """
 
+from functools import partial
 import sys
 from pathlib import Path
 
@@ -368,6 +369,8 @@ def extract_all_data(oldpath: str, sample_ids: list, output: str) -> None:
         ("data_sv.txt", extract_sv, True),
         ("exon_CNA_data.txt", extract_generic_by_sample_id, True),
         ("data_exon_brca_cna.txt", extract_exon_brca_cna, True),
+        ("data_gene_panel_matrix.txt",
+         partial(extract_generic_by_sample_id, id_column="SAMPLE_ID"), True),
     ]
 
     for filename, extractor, use_path in file_extractors:

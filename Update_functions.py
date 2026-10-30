@@ -28,6 +28,7 @@ as appropriate, and writes the result to the specified output folder.
 
 """
 
+from functools import partial
 import re
 import shutil
 from pathlib import Path
@@ -490,7 +491,9 @@ def check_files(oldpath: str,
     "data_mutations_extended.txt": update_mutations,
     "data_sv.txt": update_sv,
     "exon_CNA_data.txt": update_generic_by_sample_id,
-    "data_exon_brca_cna.txt": update_exon_brca_cna}
+    "data_exon_brca_cna.txt": update_exon_brca_cna,
+    "data_gene_panel_matrix.txt": partial(
+        update_generic_by_sample_id, id_column="SAMPLE_ID")}
 
     o_data = Path(oldpath) / file_name
     n_data = Path(newpath) / file_name
