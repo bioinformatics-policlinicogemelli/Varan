@@ -1021,7 +1021,8 @@ def write_clinical_sample(
         raise NameError(msg) from err
     # Optional input-control column (see _profiled_samples()), not a
     # clinical attribute.
-    data_clin_samp = data_clin_samp.drop(columns=["fusion_tested"], errors="ignore")
+    data_clin_samp = data_clin_samp.drop(
+        columns=["cnv_tested", "fusion_tested"], errors="ignore")
 
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
 
@@ -2915,13 +2916,16 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
       folder input with those columns blank - a file in SNV/ / CNV/ named
       after the SAMPLE_ID); every sample with -m/--multiple's multi-sample
       VCF.
-    - sv: its sample.tsv fusion_tested column says yes (written by vendor
-      adapters, e.g. Guardant, whose fusions file only lists positives -
-      see vendor_adapters/common.py), or its CombinedVariantOutput has a
-      [Fusions]/[Data Fusions]/[Splice Variants] section that isn't "NA"
-      (TSO500 writes NA when RNA wasn't run). Samples only listed in a
-      fusion.tsv are left to data_sv.txt itself: that file lists positives
-      only.
+    - sv: its CombinedVariantOutput has a [Fusions]/[Data Fusions]/
+      [Splice Variants] section that isn't "NA" (TSO500 writes NA when RNA
+      wasn't run). Samples only listed in a fusion.tsv are left to
+      data_sv.txt itself: that file lists positives only.
+
+    sample.tsv's optional cnv_tested / fusion_tested columns ("yes"/"no",
+    written by vendor adapters - see vendor_adapters/common.py) override
+    the cna / sv rules above for that sample when filled: e.g. Guardant
+    always writes a CNV VCF, even without a CNV report, and its fusions
+    file only lists the positives.
 
     A data type this run doesn't process at all (-t, or auto-detected from
     empty input folders) gets no entry.
@@ -2931,7 +2935,7 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
     rows = list(clin.to_dict("records"))
     profiled: dict[str, list[str]] = {}
 
-    def has_input(column: str, folder: str) -> list[str]:
+    def has_input(column: str, folder: str, flag_column: str = "") -> list[str]:
         type_dir = Path(ctx.input_folder) / folder
         files = [f for f in type_dir.iterdir() if f.is_file()] if type_dir.is_dir() else []
         if ctx.multiple and files:
@@ -2940,6 +2944,11 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
         for row in rows:
             sample_id = str(row.get("SAMPLE_ID", "")).strip()
             if not sample_id:
+                continue
+            flag = _tested_flag(row, flag_column) if flag_column else None
+            if flag is not None:
+                if flag:
+                    tested.append(sample_id)
                 continue
             path = _resolve_input_file(str(row.get(column, "")).strip(), type_dir)
             if path is not None or (
@@ -2951,7 +2960,7 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
     if ctx.vcf_type not in ["cnv", "fus", "tab"]:
         profiled["sequenced"] = has_input("snv_path", "SNV")
     if ctx.vcf_type not in ["snv", "fus", "tab"]:
-        profiled["cna"] = has_input("cnv_path", "CNV")
+        profiled["cna"] = has_input("cnv_path", "CNV", "cnv_tested")
     if ctx.vcf_type not in ["cnv", "snv", "tab"]:
         comb_dir = Path(ctx.input_folder) / "CombinedOutput"
         files = [f for f in comb_dir.iterdir() if f.is_file()] if comb_dir.is_dir() else []
@@ -2960,8 +2969,10 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
             sample_id = str(row.get("SAMPLE_ID", "")).strip()
             if not sample_id:
                 continue
-            if str(row.get("fusion_tested", "")).strip().lower() in ("yes", "true", "1"):
-                tested.append(sample_id)
+            flag = _tested_flag(row, "fusion_tested")
+            if flag is not None:
+                if flag:
+                    tested.append(sample_id)
                 continue
             value = str(row.get("comb_path", "")).strip()
             path = _resolve_input_file(value, comb_dir)
@@ -2971,6 +2982,18 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
                 tested.append(sample_id)
         profiled["sv"] = tested
     return profiled
+
+
+def _tested_flag(row: dict, column: str) -> bool | None:
+    """sample.tsv's cnv_tested / fusion_tested value for one row: True
+    (yes), False (no), or None when blank/absent - then the file-based
+    rules in _profiled_samples() decide."""
+    value = str(row.get(column, "")).strip().lower()
+    if value in ("yes", "true", "1"):
+        return True
+    if value in ("no", "false", "0"):
+        return False
+    return None
 
 
 def _resolve_input_file(value: str, type_dir: Path) -> Path | None:

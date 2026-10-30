@@ -621,6 +621,8 @@ def process_single_sample(
     snv_f, cnv_f = os.path.join(v_out, f"{sid}.snv.vcf"), os.path.join(v_out, f"{sid}.cnv.vcf")
 
     process_vcf(vcf_local, cnv_local, snv_f, cnv_f, sid)
+    # Checked now: downloaded copies are deleted just below.
+    cnv_tested = "yes" if cnv_local and os.path.exists(cnv_local) else "no"
 
     fusions_list = load_fusions(fus_local)
     append_fusions_to_table(fusion_table_path, sid, fusions_list or [])
@@ -635,13 +637,15 @@ def process_single_sample(
     # process_vcf() always creates a valid CNV VCF (empty/FAIL-only when no
     # CNV report or no structural rows are available) - unchanged from
     # before this refactor, "missing CNV report" shows up as an empty/
-    # unattributed CNV VCF, not as a blanked-out cnv_path column.
+    # unattributed CNV VCF, not as a blanked-out cnv_path column - which is
+    # why cnv_tested below says whether there really was a CNV report.
     return SampleRow(
         sample_id=sid, patient_id=p_id, run_id=run_id_final,
         oncotree_code=o_code, snv_path=snv_f, cnv_path=cnv_f, comb_path="",
         msi=m_info["msi_score"], tmb="", msi_thr=m_info["msi_thr"], tmb_thr="",
         # The fusions file only lists positives: this is how Varan knows a
         # sample without any was still tested (cases_sv.txt).
+        cnv_tested=cnv_tested,
         fusion_tested="no" if fusions_list is None else "yes",
         # Passed through as a plain sample.tsv extra column (see SampleRow's
         # own docstring on `run_id` vs `extra`) so it ends up as a RUN_ID

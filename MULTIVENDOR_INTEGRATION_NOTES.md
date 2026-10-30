@@ -172,14 +172,17 @@ way). The older names below keep working.
 | `fusion_path` (or `fus_path`/`fusion_call_path`) | No | Explicit path to this sample's `.fusion_call.hdr.tsv`. |
 | `patient_id` / `PATIENT_ID`, `oncotree_code` / `ONCOTREE_CODE` (or `oncotree`), `diagnosis` | No | Identity values for a row without a metadata XML - see `run()`'s docstring. |
 
-**Fusion testing is reported per sample.** The fusions file the adapter
-writes only lists positives, so the generated sample.tsv also has a
-`fusion_tested` column: `yes` when the sample's `.fusion_call.hdr.tsv`
-was found and read (even with no fusion in it), `no` otherwise (e.g. a
-samplesheet row with `fusion_path` blank and nothing to auto-discover).
-Varan lists only the `yes` samples in `cases_sv.txt` (cBioPortal's
-"tested for structural variants") - see `walk._profiled_samples()`. The
-column never reaches `data_clinical_sample.txt`.
+**CNV and fusion testing are reported per sample.** The adapter always
+writes a CNV VCF (FAIL-only without a CNV report), and its fusions file
+only lists positives, so neither says by itself whether a sample was
+tested. The generated sample.tsv therefore also has `cnv_tested` and
+`fusion_tested` columns: `yes` when the sample's `.cnv_call.hdr.tsv` /
+`.fusion_call.hdr.tsv` was there (even with no call in it), `no`
+otherwise (e.g. a samplesheet row with that path blank and nothing to
+auto-discover). Varan lists only the `yes` samples in `cases_cna.txt` /
+`cases_sv.txt` (cBioPortal's "tested for that data type") - see
+`walk._profiled_samples()`. The columns never reach
+`data_clinical_sample.txt`.
 
 Any column not in this table (e.g. a `notes` or `batch_name` column a lab
 wants to keep for its own bookkeeping) is simply ignored, not an error -
