@@ -1,5 +1,23 @@
 # SigMA integration — feasibility and cost/benefit analysis
 
+> **Round 3 verification (2026-10-30) - resolves the open questions below.**
+> Run against SigMA 1.6 in a real R session (`names(gbm_models[[data]])`)
+> and the live OncoTree API (`oncotree.mskcc.org/api/tumorTypes`):
+>
+> - Panel ("msk") MVA models: bladder, breast, **crc**, eso, osteo, ovary,
+>   panc_ad, panc_en, prost, stomach, uterus. crc does have one (round 2
+>   could only leave it out); gbm, lung, lymph, thyroid, bone_other,
+>   medullo, ewing and "other" don't. Full per-platform table now in
+>   `sigma_cancer_type_map.MVA_MODELS_BY_PLATFORM`; do_mva follows
+>   `[SigMA] DATA_PLATFORM`.
+> - OncoTree codes: 32 of the 34 mapped codes exist. `MDB` doesn't
+>   (medulloblastoma is `MBL`, subtypes added) and `ESOPHAGUS` doesn't (the
+>   tissue node is `STOMACH`, already mapped); colorectal codes (COADREAD,
+>   COAD, READ, MACR, SRCCR) and `ESST` added.
+> - End-to-end check through `sigma_runner` + `run_sigma.R`: crc and breast
+>   with do_mva on panel data, "other" and medullo with do_mva off - all
+>   four complete without SigMA errors.
+
 ## Status update (round 3): real pipeline wiring built and smoke-tested
 
 The two rounds below (this file's original text, unchanged past this point)

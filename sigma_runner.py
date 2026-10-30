@@ -194,18 +194,20 @@ def run_sigma_for_sample(
     """
     tumor_type_override = config.get("SigMA", "TUMOR_TYPE_OVERRIDE").strip()
     fallback_to_other = check_bool(config.get("SigMA", "FALLBACK_TO_OTHER"))
+    data_platform = config.get("SigMA", "DATA_PLATFORM").strip()
 
     if tumor_type_override:
         tumor_type = tumor_type_override
-        do_mva = is_mva_safe_for_panel_data(tumor_type)
+        do_mva = is_mva_safe_for_panel_data(tumor_type, data_platform)
         if not do_mva:
             logger.warning(
                 f"Sample {sample_id}: [SigMA] TUMOR_TYPE_OVERRIDE="
-                f"'{tumor_type_override}' has no trained panel-data MVA "
-                "classifier - forcing do_mva=False for this sample.")
+                f"'{tumor_type_override}' has no trained MVA "
+                f"classifier for DATA_PLATFORM={data_platform} - forcing "
+                "do_mva=False for this sample.")
     else:
         tumor_type, do_mva = get_sigma_call_params(
-            oncotree_code, fallback_to_other)
+            oncotree_code, fallback_to_other, data_platform)
 
     if tumor_type is None:
         logger.warning(

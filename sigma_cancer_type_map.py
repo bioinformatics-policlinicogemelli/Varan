@@ -12,10 +12,20 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-"""DRAFT mapping from OncoTree code to SigMA's `tumor_type` parameter.
+"""Mapping from OncoTree code to SigMA's `tumor_type` parameter.
 
-NOT YET FULLY VALIDATED - see SIGMA_INTEGRATION_FEASIBILITY.md at the repo
-root for the complete verification writeup (round 2, 2026-08-02). Updated
+VERIFIED 2026-10-30 (round 3): every code in ONCOTREE_TO_SIGMA checked
+against the live OncoTree tree (oncotree.mskcc.org/api/tumorTypes - it
+answered this time), and the MVA models per platform read from SigMA 1.6's
+own gbm_models object in an R session (MVA_MODELS_BY_PLATFORM). Outcome:
+MDB (no such OncoTree code) replaced by MBL and its subtypes, ESOPHAGUS
+(no such code) dropped, colorectal codes added - SigMA does have a panel
+("msk") MVA model for crc, unlike what round 2 could only assume - and
+the do_mva decision now follows the configured DATA_PLATFORM. Everything
+below this paragraph is the earlier rounds' history.
+
+Round 2 notes - see SIGMA_INTEGRATION_FEASIBILITY.md at the repo root for
+the complete verification writeup (round 2, 2026-08-02). Updated
 after actually reading SigMA's R source (R/run.R, rdrr.io's rendered
 run() man page) instead of relying on the round-1 draft's paraphrase.
 oncotree.mskcc.org's API still returns 403 to automated fetches (tried
@@ -79,59 +89,58 @@ from __future__ import annotations
 
 from loguru import logger
 
-# DRAFT - verify every code against a live oncotree.mskcc.org lookup before
-# trusting this in a clinical run. Parent/tissue-level codes are included
-# alongside a few common child codes per lineage, not an exhaustive list.
-#
-# PANEL_DATA_MVA_SAFE_TUMOR_TYPES: the *whitelist* of SigMA tumor_type
-# values confirmed to have a trained do_mva=True classifier on panel
-# ("msk") data - the exact 10 values R/run.R's own stop() message names
-# ("eso, osteo, ovary, panc_ad, panc_en, prost, stomach, uterus, breast,
-# bladder"). Deliberately a whitelist, not a blacklist of just
-# medullo/ewing (an earlier version of this module only special-cased
-# those two): an actual smoke test this round (real R + SigMA install,
-# see SIGMA_INTEGRATION_FEASIBILITY.md / commit history) confirmed that
-# calling SigMA with tumor_type="other" (the fallback model -
-# get_sigma_tumor_type()'s fallback_to_other path), data="msk", and
-# do_mva=True *also* raises the same stop() error - "other" is not in
-# this panel-safe list either, so a blacklist naming only medullo/ewing
-# was incomplete. Any tumor_type not in this set gets do_mva=False on
-# panel data, not just the two originally called out.
-PANEL_DATA_MVA_SAFE_TUMOR_TYPES: frozenset[str] = frozenset({
-    "eso", "osteo", "ovary", "panc_ad", "panc_en", "prost", "stomach",
-    "uterus", "breast", "bladder",
-})
+# SigMA's trained MVA (do_mva=True) models, per `data` platform - read
+# from SigMA 1.6's own gbm_models object (names(gbm_models[[data]]) in an
+# R session, 2026-10-30). R/run.R stops with an error when do_mva=TRUE and
+# tumor_type isn't among its platform's models (this includes the "other"
+# fallback, bone_other, medullo and ewing on panel data), so do_mva is
+# only turned on for these.
+MVA_MODELS_BY_PLATFORM: dict[str, frozenset[str]] = {
+    "msk": frozenset({
+        "bladder", "breast", "crc", "eso", "osteo", "ovary", "panc_ad",
+        "panc_en", "prost", "stomach", "uterus"}),
+    "seqcap": frozenset({
+        "bladder", "breast", "eso", "ewing", "medullo", "osteo", "ovary",
+        "panc_ad", "panc_en", "prost", "stomach", "uterus"}),
+    "seqcap_probe": frozenset({
+        "bladder", "breast", "eso", "ewing", "medullo", "osteo", "ovary",
+        "panc_ad", "panc_en", "prost", "stomach", "uterus"}),
+    "tcga_mc3": frozenset({
+        "adrenal", "biliary", "bladder", "breast", "cervix", "crc", "eso",
+        "glioma", "head", "kidney", "lgg", "liver", "lung", "lymph", "meso",
+        "ovary", "panc_ad", "prost", "skin", "stomach", "uterus"}),
+    "wgs": frozenset({
+        "biliary", "bladder", "bone_other", "breast", "cervix", "crc", "eso",
+        "ewing", "kidney", "lms", "lung", "medullo", "osteo", "ovary",
+        "panc_ad", "panc_en", "prost", "skin", "stomach", "uterus"}),
+    "wgs_pancan": frozenset({"breast", "generic"}),
+}
 
-# Kept for backward compatibility / documentation - the two tumor_type
-# values from ONCOTREE_TO_SIGMA that are *named* in SigMA's own source as
-# WES/WGS-only. Superseded by PANEL_DATA_MVA_SAFE_TUMOR_TYPES above for
-# the actual do_mva decision (that whitelist is the confirmed-correct
-# source of truth after the "other" gap found this round), but still
-# accurate as a statement about medullo/ewing specifically.
-DO_MVA_UNSAFE_FOR_PANEL_DATA: frozenset[str] = frozenset({"medullo", "ewing"})
+# Kept for callers that still import it: Varan's default platform's set.
+PANEL_DATA_MVA_SAFE_TUMOR_TYPES = MVA_MODELS_BY_PLATFORM["msk"]
 
 
-def is_mva_safe_for_panel_data(tumor_type: str) -> bool:
-    """Whether SigMA has a trained do_mva=True classifier for `tumor_type`
-    on panel ("msk") data.
-
-    Use this (not direct membership checks against
-    DO_MVA_UNSAFE_FOR_PANEL_DATA) to decide do_mva for a resolved SigMA
-    tumor_type, including the "other" fallback and any manual
-    TUMOR_TYPE_OVERRIDE value from conf.ini - see
-    PANEL_DATA_MVA_SAFE_TUMOR_TYPES's docstring for why the whitelist form
-    is the one that's actually been verified correct.
+def is_mva_safe_for_panel_data(tumor_type: str, data_platform: str = "msk") -> bool:
+    """Whether SigMA has a trained do_mva=True model for `tumor_type` on
+    `data_platform` (conf.ini [SigMA] DATA_PLATFORM) - see
+    MVA_MODELS_BY_PLATFORM. Use it for every resolved tumor_type, including
+    the "other" fallback and a manual TUMOR_TYPE_OVERRIDE.
 
     Args:
         tumor_type (str): A SigMA `tumor_type` value.
+        data_platform (str): SigMA's `data` argument (default "msk").
 
     Returns:
-        bool: True if do_mva=True is safe to use for this tumor_type on
-            panel data.
+        bool: True if do_mva=True is safe for this tumor_type and platform.
 
     """
-    return tumor_type in PANEL_DATA_MVA_SAFE_TUMOR_TYPES
+    return tumor_type in MVA_MODELS_BY_PLATFORM.get(data_platform, frozenset())
 
+
+# OncoTree code -> SigMA tumor_type. Every code checked against the live
+# OncoTree tree (oncotree.mskcc.org/api/tumorTypes, 2026-10-30); parent/
+# tissue-level codes are included with their main child codes - not an
+# exhaustive list of every OncoTree descendant.
 ONCOTREE_TO_SIGMA: dict[str, str] = {
     # Breast
     "BREAST": "breast",
@@ -162,10 +171,16 @@ ONCOTREE_TO_SIGMA: dict[str, str] = {
     "UCEC": "uterus",
     "UCS": "uterus",
     "UMEC": "uterus",
-    # Esophagus
-    "ESOPHAGUS": "eso",
+    # Esophagus (OncoTree has no ESOPHAGUS code: its tissue node is STOMACH,
+    # "Esophagus/Stomach", mapped to stomach above)
     "ESCA": "eso",
     "ESCC": "eso",
+    # Colorectal - has a panel ("msk") MVA model
+    "COADREAD": "crc",
+    "COAD": "crc",
+    "READ": "crc",
+    "MACR": "crc",
+    "SRCCR": "crc",
     # Pancreas - adenocarcinoma vs. neuroendocrine are two different SigMA models
     "PAAD": "panc_ad",
     "PANET": "panc_en",
@@ -174,11 +189,31 @@ ONCOTREE_TO_SIGMA: dict[str, str] = {
     "CHS": "bone_other",
     "CHDM": "bone_other",
     "BONE": "bone_other",
-    # Ewing sarcoma - see DO_MVA_UNSAFE_FOR_PANEL_DATA: no confirmed panel
-    # ("msk") MVA model, WES/WGS only per SigMA's own source.
+    # Ewing sarcoma - no panel ("msk") MVA model (seqcap/WGS only)
     "ES": "ewing",
-    # Medulloblastoma - see DO_MVA_UNSAFE_FOR_PANEL_DATA: same caveat as ES.
-    "MDB": "medullo",
+    "ESST": "ewing",
+    # Medulloblastoma - no panel ("msk") MVA model either. OncoTree's code is
+    # MBL (the earlier MDB doesn't exist); its subtype codes map the same.
+    "MBL": "medullo",
+    "MBLNOS": "medullo",
+    "MBLWNT": "medullo",
+    "MBLSHH": "medullo",
+    "MBLNWS": "medullo",
+    "MBLG3": "medullo",
+    "MBLG4": "medullo",
+    "DMBL": "medullo",
+    "DMBLNOS": "medullo",
+    "DMBLSHH": "medullo",
+    "AMBL": "medullo",
+    "AMBLNOS": "medullo",
+    "AMBLSHH": "medullo",
+    "AMBLNWS": "medullo",
+    "AMBLNWSG3": "medullo",
+    "AMBLNWSG4": "medullo",
+    "MBEN": "medullo",
+    "MBENNOS": "medullo",
+    "MBENSHH": "medullo",
+    "MMBL": "medullo",
 }
 
 
@@ -210,7 +245,8 @@ def get_sigma_tumor_type(
 
 def get_sigma_call_params(
     oncotree_code: str,
-    fallback_to_other: bool = True) -> tuple[str | None, bool]:
+    fallback_to_other: bool = True,
+    data_platform: str = "msk") -> tuple[str | None, bool]:
     """Resolve an OncoTree code to the (tumor_type, do_mva) pair walk.py
     needs to actually invoke SigMA for one sample.
 
@@ -249,12 +285,12 @@ def get_sigma_call_params(
     if tumor_type is None:
         return None, False
 
-    do_mva = is_mva_safe_for_panel_data(tumor_type)
+    do_mva = is_mva_safe_for_panel_data(tumor_type, data_platform)
     if not do_mva:
         logger.warning(
             f"OncoTree code '{oncotree_code}' maps to SigMA tumor_type "
-            f"'{tumor_type}', which has no trained panel-data (do_mva) "
-            "classifier - forcing do_mva=False for this sample. Only the "
+            f"'{tumor_type}', which has no trained MVA (do_mva) classifier "
+            f"for DATA_PLATFORM={data_platform} - forcing do_mva=False for this sample. Only the "
             "raw Signature_3 likelihood/exposure features will be "
             "computed, not the Signature_3_mva score or pass_mva calls.")
 
