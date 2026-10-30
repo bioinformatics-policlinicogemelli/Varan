@@ -33,6 +33,7 @@ from filter_clinvar import check_bool
 from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
 from populate_case_lists import profiled_from_case_lists
+from study_files import STUDY_FILES
 from Update_functions import (
     copy_metadata_files,
     prepare_output_folder,
@@ -98,14 +99,9 @@ def update_main(oldpath: str, newpath: str,
     try:
         copy_metadata_files(Path(oldpath), Path(newpath), Path(output))
 
-        file_names = ["data_clinical_sample.txt", "data_clinical_patient.txt",
-                      "data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt", "data_cna.txt",
-                      "data_mutations_extended.txt", "data_sv.txt", "exon_CNA_data.txt",
-                      "data_exon_brca_cna.txt", "data_gene_panel_matrix.txt"]
-
         stage = "Merging data files"
-        for file in file_names:
-            safe_check_file(oldpath, newpath, output, file)
+        for study_file in STUDY_FILES:
+            safe_check_file(oldpath, newpath, output, study_file.name)
 
         remove_meta(output)
 
