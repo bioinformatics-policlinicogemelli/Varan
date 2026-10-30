@@ -142,6 +142,14 @@ def equivalent_varan_command(args: argparse.Namespace) -> list[str]:
     return cmd
 
 
+def stage_log_dir(output_folder: str) -> Path:
+    """Where each stage's Varan log goes: one log per stage (and per SNV
+    sample) instead of varan.py's single one, so they're kept in the
+    study's service/logs/ - next to the Snakemake logs the Snakefile moves
+    there - rather than cluttering the study's top level."""
+    return Path(output_folder) / "service" / "logs"
+
+
 def run_reported(
     stage_name: str, label: str, output_folder: str, cancer: str | None,
     start_time: str, func: Callable[[], None],
@@ -151,7 +159,8 @@ def run_reported(
     the per-process equivalent of the try/except around varan.py's create
     flow. Shared with pipeline_stage.py."""
     attach_file_log_sink(
-        Path(output_folder), f"Varan_{stage_name}_{{time:YYYY-MM-DD_HH-mm-ss.SS}}.log")
+        stage_log_dir(output_folder),
+        f"Varan_{stage_name}_{{time:YYYY-MM-DD_HH-mm-ss.SS}}.log")
     try:
         func()
     except Exception as err:
@@ -207,7 +216,8 @@ def _cmd_setup(args: argparse.Namespace, pipeline: str) -> None:
         ctx.analysis_type = args.vcf_type
         ctx.command_line = command_line
         attach_file_log_sink(
-            Path(ctx.output_folder), "Varan_setup_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
+            stage_log_dir(ctx.output_folder),
+            "Varan_setup_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
 
         ctx_out = Path(args.ctx_out)
         ctx_out.parent.mkdir(parents=True, exist_ok=True)

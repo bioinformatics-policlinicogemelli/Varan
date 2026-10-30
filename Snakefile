@@ -46,8 +46,9 @@ bookkeeping folder (context pickle, .done markers, Snakemake logs under
 service/logs/). The study itself is the versioned folder _walk_setup()
 creates next to it (`<output_folder>_v1`, `_v2`, ... exactly as with
 `python varan.py -i ... -o <output_folder>`), and that's where
-report_VARAN.html and each stage's Varan_<stage>_*.log are written - every
-stage after setup reads that real path from the context pickle.
+report_VARAN.html is written, and each stage's Varan_<stage>_*.log under
+its service/logs/ - every stage after setup reads that real path from the
+context pickle.
 
 Re-running behaves like varan.py: if a create run fails, re-running the
 same command picks up from the failed stage, in the same `_vN` (the
