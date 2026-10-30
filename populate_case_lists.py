@@ -23,6 +23,15 @@ Functions:
 - populate_cases_cna
 - populate_cases_sequenced
 
+cBioPortal treats these case lists as the samples *profiled* for each data
+type - the denominators of every alteration frequency - so a sample tested
+for a data type but without any event of that type must still be listed.
+The data files alone can't say that (data_mutations_extended.txt and
+data_sv.txt only have rows for events, data_cna.txt only columns for
+samples with calls), so each populate_cases_*() also takes the samples
+known to be profiled - see PROFILED_SAMPLES_FILE and
+profiled_from_case_lists() - and lists the union of both.
+
 """
 
 from pathlib import Path
@@ -30,9 +39,123 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
+# Written by walk.py at study creation: one "<profile>\t<SAMPLE_ID>" line
+# per sample tested for that data type, whether or not it had any event -
+# profile being one of PROFILE_CASE_LISTS' keys. Read by meta_case_main().
+PROFILED_SAMPLES_FILE = Path("service") / "profiled_samples.tsv"
+
+# profile -> the case list file it feeds.
+PROFILE_CASE_LISTS = {
+    "sequenced": "cases_sequenced.txt",
+    "cna": "cases_cna.txt",
+    "sv": "cases_sv.txt",
+}
+
+
+def write_profiled_samples(folder: str, profiled: dict[str, list[str]]) -> None:
+    """Write PROFILED_SAMPLES_FILE under the study folder `folder`."""
+    path = Path(folder) / PROFILED_SAMPLES_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w") as f:
+        for profile, sample_ids in profiled.items():
+            for sample_id in sample_ids:
+                f.write(f"{profile}\t{sample_id}\n")
+
+
+def read_profiled_samples(folder: str) -> dict[str, list[str]]:
+    """Read PROFILED_SAMPLES_FILE from the study folder `folder` ({} if the
+    study has none, e.g. one made by update/extract/remove)."""
+    path = Path(folder) / PROFILED_SAMPLES_FILE
+    profiled: dict[str, list[str]] = {}
+    if not path.exists():
+        return profiled
+    for line in path.read_text().splitlines():
+        if "\t" in line:
+            profile, sample_id = line.split("\t", 1)
+            profiled.setdefault(profile, []).append(sample_id)
+    return profiled
+
+
+def profiled_from_case_lists(study_folders: list[str]) -> dict[str, list[str]]:
+    """Profiled samples per data type, as listed by the existing case lists
+    of `study_folders` - how update/extract/remove carry forward the
+    samples tested without events, which their merged/filtered data files
+    no longer show."""
+    profiled: dict[str, list[str]] = {}
+    for folder in study_folders:
+        for profile, case_file in PROFILE_CASE_LISTS.items():
+            path = Path(folder) / "case_lists" / case_file
+            if not path.exists():
+                continue
+            for line in path.read_text().splitlines():
+                if line.startswith("case_list_ids:"):
+                    ids = profiled.setdefault(profile, [])
+                    ids.extend(s.strip() for s in line.split(":", 1)[1].split("\t")
+                               if s.strip() and s.strip() not in ids)
+    return profiled
+
+
+def _study_sample_ids(folder: str) -> set[str] | None:
+    """SAMPLE_IDs in the study's data_clinical_sample.txt, or None if it
+    has none to check against."""
+    path = Path(folder) / "data_clinical_sample.txt"
+    if not path.exists():
+        return None
+    try:
+        clin = pd.read_csv(path, sep="\t", comment="#", dtype=str)
+    except pd.errors.EmptyDataError:
+        return None
+    if "SAMPLE_ID" not in clin.columns:
+        return None
+    return set(clin["SAMPLE_ID"].dropna().str.strip())
+
+
+def pad_unaltered_cna_samples(folder: str, profiled: list[str] | None) -> None:
+    """Add an all-0 column to data_cna.txt for every CNV-profiled sample
+    of the study that has no call at all: cBioPortal expects the discrete
+    CNA file to contain every profiled sample, and data_cna.txt is only
+    built from the calls. Leaves the file untouched when nothing's missing.
+    """
+    path = Path(folder) / "data_cna.txt"
+    if not profiled or not path.exists():
+        return
+    try:
+        data_cna = pd.read_csv(path, sep="\t", dtype=str)
+    except pd.errors.EmptyDataError:
+        return
+    in_study = _study_sample_ids(folder)
+    missing = [s for s in dict.fromkeys(profiled)
+               if s not in data_cna.columns and (in_study is None or s in in_study)]
+    if not missing:
+        return
+    for sample_id in missing:
+        data_cna[sample_id] = "0"
+    data_cna.to_csv(path, sep="\t", index=False)
+    logger.info(
+        f"Added {len(missing)} CNV-profiled sample(s) without any call to "
+        f"data_cna.txt as all-0 columns: {', '.join(missing)}")
+
+
+def with_profiled(sample_ids: list[str], profiled: list[str] | None,
+                  folder: str) -> list[str]:
+    """`sample_ids` (the samples with events, from the data file) followed
+    by every other profiled sample still in the study. Samples with events
+    are never dropped; profiled ones are only added if the study's
+    data_clinical_sample.txt defines them (e.g. not after `remove`)."""
+    if not profiled:
+        return sample_ids
+    in_study = _study_sample_ids(folder)
+    result = list(sample_ids)
+    seen = {str(s).strip() for s in sample_ids}
+    for sample_id in profiled:
+        if sample_id not in seen and (in_study is None or sample_id in in_study):
+            result.append(sample_id)
+            seen.add(sample_id)
+    return result
+
 
 def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
-                      logger: logger) -> None:
+                      logger: logger, profiled: list[str] | None = None) -> None:
     """Populate the cases_sv.txt file based on SV data.
 
     Parameters
@@ -45,6 +168,9 @@ def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
         Output directory where the `cases_sv.txt` will be saved.
     logger : logging.Logger
         Logger object for error reporting.
+    profiled : list[str], optional
+        Samples tested for fusions/splice variants, listed even without
+        any event - see with_profiled().
 
     """
     try:
@@ -58,6 +184,7 @@ def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
     # row) counts as "1 sample" in nsamples while being excluded from the
     # actual listed IDs, so the reported count and the list length disagree.
     sample_ids = [s for s in data_sv.Sample_Id.unique() if pd.notna(s)]
+    sample_ids = with_profiled(sample_ids, profiled, folder)
     nsamples = len(sample_ids)
 
     stable_id = project_id + "_sv"
@@ -83,7 +210,7 @@ def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
 
 
 def populate_cases_cna(project_id: str, folder: str, cases_list_dir: str,
-                       logger: logger) -> None:
+                       logger: logger, profiled: list[str] | None = None) -> None:
     """Populate the cases_cna.txt file based on CNA data.
 
     Parameters
@@ -96,6 +223,9 @@ def populate_cases_cna(project_id: str, folder: str, cases_list_dir: str,
         Output directory where the `cases_cna.txt` will be saved.
     logger : logging.Logger
         Logger object for error reporting.
+    profiled : list[str], optional
+        Samples tested for CNV, listed even without any call - see
+        with_profiled() and pad_unaltered_cna_samples().
 
     """
     try:
@@ -104,8 +234,8 @@ def populate_cases_cna(project_id: str, folder: str, cases_list_dir: str,
         logger.error("data_cna.txt is empty, skipping this step!")
         return
 
-    nsamples = len(data_cna.columns)-1
-    sample_ids = list(data_cna.columns)[1:]
+    sample_ids = with_profiled(list(data_cna.columns)[1:], profiled, folder)
+    nsamples = len(sample_ids)
 
     stable_id = project_id + "_cna"
 
@@ -129,7 +259,7 @@ def populate_cases_cna(project_id: str, folder: str, cases_list_dir: str,
 
 
 def populate_cases_sequenced(project_id: str, folder: str, cases_list_dir: str,
-                             logger: logger) -> None:
+                             logger: logger, profiled: list[str] | None = None) -> None:
     """Populate the cases_sequenced.txt file based on mutation data.
 
     Parameters
@@ -142,6 +272,9 @@ def populate_cases_sequenced(project_id: str, folder: str, cases_list_dir: str,
         Output directory where the `cases_sequenced.txt` will be saved.
     logger : logging.Logger
         Logger object for error reporting.
+    profiled : list[str], optional
+        Samples sequenced for SNVs/indels, listed even without any
+        mutation left after filtering - see with_profiled().
 
     """
     try:
@@ -151,8 +284,9 @@ def populate_cases_sequenced(project_id: str, folder: str, cases_list_dir: str,
         logger.error("data_mutations_extended.txt is empty, skipping this step!")
         return
 
-    nsamples = len(data_sequenced["Tumor_Sample_Barcode"].unique())
-    sample_ids = list(data_sequenced["Tumor_Sample_Barcode"].unique())
+    sample_ids = with_profiled(
+        list(data_sequenced["Tumor_Sample_Barcode"].unique()), profiled, folder)
+    nsamples = len(sample_ids)
 
     stable_id = project_id + "_sequenced"
 

@@ -32,6 +32,7 @@ from loguru import logger
 from filter_clinvar import check_bool
 from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
+from populate_case_lists import profiled_from_case_lists
 from Update_functions import (
     copy_metadata_files,
     prepare_output_folder,
@@ -115,7 +116,11 @@ def update_main(oldpath: str, newpath: str,
         study_info.append(oldpath)
         study_info.append(no_out)
 
-        meta_case_main(cancer, output, study_info, study_id)
+        # Samples tested without events only survive through the source
+        # studies' case lists - the merged data files don't show them.
+        meta_case_main(
+            cancer, output, study_info, study_id,
+            profiled=profiled_from_case_lists([oldpath, newpath]))
 
         stage = "Copying MAF files"
         copy_maf_flag = check_bool(config.get("Zip", "COPY_MAF"))

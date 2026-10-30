@@ -27,8 +27,9 @@ from pathlib import Path
 from loguru import logger
 
 from config_loader import get_config
-from populate_case_lists import (populate_cases_cna, populate_cases_sequenced,
-                                 populate_cases_sv)
+from populate_case_lists import (pad_unaltered_cna_samples, populate_cases_cna,
+                                 populate_cases_sequenced, populate_cases_sv,
+                                 read_profiled_samples)
 from ValidateFolder import remove_meta
 from versioning import extract_version_str
 
@@ -350,6 +351,7 @@ def meta_case_main(
     output_folder: str,
     old_study_info: list[str] | None = None,
     rename: str = "",
+    profiled: dict[str, list[str]] | None = None,
 ) -> None:
     """Generate all metadata files and case lists for a cancer study.
 
@@ -363,6 +365,11 @@ def meta_case_main(
         old_study_info: Optional list containing old study ID and name;
             if None or empty, uses config defaults.
         rename: Optional string to rename the study project.
+        profiled: Samples tested per data type ("sequenced"/"cna"/"sv"),
+            listed in the case lists even without any event. Defaults to
+            the study's own service/profiled_samples.tsv (written at
+            creation by walk.py); update/extract/remove pass the ones
+            their source studies' case lists already had.
 
     Returns:
         None
@@ -460,19 +467,26 @@ def meta_case_main(
 
     ########### CASE LIST FUNCTION ###########
 
+    if profiled is None:
+        profiled = read_profiled_samples(output_folder)
+    pad_unaltered_cna_samples(output_folder, profiled.get("cna"))
+
     if (Path(output_folder) / "data_mutations_extended.txt").exists():
-        populate_cases_sequenced(project_id, output_folder, cases_list_dir, logger)
+        populate_cases_sequenced(
+            project_id, output_folder, cases_list_dir, logger, profiled.get("sequenced"))
     else:
         logger.warning("data_mutations_extended.txt file not found, "
         "not writing cases_sequenced.txt!")
 
     if (Path(output_folder) / "data_cna.txt").exists():
-        populate_cases_cna(project_id, output_folder, cases_list_dir, logger)
+        populate_cases_cna(
+            project_id, output_folder, cases_list_dir, logger, profiled.get("cna"))
     else:
         logger.warning("data_cna.txt file not found, not writing cases_cna.txt!")
 
     if(Path(output_folder) / "data_sv.txt").exists():
-        populate_cases_sv(project_id, output_folder, cases_list_dir, logger)
+        populate_cases_sv(
+            project_id, output_folder, cases_list_dir, logger, profiled.get("sv"))
     else:
         logger.warning("data_sv.txt file not found, not writing cases_sv.txt!")
 

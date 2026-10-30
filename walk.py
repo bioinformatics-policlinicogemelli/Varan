@@ -45,6 +45,7 @@ import vcf2tab_cnv
 import vcf_filter
 from config_loader import get_config
 from filter_clinvar import check_bool, filter_oncokb
+from populate_case_lists import write_profiled_samples
 from versioning import get_newest_version, get_version_list
 
 config = get_config()
@@ -2873,7 +2874,7 @@ def _walk_setup(
     case_folder_arr = get_snv_from_folder(input_folder_snv)
     logger.info("Everything ok!")
 
-    return WalkContext(
+    ctx = WalkContext(
         output_folder=output_folder,
         input_folder=Path(input_folder),
         input_path=input_path,
@@ -2894,6 +2895,114 @@ def _walk_setup(
         isinputfile=isinputfile,
         sigma=sigma,
     )
+    write_profiled_samples(ctx.output_folder, _profiled_samples(ctx))
+    return ctx
+
+
+def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
+    """Which of sample.tsv's SAMPLE_IDs this run tests for each data type,
+    whether or not they turn out to have any event - cBioPortal's
+    "profiled" samples, listed in the case lists (see
+    populate_case_lists.py). A sample counts as tested for a type only
+    when its input for that type is really there:
+
+    - sequenced / cna: its SNV / CNV file (snv_path / cnv_path, or - in
+      folder input with those columns blank - a file in SNV/ / CNV/ named
+      after the SAMPLE_ID); every sample with -m/--multiple's multi-sample
+      VCF.
+    - sv: its CombinedVariantOutput has a [Fusions]/[Data Fusions]/
+      [Splice Variants] section that isn't "NA" (TSO500 writes NA when RNA
+      wasn't run), or the vendor pipeline declares it always tests fusions
+      (PROFILES_FUSIONS, e.g. Guardant). Samples only listed in a fusion.tsv
+      are left to data_sv.txt itself: that file lists positives only.
+
+    A data type this run doesn't process at all (-t, or auto-detected from
+    empty input folders) gets no entry.
+    """
+    from vendor_adapters import ADAPTERS
+
+    clin = ctx.clin_file.fillna("")
+    sample_ids = [str(s).strip() for s in clin["SAMPLE_ID"] if str(s).strip()]
+    rows = list(clin.to_dict("records"))
+    profiled: dict[str, list[str]] = {}
+
+    def has_input(column: str, folder: str) -> list[str]:
+        type_dir = Path(ctx.input_folder) / folder
+        files = [f for f in type_dir.iterdir() if f.is_file()] if type_dir.is_dir() else []
+        if ctx.multiple and files:
+            return sample_ids
+        tested = []
+        for row in rows:
+            sample_id = str(row.get("SAMPLE_ID", "")).strip()
+            if not sample_id:
+                continue
+            path = _resolve_input_file(str(row.get(column, "")).strip(), type_dir)
+            if path is not None or (
+                not str(row.get(column, "")).strip()
+                and any(_named_after(sample_id, f.name) for f in files)):
+                tested.append(sample_id)
+        return tested
+
+    if ctx.vcf_type not in ["cnv", "fus", "tab"]:
+        profiled["sequenced"] = has_input("snv_path", "SNV")
+    if ctx.vcf_type not in ["snv", "fus", "tab"]:
+        profiled["cna"] = has_input("cnv_path", "CNV")
+    if ctx.vcf_type not in ["cnv", "snv", "tab"]:
+        adapter = ADAPTERS.get(config.get("Vendor", "PIPELINE", fallback="").strip())
+        if getattr(adapter, "PROFILES_FUSIONS", False):
+            profiled["sv"] = sample_ids
+        else:
+            comb_dir = Path(ctx.input_folder) / "CombinedOutput"
+            files = [f for f in comb_dir.iterdir() if f.is_file()] if comb_dir.is_dir() else []
+            tested = []
+            for row in rows:
+                sample_id = str(row.get("SAMPLE_ID", "")).strip()
+                value = str(row.get("comb_path", "")).strip()
+                path = _resolve_input_file(value, comb_dir)
+                if path is None and not value:
+                    path = next((f for f in files if _named_after(sample_id, f.name)), None)
+                if sample_id and path is not None and _tests_fusions(path):
+                    tested.append(sample_id)
+            profiled["sv"] = tested
+    return profiled
+
+
+def _resolve_input_file(value: str, type_dir: Path) -> Path | None:
+    """sample.tsv's path for one input file, as an existing file: as given,
+    or - folder input - by its file name inside type_dir."""
+    if not value:
+        return None
+    path = Path(value)
+    if path.is_file():
+        return path
+    if (type_dir / path.name).is_file():
+        return type_dir / path.name
+    return None
+
+
+def _named_after(sample_id: str, file_name: str) -> bool:
+    """Whether file_name is sample_id's own file (S1_..., S1.vcf), not
+    another sample's that merely starts the same way (S10_...)."""
+    return file_name == sample_id or (
+        file_name.startswith(sample_id) and file_name[len(sample_id)] in "._-")
+
+
+def _tests_fusions(combined_output: Path) -> bool:
+    """Whether a CombinedVariantOutput file reports a fusion/splice-variant
+    analysis: a [Fusions]/[Data Fusions]/[Splice Variants] section whose
+    content isn't "NA" - read the same way tsv.get_fusions() and
+    tsv.get_splice_variants() read them."""
+    try:
+        lines = combined_output.read_text(errors="replace").splitlines()
+    except OSError:
+        return False
+    for i, line in enumerate(lines):
+        if any(h in line for h in ("[Fusions]", "[Data Fusions]", "[Splice Variants]")):
+            if i + 2 < len(lines) and lines[i + 2].strip() == "NA":
+                continue
+            if i + 1 < len(lines):
+                return True
+    return False
 
 
 def _walk_process_cnv(ctx: WalkContext) -> None:

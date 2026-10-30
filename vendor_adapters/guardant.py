@@ -102,6 +102,13 @@ NAME = "guardant"
 # See varan.reconcile_sample_type() and MULTIVENDOR_INTEGRATION_NOTES.md.
 SAMPLE_TYPE = "Liquid"
 
+# Guardant360 tests every sample for fusions, but the fusions file this
+# adapter writes only lists the ones found - so a sample without fusions
+# can't be told apart from an untested one there. Declaring it here makes
+# walk.py list every sample of a Guardant run in cases_sv.txt (cBioPortal's
+# "profiled for structural variants"), not only those with a fusion.
+PROFILES_FUSIONS = True
+
 # --- DEFAULT PATHS (deployment-specific; override via run()'s kwargs for
 # a different environment/test setup rather than editing these) ---
 DICT_PATH = "/data/data_storage/research/Kulesko_Michele/Varan-Sviluppo/dict.csv"

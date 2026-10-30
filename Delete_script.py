@@ -45,6 +45,7 @@ from Delete_functions import (
 from filter_clinvar import check_bool
 from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
+from populate_case_lists import profiled_from_case_lists
 from ValidateFolder import (
     copy_maf,
     validate_output,
@@ -148,7 +149,11 @@ def delete_main(oldpath: str, removepath: str, output: str,
         study_info.append(oldpath)
         study_info.append(no_out)
 
-        meta_case_main(cancer, output, study_info, study_id)
+        # Samples tested without events only survive through the source
+        # study's case lists - the remaining data files don't show them.
+        meta_case_main(
+            cancer, output, study_info, study_id,
+            profiled=profiled_from_case_lists([oldpath]))
 
         stage = "Copying MAF files"
         zip_maf = check_bool(config.get("Zip", "ZIP_MAF"))
