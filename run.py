@@ -120,16 +120,16 @@ def acquire_project_lock(configfile: Path):
 
 # Matches the Snakefile's own top-level rule names 1:1, which in turn match
 # varan.py's own four modes (-i/-u/-e/-r). The internal per-datatype fan-out
-# rules (walk_setup/walk_cnv/walk_snv/walk_fusion/walk_clinical/filter/
-# concatenate/tables/validate) are
+# rules (walk_setup/walk_cnv/walk_snv_sample/walk_snv/walk_fusion/
+# walk_clinical/filter/concatenate/tables/validate) are
 # deliberately NOT listed here - they're plumbing `create` depends on, not
 # something a user picks directly (walk_cnv etc. all require walk_setup's
 # context pickle to already exist). Reach them anyway, for debugging, via
 # --allow-custom-target.
 WORKFLOWS: Dict[str, str] = {
     "create": "Build a new study from raw input (varan.py -i): walk_setup "
-              "-> {cnv, snv, fusion, clinical} in parallel -> filter/"
-              "concatenate/tables/validate",
+              "-> {cnv, snv (one job per sample), fusion, clinical} in "
+              "parallel -> filter/concatenate/tables/validate",
     "update": "Merge a new batch of samples into an existing study (varan.py -u)",
     "extract": "Extract a subset of samples into a new study (varan.py -e)",
     "remove": "Remove a subset of samples, producing a new study version (varan.py -r)",

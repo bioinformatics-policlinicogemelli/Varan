@@ -13,7 +13,8 @@
 #limitations under the License.
 
 """CLI entry point exposing walk_folder's internal stages as independent,
-Snakemake-invokable steps: setup / cnv / snv / fusion / clinical.
+Snakemake-invokable steps: setup / cnv / snv-sample + snv-finish / fusion /
+clinical.
 
 walk.py splits what used to be one ~400-line walk_folder() into a setup
 stage plus four independent stages (CNV, SNV, fusion+splice, clinical
@@ -25,16 +26,23 @@ that same pickle and run their one stage, so `snakemake -j 4` can run all
 four in parallel as real, independent rules instead of one opaque
 shell-out to `python varan.py`.
 
+SNV is split once more, per sample: setup also writes the list of SNV
+samples to convert (.snv_samples.tsv, next to the context pickle), then
+`snv-sample` runs vcf2maf/VEP (+ SigMA) for one sample - one Snakemake
+job each, so samples run in parallel and a failed sample is the only one
+re-run - and `snv-finish` combines their SigMA results once all are done.
+
 No pipeline logic lives here - every stage call goes straight through to
-the exact same _walk_process_cnv/_walk_process_snv/_walk_process_fusion/
-_walk_write_clinical_tables functions the plain `python varan.py -i ...`
+the exact same _walk_process_cnv/_walk_snv_samples/_walk_process_snv_sample/
+_walk_snv_finish/_walk_process_fusion/_walk_write_clinical_tables functions the plain `python varan.py -i ...`
 path uses, so this can never drift from that behavior.
 
 Usage (paths below are illustrative - see Snakefile for the real rules):
     python walk_stage.py -C custom_conf.ini setup --ctx-out out/.walk_ctx.pkl \\
         --input in_folder --output out -c luad
     python walk_stage.py -C custom_conf.ini cnv --ctx out/.walk_ctx.pkl
-    python walk_stage.py -C custom_conf.ini snv --ctx out/.walk_ctx.pkl
+    python walk_stage.py -C custom_conf.ini snv-sample --ctx out/.walk_ctx.pkl --sample S1
+    python walk_stage.py -C custom_conf.ini snv-finish --ctx out/.walk_ctx.pkl
     python walk_stage.py -C custom_conf.ini fusion --ctx out/.walk_ctx.pkl
     python walk_stage.py -C custom_conf.ini clinical --ctx out/.walk_ctx.pkl
 
@@ -55,6 +63,7 @@ from __future__ import annotations
 
 import argparse
 import pickle
+import sys
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -64,7 +73,14 @@ from loguru import logger
 from config_loader import set_config_path
 from log_utils import attach_file_log_sink
 
-STAGE_NAMES = ["cnv", "snv", "fusion", "clinical"]
+STAGE_NAMES = ["cnv", "fusion", "clinical"]
+
+# Written by setup next to the context pickle: one
+# "<job_key>\t<sample_id>\t<vcf>" line per SNV sample to convert (empty
+# when there's none), job_key being walk.snv_job_keys()'s filename-safe
+# name for the sample. The Snakefile reads the first column to create one
+# snv-sample job per sample.
+SNV_SAMPLES_FILE = ".snv_samples.tsv"
 
 # Same labels varan.py's own create flow uses for write_report_failure(),
 # so a failed Snakemake run's report reads the same as a plain one's.
@@ -102,7 +118,28 @@ def load_ctx(ctx_path: Path):
         ctx: walk.WalkContext = pickle.load(f)
     walk.isinputfile = ctx.isinputfile
     versioning.old_version_exists = ctx.old_version_exists
+    # write_report.py prints " ".join(sys.argv) as the report's "Command
+    # Line": show the run's equivalent varan.py command, not this stage's.
+    if ctx.command_line:
+        sys.argv = list(ctx.command_line)
     return ctx
+
+
+def equivalent_varan_command(args: argparse.Namespace) -> list[str]:
+    """The `python varan.py -i ...` command that does the same run as this
+    setup's arguments - shown in the report, and usable to redo the run
+    without Snakemake."""
+    cmd = ["varan.py", "-C", args.config, "-i", *args.input, "-o", args.output,
+           "-c", args.cancer]
+    for flag, on in (("-m", args.multiple), ("-k", args.oncokb), ("-g", args.sigma),
+                     ("-w", args.overwrite), ("-R", args.resume)):
+        if on:
+            cmd.append(flag)
+    if args.vcf_type:
+        cmd += ["-t", args.vcf_type]
+    if args.filters:
+        cmd += ["-f", args.filters]
+    return cmd
 
 
 def run_reported(
@@ -136,6 +173,8 @@ def _cmd_setup(args: argparse.Namespace, pipeline: str) -> None:
         raise ValueError(args_error)
 
     start_time = datetime.now().astimezone().strftime("%d/%m/%Y, %H:%M:%S")
+    command_line = equivalent_varan_command(args)
+    sys.argv = list(command_line)
 
     def setup() -> None:
         import versioning
@@ -165,6 +204,8 @@ def _cmd_setup(args: argparse.Namespace, pipeline: str) -> None:
         ctx.start_time = start_time
         ctx.vendor_scratch_dir = scratch_dir
         ctx.old_version_exists = getattr(versioning, "old_version_exists", False)
+        ctx.analysis_type = args.vcf_type
+        ctx.command_line = command_line
         attach_file_log_sink(
             Path(ctx.output_folder), "Varan_setup_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
 
@@ -176,6 +217,12 @@ def _cmd_setup(args: argparse.Namespace, pipeline: str) -> None:
         # onsuccess handler (which can't unpickle ctx: it runs in
         # Snakemake's own environment, without Varan's dependencies).
         (ctx_out.parent / ".study_path").write_text(str(ctx.output_folder))
+        snv_samples = walk._walk_snv_samples(ctx)
+        job_keys = walk.snv_job_keys(list(snv_samples))
+        (ctx_out.parent / SNV_SAMPLES_FILE).write_text("".join(
+            f"{job_key}\t{sample_id}\t{vcf}\n"
+            for job_key, (sample_id, vcf) in zip(job_keys, snv_samples.items())))
+        logger.info(f"{len(snv_samples)} SNV sample(s) to convert.")
         logger.success(f"walk_stage setup complete, context written to {ctx_out}")
 
     # The versioned study folder doesn't exist until _walk_setup() has run,
@@ -198,7 +245,6 @@ def _cmd_stage(stage_name: str, args: argparse.Namespace) -> None:
 
     stage_funcs = {
         "cnv": walk._walk_process_cnv,
-        "snv": walk._walk_process_snv,
         "fusion": walk._walk_process_fusion,
         "clinical": walk._walk_write_clinical_tables,
     }
@@ -213,6 +259,47 @@ def _cmd_stage(stage_name: str, args: argparse.Namespace) -> None:
     done_marker = ctx_path.parent / f".{stage_name}.done"
     done_marker.touch()
     logger.success(f"walk_stage {stage_name} complete.")
+
+
+def read_snv_samples(ctx_path: Path) -> dict[str, tuple[str, str]]:
+    """Read setup's SNV sample list (see SNV_SAMPLES_FILE), in sample order:
+    {job_key: (sample_id, vcf)}."""
+    lines = (ctx_path.parent / SNV_SAMPLES_FILE).read_text().splitlines()
+    rows = [line.split("\t", 2) for line in lines if line.strip()]
+    return {job_key: (sample_id, vcf) for job_key, sample_id, vcf in rows}
+
+
+def _cmd_snv_sample(args: argparse.Namespace) -> None:
+    import walk
+
+    ctx_path = Path(args.ctx)
+    ctx = load_ctx(ctx_path)
+    sample_id, vcf = read_snv_samples(ctx_path)[args.sample]
+
+    run_reported(
+        f"snv_{args.sample}", f"{STAGE_LABELS['snv']}: {Path(vcf).name}",
+        ctx.output_folder, ctx.cancer, ctx.start_time,
+        lambda: walk._walk_process_snv_sample(ctx, sample_id, vcf, args.sample))
+
+    done_dir = ctx_path.parent / ".snv_samples"
+    done_dir.mkdir(exist_ok=True)
+    (done_dir / f"{args.sample}.done").touch()
+    logger.success(f"walk_stage snv-sample {args.sample} complete.")
+
+
+def _cmd_snv_finish(args: argparse.Namespace) -> None:
+    import walk
+
+    ctx_path = Path(args.ctx)
+    ctx = load_ctx(ctx_path)
+    job_keys = list(read_snv_samples(ctx_path))
+
+    run_reported(
+        "snv", STAGE_LABELS["snv"], ctx.output_folder, ctx.cancer,
+        ctx.start_time, lambda: walk._walk_snv_finish(ctx, job_keys))
+
+    (ctx_path.parent / ".snv.done").touch()
+    logger.success("walk_stage snv-finish complete.")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -243,6 +330,17 @@ def build_parser() -> argparse.ArgumentParser:
             stage_name, help=f"Run the {stage_name} stage from a pickled context.")
         stage_p.add_argument("--ctx", required=True)
 
+    snv_sample_p = sub.add_parser(
+        "snv-sample", help="Convert one SNV sample (vcf2maf/VEP, + SigMA).")
+    snv_sample_p.add_argument("--ctx", required=True)
+    snv_sample_p.add_argument(
+        "--sample", required=True,
+        help=f"The sample's job key (first column of {SNV_SAMPLES_FILE}).")
+
+    snv_finish_p = sub.add_parser(
+        "snv-finish", help="Combine the SNV samples' results once all are done.")
+    snv_finish_p.add_argument("--ctx", required=True)
+
     return parser
 
 
@@ -255,6 +353,10 @@ def main(argv: list[str] | None = None) -> None:
             msg = f"--vcf-type must be one of snv, cnv, fus, tab (got {args.vcf_type!r})"
             raise ValueError(msg)
         _cmd_setup(args, pipeline)
+    elif args.command == "snv-sample":
+        _cmd_snv_sample(args)
+    elif args.command == "snv-finish":
+        _cmd_snv_finish(args)
     else:
         _cmd_stage(args.command, args)
 

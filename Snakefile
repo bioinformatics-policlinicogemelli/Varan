@@ -3,8 +3,14 @@
 `create` is now a real per-stage DAG end to end, not a single opaque
 shell-out:
 
-    walk_setup -> {walk_cnv, walk_snv, walk_fusion, walk_clinical} (parallel)
+    walk_setup -> {walk_cnv, walk_snv_sample x N -> walk_snv, walk_fusion,
+                   walk_clinical} (parallel)
                -> filter -> concatenate -> tables -> validate -> create
+
+walk_snv_sample runs once per SNV sample (vcf2maf/VEP is the slow part of
+a run), so samples are converted in parallel too, not just CNV vs SNV vs
+fusion; walk_setup is a checkpoint because the sample list is only known
+once it has run.
 
 walk_setup/walk_cnv/walk_snv/walk_fusion/walk_clinical shell out to
 walk_stage.py, a thin CLI wrapper around walk.py's internal
@@ -87,6 +93,18 @@ configfile: "config.yaml"
 
 _c = config["create"]
 _ctx_pkl = f"{_c['output_folder']}/.walk_ctx.pkl"
+# One "<job_key>\t<sample_id>\t<vcf>" line per SNV sample, written by
+# walk_setup (see walk_stage.SNV_SAMPLES_FILE) - its job_key column drives
+# the per-sample walk_snv_sample jobs ({sample} below is that key).
+_snv_samples_tsv = f"{_c['output_folder']}/.snv_samples.tsv"
+
+# vcf2maf runs VEP with 4 forks by default (Varan doesn't pass
+# --vep-forks), so each per-sample SNV job really uses 4 cores - declared
+# as its `threads` so Snakemake/PBS don't overbook a node.
+VEP_FORKS = 4
+
+wildcard_constraints:
+    sample=r"[A-Za-z0-9._-]+",
 
 
 def _create_setup_args() -> str:
@@ -118,11 +136,14 @@ if _c.get("sigma"):
     _clinical_inputs["snv"] = f"{_c['output_folder']}/.snv.done"
 
 
-rule walk_setup:
+checkpoint walk_setup:
     """Resolve input/output paths once (create_folder, input extraction,
-    resume-state checks) - see _walk_setup() in walk.py."""
+    resume-state checks) - see _walk_setup() in walk.py. A checkpoint
+    because the SNV sample list it writes decides how many walk_snv_sample
+    jobs the DAG gets."""
     output:
         ctx=_ctx_pkl,
+        snv_samples=_snv_samples_tsv,
     log:
         f"{_c['output_folder']}/service/logs/snakemake_walk_setup.log",
     conda:
@@ -151,10 +172,43 @@ rule walk_cnv:
         "python walk_stage.py -C {params.conf} cnv --ctx {input.ctx} > {log} 2>&1"
 
 
-rule walk_snv:
-    """SNV calls -> vcf2maf - independent of walk_cnv/walk_fusion."""
+def _snv_sample_markers(wildcards) -> list[str]:
+    """One .done marker per SNV sample listed by walk_setup - only readable
+    once that checkpoint has run, which is what makes walk_snv wait for
+    every walk_snv_sample job."""
+    tsv = checkpoints.walk_setup.get().output.snv_samples
+    with open(tsv) as f:
+        job_keys = [line.split("\t", 1)[0] for line in f if line.strip()]
+    return [f"{_c['output_folder']}/.snv_samples/{key}.done" for key in job_keys]
+
+
+rule walk_snv_sample:
+    """SNV calls -> vcf2maf/VEP (+ SigMA) for ONE sample - one job per
+    sample, so samples run in parallel (spread over nodes on PBS) and a
+    failed sample is the only one re-run. Independent of walk_cnv/
+    walk_fusion."""
     input:
         ctx=_ctx_pkl,
+    output:
+        done=f"{_c['output_folder']}/.snv_samples/{{sample}}.done",
+    log:
+        f"{_c['output_folder']}/service/logs/snakemake_snv_{{sample}}.log",
+    threads: VEP_FORKS
+    conda:
+        config["conda_env"]
+    params:
+        conf=config["conf_path"],
+    shell:
+        "python walk_stage.py -C {params.conf} snv-sample --ctx {input.ctx} "
+        "--sample {wildcards.sample:q} > {log} 2>&1"
+
+
+rule walk_snv:
+    """Once every walk_snv_sample job is done: combine their SigMA results
+    into data_sigma.txt and clear the SNV scratch folder."""
+    input:
+        ctx=_ctx_pkl,
+        samples=_snv_sample_markers,
     output:
         done=f"{_c['output_folder']}/.snv.done",
     log:
@@ -164,7 +218,7 @@ rule walk_snv:
     params:
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py -C {params.conf} snv --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} snv-finish --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_fusion:
@@ -379,9 +433,13 @@ def _archive_create_run() -> None:
     markers_dir.mkdir(parents=True, exist_ok=True)
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    for f in [*base.glob(".*.done"), base / ".walk_ctx.pkl", study_file]:
+    for f in [*base.glob(".*.done"), base / ".walk_ctx.pkl",
+              base / ".snv_samples.tsv", base / ".snv_samples", study_file]:
         if f.exists():
-            shutil.move(str(f), str(markers_dir / f.name))
+            target = markers_dir / f.name
+            if target.is_dir():
+                shutil.rmtree(target)
+            shutil.move(str(f), str(target))
     base_logs = base / "service" / "logs"
     for f in base_logs.glob("snakemake_*.log"):
         shutil.move(str(f), str(logs_dir / f.name))

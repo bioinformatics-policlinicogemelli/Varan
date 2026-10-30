@@ -69,8 +69,8 @@ STAGE_LABELS = {
 
 def _cmd_filter(ctx) -> None:
     from filter_clinvar import filter_main
-    if ctx.vcf_type in NO_SNV_TYPES:
-        logger.info(f"Skipping MAF filtering (analysis type '{ctx.vcf_type}').")
+    if ctx.analysis_type in NO_SNV_TYPES:
+        logger.info(f"Skipping MAF filtering (analysis type '{ctx.analysis_type}').")
         return
     filter_main(
         ctx.input_path, ctx.output_folder, ctx.output_folder, ctx.oncokb,
@@ -79,7 +79,7 @@ def _cmd_filter(ctx) -> None:
 
 def _cmd_concatenate(ctx) -> None:
     from concatenate import concatenate_main
-    if not (Path(ctx.output_folder) / "maf").exists() or ctx.vcf_type in NO_SNV_TYPES:
+    if not (Path(ctx.output_folder) / "maf").exists() or ctx.analysis_type in NO_SNV_TYPES:
         logger.info("Skipping MAF concatenation (no maf/ folder or no SNV analysis).")
         return
     concatenate_main(ctx.filters, ctx.output_folder, "maf", ctx.oncokb)
@@ -94,7 +94,7 @@ def _cmd_validate(ctx) -> None:
     from ValidateFolder import validate_output
     validate_output(
         ctx.output_folder, ctx.input_path, ctx.multiple, False, ctx.cancer,
-        ctx.oncokb, ctx.filters, ctx.start_time, ctx.vcf_type)
+        ctx.oncokb, ctx.filters, ctx.start_time, ctx.analysis_type)
     # Only on success, matching varan.py's __main__: a failed run's vendor
     # scratch folder is left in place for inspection.
     if ctx.vendor_scratch_dir:

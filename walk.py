@@ -24,6 +24,8 @@ from __future__ import annotations
 import ast
 import contextlib
 import os
+import pickle
+import re
 import secrets
 import shutil
 import string
@@ -2640,6 +2642,11 @@ class WalkContext:
     succeeds, and restore versioning.py's `old_version_exists` global -
     which, like isinputfile, is only set inside setup's process (by
     get_version_list()) but read by write_report.py during validation.
+    analysis_type is the -t the user actually passed (None if none):
+    vcf_type above may have been auto-detected by setup, but varan()
+    gates filter/concatenate and the report's sections on the CLI value.
+    command_line is the varan.py command equivalent to this run, shown as
+    the report's "Command Line" (see walk_stage.py's setup).
     """
 
     output_folder: str
@@ -2664,6 +2671,8 @@ class WalkContext:
     start_time: str = ""
     vendor_scratch_dir: str = ""
     old_version_exists: bool = False
+    analysis_type: str | None = None
+    command_line: list | None = None
 
 
 def _walk_setup(
@@ -2914,39 +2923,107 @@ def _walk_process_snv(ctx: WalkContext) -> None:
     followed by per-sample SigMA mutational-signature analysis.
 
     Depends only on WalkContext, independent of _walk_process_cnv/_fusion.
+    Runs the three steps below in sequence, one sample at a time - the
+    Snakemake path (see Snakefile) runs _walk_process_snv_sample() as one
+    job per sample instead, in parallel, through the same three functions.
     """
-    temporary = None
-    if ctx.input_folder_snv.exists() and ctx.vcf_type not in ["cnv", "fus", "tab"]:
-        logger.info("Managing SNV files...")
-        s_id_path_snv = snv_type_from_folder(
-            ctx.input_folder_snv, ctx.case_folder_arr, ctx.output_folder)
+    s_id_path_snv = _walk_snv_samples(ctx)
+    job_keys = snv_job_keys(list(s_id_path_snv))
+    for job_key, (k, v) in zip(job_keys, s_id_path_snv.items()):
+        _walk_process_snv_sample(ctx, k, v, job_key)
+    _walk_snv_finish(ctx, job_keys)
 
-        logger.info("Checking maf folder...")
-        maf_path = Path(ctx.output_folder) / "maf"
-        if maf_path.is_dir() and any(f.suffix == ".maf" for f in maf_path.iterdir()):
-            logger.info("A non empty maf folder already exists!")
 
-        if not ctx.resume:
-            if "d" in ctx.filters:
-                logger.info("Filtering out VCFs with dots in ALT column")
-                s_id_path_snv = vcf_filtering(
-                    s_id_path_snv, ctx.output_folder, output_filtered)
+def _walk_snv_samples(ctx: WalkContext) -> dict[str, str]:
+    """SNV step 1 of 3: map each sample ID to the SNV VCF this run has to
+    convert. Empty when there's nothing to convert: no SNV input, an
+    analysis type (-t) without SNVs, or resume=True (MAFs reused as-is).
+    """
+    if not ctx.input_folder_snv.exists() or ctx.vcf_type in ["cnv", "fus", "tab"]:
+        return {}
 
-            temporary = create_random_name_folder(ctx.output_folder)
-            sigma_results = []
-            for k, v in s_id_path_snv.items():
-                cl = vcf2maf_constructor(v, temporary, ctx.output_folder)
-                run_vcf2maf(cl, k)
-                recover_colocated_variants(v, temporary, ctx.output_folder, k)
+    logger.info("Managing SNV files...")
+    s_id_path_snv = snv_type_from_folder(
+        ctx.input_folder_snv, ctx.case_folder_arr, ctx.output_folder)
 
-                if ctx.sigma:
-                    sigma_results.append(_run_sigma_for_snv_sample(ctx, cl, k))
+    logger.info("Checking maf folder...")
+    maf_path = Path(ctx.output_folder) / "maf"
+    if maf_path.is_dir() and any(f.suffix == ".maf" for f in maf_path.iterdir()):
+        logger.info("A non empty maf folder already exists!")
 
-            if ctx.sigma:
-                _write_sigma_intermediate(ctx.output_folder, sigma_results)
+    if ctx.resume:
+        return {}
+    return s_id_path_snv
+
+
+def snv_job_keys(sample_ids: list[str]) -> list[str]:
+    """One short, filename-safe key per SNV sample, in order: the sample
+    IDs snv_type_from_folder() returns are whole paths (".../S1.snv.bam"),
+    unusable as file names or Snakemake job names. Used by
+    _walk_process_snv_sample()/_walk_snv_finish() and walk_stage.py."""
+    keys = []
+    for i, sample_id in enumerate(sample_ids, start=1):
+        name = re.sub(r"[^A-Za-z0-9._-]", "_", Path(sample_id.replace("\\", "/")).name)
+        keys.append(f"{i:04d}_{name}")
+    return keys
+
+
+def _walk_process_snv_sample(
+    ctx: WalkContext, sample_id: str, vcf_path: str, job_key: str,
+) -> None:
+    """SNV step 2 of 3, for one sample: optional "d" VCF filter, vcf2maf
+    (plus co-located variant recovery) and, with -g/--sigma, SigMA.
+
+    Safe to run for several samples at once (one Snakemake job each): every
+    call uses its own scratch subfolder and removes only that one -
+    clear_scratch() would also remove the shared scratch/ parent, under
+    other samples still running - and saves its SigMA row to its own file,
+    combined later by _walk_snv_finish(). job_key is this sample's entry
+    from snv_job_keys(), used to name that file.
+    """
+    if "d" in ctx.filters:
+        logger.info(f"{sample_id}: filtering out VCF rows with dots in ALT column")
+        vcf_path = vcf_filtering(
+            {sample_id: vcf_path}, ctx.output_folder, output_filtered)[sample_id]
+
+    temporary = create_random_name_folder(ctx.output_folder)
+    cl = vcf2maf_constructor(vcf_path, temporary, ctx.output_folder)
+    run_vcf2maf(cl, sample_id)
+    recover_colocated_variants(vcf_path, temporary, ctx.output_folder, sample_id)
+
+    if ctx.sigma:
+        row = _run_sigma_for_snv_sample(ctx, cl, sample_id)
+        rows_dir = _sigma_sample_rows_dir(ctx.output_folder)
+        rows_dir.mkdir(parents=True, exist_ok=True)
+        with (rows_dir / f"{job_key}.pkl").open("wb") as f:
+            pickle.dump(row, f)
+
+    # Only on success, like clear_scratch()'s callers: a failed sample's
+    # scratch folder is left in place for inspection.
+    shutil.rmtree(temporary, ignore_errors=True)
+
+
+def _walk_snv_finish(ctx: WalkContext, job_keys: list[str]) -> None:
+    """SNV step 3 of 3, once every sample is done: combine the per-sample
+    SigMA rows into data_sigma.txt (in job_keys' order, i.e. sample order)
+    and remove the now-empty scratch/ folder."""
+    if ctx.sigma and job_keys:
+        rows_dir = _sigma_sample_rows_dir(ctx.output_folder)
+        sigma_results = []
+        for job_key in job_keys:
+            with (rows_dir / f"{job_key}.pkl").open("rb") as f:
+                sigma_results.append(pickle.load(f))
+        _write_sigma_intermediate(ctx.output_folder, sigma_results)
+        shutil.rmtree(rows_dir, ignore_errors=True)
 
     logger.info("Clearing scratch folder...")
-    clear_scratch(temporary)
+    scratch = Path(ctx.output_folder) / "scratch"
+    if scratch.is_dir() and not any(scratch.iterdir()):
+        scratch.rmdir()
+
+
+def _sigma_sample_rows_dir(output_folder: str) -> Path:
+    return Path(output_folder) / "intermediate" / "sigma" / "samples"
 
 
 def _run_sigma_for_snv_sample(ctx: WalkContext, cl: list, sample_id: str) -> dict:
