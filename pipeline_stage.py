@@ -25,47 +25,81 @@ them in parallel with each other - it's so Snakemake gets real per-stage
 resume-from-failure (a validation failure doesn't force re-running filter/
 concatenate/tables from scratch) and so `filter` can start as soon as
 walk_snv finishes, instead of waiting for walk_cnv/walk_fusion/
-walk_clinical too - the one real remaining parallelism gap noted in the
-Snakefile's docstring after the WALK split.
+walk_clinical too.
+
+Every stage reads its options from walk_stage.py setup's pickled
+WalkContext (--ctx) instead of taking them again on the command line: the
+real study folder is the versioned one _walk_setup() created (e.g.
+`out_v1`, not the `out` given to setup), and with a vendor pipeline the
+input is the adapter's converted sample.tsv, not the raw -i - only the
+context knows either. Done markers go next to the context file, like
+walk_stage.py's.
 
 No pipeline logic lives here - every stage calls straight through to
-varan.py's own filter_main/concatenate_main/meta_case_main/validate_output,
-so this can never drift from what `python varan.py -i ...` does end to end.
+varan.py's own filter_main/concatenate_main/meta_case_main/validate_output
+with the same arguments and the same -t/--analysis_type gating varan()
+applies, so this can never drift from what `python varan.py -i ...` does
+end to end.
 
 Usage (see Snakefile for the real rules):
-    python pipeline_stage.py filter --input ... --output ... -c ... [-C conf.ini]
-    python pipeline_stage.py concatenate --output ... [-C conf.ini]
-    python pipeline_stage.py tables --output ... -c ... [-C conf.ini]
-    python pipeline_stage.py validate --input ... --output ... -c ... [-C conf.ini]
+    python pipeline_stage.py -C conf.ini filter --ctx out/.walk_ctx.pkl
+    python pipeline_stage.py -C conf.ini concatenate --ctx out/.walk_ctx.pkl
+    python pipeline_stage.py -C conf.ini tables --ctx out/.walk_ctx.pkl
+    python pipeline_stage.py -C conf.ini validate --ctx out/.walk_ctx.pkl
 """
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
+from loguru import logger
 
-def _cmd_filter(args: argparse.Namespace) -> None:
+from walk_stage import load_ctx, prepare_process, run_reported
+
+# varan() skips filter and concatenate for these -t values.
+NO_SNV_TYPES = ["cnv", "fus", "tab"]
+
+STAGE_LABELS = {
+    "filter": "MAF filtering",
+    "concatenate": "Concatenating mutation file",
+    "tables": "Creating tables",
+    "validate": "Validation",
+}
+
+
+def _cmd_filter(ctx) -> None:
     from filter_clinvar import filter_main
+    if ctx.vcf_type in NO_SNV_TYPES:
+        logger.info(f"Skipping MAF filtering (analysis type '{ctx.vcf_type}').")
+        return
     filter_main(
-        args.input, args.output, args.output, args.oncokb,
-        args.filters, args.cancer, args.resume)
+        ctx.input_path, ctx.output_folder, ctx.output_folder, ctx.oncokb,
+        ctx.filters, ctx.cancer, ctx.resume)
 
 
-def _cmd_concatenate(args: argparse.Namespace) -> None:
+def _cmd_concatenate(ctx) -> None:
     from concatenate import concatenate_main
-    concatenate_main(args.filters, args.output, "maf", args.oncokb)
+    if not (Path(ctx.output_folder) / "maf").exists() or ctx.vcf_type in NO_SNV_TYPES:
+        logger.info("Skipping MAF concatenation (no maf/ folder or no SNV analysis).")
+        return
+    concatenate_main(ctx.filters, ctx.output_folder, "maf", ctx.oncokb)
 
 
-def _cmd_tables(args: argparse.Namespace) -> None:
+def _cmd_tables(ctx) -> None:
     from Make_meta_and_cases import meta_case_main
-    meta_case_main(args.cancer, args.output)
+    meta_case_main(ctx.cancer, ctx.output_folder)
 
 
-def _cmd_validate(args: argparse.Namespace) -> None:
+def _cmd_validate(ctx) -> None:
     from ValidateFolder import validate_output
     validate_output(
-        args.output, args.input, args.multiple, False,
-        args.cancer, args.oncokb, args.filters)
+        ctx.output_folder, ctx.input_path, ctx.multiple, False, ctx.cancer,
+        ctx.oncokb, ctx.filters, ctx.start_time, ctx.vcf_type)
+    # Only on success, matching varan.py's __main__: a failed run's vendor
+    # scratch folder is left in place for inspection.
+    if ctx.vendor_scratch_dir:
+        from walk import clear_scratch
+        clear_scratch(ctx.vendor_scratch_dir)
 
 
 STAGE_FUNCS = {
@@ -82,32 +116,9 @@ def build_parser() -> argparse.ArgumentParser:
         "-C", "--config", default="conf.ini",
         help="Path to the conf.ini file to use for this run (default: ./conf.ini)")
     sub = parser.add_subparsers(dest="command", required=True)
-
-    filter_p = sub.add_parser("filter", help="Stage 2: MAF filtering.")
-    filter_p.add_argument("--input", nargs="+", required=True)
-    filter_p.add_argument("--output", required=True)
-    filter_p.add_argument("-c", "--cancer", required=True)
-    filter_p.add_argument("--oncokb", action="store_true")
-    filter_p.add_argument("--filters", default="")
-    filter_p.add_argument("--resume", action="store_true")
-
-    concat_p = sub.add_parser("concatenate", help="Stage 3: concatenate MAFs.")
-    concat_p.add_argument("--output", required=True)
-    concat_p.add_argument("--oncokb", action="store_true")
-    concat_p.add_argument("--filters", default="")
-
-    tables_p = sub.add_parser("tables", help="Stage 4: meta/case list files.")
-    tables_p.add_argument("--output", required=True)
-    tables_p.add_argument("-c", "--cancer", required=True)
-
-    validate_p = sub.add_parser("validate", help="Stage 5: cBioPortal validation + report.")
-    validate_p.add_argument("--input", nargs="+", required=True)
-    validate_p.add_argument("--output", required=True)
-    validate_p.add_argument("-c", "--cancer", required=True)
-    validate_p.add_argument("--oncokb", action="store_true")
-    validate_p.add_argument("--filters", default="")
-    validate_p.add_argument("--multiple", action="store_true")
-
+    for name, label in STAGE_LABELS.items():
+        stage_p = sub.add_parser(name, help=f"{label} (varan.py create flow).")
+        stage_p.add_argument("--ctx", required=True)
     return parser
 
 
@@ -115,15 +126,19 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
 
     # Same ordering constraint as varan.py's own __main__ block: conf.ini
-    # path must be set before any Varan module is imported, since most of
-    # them read it at import time - hence the deferred `from X import Y`
-    # inside each _cmd_* function above instead of top-of-file imports.
-    from config_loader import set_config_path
-    set_config_path(args.config)
+    # path and the reconciled sample type must be set before any Varan
+    # module is imported, since most of them read conf.ini at import time -
+    # hence the deferred `from X import Y` inside each _cmd_* function above.
+    prepare_process(args.config)
 
-    STAGE_FUNCS[args.command](args)
+    ctx_path = Path(args.ctx)
+    ctx = load_ctx(ctx_path)
+    run_reported(
+        args.command, STAGE_LABELS[args.command], ctx.output_folder,
+        ctx.cancer, ctx.start_time, lambda: STAGE_FUNCS[args.command](ctx))
 
-    Path(args.output, f".{args.command}.done").touch()
+    (ctx_path.parent / f".{args.command}.done").touch()
+    logger.success(f"pipeline_stage {args.command} complete.")
 
 
 if __name__ == "__main__":

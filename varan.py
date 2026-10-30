@@ -414,6 +414,50 @@ def reconcile_sample_type(pipeline: str) -> None:
     # Already consistent - nothing to do.
 
 
+def resolve_and_reconcile_pipeline() -> str:
+    """resolve_pipeline() + known-value check + reconcile_sample_type(), in
+    the one order every process running Varan stages needs - including
+    each separate walk_stage.py/pipeline_stage.py process under Snakemake,
+    since reconcile_sample_type()'s change only lives in that process's
+    in-memory conf.ini. Must run before `walk` is imported (see
+    reconcile_sample_type()).
+
+    Raises:
+        ValueError: PIPELINE is not a known value, or it disagrees with
+            [Sample_Type] TYPE.
+
+    """
+    pipeline = resolve_pipeline()
+    known_pipelines = {"", *ILLUMINA_PIPELINE_SAMPLE_TYPES, *ADAPTERS}
+    if pipeline not in known_pipelines:
+        msg = (
+            f"conf.ini's [Vendor] PIPELINE is '{pipeline}', which isn't "
+            "a known value (blank, "
+            f"{', '.join(sorted(ILLUMINA_PIPELINE_SAMPLE_TYPES))}, or a "
+            f"registered vendor: {', '.join(sorted(ADAPTERS)) or '(none registered)'}"
+            "). Fix conf.ini.")
+        raise ValueError(msg)
+    reconcile_sample_type(pipeline)
+    return pipeline
+
+
+def create_args_error(
+    filters: str, oncokb: bool, resume: bool, overwrite_output: bool,
+) -> str | None:
+    """Return the CLI-consistency error for a create run's options, or None
+    if they're consistent. Shared by varan.py's own __main__ and
+    walk_stage.py's setup (the Snakemake entry point), so both reject the
+    same combinations."""
+    if "n" in filters and "v" not in filters:
+        return 'To use the "n" option in filters it\'s required to set also the "v"'
+    if "o" in filters and not oncokb:
+        return 'To use the "o" option in filters it\'s required to set also -k'
+    if resume and overwrite_output:
+        return ("Both resume and overwrite options are selected. "
+                "Please select only one!")
+    return None
+
+
 def run_vendor_adapter(
     pipeline: str, varan_input: Sequence[str], output_folder: str,
 ) -> tuple[list[str], str]:
@@ -471,6 +515,10 @@ def run_vendor_adapter(
             finished with it.
 
     """
+    # Imported here rather than relying on __main__'s own import of them:
+    # walk_stage.py calls this function too, from its own process.
+    from walk import clear_scratch, create_random_name_folder
+
     raw_input = varan_input[0]
     patient_passthrough = varan_input[1].strip() if len(varan_input) > 1 else ""
     if len(varan_input) > 2 and varan_input[2].strip():
@@ -690,17 +738,9 @@ if __name__ == "__main__":
         # time, from the same shared config_loader singleton
         # reconcile_sample_type() mutates in place - anything decided
         # after that import would be too late for walk.py to see.
-        pipeline = resolve_pipeline()
-        known_pipelines = {"", *ILLUMINA_PIPELINE_SAMPLE_TYPES, *ADAPTERS}
-        if pipeline not in known_pipelines:
-            logger.critical(
-                f"conf.ini's [Vendor] PIPELINE is '{pipeline}', which isn't "
-                "a known value (blank, "
-                f"{', '.join(sorted(ILLUMINA_PIPELINE_SAMPLE_TYPES))}, or a "
-                f"registered vendor: {', '.join(sorted(ADAPTERS)) or '(none registered)'}"
-                "). Fix conf.ini.")
-            sys.exit(1)
-        reconcile_sample_type(pipeline)
+        # An unknown PIPELINE or a TYPE mismatch raises ValueError, logged
+        # and exited on by the `except ValueError` below.
+        pipeline = resolve_and_reconcile_pipeline()
 
         from concatenate import concatenate_main
         from Delete_script import delete_main
@@ -763,20 +803,9 @@ if __name__ == "__main__":
             logger.critical("To use -N option it's required to set also -o")
             sys.exit(1)
 
-        if "n" in filters and "v" not in filters:
-            logger.critical(
-                'To use the "n" option in filters it\'s required to set also the "v"')
-            sys.exit(1)
-
-        if "o" in filters and not oncokb:
-            logger.critical(
-                'To use the "o" option in filters it\'s required to set also -k')
-            sys.exit(1)
-
-        if resume and overwrite_output:
-            logger.critical(
-                "Both resume and overwrite options are selected. "
-                "Please select only one!")
+        args_error = create_args_error(filters, oncokb, resume, overwrite_output)
+        if args_error:
+            logger.critical(args_error)
             sys.exit(1)
 
         # DRY RUN

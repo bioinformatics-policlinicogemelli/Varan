@@ -2632,6 +2632,14 @@ class WalkContext:
     A caller driving each stage from a separate process (e.g. walk_stage.py,
     for real per-stage Snakemake rules) must restore it from here
     (`walk.isinputfile = ctx.isinputfile`) before invoking a stage function.
+
+    start_time, vendor_scratch_dir and old_version_exists are never read by
+    walk.py itself: walk_stage.py fills them in after setup so
+    pipeline_stage.py's later processes can pass the run's start time to
+    the report, remove the vendor adapter's scratch folder once the run
+    succeeds, and restore versioning.py's `old_version_exists` global -
+    which, like isinputfile, is only set inside setup's process (by
+    get_version_list()) but read by write_report.py during validation.
     """
 
     output_folder: str
@@ -2653,6 +2661,9 @@ class WalkContext:
     resume: bool
     isinputfile: bool
     sigma: bool = False
+    start_time: str = ""
+    vendor_scratch_dir: str = ""
+    old_version_exists: bool = False
 
 
 def _walk_setup(

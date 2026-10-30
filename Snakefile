@@ -35,6 +35,24 @@ about running them in parallel with *each other* - it's:
 `create` is a thin final rule that only waits on `validate`'s output - no
 more re-invoking `python varan.py -R` as a catch-all for stages 2-5.
 
+Where things end up: `create.output_folder` below is only the run's
+bookkeeping folder (context pickle, .done markers, Snakemake logs under
+service/logs/). The study itself is the versioned folder _walk_setup()
+creates next to it (`<output_folder>_v1`, `_v2`, ... exactly as with
+`python varan.py -i ... -o <output_folder>`), and that's where
+report_VARAN.html and each stage's Varan_<stage>_*.log are written - every
+stage after setup reads that real path from the context pickle. Because
+the .done markers live in the bookkeeping folder, re-running into a new
+version needs `--forceall` (or deleting the markers); `resume: true`
+continues the latest version.
+
+walk_setup also does what varan.py's __main__ does before a create run:
+[Vendor] PIPELINE resolution/[Sample_Type] TYPE reconciliation (repeated
+in every stage process, see walk_stage.prepare_process()), the vendor
+adapter for a vendor pipeline (e.g. Guardant), and the CLI-consistency
+checks on filters/resume/overwrite. A failing stage writes
+report_VARAN.html via write_report_failure(), like varan.py does.
+
 update/extract/remove do not go through walk_folder at all (they use their
 own update_*/extract_*/delete_* functions, already one function per file
 type - see Update_functions.py/ExtractSamples_functions.py/
@@ -81,33 +99,6 @@ def _create_setup_args() -> str:
         args += " --sigma"
     if _c.get("vcf_type"):
         args += f" --vcf-type {_c['vcf_type']}"
-    if _c.get("filters"):
-        args += f" --filters {_c['filters']}"
-    return args
-
-
-def _filter_args() -> str:
-    args = (
-        f"--input {' '.join(_c['input'])} --output {_c['output_folder']} "
-        f"-c {_c['cancer']} --resume"
-    )
-    if _c.get("oncokb"):
-        args += " --oncokb"
-    if _c.get("filters"):
-        args += f" --filters {_c['filters']}"
-    return args
-
-
-def _tables_args() -> str:
-    return f"--output {_c['output_folder']} -c {_c['cancer']}"
-
-
-def _validate_args() -> str:
-    args = f"--input {' '.join(_c['input'])} --output {_c['output_folder']} -c {_c['cancer']}"
-    if _c.get("multiple"):
-        args += " --multiple"
-    if _c.get("oncokb"):
-        args += " --oncokb"
     if _c.get("filters"):
         args += f" --filters {_c['filters']}"
     return args
@@ -217,10 +208,10 @@ rule filter:
     conda:
         config["conda_env"]
     params:
-        args=_filter_args(),
+        ctx=_ctx_pkl,
         conf=config["conf_path"],
     shell:
-        "python pipeline_stage.py -C {params.conf} filter {params.args} > {log} 2>&1"
+        "python pipeline_stage.py -C {params.conf} filter --ctx {params.ctx} > {log} 2>&1"
 
 
 rule concatenate:
@@ -234,13 +225,10 @@ rule concatenate:
     conda:
         config["conda_env"]
     params:
-        oncokb="--oncokb" if _c.get("oncokb") else "",
-        filters=f"--filters {_c['filters']}" if _c.get("filters") else "",
-        output=_c["output_folder"],
+        ctx=_ctx_pkl,
         conf=config["conf_path"],
     shell:
-        "python pipeline_stage.py -C {params.conf} concatenate "
-        "--output {params.output} {params.oncokb} {params.filters} > {log} 2>&1"
+        "python pipeline_stage.py -C {params.conf} concatenate --ctx {params.ctx} > {log} 2>&1"
 
 
 rule tables:
@@ -258,10 +246,10 @@ rule tables:
     conda:
         config["conda_env"]
     params:
-        args=_tables_args(),
+        ctx=_ctx_pkl,
         conf=config["conf_path"],
     shell:
-        "python pipeline_stage.py -C {params.conf} tables {params.args} > {log} 2>&1"
+        "python pipeline_stage.py -C {params.conf} tables --ctx {params.ctx} > {log} 2>&1"
 
 
 rule validate:
@@ -270,16 +258,15 @@ rule validate:
         tables=f"{_c['output_folder']}/.tables.done",
     output:
         done=f"{_c['output_folder']}/.validate.done",
-        report=f"{_c['output_folder']}/report_VARAN.html",
     log:
         f"{_c['output_folder']}/service/logs/snakemake_validate.log",
     conda:
         config["conda_env"]
     params:
-        args=_validate_args(),
+        ctx=_ctx_pkl,
         conf=config["conf_path"],
     shell:
-        "python pipeline_stage.py -C {params.conf} validate {params.args} > {log} 2>&1"
+        "python pipeline_stage.py -C {params.conf} validate --ctx {params.ctx} > {log} 2>&1"
 
 
 rule create:
@@ -287,7 +274,7 @@ rule create:
     happens in walk_setup/walk_cnv/walk_snv/walk_fusion/walk_clinical/
     filter/concatenate/tables/validate above."""
     input:
-        report=f"{_c['output_folder']}/report_VARAN.html",
+        validate=f"{_c['output_folder']}/.validate.done",
     output:
         touch(f"{_c['output_folder']}/.create.done"),
 
