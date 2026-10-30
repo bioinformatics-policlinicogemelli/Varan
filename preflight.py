@@ -191,6 +191,21 @@ def _check_header_config(issues: Issues, config) -> None:
                 "data_clinical_sample.txt is written.")
 
 
+def _check_validator_dependencies(issues: Issues) -> None:
+    """cBioPortal's validator (importer/validateData.py) runs with this same
+    interpreter at the end of a run: a missing dependency makes it crash
+    instead of validating (reported as "NOT RUN"), so say so up front."""
+    import importlib.util
+    missing = [name for name, module in (
+        ("PyYAML", "yaml"), ("requests", "requests"), ("Jinja2", "jinja2"))
+        if importlib.util.find_spec(module) is None]
+    if missing:
+        _warn(
+            issues,
+            f"Python package(s) {', '.join(missing)} not installed: the "
+            "cBioPortal validation at the end of the run will not run.")
+
+
 def _check_gene_panel_config(issues: Issues) -> None:
     """[GenePanel] is optional (see gene_panels.py): say what's missing,
     never fail the run over it."""
@@ -664,6 +679,7 @@ def run_preflight_checks(
     _check_oncokb_config(issues, config, oncokb, filters, analysis_type)
     _check_header_config(issues, config)
     _check_gene_panel_config(issues)
+    _check_validator_dependencies(issues)
     _check_output_folder(issues, output_folder, overwrite_output, resume)
 
     if not cancer:

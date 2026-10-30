@@ -51,7 +51,8 @@ def get_git_version() -> str:
         ).decode().strip()
 
         return version.lstrip("v")
-    except Exception:
+    except (subprocess.CalledProcessError, OSError):
+        # Not a git checkout, no tag, or git not installed.
         return "unknown"
 
 

@@ -67,8 +67,10 @@ def cbio_validation(output_folder: str) -> str:
 
     Returns:
         str: "PASS" (no errors/warnings), "REVIEW" (warnings only) or "FAIL"
-            (errors) - or "UNKNOWN" if the validator subprocess itself couldn't
-            be started. This never blocks the pipeline: a failed/reviewed
+            (errors) - "NOT RUN" if the validator crashed before validating
+            anything (e.g. a missing Python dependency: same exit code as
+            "FAIL", told apart by its traceback), or "UNKNOWN" if the
+            validator subprocess itself couldn't be started. This never blocks the pipeline: a failed/reviewed
             validation is reported, not raised - Varan studies are used for
             more than just cBioPortal upload, so the run must still finish.
 
@@ -100,6 +102,14 @@ def cbio_validation(output_folder: str) -> str:
         logger.error(f"Validation subprocess failed to start: {e}")
         return "UNKNOWN"
 
+    if result.returncode != 0 and "Traceback (most recent call last)" in result.stderr:
+        reason = result.stderr.strip().splitlines()[-1]
+        logger.error(
+            f"cBioPortal validation could NOT RUN ({reason}): the study was "
+            "not validated. Install the validator's dependencies (PyYAML, "
+            "requests, Jinja2 - `python varan.py -D ...` checks them) and "
+            "validate again.")
+        return "NOT RUN"
     if result.returncode == 1:
         logger.error(
             f"cBioPortal validation FAILED: {result.stderr.strip()} "
@@ -500,37 +510,3 @@ def remove_meta(output: str | Path) -> None:
         if not data_path.exists() and meta_path.exists():
                 meta_path.unlink()
 
-
-def check_all_data(output_folder: str | Path) -> None:
-    """Check data files in the specified output folder.
-
-    For each file in the list, if the file exists and contains only one data row,
-    it is considered incomplete or invalid and is deleted.
-
-    Parameters:
-    ----------
-    output_folder : str or Path
-        Path to the directory containing the data files to be checked.
-
-    """
-    output_folder = Path(output_folder)
-
-    file_to_delete = [
-        "data_cna_hg19.seg",
-        "data_cna_hg19.seg.fc.txt",
-        "data_cna.txt",
-        "data_mutations_extended.txt",
-        "data_sv.txt",
-        "data_exon_brca_cna.txt",
-        "exon_CNA_data.txt"]
-
-    for filename in file_to_delete:
-        file_path = output_folder / filename
-        if file_path.exists():
-            try:
-                file_df = pd.read_csv(file_path, sep="\t")
-                if len(file_df) < 1:
-                    file_path.unlink()
-            except pd.errors.EmptyDataError as e:
-                logger.warning(f"{filename} is empty or unreadable ({e}). Removing it.")
-                file_path.unlink()

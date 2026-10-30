@@ -141,6 +141,47 @@ def ensure_sv_file(folder: str, profiled: list[str] | None) -> None:
         "they're shown as tested without events.")
 
 
+# Data files carrying a cBioPortal profile, by PROFILE_CASE_LISTS key.
+PROFILE_DATA_FILES = {
+    "sequenced": "data_mutations_extended.txt",
+    "cna": "data_cna.txt",
+    "sv": "data_sv.txt",
+}
+OTHER_DATA_FILES = ["data_cna_hg19.seg", "data_cna_hg19.seg.fc.txt",
+                    "data_exon_brca_cna.txt", "exon_CNA_data.txt"]
+
+
+def drop_unusable_data_files(folder: str, profiled: dict[str, list[str]]) -> None:
+    """Remove only the data files cBioPortal couldn't load - empty files
+    without events are otherwise kept (see ensure_sv_file()):
+
+    - a 0-byte file (not even a header line: an interrupted write);
+    - a mutation/CNA/SV file without any event when no sample of the study
+      was tested for that data type: its profile would need a case list
+      (cases_sequenced/cna/sv), and that list would be empty.
+    """
+    for name in [*PROFILE_DATA_FILES.values(), *OTHER_DATA_FILES]:
+        path = Path(folder) / name
+        if path.exists() and path.stat().st_size == 0:
+            path.unlink()
+            logger.warning(f"{name} was an empty (0-byte) file - removed.")
+    for profile, name in PROFILE_DATA_FILES.items():
+        path = Path(folder) / name
+        if not path.exists() or profiled_in_study(folder, profiled.get(profile)):
+            continue
+        if profile == "sequenced":
+            from filter_clinvar import read_maf
+            no_events = read_maf(path).empty
+        else:
+            no_events = pd.read_csv(path, sep="\t", dtype=str).empty
+        if no_events:
+            path.unlink()
+            logger.info(
+                f"{name} has no events and no sample of this study was tested "
+                "for that data type - removed (cBioPortal would need a case "
+                "list of tested samples for it).")
+
+
 def ensure_cna_file(folder: str, profiled: list[str] | None) -> None:
     """Same as ensure_sv_file(), for CNAs: when the study has samples tested
     for CNVs but data_cna.txt is gone - no sample had any call, or

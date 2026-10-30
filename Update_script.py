@@ -38,7 +38,7 @@ from Update_functions import (
     prepare_output_folder,
     safe_check_file,
 )
-from ValidateFolder import check_all_data, copy_maf, remove_meta, validate_output
+from ValidateFolder import copy_maf, remove_meta, validate_output
 from versioning import extract_info_from_meta
 from write_report import write_report_failure, write_report_update
 from config_loader import get_config
@@ -108,7 +108,6 @@ def update_main(oldpath: str, newpath: str,
         for file in file_names:
             safe_check_file(oldpath, newpath, output, file)
 
-        check_all_data(output)
         remove_meta(output)
 
         stage = "Creating tables"

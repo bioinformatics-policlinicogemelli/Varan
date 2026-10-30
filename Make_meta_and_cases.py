@@ -29,7 +29,8 @@ from loguru import logger
 from config_loader import get_config
 from gene_panels import (build_gene_panel_matrix, create_meta_gene_panel_matrix,
                          finalize_gene_panel_matrix)
-from populate_case_lists import (ensure_cna_file, ensure_sv_file,
+from populate_case_lists import (drop_unusable_data_files, ensure_cna_file,
+                                 ensure_sv_file,
                                  pad_unaltered_cna_samples,
                                  populate_cases_cna,
                                  populate_cases_sequenced, populate_cases_sv,
@@ -332,6 +333,10 @@ def create_meta_generic_assay_exon_brca(project_id: str, output_dir: str) -> Non
         "cancer_study_identifier": project_id,
         "genetic_alteration_type": "GENERIC_ASSAY",
         "generic_assay_type": "EXON_LEVEL_CNV",
+        # Required by cBioPortal for every generic assay: the entity columns
+        # besides ENTITY_STABLE_ID (data_exon_brca_cna.txt has NAME). Without
+        # it cBioPortal's validator crashes with KeyError on this file.
+        "generic_entity_meta_properties": "NAME",
         "datatype": "CATEGORICAL",
         "stable_id": "exon_brca_cna",
         "show_profile_in_analysis_tab": "true",
@@ -438,6 +443,7 @@ def meta_case_main(
     # data_cna.txt (samples tested, nothing found) still needs its meta.
     ensure_sv_file(output_folder, profiled.get("sv"))
     ensure_cna_file(output_folder, profiled.get("cna"))
+    drop_unusable_data_files(output_folder, profiled)
     if creating:
         build_gene_panel_matrix(output_folder, profiled)
     finalize_gene_panel_matrix(output_folder)

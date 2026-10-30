@@ -23,6 +23,7 @@ data review and interpretation.
 from __future__ import annotations
 
 import ast
+import functools
 import html
 import json
 import os
@@ -35,6 +36,7 @@ from pathlib import Path
 import subprocess
 
 import pandas as pd
+from loguru import logger
 
 import versioning
 from config_loader import get_config
@@ -95,11 +97,14 @@ def get_clinvar_update_date(config: configparser.ConfigParser) -> str | None:
         return None
 
 
+@functools.lru_cache(maxsize=None)
 def get_vep_version(vep_executable: str = "vep") -> str | None:
     """Retrieve the VEP version by parsing the help output.
 
-    Some VEP installations do not accept the '--version' flag. In this case,
-    we extract the version from the first line of 'vep --help' output.
+    Some VEP installations do not accept the '--version' flag, so the
+    version is taken from the first line of 'vep --help' that mentions VEP.
+    Cached: VEP is only invoked once per process, however many reports
+    it writes.
 
     Parameters
     ----------
@@ -117,23 +122,25 @@ def get_vep_version(vep_executable: str = "vep") -> str | None:
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            timeout=60,
         )
-        # Prendi la prima riga non vuota e cerca un numero di versione
-        for line in result.stdout.splitlines():
-            if "ensembl-vep" in line.lower() or "vep" in line.lower():
-                # estrae la prima cosa che assomiglia a x.y.z
-                import re
-                match = re.search(r"\d+\.\d+(\.\d+)?", line)
-                if match:
-                    return match.group(0)
-        return None
     except subprocess.CalledProcessError as e:
-        print(f"Error running VEP: {e.stderr}")
+        logger.warning(f"Could not get the VEP version (VEP failed): {e.stderr.strip()}")
         return None
     except FileNotFoundError:
-        print(f"Executable '{vep_executable}' not found")
+        logger.warning(f"Could not get the VEP version: '{vep_executable}' not found")
         return None
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Could not get the VEP version: '{vep_executable} --help' timed out")
+        return None
+    # First line mentioning VEP, first x.y(.z)-looking token on it.
+    for line in result.stdout.splitlines():
+        if "vep" in line.lower():
+            match = re.search(r"\d+\.\d+(\.\d+)?", line)
+            if match:
+                return match.group(0)
+    return None
 
 
 def write_provenance(output_folder: str, **fields: str | None) -> None:
@@ -343,7 +350,7 @@ def write_report_failure(
 
     html_content = f"""
     <!DOCTYPE html>
-    <html lang="it">
+    <html lang="en">
     <head>
         <link rel="stylesheet" type="text/css" href="{Path('img') / 'styles.css'}">
         <meta charset="UTF-8">
@@ -471,7 +478,8 @@ def build_warnings_section(
         output_folder (str): The study's output folder for this run.
         ghosts (list[str]): Sample IDs present in clinical data but with no
             detected SNV/CNA/SV alterations (see `ghost_sample`).
-        validation_status (str | None): "PASS" / "REVIEW" / "FAIL", or None if
+        validation_status (str | None): "PASS" / "REVIEW" / "FAIL" /
+            "NOT RUN" (validator crashed, see cbio_validation()), or None if
             this report type doesn't run cBioPortal validation (update/extract/
             remove don't - only walk does).
 
@@ -486,9 +494,13 @@ def build_warnings_section(
         link = ""
         if (output_path / "report_validate.html").exists():
             link = ' — <a href="report_validate.html">validation report</a>'
+        detail = ""
+        if validation_status == "NOT RUN":
+            detail = (" - the validator crashed before checking anything (see "
+                      "this run's log), so this study was NOT validated")
         items.append(
             f"<p><strong>&#9888; cBioPortal validation:</strong> "
-            f"{validation_status}{link}</p>")
+            f"{validation_status}{detail}{link}</p>")
 
     if ghosts:
         items.append(
@@ -630,7 +642,7 @@ def write_report_main(
     varan_version = get_git_version()
     python_version = get_python_version()
     clinvar_update = get_clinvar_update_date(config)
-    vep_version = get_vep_version(Path(vep_path, "vep"))
+    vep_version = get_vep_version(str(Path(vep_path, "vep")))
 
     if versioning.old_version_exists:
         name = re.search(r"^(.+_v)[0-9]+$", output_folder.name).group(1)
@@ -662,7 +674,7 @@ def write_report_main(
 
     html_content = f"""
     <!DOCTYPE html>
-    <html lang="it">
+    <html lang="en">
     <head>
         <link rel="stylesheet" type="text/css" href="{Path('img') / 'styles.css'}">
         <meta charset="UTF-8">
@@ -1361,7 +1373,7 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
 
     html_content = f"""
     <!DOCTYPE html>
-    <html lang="it">
+    <html lang="en">
     <head>
         <link rel="stylesheet" type="text/css" href="{Path('img') / 'styles.css'}">
         <meta charset="UTF-8">
@@ -1425,9 +1437,9 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
             <div class="content">
                 <p><strong>UPDATED:</strong></p>
                 <p>&emsp;<strong>{len(updated_clin_pat)} Patients:</strong>
-                {", ".join(updated_clin_pat)}</p>
+                {", ".join(sorted(updated_clin_pat))}</p>
                 <p>&emsp;<strong>{len(updated_clin_sample)} Samples:</strong>
-                {", ".join(updated_clin_sample)}</p>
+                {", ".join(sorted(updated_clin_sample))}</p>
             </div>
             """
         )
@@ -1438,9 +1450,9 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
             <div class="content">
                 <p><strong>ADDED:</strong></p>
                 <p>&emsp;<strong>{len(added_clin_pat)} Patients:</strong>
-                {", ".join(added_clin_pat)}</p>
+                {", ".join(sorted(added_clin_pat))}</p>
                 <p>&emsp;<strong>{len(added_clin_sample)} Samples:</strong>
-                {", ".join(added_clin_sample)}</p>
+                {", ".join(sorted(added_clin_sample))}</p>
             </div>
             """
         )
@@ -1878,7 +1890,7 @@ def write_report_extract(original_study: str, new_study: str,
 
     html_content = f"""
     <!DOCTYPE html>
-    <html lang="it">
+    <html lang="en">
     <head>
         <link rel="stylesheet" type="text/css" href="{Path('img') / 'styles.css'}">
         <meta charset="UTF-8">
@@ -1944,7 +1956,7 @@ def write_report_extract(original_study: str, new_study: str,
         """
 
     sample_count = len(extracted_samples_sequenced)
-    sample_list = ", ".join(extracted_samples_sequenced)
+    sample_list = ", ".join(sorted(extracted_samples_sequenced))
     if extracted_samples_sequenced:
         html_content += (
             f"""
@@ -2325,7 +2337,7 @@ def write_report_remove(
 
     html_content = f"""
     <!DOCTYPE html>
-    <html lang="it">
+    <html lang="en">
     <head>
         <link rel="stylesheet" type="text/css" href="{Path('img') / 'styles.css'}">
         <meta charset="UTF-8">
@@ -2380,7 +2392,7 @@ def write_report_remove(
     else:
         html_content += f"""
             <p>&emsp;<strong>Removed:</strong> {len(removed_samples_cna)} samples
-            ({", ".join(removed_samples_cna)})</p>
+            ({", ".join(sorted(removed_samples_cna))})</p>
             <p>&emsp;There is/are now {left_samples_cna} samples in cases_cna.</p>"""
 
     html_content += """
@@ -2407,7 +2419,7 @@ def write_report_remove(
         html_content += (
             f"""
             <p>&emsp;<strong>Removed:</strong> {len(removed_samples_sv)} samples
-            ({", ".join(removed_samples_sv)})</p>
+            ({", ".join(sorted(removed_samples_sv))})</p>
             <p>&emsp;There is/are now {left_samples_sv} samples in cases_sv.</p>""")
 
     if filters != {}:

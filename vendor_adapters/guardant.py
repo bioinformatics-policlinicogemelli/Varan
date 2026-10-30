@@ -81,6 +81,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from loguru import logger
+
 from vendor_adapters.common import (
     SampleRow,
     append_fusions_to_table,
@@ -183,8 +185,10 @@ def get_xml_data(xml_path: str, onco_info: Tuple[Dict[str, str], set]) -> Tuple[
             if diag.tag.split("}")[-1] == "Diagnosis" and diag.text:
                 o_code = resolve_oncotree_from_diagnosis(diag.text, onco_info)
                 break
-    except Exception:
-        pass
+    except Exception as err:
+        logger.warning(
+            f"Could not read metadata XML {xml_path} ({err}) - patient id and "
+            "oncotree code left at their defaults for this sample.")
     return p_id, o_code
 
 
@@ -215,8 +219,10 @@ def get_msi_data(msi_path: Optional[str]) -> Dict[str, str]:
                     # unrecognized status string should not silently
                     # produce a wrong clinical call.
                     break
-        except Exception:
-            pass
+        except Exception as err:
+            logger.warning(
+                f"Could not read MSI report {msi_path} ({err}) - MSI left "
+                "blank for this sample.")
     return data
 
 
@@ -320,7 +326,9 @@ def load_cnv_tsv_ordered(tsv_path: Optional[str]) -> Dict[str, Dict]:
                     "cn": float(row["copy_number"]),
                     "call": row["call"].strip(),
                 }
-            except Exception:
+            except (KeyError, ValueError, AttributeError) as err:
+                logger.warning(
+                    f"Skipping unreadable row of CNV report {tsv_path} ({err}): {row}")
                 continue
     return cnv_by_gene
 
@@ -384,7 +392,7 @@ def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
                 gene = _PANEL_COORDS.get((cols[0], int(cols[1])))
                 d = cnv_by_gene.get(gene) if gene else None
                 if gene is None:
-                    print(f"[{sample_id}] Structural VCF row at {cols[0]}:{cols[1]} "
+                    logger.warning(f"[{sample_id}] Structural VCF row at {cols[0]}:{cols[1]} "
                           "doesn't match any known panel region - leaving it "
                           "unassigned instead of guessing a gene for it.")
                 if d is not None:
@@ -425,8 +433,11 @@ def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
                         depth = ref_count + alt_count
                         af = round(alt_count / depth, 4) if depth > 0 else 0
                         cols[8], cols[9] = "GT:AD:AF:DP", f"{sample_vals[0]}:{ref_count},{alt_count}:{af}:{depth}"
-                except Exception:
-                    pass
+                except (ValueError, IndexError) as err:
+                    # Row kept with its original FORMAT/sample columns.
+                    logger.warning(
+                        f"[{sample_id}] Could not derive AF/DP from AD at "
+                        f"{cols[0]}:{cols[1]} ({err}) - row kept unchanged.")
                 f_snv.write("\t".join(cols) + "\n")
 
 
@@ -526,11 +537,11 @@ def process_single_sample(
             if run_cmd(f"aws s3 cp {path} {local_p}"):
                 owned_paths.add(local_p)
                 return local_p
-            print(f"[{sid}] Could not fetch explicit {key} path from S3: {path}")
+            logger.warning(f"[{sid}] Could not fetch explicit {key} path from S3: {path}")
             return None
         if os.path.exists(path):
             return path
-        print(f"[{sid}] Explicit {key} path does not exist: {path}")
+        logger.warning(f"[{sid}] Explicit {key} path does not exist: {path}")
         return None
 
     def fetch_auto(key: str, fname: str, folder: str) -> Optional[str]:
@@ -538,7 +549,7 @@ def process_single_sample(
         if run_cmd(f"aws s3 cp {folder.rstrip('/')}/{fname} {local_p}"):
             owned_paths.add(local_p)
             return local_p
-        print(f"[{sid}] Could not fetch auto-discovered {key} file "
+        logger.warning(f"[{sid}] Could not fetch auto-discovered {key} file "
               f"'{fname}' from {folder}")
         return None
 
@@ -552,7 +563,7 @@ def process_single_sample(
             return fetch_auto(key, fname, folder)
         kind = "Required" if required else "Optional"
         action = "skipping this sample" if required else "skipping this data type for this sample"
-        print(f"[{sid}] {kind} file type '{key}' not available (no explicit "
+        logger.warning(f"[{sid}] {kind} file type '{key}' not available (no explicit "
               f"path given, and {'no folder to auto-discover from' if not folder else f'no {suffix} match found'}) "
               f"- {action}.")
         return None
@@ -567,12 +578,12 @@ def process_single_sample(
         xml_name = find_file_in_list("_finalmetadata.xml", xml_files)
         if not xml_name:
             backup_folder = xml_folder + "_2"
-            print(f"[{sid}] Metadata not found in {xml_folder}. Trying backup path: {backup_folder}")
+            logger.info(f"[{sid}] Metadata not found in {xml_folder}. Trying backup path: {backup_folder}")
             backup_files = list_folder(backup_folder)
             xml_name = find_file_in_list("_finalmetadata.xml", backup_files)
             if xml_name:
                 xml_folder = backup_folder
-                print(f"[{sid}] Metadata FOUND in backup folder: {xml_name}")
+                logger.info(f"[{sid}] Metadata FOUND in backup folder: {xml_name}")
         xml_local = fetch_auto("xml", xml_name, xml_folder) if xml_name else None
     else:
         xml_local = None
@@ -580,12 +591,12 @@ def process_single_sample(
     has_direct_oncotree = bool(explicit_oncotree_code or explicit_diagnosis)
 
     if not xml_local and not explicit_patient_id:
-        print(f"[{sid}] No metadata source for patient_id available (no xml "
+        logger.warning(f"[{sid}] No metadata source for patient_id available (no xml "
               "in any path, and no explicit patient_id given) - skipping "
               "this sample.")
         return None
     if not xml_local and not has_direct_oncotree:
-        print(f"[{sid}] No metadata source for oncotree_code available (no "
+        logger.warning(f"[{sid}] No metadata source for oncotree_code available (no "
               "xml in any path, and no explicit oncotree_code/diagnosis "
               "given) - skipping this sample.")
         return None
@@ -758,7 +769,7 @@ def run(
 
     if folder:
         s3_folder = folder.rstrip("/")
-        print(f"Analyzing folder: {s3_folder}")
+        logger.info(f"Analyzing folder: {s3_folder}")
         main_run_id = os.path.basename(s3_folder).split(".")[0]
         s3_files = list_s3_files(s3_folder)
         xml_files = [f for f in s3_files if f.endswith("_finalmetadata.xml") and not f.startswith("AIO")]
@@ -766,12 +777,12 @@ def run(
         xml_folder = s3_folder
         if not xml_files:
             backup_folder = s3_folder + "_2"
-            print(f"No metadata found in {s3_folder}. Searching backup folder: {backup_folder}...")
+            logger.info(f"No metadata found in {s3_folder}. Searching backup folder: {backup_folder}...")
             backup_files = list_s3_files(backup_folder)
             xml_files = [f for f in backup_files if f.endswith("_finalmetadata.xml") and not f.startswith("AIO")]
             if xml_files:
                 xml_folder = backup_folder
-                print(f"Found {len(xml_files)} metadata file(s) in the backup folder.")
+                logger.info(f"Found {len(xml_files)} metadata file(s) in the backup folder.")
 
         # A resequenced/repeated sample can leave more than one
         # _finalmetadata.xml resolving to the same sample id in the same run
@@ -789,7 +800,7 @@ def run(
         for sid, files in files_by_sid.items():
             if len(files) > 1:
                 chosen = max(files, key=lambda f: xml_timestamps.get(f, ""))
-                print(f"Sample {sid}: multiple _finalmetadata.xml found "
+                logger.warning(f"Sample {sid}: multiple _finalmetadata.xml found "
                       f"({', '.join(files)}) - keeping the most recent ({chosen}).")
                 xml_files.append(chosen)
             else:
@@ -798,7 +809,7 @@ def run(
         fusion_table_path = os.path.join(report_base_dir, f"{main_run_id}_fusions.tsv")
         for xml_f in xml_files:
             sid = xml_f.replace("_finalmetadata.xml", "").split("_")[-1]
-            print(f"Processing {sid}...")
+            logger.info(f"Processing {sid}...")
             res = process_single_sample(
                 sid, s3_folder, main_run_id, onco_dict, fusion_table_path, xml_folder,
                 vcf_base_dir=vcf_base_dir, temp_local_dir=temp_local_dir)
@@ -806,7 +817,7 @@ def run(
                 report_data.append(res)
 
     elif selection:
-        print(f"Analyzing selection: {selection}")
+        logger.info(f"Analyzing selection: {selection}")
         main_run_id = Path(selection).stem
         fusion_table_path = os.path.join(report_base_dir, f"{main_run_id}_fusions.tsv")
         with open(selection, "r") as f:
@@ -816,7 +827,7 @@ def run(
                 row = {(k or "").strip().lower(): v for k, v in raw_row.items()}
                 sid = (row.get("sample_id") or "").strip()
                 if not sid:
-                    print("Skipping a selection row with no sample_id.")
+                    logger.warning("Skipping a selection row with no sample_id.")
                     continue
 
                 # s3_path_run is now optional: a row that supplies every
@@ -866,14 +877,14 @@ def run(
                     report_data.append(res)
 
     if not report_data:
-        print("\nNo data collected.")
+        logger.warning("\nNo data collected.")
         return None
 
     r_path = get_incremental_report_path(report_base_dir, main_run_id)
     write_sample_tsv(report_data, r_path)
-    print(f"\nReport generated: {r_path}")
-    print(f"Fusions (if any) in: {fusion_table_path}")
-    print("Run Varan with: python varan.py -i "
+    logger.info(f"\nReport generated: {r_path}")
+    logger.info(f"Fusions (if any) in: {fusion_table_path}")
+    logger.info("Run Varan with: python varan.py -i "
           f"{r_path} <patient.tsv or \"\"> {fusion_table_path} -o ... -c ...")
     return {
         "report_path": r_path,

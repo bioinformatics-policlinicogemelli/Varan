@@ -42,7 +42,6 @@ from populate_case_lists import profiled_from_case_lists
 from ValidateFolder import (
     copy_maf,
     validate_output,
-    check_all_data,
     remove_meta)
 from versioning import (
     create_newest_version_folder,
@@ -133,7 +132,6 @@ def extract_main(oldpath: str,
 
         extract_all_data(oldpath, sample_ids, output)
 
-        check_all_data(output)
         remove_meta(output)
 
         stage = "Creating tables"

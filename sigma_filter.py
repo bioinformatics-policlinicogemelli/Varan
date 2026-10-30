@@ -56,6 +56,7 @@ from loguru import logger
 
 from config_loader import get_config
 from filter_clinvar import check_bool, filter_vaf_exclude_bands
+from thresholds import meets_threshold_series
 
 config = get_config()
 
@@ -99,7 +100,7 @@ def prepare_sigma_maf(maf_df: pd.DataFrame, sample_id: str) -> pd.DataFrame:
         drop_na = check_bool(config.get("Filters", "drop_NA_AF"))
         af_numeric = pd.to_numeric(maf_df["AF"], errors="coerce")
         na_mask = af_numeric.isna()
-        passes_af = eval(f"af_numeric {af}")  # noqa: S307 - same pattern as filter_main's 'a' flag
+        passes_af = meets_threshold_series(af_numeric, af)
         keep_mask = passes_af.fillna(False) | (na_mask & (not drop_na))
         maf_df = maf_df[keep_mask]
     else:

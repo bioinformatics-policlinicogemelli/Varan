@@ -37,6 +37,7 @@ from loguru import logger
 
 import concatenate
 from config_loader import get_config
+from thresholds import meets_threshold_series
 
 config = get_config()
 
@@ -517,7 +518,7 @@ def filter_main(input_path: str,folder: str,
                     ~file_to_filter.index.isin(file_to_filter["AF"].dropna().index)]
 
                 file_to_filter = file_to_filter.dropna(subset=["AF"])
-                file_to_filter = file_to_filter[eval(f"file_to_filter['AF'] {af}")]
+                file_to_filter = file_to_filter[meets_threshold_series(file_to_filter["AF"], af)]
 
                 if not drop_na:
                         file_to_filter = pd.concat([

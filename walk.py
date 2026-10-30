@@ -46,6 +46,7 @@ import vcf_filter
 from config_loader import get_config
 from filter_clinvar import check_bool, filter_oncokb, read_maf
 from populate_case_lists import read_profiled_samples, write_profiled_samples
+from thresholds import meets_threshold
 from versioning import get_newest_version, get_version_list
 
 config = get_config()
@@ -254,8 +255,8 @@ def cnv_type_from_folder(input_path: str,
                         output_folder) / "data_cna_hg19.seg.fc.txt",
                     sample_id, "w")
 
-        except Exception:
-            logger.warning(f"Error while reading {case_folder}")
+        except Exception as err:
+            logger.warning(f"Error while reading {case_folder}: {err}")
             with (Path(output_folder) / "noParsed_cnv.log").open("a") as log_noparsed:
                 log_noparsed.write("[WARNING] " + case_folder + "\n")
 
@@ -550,7 +551,8 @@ def snv_type_from_folder(input_pat: str,
                     dup.write(sample_id + "\t" + "snv_vcf\n")
             else:
                 sid_path[sample_id] = str(Path(input_pat) / snv_vcf)
-        except Exception:
+        except Exception as err:
+            logger.warning(f"Error while reading {case_folder}: {err}")
             with (Path(output_folder) / "noParsed_snv.log").open("a") as log_noparsed:
                 log_noparsed.write("[WARNING]" + case_folder + "\n")
         c = c + 1
@@ -647,6 +649,9 @@ def vcf2maf_constructor(v: str,
     cl.append(tum_id)
     cl.append("--cache-version")
     cl.append(cache)
+    # Same value the Snakefile declares as each SNV job's threads.
+    cl.append("--vep-forks")
+    cl.append(str(config.getint("Paths", "VEP_FORKS", fallback=4)))
     return cl
 
 
@@ -1232,7 +1237,7 @@ def write_default_clinical_patient(output_folder: str, table_dict: dict) -> None
         cil_sample.write("PATIENT_ID\tAGE\tGENDER\n")
 
         nested_list = list(table_dict.values())
-        list_patients = set(flatten(nested_list))
+        list_patients = sorted(set(flatten(nested_list)))
 
         for v in list_patients:
             cil_sample.write(f"{v}\tNaN\tNaN\n")
@@ -1731,7 +1736,7 @@ def fill_fusion_from_temp(
             logger.info(f"Fusions found in {fusion_file}")
             for fus in ff.itertuples(index=False):
                 if (str(fus.Sample_Id).strip() in clin_file["SAMPLE_ID"].astype(str).to_numpy() and
-                eval("int(fus.Normal_Paired_End_Read_Count)" + thr_fus)):
+                meets_threshold(fus.Normal_Paired_End_Read_Count, thr_fus)):
                     fusion_table.write("\t".join(map(str, fus)) + "\n")
 
 
@@ -1803,9 +1808,9 @@ def fill_fusion_from_combined(
             fusions=[]
             try:
                 fusions = tsv.get_fusions(Path(v))
-            except Exception:
+            except Exception as err:
                 logger.error("Something went wrong while reading Fusion section "
-                f"for sample {k}")
+                f"for sample {k}: {err}")
             if len(fusions) == 0:
                 continue
 
@@ -1820,7 +1825,7 @@ def fill_fusion_from_combined(
                     site1_Position = fus["Site1_Position"]
                     site2_Position = fus["Site2_Position"]
 
-                    if eval("int(fus['Normal_Paired_End_Read_Count'])" + thr_fus):
+                    if meets_threshold(fus["Normal_Paired_End_Read_Count"], thr_fus):
                         fusion_table.write(
                             str(k).strip() + "\tSOMATIC\tFUSION\t" +
                             str(site1_hugo_symbol) + "\t" +
@@ -1895,15 +1900,15 @@ def fill_splice_from_combined(
         splice_variants = []
         try:
             splice_variants = tsv.get_splice_variants(Path(v))
-        except Exception:
+        except Exception as err:
             logger.error("Something went wrong while reading Splice Variants "
-            f"section for sample {k}")
+            f"section for sample {k}: {err}")
 
         for sv in splice_variants:
             gene = sv["Gene"]
             ssr = sv["Splice_Supporting_Reads"]
             try:
-                if not eval("int(ssr)" + thr_splice):
+                if not meets_threshold(ssr, thr_splice):
                     continue
             except (ValueError, TypeError):
                 logger.warning(
@@ -2061,11 +2066,11 @@ def fill_from_file(
     has_tmb_thr_col = "TMB_THR" in file_input_clinical.columns
 
     def compute_msi(m: object) -> str:
-        return "Stable" if eval("float(m)" + msi_thr) else "Unstable"
+        return "Stable" if meets_threshold(m, msi_thr) else "Unstable"
 
     def compute_tmb(t: object) -> str:
         for _k, _v in tmb_thr.items():
-            if eval("float(t)" + _v):
+            if meets_threshold(t, _v):
                 return _k
         logger.warning(f"TMB {t} out of range for {k}")
         return "Out of threshold ranges"
@@ -2110,9 +2115,9 @@ def fill_from_combined(
     for k, v in combined_dict.items():
         try:
             tmv_msi = tsv.get_msi_tmb(Path(v), SAMPLE_TYPE)
-        except Exception:
+        except Exception as err:
             logger.error(f"Something went wrong reading CombinedOutput for sample "
-                         f"{k}! MSI/TMB set to NA for this sample.")
+                         f"{k} ({err})! MSI/TMB set to NA for this sample.")
             # Keep table_dict_patient[k] the same length as every successfully
             # processed sample (4 appends below) - otherwise
             # pd.DataFrame.from_dict(table_dict_patient) in write_clinical_sample
@@ -2122,7 +2127,7 @@ def fill_from_combined(
 
         if (
             tmv_msi["MSI"][0][1] != "NA" and
-            eval("float(tmv_msi['MSI'][0][1])" + msi_sites_thr)):
+            meets_threshold(tmv_msi["MSI"][0][1], msi_sites_thr)):
             table_dict_patient[k].append(tmv_msi["MSI"][1][1])
         else:
             table_dict_patient[k].append("NA")
@@ -2139,7 +2144,7 @@ def fill_from_combined(
                         table_dict_patient[k].append("Stable")
 
                 elif SAMPLE_TYPE == "SOLID":
-                    if eval(str(msi_value) + msi_thr):
+                    if meets_threshold(msi_value, msi_thr):
                         table_dict_patient[k].append("Stable")
                     else:
                         table_dict_patient[k].append("Unstable")
@@ -2150,7 +2155,7 @@ def fill_from_combined(
         if tmv_msi["TMB_Total"] != "NA":
             found = False
             for _k, _v in tmb.items():
-                if eval(tmv_msi["TMB_Total"] + _v):
+                if meets_threshold(tmv_msi["TMB_Total"], _v):
                     table_dict_patient[k].append(_k)
                     found = True
                     break
@@ -2330,8 +2335,8 @@ def write_exon_brca(
         exonic = []
         try:
             exonic = tsv.get_exons(Path(v))
-        except Exception:
-            logger.error(f"Something went wrong while reading Exon-Level CNVs for sample {k}")
+        except Exception as err:
+            logger.error(f"Something went wrong while reading Exon-Level CNVs for sample {k}: {err}")
 
         if not exonic:
             continue
@@ -2484,7 +2489,11 @@ def update_data_clinical_with_exon_info(
 
             with open(data_clin_path, "w") as f:
                 f.writelines(updated_headers)
-                merged_data_clin.to_csv(f, sep="\t", index=False)
+                # lineterminator="\n": f is a text-mode handle that already
+                # turns "\n" into the platform's line ending - pandas' own
+                # default (os.linesep) would double it into "\r\r\n" on
+                # Windows, which cBioPortal's validator rejects.
+                merged_data_clin.to_csv(f, sep="\t", index=False, lineterminator="\n")
 
         else:
             logger.warning("No exon CNV data available to update the clinical file.")
@@ -2615,7 +2624,11 @@ def update_data_clinical_with_hrd_info(
 
             with open(data_clin_path, "w") as f:
                 f.writelines(updated_headers)
-                merged_data_clin.to_csv(f, sep="\t", index=False)
+                # lineterminator="\n": f is a text-mode handle that already
+                # turns "\n" into the platform's line ending - pandas' own
+                # default (os.linesep) would double it into "\r\r\n" on
+                # Windows, which cBioPortal's validator rejects.
+                merged_data_clin.to_csv(f, sep="\t", index=False, lineterminator="\n")
         else:
             logger.warning("No sample data available to update HRD/GIS clinical info.")
 

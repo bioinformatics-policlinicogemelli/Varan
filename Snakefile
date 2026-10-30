@@ -99,10 +99,16 @@ _ctx_pkl = f"{_c['output_folder']}/.walk_ctx.pkl"
 # the per-sample walk_snv_sample jobs ({sample} below is that key).
 _snv_samples_tsv = f"{_c['output_folder']}/.snv_samples.tsv"
 
-# vcf2maf runs VEP with 4 forks by default (Varan doesn't pass
-# --vep-forks), so each per-sample SNV job really uses 4 cores - declared
-# as its `threads` so Snakemake/PBS don't overbook a node.
-VEP_FORKS = 4
+# Each per-sample SNV job runs VEP with conf.ini's [Paths] VEP_FORKS forks
+# (default 4, vcf2maf's own default), so it's declared as the job's
+# `threads` - Snakemake/PBS then neither overbook a node nor leave cores idle.
+import configparser as _configparser
+_conf_ini = _configparser.ConfigParser()
+_conf_ini.read(config["conf_path"])
+VEP_FORKS = _conf_ini.getint("Paths", "VEP_FORKS", fallback=4)
+
+# create only touches its marker: never worth a cluster job.
+localrules: create
 
 wildcard_constraints:
     sample=r"[A-Za-z0-9._-]+",
@@ -284,6 +290,9 @@ rule concatenate:
         done=f"{_c['output_folder']}/.concatenate.done",
     log:
         f"{_c['output_folder']}/service/logs/snakemake_concatenate.log",
+    # One cluster job for concatenate -> tables -> validate: short steps run
+    # back to back, so they share a single PBS submission (and queue wait).
+    group: "finalize"
     conda:
         config["conda_env"]
     params:
@@ -305,6 +314,7 @@ rule tables:
         done=f"{_c['output_folder']}/.tables.done",
     log:
         f"{_c['output_folder']}/service/logs/snakemake_tables.log",
+    group: "finalize"
     conda:
         config["conda_env"]
     params:
@@ -322,6 +332,7 @@ rule validate:
         done=f"{_c['output_folder']}/.validate.done",
     log:
         f"{_c['output_folder']}/service/logs/snakemake_validate.log",
+    group: "finalize"
     conda:
         config["conda_env"]
     params:

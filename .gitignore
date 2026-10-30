@@ -1,0 +1,9 @@
+# Python bytecode caches
+__pycache__/
+*.py[cod]
+
+# Snakemake's own run metadata (locks, incomplete-job markers, conda envs)
+.snakemake/
+
+# PBS job logs written by run.py's cluster mode
+logs/pbs/
