@@ -43,6 +43,7 @@ from Delete_functions import (
     check_sample_list,
     delete_all_data)
 from filter_clinvar import check_bool
+from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
 from ValidateFolder import (
     copy_maf,
@@ -53,7 +54,7 @@ from versioning import (
     create_newest_version_folder,
     extract_info_from_meta,
     get_version_list)
-from write_report import write_report_remove
+from write_report import write_report_failure, write_report_remove
 from config_loader import get_config
 
 config = get_config()
@@ -107,44 +108,65 @@ def delete_main(oldpath: str, removepath: str, output: str,
     output = create_newest_version_folder(output)
     logger.info(f"Creating a new folder: {output}")
 
+    # The run's log file lives inside its own output (study) folder - see
+    # attach_file_log_sink()'s docstring for why any failure to write it is
+    # swallowed rather than crashing an otherwise-fine run.
+    attach_file_log_sink(
+        Path(output), "Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log")
+
     output_caseslists = Path(output) / "case_lists"
     output_caseslists.mkdir(parents=True, exist_ok=True)
 
     logger.info("Great! Everything is ready to start")
 
-    with Path(removepath).open() as sample_list:
-        first_line = sample_list.readline()
-        if len(first_line.split("\t")) > 1:
-            logger.warning(f"The file {removepath} contains more than a column. "
-            "It may not be in the correct format!")
+    # `stage`/`cancer` let the failure report (if the except below fires)
+    # say more than just "it failed" - `cancer` starts as None since it
+    # isn't known until extract_info_from_meta() runs partway through.
+    stage = "Removing samples"
+    cancer = None
+    try:
+        with Path(removepath).open() as sample_list:
+            first_line = sample_list.readline()
+            if len(first_line.split("\t")) > 1:
+                logger.warning(f"The file {removepath} contains more than a column. "
+                "It may not be in the correct format!")
 
-    with Path(removepath).open("r") as f:
-        sample_ids = [line.strip() for line in f]
+        with Path(removepath).open("r") as f:
+            sample_ids = [line.strip() for line in f]
 
-    delete_all_data(oldpath, sample_ids, output)
+        delete_all_data(oldpath, sample_ids, output)
 
-    for file in Path(oldpath).glob("*meta*"):
-        if file.is_file():
-            shutil.copy(file, Path(output))
+        for file in Path(oldpath).glob("*meta*"):
+            if file.is_file():
+                shutil.copy(file, Path(output))
 
-    check_all_data(output)
-    remove_meta(output)
+        check_all_data(output)
+        remove_meta(output)
 
-    cancer, study_info = extract_info_from_meta(oldpath)
-    study_info.append(oldpath)
-    study_info.append(no_out)
+        stage = "Creating tables"
+        cancer, study_info = extract_info_from_meta(oldpath)
+        study_info.append(oldpath)
+        study_info.append(no_out)
 
-    meta_case_main(cancer, output, study_info, study_id)
+        meta_case_main(cancer, output, study_info, study_id)
 
-    zip_maf = check_bool(config.get("Zip", "ZIP_MAF"))
-    maf_copy = check_bool(config.get("Zip", "COPY_MAF"))
-    copy_maf(oldpath, output, maf_copy, zip_maf)
+        stage = "Copying MAF files"
+        zip_maf = check_bool(config.get("Zip", "ZIP_MAF"))
+        maf_copy = check_bool(config.get("Zip", "COPY_MAF"))
+        copy_maf(oldpath, output, maf_copy, zip_maf)
 
-    logger.info("Starting Validation Folder...")
-    number_for_graph = validate_output(output, None, False, True, None, None, None)
+        stage = "Validation"
+        logger.info("Starting Validation Folder...")
+        number_for_graph = validate_output(output, None, False, True, None, None, None)
 
-    logger.info("Starting writing report_VARAN.html...")
-    write_report_remove(oldpath, output, number_for_graph, start_time)
+        stage = "Writing report_VARAN.html"
+        logger.info("Starting writing report_VARAN.html...")
+        write_report_remove(oldpath, output, number_for_graph, start_time)
+    except Exception as err:
+        logger.critical(f"Remove failed during '{stage}': {err}")
+        write_report_failure(
+            output, err, cancer=cancer, start_time=start_time, stage=stage)
+        raise
 
     logger.success("The process ended without errors")
     logger.success("Successfully removed sample(s)!")

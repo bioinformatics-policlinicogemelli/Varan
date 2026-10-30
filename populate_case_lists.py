@@ -53,14 +53,18 @@ def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
         logger.exception("data_sv.txt is empty, skipping this step!")
         return()
 
-    nsamples = len(data_sv.Sample_Id.unique())
-    sample_ids = list(data_sv.Sample_Id.unique())
+    # Filter out NaN before counting, not just when building case_list_ids
+    # below - otherwise a NaN Sample_Id (e.g. from a malformed splice-variant
+    # row) counts as "1 sample" in nsamples while being excluded from the
+    # actual listed IDs, so the reported count and the list length disagree.
+    sample_ids = [s for s in data_sv.Sample_Id.unique() if pd.notna(s)]
+    nsamples = len(sample_ids)
 
     stable_id = project_id + "_sv"
     case_list_name = "Samples with SV data"
     case_list_category = "all_cases_with_sv_data"
     case_list_description = "Samples with SV data (" + str(nsamples) + " sample(s))"
-    case_list_ids = "\t".join([str(s).strip() for s in sample_ids if pd.notna(s)])
+    case_list_ids = "\t".join([str(s).strip() for s in sample_ids])
 
     dictionary_file = {
         "cancer_study_identifier": project_id,

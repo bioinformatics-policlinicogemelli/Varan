@@ -25,6 +25,7 @@ flexible customization of thresholds and accepted values for each filter.
 """
 
 import ast
+import configparser
 import os
 import subprocess
 import shutil
@@ -92,9 +93,65 @@ def filter_oncokb(df: pd.DataFrame, section: str, key: str) -> pd.DataFrame:
                       matches the allowed values from config.
 
     """
-    oncokb_filter = ast.literal_eval(config.get(section, key))
+    try:
+        oncokb_filter = ast.literal_eval(config.get(section, key))
+    except (configparser.NoOptionError, configparser.NoSectionError) as err:
+        logger.critical(
+            f"conf.ini is missing '{key}' under [{section}] - required to "
+            "filter OncoKB oncogenicity calls. If this conf.ini predates "
+            "the SNV/CNV/FUSION split (a single ONCOKB_FILTER used to cover "
+            "all three), add ONCOKB_FILTER_SNV under [Filters], "
+            "ONCOKB_FILTER_CNV under [Cna] and ONCOKB_FILTER_FUSION under "
+            "[FUSION] - see the conf.ini template.")
+        msg = f"Missing conf.ini option: [{section}] {key}"
+        raise SystemExit(msg) from err
 
     return df[df["ONCOGENIC"].isin(oncokb_filter)]
+
+
+def filter_vaf_exclude_bands(
+    df: pd.DataFrame,
+    vaf_colname: str,
+    exclude_bands: list[tuple[float, float]]) -> pd.DataFrame:
+    """Drop rows whose VAF falls inside one or more excluded bands.
+
+    Unlike the existing single min/max VAF filter (`t_VAF_min`/`t_VAF_max`
+    in conf.ini, applied by the 'v' flag in filter_main below), this drops
+    one or more closed intervals *out of the middle* of the VAF range - the
+    intended use is excluding the germline heterozygous (~0.5) and
+    homozygous (~1.0) VAF clusters that a tumor-only (no matched normal)
+    sample still carries even after population-frequency filtering, before
+    e.g. building a mutational-signature spectrum where those clusters
+    would distort the result. A single min/max bound cannot express "keep
+    everything except 0.45-0.55 and 0.90-1.0" - hence a list of bands
+    rather than one more min/max pair.
+
+    Args:
+        df (pd.DataFrame): A MAF-shaped DataFrame with a numeric-coercible
+            VAF column.
+        vaf_colname (str): Name of the VAF column to check (e.g. "t_AF" or
+            "t_VF" - same ambiguity as the existing 'v' filter, see
+            filter_main).
+        exclude_bands (list[tuple[float, float]]): One or more (min, max)
+            pairs, each a closed interval (min <= vaf <= max) to exclude.
+            An empty list is a no-op (returns df unchanged).
+
+    Returns:
+        pd.DataFrame: df with rows inside any excluded band removed. Rows
+            with a non-numeric/missing VAF are left in place (not this
+            filter's job to drop them - same convention as the 'v' filter,
+            which does its own dropna separately).
+
+    """
+    if not exclude_bands:
+        return df
+
+    vaf_numeric = pd.to_numeric(df[vaf_colname], errors="coerce")
+    in_any_band = pd.Series(data=False, index=df.index)
+    for band_min, band_max in exclude_bands:
+        in_any_band |= (vaf_numeric >= band_min) & (vaf_numeric <= band_max)
+
+    return df[~in_any_band.fillna(False)]
 
 
 def check_clin_sig(row: pd.Series) -> bool:
@@ -245,6 +302,14 @@ def filter_main(input_path: str,folder: str,
                        - 'q': filter using variant consequence annotations
                        - 'y': filter using PolyPhen predictions
                        - 's': filter using SIFT predictions
+                       - 'v' also applies conf.ini [Filters]
+                         VAF_EXCLUDE_BANDS (a list of [min, max] pairs,
+                         default [] = no-op) alongside t_VAF_min/t_VAF_max -
+                         see filter_vaf_exclude_bands(). Unlike the single
+                         min/max range, this can express "keep everything
+                         except these bands", e.g. excluding germline
+                         heterozygous/homozygous VAF clusters (~0.5, ~1.0)
+                         from a tumor-only sample.
         cancer (str): Default cancer code used for OncoKB annotation.
         resume (bool): Whether to resume processing if partial results exist.
         overwrite (bool, optional): If True, overwrite existing OncoKB annotation
@@ -292,20 +357,52 @@ def filter_main(input_path: str,folder: str,
             file = Path(f).name
             file_no = file.replace(".maf", "") + extension
             file_path = maf_oncokb_path / file_no
+
+            # -q Genomic_Change: without it, MafAnnotator.py's own default
+            # (AnnotatorCore.resolve_query_type()) picks HGVSp_Short
+            # whenever that column exists, which it always does coming out
+            # of vcf2maf. That queries OncoKB "by protein change", which is
+            # ambiguous whenever vcf2maf's chosen transcript for a gene
+            # differs from OncoKB's own canonical one (same genomic
+            # variant, different amino-acid position on each transcript) -
+            # confirmed against real data: a real, pathogenic, clinically
+            # actionable BRCA1 nonsense mutation (rs80356969) came back
+            # "Unknown"/excluded via HGVSp_Short (OncoKB's own API replies
+            # with a REFERENCE_ALLELE_MISMATCH error - reference amino acid
+            # doesn't match on OncoKB's canonical transcript, ENST00000357654
+            # vs vcf2maf's ENST00000471181), but correctly "Likely
+            # Oncogenic" via Genomic_Change on the exact same variant. The
+            # genomic coordinates (Chromosome/Start_Position/
+            # Reference_Allele/Tumor_Seq_Allele2) are already in every MAF
+            # here and unambiguous regardless of transcript choice, so this
+            # also isn't a one-off fix for BRCA1 specifically - any gene
+            # where the two tools' canonical transcripts disagree is at
+            # risk, and OncoKB's own canonical-transcript assignment can
+            # itself drift over time independently of anything in Varan.
             if "ONCOTREE_CODE" in input_file.columns:
                 for _, row in input_file.iterrows():
                     if str(row["SAMPLE_ID"]) in file_no:
-                        cancer_onco = row["ONCOTREE_CODE"] or cancer
+                        oncotree_value = row["ONCOTREE_CODE"]
+                        # `or` alone isn't enough: float('nan') is truthy in
+                        # Python, so a missing per-sample ONCOTREE_CODE (NaN,
+                        # not just "") would silently skip the cancer
+                        # fallback and crash a few lines down on .upper().
+                        cancer_onco = (
+                            oncotree_value
+                            if pd.notna(oncotree_value) and oncotree_value
+                            else cancer)
                         subprocess.run([
-                            "python3", "oncokb-annotator/MafAnnotator.py",
+                            sys.executable, "oncokb-annotator/MafAnnotator.py",
                             "-i", str(f), "-o", str(file_path),
                             "-t", cancer_onco.upper(),
+                            "-q", "Genomic_Change",
                             "-b", config.get("OncoKB", "ONCOKB")], check=True)
             else:
                 subprocess.run([
-                    "python3", "oncokb-annotator/MafAnnotator.py",
+                    sys.executable, "oncokb-annotator/MafAnnotator.py",
                     "-i", str(f), "-o", str(file_path),
                     "-t", cancer.upper(),
+                    "-q", "Genomic_Change",
                     "-b", config.get("OncoKB", "ONCOKB")], check=True)
 
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
@@ -386,6 +483,18 @@ def filter_main(input_path: str,folder: str,
                     file_to_filter = file_to_filter[
                         (file_to_filter[vaf_colname] > t_vaf_min) &
                         (file_to_filter[vaf_colname] <= t_vaf_max)]
+
+                # VAF_EXCLUDE_BANDS lives alongside t_VAF_min/t_VAF_max in
+                # conf.ini and is folded into the same 'v' flag rather than
+                # needing its own letter, for uniformity with how every
+                # other VAF-related threshold here already works (no extra
+                # opt-in beyond 'v' itself). Empty list (the default) is a
+                # no-op. See filter_vaf_exclude_bands()'s docstring for why
+                # a list of bands, not another single min/max pair.
+                exclude_bands = ast.literal_eval(
+                    config.get("Filters", "VAF_EXCLUDE_BANDS"))
+                file_to_filter = filter_vaf_exclude_bands(
+                    file_to_filter, vaf_colname, exclude_bands)
 
             if "a" in filters:
                 af = config.get("Filters", "AF")

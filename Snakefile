@@ -11,7 +11,11 @@ walk_stage.py, a thin CLI wrapper around walk.py's internal
 _walk_setup/_walk_process_cnv/_walk_process_snv/_walk_process_fusion/
 _walk_write_clinical_tables functions (see walk.py's WalkContext
 docstring for why those four stages are safe to run independently: none
-of them depends on another's output, only on setup's).
+of them depends on another's output, only on setup's). One exception:
+with `sigma: true`, walk_clinical reads the SigMA results walk_snv writes
+to intermediate/sigma/data_sigma.txt (see _write_sigma_intermediate in
+walk.py), so walk_clinical then also waits on walk_snv - otherwise the
+SIGMA_* columns could silently go missing from data_clinical_sample.txt.
 
 filter/concatenate/tables/validate shell out to pipeline_stage.py, a thin
 CLI wrapper around varan.py's own filter_main/concatenate_main/
@@ -26,11 +30,10 @@ about running them in parallel with *each other* - it's:
   2. `filter` only depends on walk_snv's output, not on walk_cnv/
      walk_fusion/walk_clinical too - so with enough cores, filter can
      start running while CNV/fusion/clinical are still in progress,
-     instead of waiting for all four WALK stages to finish. This is the
-     one real remaining parallelism gap from the WALK-only split.
+     instead of waiting for all four WALK stages to finish.
 
-`create` is now a thin final rule that only waits on `validate`'s output -
-no more re-invoking `python varan.py -R` as a catch-all for stages 2-5.
+`create` is a thin final rule that only waits on `validate`'s output - no
+more re-invoking `python varan.py -R` as a catch-all for stages 2-5.
 
 update/extract/remove do not go through walk_folder at all (they use their
 own update_*/extract_*/delete_* functions, already one function per file
@@ -49,6 +52,10 @@ Usage (from the repository root, with conf.ini and config.yaml filled in):
     snakemake --cores 1 --use-conda update
     snakemake --cores 1 --use-conda extract
     snakemake --cores 1 --use-conda remove
+
+Or via run.py, which adds per-config locking, PBS cluster submission and a
+run summary on top of the same four targets - see run.py --help:
+    ./run.py -w create -c config.yaml -q 4
 """
 
 configfile: "config.yaml"
@@ -70,6 +77,8 @@ def _create_setup_args() -> str:
         args += " --multiple"
     if _c.get("oncokb"):
         args += " --oncokb"
+    if _c.get("sigma"):
+        args += " --sigma"
     if _c.get("vcf_type"):
         args += f" --vcf-type {_c['vcf_type']}"
     if _c.get("filters"):
@@ -104,20 +113,27 @@ def _validate_args() -> str:
     return args
 
 
+# See module docstring: with SigMA on, walk_clinical consumes walk_snv's
+# intermediate/sigma/data_sigma.txt, so it must run after walk_snv.
+_clinical_inputs = {"ctx": _ctx_pkl}
+if _c.get("sigma"):
+    _clinical_inputs["snv"] = f"{_c['output_folder']}/.snv.done"
+
+
 rule walk_setup:
     """Resolve input/output paths once (create_folder, input extraction,
     resume-state checks) - see _walk_setup() in walk.py."""
     output:
         ctx=_ctx_pkl,
     log:
-        "Logs/snakemake_walk_setup.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_setup.log",
     conda:
         config["conda_env"]
     params:
         args=_create_setup_args(),
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py setup {params.args} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} setup {params.args} > {log} 2>&1"
 
 
 rule walk_cnv:
@@ -128,11 +144,13 @@ rule walk_cnv:
     output:
         done=f"{_c['output_folder']}/.cnv.done",
     log:
-        "Logs/snakemake_walk_cnv.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_cnv.log",
     conda:
         config["conda_env"]
+    params:
+        conf=config["conf_path"],
     shell:
-        "python walk_stage.py cnv --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} cnv --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_snv:
@@ -142,11 +160,13 @@ rule walk_snv:
     output:
         done=f"{_c['output_folder']}/.snv.done",
     log:
-        "Logs/snakemake_walk_snv.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_snv.log",
     conda:
         config["conda_env"]
+    params:
+        conf=config["conf_path"],
     shell:
-        "python walk_stage.py snv --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} snv --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_fusion:
@@ -157,38 +177,43 @@ rule walk_fusion:
     output:
         done=f"{_c['output_folder']}/.fusion.done",
     log:
-        "Logs/snakemake_walk_fusion.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_fusion.log",
     conda:
         config["conda_env"]
+    params:
+        conf=config["conf_path"],
     shell:
-        "python walk_stage.py fusion --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} fusion --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_clinical:
     """data_clinical_patient.txt / data_clinical_sample.txt (MSI/TMB, exon,
-    HRD) - independent of walk_cnv/walk_snv/walk_fusion."""
+    HRD) - independent of walk_cnv/walk_fusion, and of walk_snv unless
+    sigma is on (see module docstring)."""
     input:
-        ctx=_ctx_pkl,
+        **_clinical_inputs,
     output:
         done=f"{_c['output_folder']}/.clinical.done",
     log:
-        "Logs/snakemake_walk_clinical.log",
+        f"{_c['output_folder']}/service/logs/snakemake_walk_clinical.log",
     conda:
         config["conda_env"]
+    params:
+        conf=config["conf_path"],
     shell:
-        "python walk_stage.py clinical --ctx {input.ctx} > {log} 2>&1"
+        "python walk_stage.py -C {params.conf} clinical --ctx {input.ctx} > {log} 2>&1"
 
 
 rule filter:
     """Stage 2: MAF filtering (varan.py's filter_main). Depends only on
-    walk_snv, not on walk_cnv/walk_fusion/walk_clinical - the one real
-    parallelism gap this branch closes, see module docstring."""
+    walk_snv, not on walk_cnv/walk_fusion/walk_clinical - see module
+    docstring."""
     input:
         snv=f"{_c['output_folder']}/.snv.done",
     output:
         done=f"{_c['output_folder']}/.filter.done",
     log:
-        "Logs/snakemake_filter.log",
+        f"{_c['output_folder']}/service/logs/snakemake_filter.log",
     conda:
         config["conda_env"]
     params:
@@ -205,7 +230,7 @@ rule concatenate:
     output:
         done=f"{_c['output_folder']}/.concatenate.done",
     log:
-        "Logs/snakemake_concatenate.log",
+        f"{_c['output_folder']}/service/logs/snakemake_concatenate.log",
     conda:
         config["conda_env"]
     params:
@@ -219,9 +244,8 @@ rule concatenate:
 
 
 rule tables:
-    """Stage 4: meta/case list files (varan.py's meta_case_main). Depends
-    only on concatenate - CNV/fusion/clinical are already on disk from the
-    WALK stages, this stage doesn't re-touch them."""
+    """Stage 4: meta/case list files (varan.py's meta_case_main). Needs
+    every WALK stage's output on disk, plus the concatenated MAF."""
     input:
         concat=f"{_c['output_folder']}/.concatenate.done",
         cnv=f"{_c['output_folder']}/.cnv.done",
@@ -230,7 +254,7 @@ rule tables:
     output:
         done=f"{_c['output_folder']}/.tables.done",
     log:
-        "Logs/snakemake_tables.log",
+        f"{_c['output_folder']}/service/logs/snakemake_tables.log",
     conda:
         config["conda_env"]
     params:
@@ -248,7 +272,7 @@ rule validate:
         done=f"{_c['output_folder']}/.validate.done",
         report=f"{_c['output_folder']}/report_VARAN.html",
     log:
-        "Logs/snakemake_validate.log",
+        f"{_c['output_folder']}/service/logs/snakemake_validate.log",
     conda:
         config["conda_env"]
     params:
@@ -273,7 +297,7 @@ rule update:
     output:
         report=f"{config['update']['output_folder']}/report_VARAN.html",
     log:
-        "Logs/snakemake_update.log",
+        f"{config['update']['output_folder']}/service/logs/snakemake_update.log",
     conda:
         config["conda_env"]
     params:
@@ -288,7 +312,7 @@ rule extract:
     output:
         report=f"{config['extract']['output_folder']}/report_VARAN.html",
     log:
-        "Logs/snakemake_extract.log",
+        f"{config['extract']['output_folder']}/service/logs/snakemake_extract.log",
     conda:
         config["conda_env"]
     params:
@@ -303,7 +327,7 @@ rule remove:
     output:
         report=f"{config['remove']['output_folder']}/report_VARAN.html",
     log:
-        "Logs/snakemake_remove.log",
+        f"{config['remove']['output_folder']}/service/logs/snakemake_remove.log",
     conda:
         config["conda_env"]
     params:
@@ -311,3 +335,45 @@ rule remove:
         conf=config["conf_path"],
     shell:
         "python varan.py {params.args} -C {params.conf} > {log} 2>&1"
+
+
+## ============================================================================
+## Completion notification -- opt-in via `notify_email:` in config.yaml.
+## Omit it and this silently no-ops (harmless for setups that don't want
+## it). Uses the system mail/mailx command with a 15s timeout so a broken
+## mail relay can't hang the pipeline's completion. Fires once per
+## run.py/snakemake invocation, not once per rule/target.
+## ============================================================================
+
+def _notify_email(subject: str, body: str) -> None:
+    email = config.get("notify_email")
+    if not email:
+        return
+    import shutil
+    import subprocess
+    mail_bin = shutil.which("mail") or shutil.which("mailx")
+    if not mail_bin:
+        return
+    try:
+        subprocess.run(
+            [mail_bin, "-s", subject, email],
+            input=body.encode(), check=False, timeout=15)
+    except Exception:
+        pass
+
+
+onsuccess:
+    _notify_email(
+        "[Varan/Snakemake] SUCCESS",
+        "The Varan Snakemake run completed successfully.\n"
+        f"Config file: {config.get('conf_path', 'conf.ini')}\n")
+
+
+onerror:
+    _notify_email(
+        "[Varan/Snakemake] FAILED",
+        "The Varan Snakemake run failed. Each target's own study folder "
+        "has a report_VARAN.html explaining what happened (written even on "
+        "failure - see write_report_failure()), and the per-rule Snakemake "
+        "logs live under that same folder's service/logs/.\n"
+        f"Config file: {config.get('conf_path', 'conf.ini')}\n")

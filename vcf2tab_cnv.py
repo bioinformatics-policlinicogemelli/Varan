@@ -33,9 +33,12 @@ from __future__ import annotations
 import math
 import sys
 from pathlib import Path
+from typing import Dict, Optional
 
 import pandas as pd
 from loguru import logger
+
+from cnv_focality import classify_focality
 
 
 def is_positive(number: float, sample: str) -> bool:
@@ -54,7 +57,7 @@ def is_positive(number: float, sample: str) -> bool:
         True if the number is positive, False otherwise.
 
     """
-    if number >= 0:
+    if number > 0:
         return True
     with Path("negative_FC.log").open("a") as n:
         n.write(f"[WARNING] the sample {sample} has a Fold change in CNV with "
@@ -132,13 +135,40 @@ def extract_header_positions(header_line: str, sample: str) -> dict:
 
     """
     fields_names = [x.strip() for x in header_line.split("\t")]
+    format_idx = fields_names.index("FORMAT")
+    sample_columns = fields_names[format_idx + 1:]
+
+    if sample in sample_columns:
+        sample_format = fields_names.index(sample)
+    elif len(sample_columns) == 1:
+        # Every CNV VCF this codebase processes is tumor-only (no matched
+        # NORMAL column), so there's never any ambiguity about which
+        # column is "the sample" even when it isn't literally named after
+        # it - e.g. a raw DRAGEN VCF names its one sample column after an
+        # internal library id instead of the SAMPLE_ID Varan tracks it as.
+        # Falling back to it positionally instead of failing outright only
+        # matters for that single-sample case: with more than one sample
+        # column (a real multi-sample VCF), which one to use genuinely is
+        # ambiguous without a name match, so that case still raises below.
+        logger.warning(
+            f"CNV VCF's sample column is named '{sample_columns[0]}', not "
+            f"'{sample}' - using it anyway since it's this file's only "
+            "sample column.")
+        sample_format = format_idx + 1
+    else:
+        msg = (f"Sample '{sample}' not found among this VCF's "
+               f"{len(sample_columns)} sample columns "
+               f"({', '.join(sample_columns)}) - can't tell which one it is.")
+        raise ValueError(msg)
+
     return {
         "chrom": fields_names.index("#CHROM"),
         "info": fields_names.index("INFO"),
         "start": fields_names.index("POS"),
         "qual": fields_names.index("QUAL"),
-        "format_infos": fields_names.index("FORMAT"),
-        "sample_format": fields_names.index(sample),
+        "alt": fields_names.index("ALT"),
+        "format_infos": format_idx,
+        "sample_format": sample_format,
     }
 
 
@@ -255,15 +285,54 @@ def parse_fc_and_gene(
     return fc, gene
 
 
-def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, sample: str, mode: str) -> None:
-    """Convert VCF CNV to table format with FC, gene, discrete, and CNV adjusted/unadjusted values.
+def load_tc_lookup(sample_info_path: Path) -> tuple[dict[str, float], Optional[str]]:
+    """Load every sample's TC (tumor cellularity, as a 0-1 fraction) from
+    sample.tsv ONCE for the whole batch, instead of re-reading/re-checking
+    it inside vcf_to_table_fc() on every single sample - which previously
+    also re-logged the same "no TC info at all" warning once per sample.
 
     Parameters
     ----------
     sample_info_path : Path
-        Path to the sample.tsv file containing TC (tumor cellularity) per sample.
-    sample_info_path : Path
-        Path to the sample.tsv file containing TC (tumor cellularity) per sample.
+        Directory containing the batch's sample.tsv.
+
+    Returns
+    -------
+    tuple[dict[str, float], str | None]
+        A `{SAMPLE_ID: tc_fraction}` map (only for samples that actually
+        have a usable TC value), and either None (TC info is available,
+        so a per-sample gap is a real per-sample fact worth its own
+        warning) or a single reason string to log once for the whole
+        batch when TC isn't available at all (missing sample.tsv or
+        missing TC column).
+    """
+    sample_info_path = Path(sample_info_path)
+    if not sample_info_path.exists():
+        return {}, f"Sample info file {sample_info_path} not found"
+
+    tc_tbl = pd.read_csv(Path(sample_info_path, "sample.tsv"), sep="\t",
+                         dtype={"SAMPLE_ID": str})
+    if "TC" not in tc_tbl.columns:
+        return {}, f"Column 'TC' not found in {sample_info_path}"
+
+    tc_by_sample = {}
+    for _, row in tc_tbl.iterrows():
+        if pd.isna(row["TC"]):
+            continue
+        tc_by_sample[row["SAMPLE_ID"]] = float(row["TC"]) / 100
+    return tc_by_sample, None
+
+
+def vcf_to_table_fc(tc_lookup: Dict[str, float], vcf_file: str, table_file: str, sample: str, mode: str) -> None:
+    """Convert VCF CNV to table format with FC, gene, discrete, and CNV adjusted/unadjusted values.
+
+    Parameters
+    ----------
+    tc_lookup : dict[str, float]
+        `{SAMPLE_ID: tc_fraction}` map for the whole batch, from
+        load_tc_lookup() - a sample missing from it gets an unadjusted-
+        only CN (logging that gap is the caller's responsibility, since it
+        can decide whether it's a per-sample or a whole-batch fact).
     vcf_file : str
         Path to the input VCF file.
     table_file : str
@@ -281,35 +350,14 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
     vcf_path = Path(vcf_file)
     sample = sample.split(".")[0]
 
-    tc_available = False
-    sample_tc = None
-    if sample_info_path.exists():
-        tc_tbl = pd.read_csv(Path(sample_info_path, "sample.tsv"), sep="\t",
-                             dtype={"SAMPLE_ID": str})
-        if "TC" in tc_tbl.columns:
-            tc_available = True
-            tc_row = tc_tbl[tc_tbl["SAMPLE_ID"] == sample]
-            if not tc_row.empty and not pd.isna(tc_row["TC"].values[0]):
-                sample_tc = float(tc_row["TC"].values[0])/100
-            else:
-                sample_tc = None
-                logger.warning(
-                    f"Sample '{sample}' does not have a TC value. Only unadjusted CN will be calculated."
-                )
-        else:
-            logger.warning(
-                f"Column 'TC' not found in {sample_info_path}. Only unadjusted CN will be calculated."
-            )
-    else:
-        logger.warning(
-            f"Sample info file {sample_info_path} not found. Only unadjusted CN will be calculated."
-        )
-    sample = sample.split(".")[0]
+    sample_tc = tc_lookup.get(sample)
 
     mode = "a" if table_path.exists() else "w"
     with vcf_path.open() as vcf, table_path.open(mode) as table:
         if mode != "a":
-            table.write("ID\tchrom\tloc.start\tloc.end\tnum.mark\tFC\tgene\tdiscrete\tcnv_unadjusted\tcnv_adjusted\n")
+            table.write(
+                "ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\tFC\tgene\t"
+                "discrete\tcnv_unadjusted\tcnv_adjusted\tcnv_class\n")
 
         for line in vcf:
             if line.startswith("##fileformat"):
@@ -319,14 +367,14 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
                 continue
 
             if line.startswith("#"):
-                fields_names = [x.strip() for x in line.split("\t")]
-                chrom_position = fields_names.index("#CHROM")
-                info_position = fields_names.index("INFO")
-                start_position = fields_names.index("POS")
-                qual_position = fields_names.index("QUAL")
-                alt_position = fields_names.index("ALT")
-                format_position = fields_names.index("FORMAT")
-                sample_position = fields_names.index(sample)
+                positions = extract_header_positions(line, sample)
+                chrom_position = positions["chrom"]
+                info_position = positions["info"]
+                start_position = positions["start"]
+                qual_position = positions["qual"]
+                alt_position = positions["alt"]
+                format_position = positions["format_infos"]
+                sample_position = positions["sample_format"]
                 continue
 
             fields = line.strip().split("\t")
@@ -352,10 +400,11 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
             fc = float(fc)
             if not is_positive(fc, sample):
                 fc = 0.0001
+            log2fc = math.log2(fc)
 
             cn_unadjusted = round(2 * fc)
             
-            if tc_available and sample_tc is not None and sample_tc > 0:
+            if sample_tc is not None and sample_tc > 0:
                 cn_adjusted = round(2 + 2 * (fc - 1) / sample_tc)
                 if cn_adjusted < 0:
                     cn_adjusted = 0
@@ -372,7 +421,12 @@ def vcf_to_table_fc(sample_info_path: Path, vcf_file: str, table_file: str, samp
             else:
                 discr = "0"
 
-            table.write(f"{sample}\t{chrom}\t{start}\t{end}\t{qual}\t{fc}\t{gene}\t{discr}\t{cn_unadjusted}\t{cn_adjusted}\n")
+            cnv_class = classify_focality(chrom, start, end)
+            cnv_class = cnv_class if cnv_class is not None else "NA"
+
+            table.write(
+                f"{sample}\t{chrom}\t{start}\t{end}\t{qual}\t{log2fc}\t{fc}\t{gene}\t"
+                f"{discr}\t{cn_unadjusted}\t{cn_adjusted}\t{cnv_class}\n")
 
 
 def load_table(file_path: str) -> pd.DataFrame:

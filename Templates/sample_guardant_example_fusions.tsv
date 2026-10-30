@@ -1,0 +1,3 @@
+Sample_Id	SV_Status	Class	Site1_Hugo_Symbol	Site2_Hugo_Symbol	Normal_Paired_End_Read_Count	Event_Info	RNA_Support
+20250630_30ng_22	SOMATIC	FUSION	ROS1	CD74	23	ROS1-CD74 Fusion	Yes
+20250630_30ng_22	SOMATIC	FUSION	RET	NCOA4	10	RET-NCOA4 Fusion	Yes

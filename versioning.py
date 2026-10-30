@@ -156,24 +156,48 @@ def get_newest_version(output_folder: str) -> tuple:
     return Path(output_folder).parent / output_folder_version, f"_v{v}"
 
 
-def create_newest_version_folder(outputfolder: str) -> str:
+def create_newest_version_folder(outputfolder: str, max_retries: int = 5) -> str:
     """Create a new folder with the next version suffix.
+
+    Scans for the next free version number and creates it right after, with
+    no lock in between - so two Varan runs started against the same output
+    folder at nearly the same time (a real risk on a shared cluster) can
+    both compute the same next version number. Rather than let the second
+    one crash with a raw FileExistsError, this re-scans and retries a
+    handful of times: by the time it retries, the first run's mkdir() has
+    already landed, so the re-scan picks the next number after it.
 
     Args:
         outputfolder (str): Base folder path.
+        max_retries (int): How many times to re-scan and retry after losing
+            a race to another process, before giving up.
 
     Returns:
         str: Path to the newly created versioned folder.
 
     """
-    if len(get_version_list(outputfolder)) == 0:
-        version = "_v1"
-        outputfolder_newest_version = Path(outputfolder + version)
-    else:
-        outputfolder_newest_version, _= get_newest_version(outputfolder)
-    Path(outputfolder_newest_version).mkdir()
+    for attempt in range(max_retries):
+        if len(get_version_list(outputfolder)) == 0:
+            version = "_v1"
+            outputfolder_newest_version = Path(outputfolder + version)
+        else:
+            outputfolder_newest_version, _= get_newest_version(outputfolder)
+        try:
+            Path(outputfolder_newest_version).mkdir()
+            return outputfolder_newest_version
+        except FileExistsError:
+            logger.warning(
+                f"'{outputfolder_newest_version}' already exists - another "
+                "process (likely a concurrent Varan run against the same "
+                f"output) claimed it first. Re-checking and retrying with "
+                f"the next version number (attempt {attempt + 1}/{max_retries}).")
 
-    return outputfolder_newest_version
+    msg = (
+        f"Could not claim a new version folder for '{outputfolder}' after "
+        f"{max_retries} attempts - too many concurrent runs against the same "
+        "output folder. Please retry, or use a different output folder.")
+    logger.critical(msg)
+    raise FileExistsError(msg)
 
 
 def extract_info_from_meta(folder: str) -> tuple:

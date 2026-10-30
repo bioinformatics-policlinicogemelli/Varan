@@ -29,6 +29,7 @@ from loguru import logger
 from config_loader import get_config
 from populate_case_lists import (populate_cases_cna, populate_cases_sequenced,
                                  populate_cases_sv)
+from ValidateFolder import remove_meta
 from versioning import extract_version_str
 
 
@@ -306,6 +307,44 @@ def create_meta_cna_hg19(project_id: str, profile: str, output_dir: str) -> None
             meta_file.write(f"{key}: {value}\n")
 
 
+def create_meta_generic_assay_exon_brca(project_id: str, output_dir: str) -> None:
+    """Create the meta file for the BRCA1/BRCA2 exon-level CNV Generic Assay profile.
+
+    Separate from meta_cna.txt: this profile only carries a coarse
+    LOSS/GAIN/NEUTRAL call per gene (data_exon_brca_cna.txt), so it can't be
+    confused with - or overwrite - the real gene-level copy-number values in
+    the standard CNA profile.
+
+    Args:
+        project_id: Study identifier.
+        output_dir: Path to the output directory.
+
+    Returns:
+        None.
+
+    """
+    dictionary_file = {
+        "cancer_study_identifier": project_id,
+        "genetic_alteration_type": "GENERIC_ASSAY",
+        "generic_assay_type": "EXON_LEVEL_CNV",
+        "datatype": "CATEGORICAL",
+        "stable_id": "exon_brca_cna",
+        "show_profile_in_analysis_tab": "true",
+        "profile_name": "BRCA1/BRCA2 exon-level copy number",
+        "profile_description": (
+            "Exon-level LOSS/GAIN calls for BRCA1 and BRCA2 from the "
+            "CombinedVariantOutput Exon-Level CNVs section, independent of "
+            "the gene-level copy-number-alteration profile."),
+        "data_filename": "data_exon_brca_cna.txt",
+    }
+
+    meta_file_path = Path(output_dir) / "meta_exon_brca_cna.txt"
+    with meta_file_path.open("w") as meta_file:
+        logger.info("Writing meta_exon_brca_cna.txt file...")
+        for key, value in dictionary_file.items():
+            meta_file.write(f"{key}: {value}\n")
+
+
 def meta_case_main(
     cancer: str,
     output_folder: str,
@@ -369,6 +408,18 @@ def meta_case_main(
 
 
     ###########  METAFILE FUNCTIONS  ###########
+
+    # A resumed run (-R) writes into an already-existing output folder, so
+    # a data file this run ends up without (e.g. data_sv.txt deleted by
+    # _walk_process_fusion after every fusion turned out empty this time)
+    # can leave behind a meta file from an earlier state in the same
+    # folder - the create_meta_*()-per-data-file guards below only ever
+    # ADD a meta file, they never remove a now-orphaned one. remove_meta()
+    # (already used by Update/Delete/Extract for the same reason) clears
+    # those out first; a no-op on a fresh, single-shot run since no meta
+    # file exists yet to be orphaned.
+    remove_meta(output_folder)
+
     project_id = create_meta_study(
         cancer,
         project_name,
@@ -402,6 +453,10 @@ def meta_case_main(
     if (output_folder_path / "data_cna_hg19.seg").exists():
         create_meta_cna_hg19(project_id, profile_cna19, output_folder)
         logger.info("meta_cna_hg19.txt created!")
+
+    if (output_folder_path / "data_exon_brca_cna.txt").exists():
+        create_meta_generic_assay_exon_brca(project_id, output_folder)
+        logger.info("meta_exon_brca_cna.txt created!")
 
     ########### CASE LIST FUNCTION ###########
 

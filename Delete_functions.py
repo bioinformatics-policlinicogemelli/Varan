@@ -90,16 +90,21 @@ def delete_clinical_patient(
     filtered_sample = sample.iloc[:, idx_patient].astype(str).isin(patient_ids)
     if len(sample[filtered_sample]) > len(sample_ids):
         pzt_list=sample[sample.iloc[:, idx_patient].astype(str).isin(patient_ids)]
-        pzt_dup = [
+        # keep=False flags every row of every patient that appears more than
+        # once in pzt_list (i.e. every patient with more total samples than
+        # just the one(s) being removed) - collecting all of them, not just
+        # the first, is required below to protect every such patient's row
+        # from deletion, not only the first one encountered.
+        pzt_dup = list(
             pzt_list[
-                pzt_list.duplicated(subset=sample.columns[idx_patient])
-                ].iloc[0,1]]
+                pzt_list.duplicated(subset=sample.columns[idx_patient], keep=False)
+                ].iloc[:, idx_patient].unique())
 
         for p_dup in pzt_dup:
-            df_dup = pzt_list[pzt_list.iloc[:,1]==p_dup]
+            df_dup = pzt_list[pzt_list.iloc[:, idx_patient] == p_dup]
             if len(
                 df_dup[
-                    df_dup.iloc[:, 0].astype(str).isin(sample_ids)
+                    df_dup.iloc[:, idx_sample].astype(str).isin(sample_ids)
                     ])<df_dup.shape[0]:
                 patient_ids.remove(p_dup)
 
@@ -146,6 +151,30 @@ def delete_cna_hg19_fc(
 
     output_path = Path(output_folder) / "data_cna_hg19.seg.fc.txt"
     filtered.to_csv(output_path, index=False, sep="\t")
+
+
+def delete_exon_brca_cna(
+    file_path: str, sample_ids: list[str], output_folder: str) -> None:
+    """Remove sample columns from the BRCA exon-level CNV Generic Assay matrix.
+
+    Mirrors delete_cna, but for data_exon_brca_cna.txt's shape: two leading
+    id columns (ENTITY_STABLE_ID, NAME) followed by one column per sample,
+    instead of data_cna.txt's single leading Hugo_Symbol column - so it
+    can't reuse delete_cna directly.
+
+    Args:
+        file_path (str): Path to data_exon_brca_cna.txt.
+        sample_ids (list[str]): List of sample IDs whose columns to remove.
+        output_folder (str): Directory to save the updated file.
+
+    Returns:
+        None
+
+    """
+    file = pd.read_csv(file_path, sep="\t")
+    filtered = file.drop(columns=sample_ids, errors="ignore")
+    output_path = Path(output_folder) / "data_exon_brca_cna.txt"
+    filtered.to_csv(output_path, sep="\t", index=False)
 
 
 def delete_cna(file_path: str, sample_ids: list[str], output_folder: str) -> None:
@@ -309,6 +338,7 @@ def delete_all_data(oldpath: str, sample_ids: list, output: str) -> None:
         ("data_mutations_extended.txt", delete_mutations, True),
         ("data_sv.txt", delete_sv, True),
         ("exon_CNA_data.txt", delete_generic_by_sample_id, True),
+        ("data_exon_brca_cna.txt", delete_exon_brca_cna, True),
     ]
 
     for filename, deleter, use_path in file_to_delete:
