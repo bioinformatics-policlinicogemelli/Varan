@@ -37,6 +37,13 @@ is read until a function actually runs.
 from __future__ import annotations
 
 from configparser import ConfigParser
+from pathlib import Path
+
+# Varan's own folder: its bundled resources (cancer_list.txt,
+# oncokb-annotator/, docs/img/logo_VARAN.png, styles.css, dict.csv, ...)
+# are looked up here, so Varan works whatever the current directory is.
+# Input/output paths given by the user stay relative to where it's run.
+VARAN_DIR = Path(__file__).resolve().parent
 
 _config_path = "conf.ini"
 _config: ConfigParser | None = None
@@ -75,7 +82,12 @@ def get_config() -> ConfigParser:
     global _config
     if _config is None:
         _config = ConfigParser()
-        found = _config.read(_config_path)
+        path = Path(_config_path)
+        # The default (no -C) "conf.ini" falls back to Varan's own copy
+        # when the current directory has none.
+        if _config_path == "conf.ini" and not path.exists():
+            path = VARAN_DIR / "conf.ini"
+        found = _config.read(path)
         if not found:
             from loguru import logger
             logger.warning(

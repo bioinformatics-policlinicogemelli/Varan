@@ -92,6 +92,10 @@ run summary on top of the same four targets - see run.py --help:
 
 configfile: "config.yaml"
 
+# Varan's own folder (this Snakefile's): stage scripts are run from it, so
+# snakemake/run.py can be launched from any directory.
+VARAN_DIR = workflow.basedir
+
 _c = config["create"]
 _ctx_pkl = f"{_c['output_folder']}/.walk_ctx.pkl"
 # One "<job_key>\t<sample_id>\t<vcf>" line per SNV sample, written by
@@ -159,7 +163,7 @@ checkpoint walk_setup:
         args=_create_setup_args(),
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py -C {params.conf} setup {params.args} > {log} 2>&1"
+        "python \"{VARAN_DIR}/walk_stage.py\" -C {params.conf} setup {params.args} > {log} 2>&1"
 
 
 rule walk_cnv:
@@ -176,7 +180,7 @@ rule walk_cnv:
     params:
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py -C {params.conf} cnv --ctx {input.ctx} > {log} 2>&1"
+        "python \"{VARAN_DIR}/walk_stage.py\" -C {params.conf} cnv --ctx {input.ctx} > {log} 2>&1"
 
 
 def _snv_sample_markers(wildcards) -> list[str]:
@@ -206,7 +210,7 @@ rule walk_snv_sample:
     params:
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py -C {params.conf} snv-sample --ctx {input.ctx} "
+        "python \"{VARAN_DIR}/walk_stage.py\" -C {params.conf} snv-sample --ctx {input.ctx} "
         "--sample {wildcards.sample:q} > {log} 2>&1"
 
 
@@ -225,7 +229,7 @@ rule walk_snv:
     params:
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py -C {params.conf} snv-finish --ctx {input.ctx} > {log} 2>&1"
+        "python \"{VARAN_DIR}/walk_stage.py\" -C {params.conf} snv-finish --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_fusion:
@@ -242,7 +246,7 @@ rule walk_fusion:
     params:
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py -C {params.conf} fusion --ctx {input.ctx} > {log} 2>&1"
+        "python \"{VARAN_DIR}/walk_stage.py\" -C {params.conf} fusion --ctx {input.ctx} > {log} 2>&1"
 
 
 rule walk_clinical:
@@ -260,7 +264,7 @@ rule walk_clinical:
     params:
         conf=config["conf_path"],
     shell:
-        "python walk_stage.py -C {params.conf} clinical --ctx {input.ctx} > {log} 2>&1"
+        "python \"{VARAN_DIR}/walk_stage.py\" -C {params.conf} clinical --ctx {input.ctx} > {log} 2>&1"
 
 
 rule filter:
@@ -279,7 +283,7 @@ rule filter:
         ctx=_ctx_pkl,
         conf=config["conf_path"],
     shell:
-        "python pipeline_stage.py -C {params.conf} filter --ctx {params.ctx} > {log} 2>&1"
+        "python \"{VARAN_DIR}/pipeline_stage.py\" -C {params.conf} filter --ctx {params.ctx} > {log} 2>&1"
 
 
 rule concatenate:
@@ -299,7 +303,7 @@ rule concatenate:
         ctx=_ctx_pkl,
         conf=config["conf_path"],
     shell:
-        "python pipeline_stage.py -C {params.conf} concatenate --ctx {params.ctx} > {log} 2>&1"
+        "python \"{VARAN_DIR}/pipeline_stage.py\" -C {params.conf} concatenate --ctx {params.ctx} > {log} 2>&1"
 
 
 rule tables:
@@ -321,7 +325,7 @@ rule tables:
         ctx=_ctx_pkl,
         conf=config["conf_path"],
     shell:
-        "python pipeline_stage.py -C {params.conf} tables --ctx {params.ctx} > {log} 2>&1"
+        "python \"{VARAN_DIR}/pipeline_stage.py\" -C {params.conf} tables --ctx {params.ctx} > {log} 2>&1"
 
 
 rule validate:
@@ -339,7 +343,7 @@ rule validate:
         ctx=_ctx_pkl,
         conf=config["conf_path"],
     shell:
-        "python pipeline_stage.py -C {params.conf} validate --ctx {params.ctx} > {log} 2>&1"
+        "python \"{VARAN_DIR}/pipeline_stage.py\" -C {params.conf} validate --ctx {params.ctx} > {log} 2>&1"
 
 
 rule create:
@@ -364,7 +368,7 @@ rule update:
         args=config["update"]["args"],
         conf=config["conf_path"],
     shell:
-        "python varan.py {params.args} -C {params.conf} > {log} 2>&1"
+        "python \"{VARAN_DIR}/varan.py\" {params.args} -C {params.conf} > {log} 2>&1"
 
 
 rule extract:
@@ -379,7 +383,7 @@ rule extract:
         args=config["extract"]["args"],
         conf=config["conf_path"],
     shell:
-        "python varan.py {params.args} -C {params.conf} > {log} 2>&1"
+        "python \"{VARAN_DIR}/varan.py\" {params.args} -C {params.conf} > {log} 2>&1"
 
 
 rule remove:
@@ -394,7 +398,7 @@ rule remove:
         args=config["remove"]["args"],
         conf=config["conf_path"],
     shell:
-        "python varan.py {params.args} -C {params.conf} > {log} 2>&1"
+        "python \"{VARAN_DIR}/varan.py\" {params.args} -C {params.conf} > {log} 2>&1"
 
 
 ## ============================================================================

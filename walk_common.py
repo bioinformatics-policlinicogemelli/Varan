@@ -30,7 +30,7 @@ import pandas as pd
 from loguru import logger
 
 # conf.ini settings, read when used (not at import - see config_loader.py).
-from config_loader import config
+from config_loader import VARAN_DIR, config
 
 
 def _path_setting(key: str) -> str:
@@ -165,7 +165,7 @@ def unknown_oncotree_codes(sample_tsv: pd.DataFrame) -> dict[str, list[str]]:
     cBioPortal doesn't know - cancer_list.txt (in Varan's folder) is its
     list of cancer types, i.e. OncoTree codes, lower-cased. A study with
     such a code fails cBioPortal's import, and OncoKB/SigMA can't use it."""
-    known_path = Path(__file__).resolve().parent / "cancer_list.txt"
+    known_path = VARAN_DIR / "cancer_list.txt"
     known = {
         line.split("\t", 1)[0].strip().lower()
         for line in known_path.read_text(encoding="utf-8").splitlines()[1:]}

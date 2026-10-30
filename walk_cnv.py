@@ -28,7 +28,7 @@ from loguru import logger
 
 import tsv
 import vcf2tab_cnv
-from config_loader import config
+from config_loader import VARAN_DIR, config
 from filter_clinvar import check_bool, filter_oncokb
 from walk_common import WalkContext, get_combined_variant_output_from_folder, ploidy
 
@@ -283,7 +283,7 @@ def cnv_type_from_folder(input_path: str,
 
 
                     cmd = [
-                        sys.executable, "./oncokb-annotator/CnaAnnotator.py",
+                        sys.executable, str(VARAN_DIR / "oncokb-annotator" / "CnaAnnotator.py"),
                         "-i", str(df_path),
                         "-o", str(out),
                         "-f", "individual",

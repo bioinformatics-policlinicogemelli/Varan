@@ -40,7 +40,7 @@ import pandas as pd
 from loguru import logger
 
 import versioning
-from config_loader import config
+from config_loader import VARAN_DIR, config
 from filter_clinvar import check_bool
 from versioning import get_git_version
 
@@ -324,13 +324,13 @@ def write_report_failure(
     img_dir = output_path / "img"
     img_dir.mkdir(parents=True, exist_ok=True)
 
-    logo_src = Path("docs") / "img" / "logo_VARAN.png"
+    logo_src = VARAN_DIR / "docs" / "img" / "logo_VARAN.png"
     logo_dst = img_dir / "logo_VARAN.png"
     if not logo_dst.exists() and logo_src.exists():
         shutil.copy(logo_src, logo_dst)
 
-    if Path("styles.css").exists():
-        shutil.copy("styles.css", img_dir / "styles.css")
+    if (VARAN_DIR / "styles.css").exists():
+        shutil.copy(VARAN_DIR / "styles.css", img_dir / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -619,7 +619,7 @@ def write_report_main(
         The function saves the HTML report to `output_folder` as 'report_VARAN.html'.
 
     """
-    shutil.copy("styles.css", Path(output_folder) / "img" / "styles.css")
+    shutil.copy(VARAN_DIR / "styles.css", Path(output_folder) / "img" / "styles.css")
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
     start_time_html = (
@@ -1256,7 +1256,7 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
         new_img_path = img_output_dir / "logo_VARAN.png"
         shutil.copy(old_img_path, new_img_path)
 
-    shutil.copy("styles.css", Path(new_study) / "img" / "styles.css")
+    shutil.copy(VARAN_DIR / "styles.css", Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -1823,7 +1823,7 @@ def write_report_extract(original_study: str, new_study: str,
         new_img_path = img_output_dir / "logo_VARAN.png"
         shutil.copy(old_img_path, new_img_path)
 
-    shutil.copy("styles.css", Path(new_study) / "img" / "styles.css")
+    shutil.copy(VARAN_DIR / "styles.css", Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -2262,7 +2262,7 @@ def write_report_remove(
         new_img_path = img_output_dir / "logo_VARAN.png"
         shutil.copy(old_img_path, new_img_path)
 
-    shutil.copy("styles.css", Path(new_study) / "img" / "styles.css")
+    shutil.copy(VARAN_DIR / "styles.css", Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")

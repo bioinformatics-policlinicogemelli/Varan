@@ -40,7 +40,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-from config_loader import config
+from config_loader import VARAN_DIR, config
 from filter_clinvar import check_bool
 from populate_case_lists import write_profiled_samples
 from versioning import get_newest_version, get_version_list
@@ -684,7 +684,7 @@ def validate_input(
         logger.warning("OncoKB filter was selected in filters options but -k option "
         "was not set. This filtering will be ignored.")
 
-    cancer_cbio = pd.read_csv("cancer_list.txt", sep="\t")
+    cancer_cbio = pd.read_csv(VARAN_DIR / "cancer_list.txt", sep="\t")
     cancer_cbio = cancer_cbio["TYPE_OF_CANCER_ID"].to_numpy().tolist()
 
     if cancer not in cancer_cbio:
@@ -759,7 +759,7 @@ def _walk_setup(
         msg = "Exiting from walk script!"
         raise(FileNotFoundError(msg))
 
-    img_path = Path("docs") / "img" / "logo_VARAN.png"
+    img_path = VARAN_DIR / "docs" / "img" / "logo_VARAN.png"
     if img_path.exists():
         img_output_dir = Path(output_folder) / "img"
         img_output_dir.mkdir(parents=True, exist_ok=True)

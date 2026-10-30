@@ -35,7 +35,7 @@ import pandas as pd
 from loguru import logger
 
 import concatenate
-from config_loader import config
+from config_loader import VARAN_DIR, config
 from thresholds import meets_threshold_series
 
 
@@ -384,14 +384,14 @@ def filter_main(input_path: str,folder: str,
                             if pd.notna(oncotree_value) and oncotree_value
                             else cancer)
                         subprocess.run([
-                            sys.executable, "oncokb-annotator/MafAnnotator.py",
+                            sys.executable, str(VARAN_DIR / "oncokb-annotator" / "MafAnnotator.py"),
                             "-i", str(f), "-o", str(file_path),
                             "-t", cancer_onco.upper(),
                             "-q", "Genomic_Change",
                             "-b", config.get("OncoKB", "ONCOKB")], check=True)
             else:
                 subprocess.run([
-                    sys.executable, "oncokb-annotator/MafAnnotator.py",
+                    sys.executable, str(VARAN_DIR / "oncokb-annotator" / "MafAnnotator.py"),
                     "-i", str(f), "-o", str(file_path),
                     "-t", cancer.upper(),
                     "-q", "Genomic_Change",
