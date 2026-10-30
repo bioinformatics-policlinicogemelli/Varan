@@ -172,6 +172,10 @@ def _cmd_setup(args: argparse.Namespace, pipeline: str) -> None:
         ctx_out.parent.mkdir(parents=True, exist_ok=True)
         with ctx_out.open("wb") as f:
             pickle.dump(ctx, f)
+        # Plain-text copy of the real study path, for the Snakefile's
+        # onsuccess handler (which can't unpickle ctx: it runs in
+        # Snakemake's own environment, without Varan's dependencies).
+        (ctx_out.parent / ".study_path").write_text(str(ctx.output_folder))
         logger.success(f"walk_stage setup complete, context written to {ctx_out}")
 
     # The versioned study folder doesn't exist until _walk_setup() has run,

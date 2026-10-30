@@ -41,10 +41,17 @@ service/logs/). The study itself is the versioned folder _walk_setup()
 creates next to it (`<output_folder>_v1`, `_v2`, ... exactly as with
 `python varan.py -i ... -o <output_folder>`), and that's where
 report_VARAN.html and each stage's Varan_<stage>_*.log are written - every
-stage after setup reads that real path from the context pickle. Because
-the .done markers live in the bookkeeping folder, re-running into a new
-version needs `--forceall` (or deleting the markers); `resume: true`
-continues the latest version.
+stage after setup reads that real path from the context pickle.
+
+Re-running behaves like varan.py: if a create run fails, re-running the
+same command picks up from the failed stage, in the same `_vN` (the
+markers are still in the bookkeeping folder). Once a create run succeeds,
+the onsuccess handler below moves its markers/context into
+`<study>/service/snakemake/` and its Snakemake logs into
+`<study>/service/logs/`, so the next run of the same config starts from
+scratch and creates the next version (`_v2`, ...) - no `--forceall`
+needed. `resume: true` is only varan.py's own -R (reuse the latest
+version, skip vcf2maf when its MAFs are already there).
 
 walk_setup also does what varan.py's __main__ does before a create run:
 [Vendor] PIPELINE resolution/[Sample_Type] TYPE reconciliation (repeated
@@ -349,7 +356,47 @@ def _notify_email(subject: str, body: str) -> None:
         pass
 
 
+def _archive_create_run() -> None:
+    """After a successful create run, move its bookkeeping files out of
+    create.output_folder and into the study it produced, so the next run
+    of the same config starts fresh (see module docstring). No-op if
+    create didn't run to completion in this invocation's folder. Plain
+    stdlib only: this runs in Snakemake's own process/environment, not in
+    a rule's conda env."""
+    import shutil
+    from pathlib import Path
+
+    base = Path(_c["output_folder"])
+    study_file = base / ".study_path"
+    if not (base / ".create.done").exists() or not study_file.exists():
+        return
+    study = Path(study_file.read_text().strip())
+    if not study.is_dir():
+        return
+
+    markers_dir = study / "service" / "snakemake"
+    logs_dir = study / "service" / "logs"
+    markers_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    for f in [*base.glob(".*.done"), base / ".walk_ctx.pkl", study_file]:
+        if f.exists():
+            shutil.move(str(f), str(markers_dir / f.name))
+    base_logs = base / "service" / "logs"
+    for f in base_logs.glob("snakemake_*.log"):
+        shutil.move(str(f), str(logs_dir / f.name))
+
+    # Only ever removes now-empty folders - anything else left in the
+    # bookkeeping folder stays where it is.
+    for folder in (base_logs, base / "service", base):
+        try:
+            folder.rmdir()
+        except OSError:
+            break
+
+
 onsuccess:
+    _archive_create_run()
     _notify_email(
         "[Varan/Snakemake] SUCCESS",
         "The Varan Snakemake run completed successfully.\n"
