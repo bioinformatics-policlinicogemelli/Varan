@@ -48,6 +48,8 @@ from versioning import get_newest_version, get_version_list
 # Re-exported so `import walk` / `walk.<name>` keep working for every
 # caller (walk_stage.py, pipeline_stage.py, varan.py) after the split.
 from walk_common import (  # noqa: F401
+    describe_unknown_oncotree_codes,
+    unknown_oncotree_codes,
     get_table_from_folder,
     WalkContext,
     _path_setting,
@@ -632,6 +634,10 @@ def validate_input(
         msg = "oncokb option was set but ONCOKB field in conf.ini is empty!"
         raise ValueError(msg)
 
+    unknown_codes = unknown_oncotree_codes(file_tsv)
+    if unknown_codes:
+        logger.warning(describe_unknown_oncotree_codes(unknown_codes))
+
     # Fail here, before the expensive VEP/vcf2maf step, rather than deep
     # inside filter_oncokb() after that work is already done: a conf.ini
     # that predates the SNV/CNV/FUSION split (a single ONCOKB_FILTER used
@@ -667,6 +673,12 @@ def validate_input(
     if not _path_setting("REF_FASTA"):
         msg = "REF_FASTA field in conf.ini is empty!"
         raise ValueError(msg)
+
+    if (vcf_type is None or "snv" in vcf_type) and not _path_setting("CLINV").strip():
+        logger.warning(
+            "[Paths] CLINV in conf.ini is empty: VEP won't annotate variants "
+            "with ClinVar, so CLIN_SIG stays empty and the 'c' (clinical "
+            "significance) filter has nothing to filter on.")
 
     if "o" in filters and not oncokb:
         logger.warning("OncoKB filter was selected in filters options but -k option "
@@ -868,8 +880,11 @@ def _walk_setup(
                 (i for i in input_folder_cnv.iterdir() if i.name.endswith(".vcf")),
                 None)
             if multivcf:
-                extract_multiple_cnv(multivcf, input_folder_cnv)
-                input_folder_cnv = Path(input_folder_cnv) / "single_sample_vcf"
+                # Split inside this study's temp/ (removed at the end of the
+                # run), never inside the user's own input folder.
+                work_dir = Path(output_folder) / "temp" / "CNV"
+                extract_multiple_cnv(multivcf, work_dir)
+                input_folder_cnv = work_dir / "single_sample_vcf"
         logger.info("Checking CNV files...")
         case_folder_arr_cnv = get_cnv_from_folder(input_folder_cnv)
         logger.info("Everything ok!")
@@ -879,8 +894,9 @@ def _walk_setup(
     if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
         if multiple:
             multivcf = next(f for f in input_folder_snv.iterdir() if f.suffix == ".vcf")
-            extract_multiple_snv(multivcf, input_folder_snv)
-            input_folder_snv = input_folder_snv / "single_sample_vcf"
+            work_dir = Path(output_folder) / "temp" / "SNV"
+            extract_multiple_snv(multivcf, work_dir)
+            input_folder_snv = work_dir / "single_sample_vcf"
 
         logger.info("Checking SNV files...")
 
@@ -984,7 +1000,14 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
             value = str(row.get("comb_path", "")).strip()
             path = _resolve_input_file(value, comb_dir)
             if path is None and not value:
-                path = next((f for f in files if _named_after(sample_id, f.name)), None)
+                # Folder input's documented naming is per patient
+                # (<PATIENT_ID>_CombinedVariantOutput.tsv - the one
+                # get_combined_variant_output_from_folder() reads MSI/TMB
+                # from); a file named after the sample is accepted too.
+                by_patient = comb_dir / (
+                    f"{str(row.get('PATIENT_ID', '')).strip()}_CombinedVariantOutput.tsv")
+                path = by_patient if by_patient.is_file() else next(
+                    (f for f in files if _named_after(sample_id, f.name)), None)
             if path is not None and _tests_fusions(path):
                 tested.append(sample_id)
         profiled["sv"] = tested

@@ -160,6 +160,34 @@ def check_field_tsv(row: pd.Series, name: str) -> str:
     return field
 
 
+def unknown_oncotree_codes(sample_tsv: pd.DataFrame) -> dict[str, list[str]]:
+    """{ONCOTREE_CODE: [SAMPLE_ID, ...]} for the codes in sample.tsv that
+    cBioPortal doesn't know - cancer_list.txt (in Varan's folder) is its
+    list of cancer types, i.e. OncoTree codes, lower-cased. A study with
+    such a code fails cBioPortal's import, and OncoKB/SigMA can't use it."""
+    known_path = Path(__file__).resolve().parent / "cancer_list.txt"
+    known = {
+        line.split("\t", 1)[0].strip().lower()
+        for line in known_path.read_text(encoding="utf-8").splitlines()[1:]}
+    unknown: dict[str, list[str]] = {}
+    if "ONCOTREE_CODE" not in sample_tsv.columns:
+        return unknown
+    for row in sample_tsv.fillna("").to_dict("records"):
+        code = str(row.get("ONCOTREE_CODE", "")).strip()
+        if code and code.lower() not in known:
+            unknown.setdefault(code, []).append(str(row.get("SAMPLE_ID", "")).strip())
+    return unknown
+
+
+def describe_unknown_oncotree_codes(unknown: dict[str, list[str]]) -> str:
+    return (
+        "ONCOTREE_CODE value(s) unknown to cBioPortal (not in cancer_list.txt): "
+        + "; ".join(f"'{c}' ({', '.join(s)})" for c, s in unknown.items())
+        + ". Use OncoTree codes (e.g. CESC, PRAD, COADREAD - see "
+        "oncotree.mskcc.org): cBioPortal won't import the study as is, and "
+        "OncoKB/SigMA can't use these samples' tumor type.")
+
+
 def get_combined_variant_output_from_folder(
     input_folder: str, file: pd.DataFrame, isinputfile: bool) -> dict:
     """Create a dict mapping SAMPLE_ID to CombinedVariantOutput file paths.

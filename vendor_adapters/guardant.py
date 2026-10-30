@@ -76,7 +76,6 @@ here - see MULTIVENDOR_INTEGRATION_NOTES.md):
 
 import csv
 import os
-import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -103,6 +102,12 @@ NAME = "guardant"
 # risking drift (PIPELINE=guardant with a forgotten/mismatched TYPE=Solid).
 # See varan.reconcile_sample_type() and MULTIVENDOR_INTEGRATION_NOTES.md.
 SAMPLE_TYPE = "Liquid"
+
+# Guardant reports carry no tumor content (TC) / tumor fraction, which
+# [Cna] CNVKIT_algorithm = True needs for its discrete CNA calls - so
+# varan.reconcile_cnv_algorithm() turns it off for Guardant runs, and the
+# CNA calls come from Guardant's own copy numbers instead.
+PROVIDES_TUMOR_CONTENT = False
 
 # --- DEFAULT PATHS (deployment-specific; override via run()'s kwargs for
 # a different environment/test setup rather than editing these) ---

@@ -54,7 +54,7 @@ import ast
 import pandas as pd
 from loguru import logger
 
-from config_loader import config, get_config
+from config_loader import config
 from filter_clinvar import check_bool, filter_vaf_exclude_bands
 from thresholds import meets_threshold_series
 

@@ -184,12 +184,11 @@ def vcf2maf_constructor(v: str,
     _, file_vcf = os.path.split(v)
 
     out_file = Path(output_folder) / "maf" / (file_vcf + ".maf")
+    # No ClinVar annotation when [Paths] CLINV is blank - warned about once,
+    # at setup (walk.validate_input), not for every VCF.
     if _path_setting("CLINV").strip() != "":
         cl.append("--vep-custom")
         cl.append(_path_setting("CLINV"))
-    else:
-        logger.warning("CLINV section in [Paths] in conf.ini is not compiled. "
-        "This step will be skipped")
     cl.append("--output-maf")
     cl.append(str(out_file))
     cl.append("--ref-fasta")
@@ -220,7 +219,7 @@ def vcf2maf_constructor(v: str,
     return cl
 
 
-def run_vcf2maf(cl: list, sample: str) -> None:
+def run_vcf2maf(cl: list, sample: str) -> bool:
     """Run the vcf2maf conversion using the constructed command.
 
     Args:
@@ -228,7 +227,7 @@ def run_vcf2maf(cl: list, sample: str) -> None:
         sample (str): The sample ID for logging purposes.
 
     Returns:
-        None
+        bool: Whether vcf2maf produced a non-empty MAF.
 
     """
     logger.info(f"Starting vcf2maf conversion of {sample}... This may take several "
@@ -236,11 +235,12 @@ def run_vcf2maf(cl: list, sample: str) -> None:
     logger.info(f"args={cl}")
     sout = subprocess.run(cl, capture_output=True, check=False)
 
-    if sout.stderr is not None:
-        if "ERROR" not in sout.stderr.decode("ascii"):
-            logger.warning(sout.stderr.decode("ascii").replace("ERROR: ",""))
+    stderr = (sout.stderr or b"").decode("ascii", errors="replace").strip()
+    if stderr:
+        if "ERROR" not in stderr:
+            logger.warning(stderr.replace("ERROR: ", ""))
         else:
-            logger.error(sout.stderr.decode("ascii").replace("ERROR: ",""))
+            logger.error(stderr.replace("ERROR: ", ""))
 
     # stderr text alone is not a reliable failure signal: vcf2maf commonly
     # logs non-fatal INFO/warning text there even on success (hence only
@@ -259,6 +259,8 @@ def run_vcf2maf(cl: list, sample: str) -> None:
                 f"vcf2maf did not produce a non-empty MAF for sample {sample} "
                 f"(expected at {out_file}) - this sample's mutations will be "
                 "missing from the final study.")
+            return False
+    return True
 
 
 def _read_vcf_header_and_data(vcf_path: str) -> tuple[list[str], list[str]]:
@@ -351,12 +353,15 @@ def extract_multiple_snv(multiple_vcf: str, input_dir: str) -> None:
     input_dir = Path(input_dir)
     vcf_dir = input_dir / "single_sample_vcf"
 
-    if not vcf_dir.exists():
-        vcf_dir.mkdir()
+    vcf_dir.mkdir(parents=True, exist_ok=True)
 
     sample_id_path = input_dir / "sample_id.txt"
-    cmd = f"vcf-query -l {multiple_vcf} > {sample_id_path}"
-    os.system(cmd)
+    try:
+        with sample_id_path.open("w") as f:
+            subprocess.run(["vcf-query", "-l", str(multiple_vcf)], stdout=f, check=True)
+    except subprocess.CalledProcessError as e:
+        msg = f"Error during vcf-query: {e}"
+        raise RuntimeError(msg) from e
 
     sample_id_file = input_dir / "sample_id.txt"
 
@@ -393,7 +398,9 @@ def _walk_process_snv(ctx: WalkContext) -> None:
     s_id_path_snv = _walk_snv_samples(ctx)
     job_keys = snv_job_keys(list(s_id_path_snv))
     for job_key, (k, v) in zip(job_keys, s_id_path_snv.items()):
-        _walk_process_snv_sample(ctx, k, v, job_key)
+        # varan.py's sequential path keeps going with the other samples
+        # (the error is logged); under Snakemake the sample's own job fails.
+        _walk_process_snv_sample(ctx, k, v, job_key, fail_on_missing_maf=False)
     _walk_snv_finish(ctx, job_keys)
 
 
@@ -435,6 +442,7 @@ def snv_job_keys(sample_ids: list[str]) -> list[str]:
 
 def _walk_process_snv_sample(
     ctx: WalkContext, sample_id: str, vcf_path: str, job_key: str,
+    fail_on_missing_maf: bool = True,
 ) -> None:
     """SNV step 2 of 3, for one sample: optional "d" VCF filter, vcf2maf
     (plus co-located variant recovery) and, with -g/--sigma, SigMA.
@@ -456,7 +464,12 @@ def _walk_process_snv_sample(
     # file to it (otherwise sample_id is just derived from the file name).
     tumor_id = sample_id if sample_id in ctx.snv_sample_ids.values() else None
     cl = vcf2maf_constructor(vcf_path, temporary, ctx.output_folder, tumor_id)
-    run_vcf2maf(cl, sample_id)
+    if not run_vcf2maf(cl, sample_id) and fail_on_missing_maf:
+        # One Snakemake job per sample: failing it makes a re-run convert
+        # just this sample again, instead of the job counting as done with
+        # the sample's mutations silently missing.
+        msg = f"vcf2maf produced no MAF for sample {sample_id} - see the error above."
+        raise RuntimeError(msg)
     recover_colocated_variants(
         vcf_path, temporary, ctx.output_folder, sample_id, tumor_id)
 

@@ -26,7 +26,6 @@ Modules imported include:
 
 Functions include:
 - `cbio_validation`: Wraps validation script and parses output.
-- `clean_multi`: Deletes intermediate files or directories.
 - `validate_folder_log`: Checks for required files in the study folder.
 - `validate_output`: Orchestrates full validation and reporting workflow.
 - `copy_maf`: Copies and optionally zips MAF files based on config.
@@ -75,8 +74,6 @@ def cbio_validation(output_folder: str) -> str:
             more than just cBioPortal upload, so the run must still finish.
 
     """
-    config = get_config()
-
     logger.info("Starting validation... ")
     logger.warning("Warning: succeeding files may still fail to load (correctly).")
 
@@ -130,25 +127,6 @@ def cbio_validation(output_folder: str) -> str:
         )
         return "PASS"
     return "UNKNOWN"
-
-def clean_multi(input_folder: str, folder: str, file: str) -> None:
-    """Remove a specified file or directory from a nested path.
-
-    Args:
-        input_folder (str): Base directory path.
-        folder (str): Subfolder name inside input_folder.
-        file (str): File or subdirectory name to be removed.
-
-    Behavior:
-        - Deletes file or folder if it exists at the constructed path.
-
-    """
-    mypath = Path(input_folder) / folder / file
-
-    if mypath.exists() and mypath.is_dir():
-        shutil.rmtree(mypath)
-    elif mypath.exists() and mypath.is_file():
-        mypath.unlink()
 
 
 def validate_folder_log(folder: str) -> None:
@@ -316,11 +294,6 @@ def validate_output(
         if temp_path.exists():
             shutil.rmtree(temp_path)
 
-        if multi and varan_input is not None:
-            clean_multi(varan_input[0], "CNV", "single_sample_vcf")
-            clean_multi(varan_input[0], "CNV", "sample_id.txt")
-            clean_multi(varan_input[0], "SNV", "single_sample_vcf")
-            clean_multi(varan_input[0], "SNV", "sample_id.txt")
 
     return number_for_graph
 

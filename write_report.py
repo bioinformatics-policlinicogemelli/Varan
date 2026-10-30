@@ -23,6 +23,7 @@ data review and interpretation.
 from __future__ import annotations
 
 import ast
+import configparser
 import functools
 import html
 import json
@@ -39,7 +40,7 @@ import pandas as pd
 from loguru import logger
 
 import versioning
-from config_loader import config, get_config
+from config_loader import config
 from filter_clinvar import check_bool
 from versioning import get_git_version
 
@@ -1468,7 +1469,7 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
             <div class="content">"""
 
     if updated_samples_cna or added_samples_cna:
-        html_content += f"""
+        html_content += """
     <p><strong>Cases_CNA:</strong></p>"""
 
     if updated_samples_cna:
@@ -1482,7 +1483,7 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
         {', '.join(added_samples_cna)})</p>"""
 
     if updated_samples_sequenced or added_samples_sequenced:
-        html_content += f"""
+        html_content += """
     <p><strong>Cases_sequenced:</strong></p>"""
 
     if updated_samples_sequenced:
@@ -1496,7 +1497,7 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
         {', '.join(added_samples_sequenced)})</p>"""
 
     if updated_samples_sv or added_samples_sv:
-        html_content += f"""
+        html_content += """
     <p><strong>Cases_sv:</strong></p>"""
 
     if updated_samples_sv:

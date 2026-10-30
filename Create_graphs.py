@@ -276,7 +276,7 @@ def create_barplots(output_folder: str) -> int:
         axes[1].legend(fontsize=6, loc="lower right")
 
     # SV: unchanged, single count per version (not broken down further).
-    bars = axes[2].barh(studies, sv, color="green")
+    axes[2].barh(studies, sv, color="green")
     axes[2].set_title("SV", fontsize=10)
 
     for i, breakdowns in enumerate([snv_breakdowns, cnv_breakdowns, None]):

@@ -30,11 +30,7 @@ import sys
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
-import subprocess
-from typing import TYPE_CHECKING, NoReturn
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+from typing import NoReturn
 
 from loguru import logger
 
@@ -438,7 +434,27 @@ def resolve_and_reconcile_pipeline() -> str:
             "). Fix conf.ini.")
         raise ValueError(msg)
     reconcile_sample_type(pipeline)
+    reconcile_cnv_algorithm(pipeline)
     return pipeline
+
+
+def reconcile_cnv_algorithm(pipeline: str) -> None:
+    """Turn [Cna] CNVKIT_algorithm off, in this run's in-memory conf.ini,
+    when the vendor pipeline gives no tumor content (its adapter's
+    PROVIDES_TUMOR_CONTENT = False, e.g. Guardant): the CNVkit-style calls
+    need every sample's TC, so with it on no sample would get any CNA call.
+    The standard calls (from the CNV report's own copy numbers) are used."""
+    adapter = ADAPTERS.get(pipeline)
+    if adapter is None or getattr(adapter, "PROVIDES_TUMOR_CONTENT", True):
+        return
+    config = get_config()
+    from filter_clinvar import check_bool
+    if check_bool(config.get("Cna", "CNVKIT_algorithm", fallback="False")):
+        config.set("Cna", "CNVKIT_algorithm", "False")
+        logger.warning(
+            f"[Cna] CNVKIT_algorithm = True can't be used with "
+            f"PIPELINE={pipeline!r}: it needs each sample's tumor content, "
+            "which this vendor doesn't provide - turned off for this run.")
 
 
 def create_args_error(
@@ -749,7 +765,7 @@ if __name__ == "__main__":
         from Make_meta_and_cases import meta_case_main
         from Update_script import update_main
         from ValidateFolder import validate_output
-        from walk import clear_scratch, create_random_name_folder, walk_folder
+        from walk import clear_scratch, walk_folder
         from write_report import write_report_failure
 
         cancer = args.Cancer

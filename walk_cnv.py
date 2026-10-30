@@ -71,7 +71,8 @@ def cnv_type_from_folder(input_path: str,
                          cancer: str,
                          multiple: bool,
                          filters: str = "",
-                         id_map: dict[str, str] | None = None) -> dict:
+                         id_map: dict[str, str] | None = None,
+                         cnv_dir: str | None = None) -> dict:
     """Process CNV, converting them in CNA tables and performing annotation.
 
     Args:
@@ -94,6 +95,10 @@ def cnv_type_from_folder(input_path: str,
         are only filtered down to Oncogenic/Likely Oncogenic when "o" is
         also present here, mirroring the SNV and fusion behavior.
         Defaults to "" (annotate but do not filter).
+    cnv_dir : str, optional
+        The folder the CNV VCFs (cnv_vcf_files) are in - e.g. a -m split's
+        output inside the study's temp/. Default: <input_path>/CNV (or its
+        single_sample_vcf/ subfolder with `multiple`).
     id_map : dict, optional
         CNV VCF file name -> sample.tsv SAMPLE_ID (see
         walk.sample_ids_by_file()). A file not in it gets an id derived
@@ -145,7 +150,9 @@ def cnv_type_from_folder(input_path: str,
                 with (Path(output_folder) / "sampleID_dup.log").open("a") as dup_path:
                     dup_path.write(sample_id + "\t" + "cnv_vcf\n")
             else:
-                if multiple:
+                if cnv_dir is not None:
+                    sid_path[sample_id] = Path(cnv_dir) / cnv_vcf
+                elif multiple:
                     sid_path[sample_id] = Path(
                         input_path) / "CNV" / "single_sample_vcf" / cnv_vcf
                 else:
@@ -265,7 +272,6 @@ def cnv_type_from_folder(input_path: str,
 
                 temppath_df=pd.read_csv(temppath, sep="\t")
                 
-                df_all=pd.DataFrame()
                 for sample_df in temppath_df["Tumor_Sample_Barcode"].unique():
                     
                     out = Path(out_can_ann) / temppath.name.replace(
@@ -443,7 +449,7 @@ def extract_multiple_cnv(multiple_vcf: str, input_dir: str) -> None:
     """
     input_dir = Path(input_dir)
     single_sample_vcf_dir = input_dir / "single_sample_vcf"
-    single_sample_vcf_dir.mkdir(exist_ok=True)
+    single_sample_vcf_dir.mkdir(parents=True, exist_ok=True)
 
     sample_id_txt = input_dir / "sample_id.txt"
 
@@ -707,7 +713,8 @@ def _walk_process_cnv(ctx: WalkContext) -> None:
         logger.info("Managing CNV files...")
         cnv_type_from_folder(
             ctx.input_folder, ctx.case_folder_arr_cnv, ctx.output_folder,
-            ctx.oncokb, ctx.cancer, ctx.multiple, ctx.filters, ctx.cnv_sample_ids)
+            ctx.oncokb, ctx.cancer, ctx.multiple, ctx.filters, ctx.cnv_sample_ids,
+            ctx.input_folder_cnv)
 
     combined_output_folder = Path(ctx.input_folder) / "CombinedOutput"
     if (combined_output_folder.exists()

@@ -26,7 +26,6 @@ flexible customization of thresholds and accepted values for each filter.
 
 import ast
 import configparser
-import os
 import subprocess
 import shutil
 import sys
@@ -36,7 +35,7 @@ import pandas as pd
 from loguru import logger
 
 import concatenate
-from config_loader import config, get_config
+from config_loader import config
 from thresholds import meets_threshold_series
 
 
@@ -264,27 +263,6 @@ def read_maf(file_path: str | Path) -> pd.DataFrame:
                 break
             n_comment += 1
     return pd.read_csv(file_path, sep="\t", dtype=object, skiprows=n_comment)
-
-
-def write_csv_with_info(df: pd.DataFrame, file_path: str) -> None:
-    """Write a pandas DataFrame to a CSV file with a custom version header.
-
-    This function first writes a version line at the top of the file,
-    and then appends the DataFrame content in tab-separated format, including headers
-    and without the index.
-
-    Args:
-        df (pd.DataFrame): The DataFrame to be written to file.
-        file_path (str): The path to the output file where the content will be saved.
-
-    Returns:
-        None
-
-    """
-    file_path = Path(file_path)
-    with file_path.open("w") as f:
-        f.write("#version 2.4\n")
-        df.to_csv(file_path, sep="\t", index=False, header=True)
 
 
 def filter_main(input_path: str,folder: str,

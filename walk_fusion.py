@@ -32,6 +32,76 @@ from thresholds import meets_threshold
 from walk_common import WalkContext, get_combined_variant_output_from_folder
 
 
+# data_sv.txt's columns as Varan writes them from CombinedVariantOutput.
+# The Site*_Chromosome/Position columns (the fusion/splice breakpoints)
+# stay blank when a source doesn't give them (fusion file, Guardant).
+SV_COLUMNS = [
+    "Sample_Id", "SV_Status", "Class", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol",
+    "Normal_Paired_End_Read_Count", "Event_Info", "RNA_Support",
+    "Site1_Chromosome", "Site1_Position", "Site2_Chromosome", "Site2_Position"]
+
+
+def _chromosome(name: str) -> str:
+    """Chromosome as cBioPortal's SV format writes it: no "chr" prefix."""
+    name = str(name).strip()
+    return name[3:] if name.lower().startswith("chr") else name
+
+
+def _split_breakpoint(breakpoint: str) -> tuple[str, str]:
+    """"chr7:55019278" -> ("7", "55019278"); ("", "") if not in that form."""
+    chrom, _, pos = str(breakpoint).strip().partition(":")
+    return (_chromosome(chrom), pos) if pos else ("", "")
+
+
+def _warn_fusion_conflicts(
+    fusion_folder: Path, fusion_files: list, combined_dict: dict[str, str]) -> None:
+    """Log, per sample, the fusions the fusion file and the sample's
+    CombinedVariantOutput disagree on - only for samples whose
+    CombinedVariantOutput reports a fusion analysis (not "NA")."""
+    from_file: dict[str, set] = {}
+    for fusion_file in fusion_files:
+        df = pd.read_csv(Path(fusion_folder) / fusion_file, sep="\t", dtype=str)
+        if not {"Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol"} <= set(df.columns):
+            continue
+        for row in df.itertuples(index=False):
+            from_file.setdefault(str(row.Sample_Id).strip(), set()).add(
+                frozenset({row.Site1_Hugo_Symbol, row.Site2_Hugo_Symbol}))
+    for sample_id, path in combined_dict.items():
+        if not Path(path).is_file():
+            continue
+        if not _reports_fusions(Path(path)):
+            if from_file.get(str(sample_id)):
+                logger.warning(
+                    f"{sample_id}: the fusion file lists fusions, but the "
+                    "sample's CombinedVariantOutput reports no fusion analysis "
+                    "(NA) - the fusion file's calls are used.")
+            continue
+        try:
+            from_combined = {frozenset({f["Site1_Hugo_Symbol"], f["Site2_Hugo_Symbol"]})
+                             for f in tsv.get_fusions(Path(path))}
+        except Exception as err:
+            logger.warning(f"{sample_id}: could not read CombinedVariantOutput fusions ({err}).")
+            continue
+        in_file = from_file.get(str(sample_id), set())
+        if in_file != from_combined:
+            def fmt(pairs: set) -> str:
+                return ", ".join(sorted("-".join(sorted(p)) for p in pairs)) or "none"
+            logger.warning(
+                f"{sample_id}: fusion file and CombinedVariantOutput disagree - "
+                f"file: {fmt(in_file)}; CombinedVariantOutput: {fmt(from_combined)}. "
+                "The fusion file's calls are used.")
+
+
+def _reports_fusions(combined_output: Path) -> bool:
+    """Whether a CombinedVariantOutput's [Fusions] section holds an
+    analysis (rows or an empty list) rather than "NA" (RNA not run)."""
+    lines = combined_output.read_text(errors="replace").splitlines()
+    for i, line in enumerate(lines):
+        if "[Fusions]" in line or "[Data Fusions]" in line:
+            return not (i + 2 < len(lines) and lines[i + 2].strip() == "NA")
+    return False
+
+
 def fill_fusion_from_temp(
     input_path: str,
     fusion_table_file: str,
@@ -81,10 +151,25 @@ def fill_fusion_from_temp(
                 logger.info(f"No Fusions found in {fusion_file}")
                 continue
             logger.info(f"Fusions found in {fusion_file}")
+            # The read count column is optional in the fusion file template:
+            # without a value THRESHOLD_FUSION can't be applied, so the
+            # fusion is kept (and that's logged once).
+            reads_col = "Normal_Paired_End_Read_Count"
+            known_ids = clin_file["SAMPLE_ID"].astype(str).to_numpy()
+            unfiltered = 0
             for fus in ff.itertuples(index=False):
-                if (str(fus.Sample_Id).strip() in clin_file["SAMPLE_ID"].astype(str).to_numpy() and
-                meets_threshold(fus.Normal_Paired_End_Read_Count, thr_fus)):
-                    fusion_table.write("\t".join(map(str, fus)) + "\n")
+                if str(fus.Sample_Id).strip() not in known_ids:
+                    continue
+                reads = str(getattr(fus, reads_col, "") or "").strip()
+                if reads in ("", "nan"):
+                    unfiltered += 1
+                elif not meets_threshold(reads, thr_fus):
+                    continue
+                fusion_table.write("\t".join(map(str, fus)) + "\n")
+            if unfiltered:
+                logger.warning(
+                    f"{fusion_file}: {unfiltered} fusion(s) without {reads_col} - "
+                    f"kept without applying THRESHOLD_FUSION ({thr_fus}).")
 
 
 def annotate_fusion(
@@ -146,10 +231,7 @@ def fill_fusion_from_combined(
 
     fusion_table_path = Path(fusion_table_file)
     with fusion_table_path.open("w") as fusion_table:
-        header = (
-            "Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\t"
-            "Normal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n")
-        fusion_table.write(header)
+        fusion_table.write("\t".join(SV_COLUMNS) + "\n")
 
         for k, v in combined_dict.items():
             fusions=[]
@@ -167,18 +249,15 @@ def fill_fusion_from_combined(
                     site2_hugo_symbol = fus["Site2_Hugo_Symbol"]
                     if site2_hugo_symbol == "CASC1":
                         site2_hugo_symbol = "DNAI7"
-                    site1_Chromosome = fus["Site1_Chromosome"]
-                    site2_Chromosome = fus["Site2_Chromosome"]
-                    site1_Position = fus["Site1_Position"]
-                    site2_Position = fus["Site2_Position"]
-
                     if meets_threshold(fus["Normal_Paired_End_Read_Count"], thr_fus):
-                        fusion_table.write(
-                            str(k).strip() + "\tSOMATIC\tFUSION\t" +
-                            str(site1_hugo_symbol) + "\t" +
-                            str(site2_hugo_symbol) + "\t" +
-                            fus["Normal_Paired_End_Read_Count"] + "\t" +
-                            fus["Event_Info"] + " Fusion\tYes\n")
+                        fusion_table.write("\t".join([
+                            str(k).strip(), "SOMATIC", "FUSION",
+                            str(site1_hugo_symbol), str(site2_hugo_symbol),
+                            fus["Normal_Paired_End_Read_Count"],
+                            fus["Event_Info"] + " Fusion", "Yes",
+                            _chromosome(fus["Site1_Chromosome"]), fus["Site1_Position"],
+                            _chromosome(fus["Site2_Chromosome"]), fus["Site2_Position"],
+                        ]) + "\n")
 
 
 def fill_splice_from_combined(
@@ -217,31 +296,14 @@ def fill_splice_from_combined(
 
     """
     logger.info("Adding splice variants to data_sv.txt file...")
-
     fusion_table_path = Path(fusion_table_file)
-    header = (
-        "Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\t"
-        "Normal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n")
-
-    existing_lines = []
-    if fusion_table_path.exists():
-        with fusion_table_path.open() as f:
-            existing_lines = f.readlines()
-        if existing_lines:
-            header = existing_lines[0]
-            existing_lines = [
-                line for line in existing_lines[1:]
-                if len(line.split("\t")) <= 2 or line.split("\t")[2] != "SPLICE"]
-
-    # Splice rows only ever populate the base 8 columns (they skip
-    # FusionAnnotator, see this function's docstring) - but `header` may
-    # carry extra OncoKB columns already added by the fusion step above, so
-    # each row must be padded to the SAME width as the real header, not a
-    # hardcoded 8, or cBioPortal's validator rejects it ("Expected N columns
-    # based on header, found 8").
-    n_extra_cols = max(0, len(header.rstrip("\n").split("\t")) - 8)
-    extra_cols = "\t" * n_extra_cols
-
+    # Appended by column name, not position: data_sv.txt may come from a
+    # fusion file with its own columns, or carry OncoKB columns - every
+    # splice row then simply gets blanks for the columns it doesn't fill.
+    existing = (pd.read_csv(fusion_table_path, sep="\t", dtype=str, keep_default_na=False)
+                if fusion_table_path.exists() else pd.DataFrame(columns=SV_COLUMNS))
+    if "Class" in existing.columns:
+        existing = existing[existing["Class"] != "SPLICE"]
     new_rows = []
     for k, v in combined_dict.items():
         splice_variants = []
@@ -250,7 +312,6 @@ def fill_splice_from_combined(
         except Exception as err:
             logger.error("Something went wrong while reading Splice Variants "
             f"section for sample {k}: {err}")
-
         for sv in splice_variants:
             gene = sv["Gene"]
             ssr = sv["Splice_Supporting_Reads"]
@@ -262,37 +323,32 @@ def fill_splice_from_combined(
                     f"Non-numeric splice supporting read count for {gene} "
                     f"in sample {k}, skipping.")
                 continue
-
             event_info = f"Exon {sv['Affected_Exon']} splice variant"
             logger.info(
                 f"Splice variant found for sample {k}: gene={gene}, "
                 f"exon={sv['Affected_Exon']}, breakpoints="
                 f"{sv['Breakpoint_1']}/{sv['Breakpoint_2']}, "
                 f"supporting_reads={ssr}, "
-                f"reference_reads_transcript={sv['Reference_Reads_Transcript']} "
-                "- this is the first code path to see a real populated "
-                "[Splice Variants] row, please spot-check this row against "
-                "the source CombinedVariantOutput.tsv file.")
-            new_rows.append(
-                str(k).strip() + "\tSOMATIC\tSPLICE\t" +
-                str(gene) + "\t" + str(gene) + "\t" +
-                ssr + "\t" + event_info + "\tYes" + extra_cols + "\n")
-
-    if not new_rows and not existing_lines:
+                f"reference_reads_transcript={sv['Reference_Reads_Transcript']}.")
+            chrom1, pos1 = _split_breakpoint(sv["Breakpoint_1"])
+            chrom2, pos2 = _split_breakpoint(sv["Breakpoint_2"])
+            new_rows.append({
+                "Sample_Id": str(k).strip(), "SV_Status": "SOMATIC", "Class": "SPLICE",
+                "Site1_Hugo_Symbol": str(gene), "Site2_Hugo_Symbol": str(gene),
+                "Normal_Paired_End_Read_Count": ssr, "Event_Info": event_info,
+                "RNA_Support": "Yes", "Site1_Chromosome": chrom1, "Site1_Position": pos1,
+                "Site2_Chromosome": chrom2, "Site2_Position": pos2})
+    if not new_rows:
         logger.info(
             "No splice variants found for this batch - data_sv.txt left as "
             "is (not created if the fusion step above didn't create it "
             "either).")
         return
-
-    with fusion_table_path.open("w") as fusion_table:
-        fusion_table.write(header)
-        fusion_table.writelines(existing_lines)
-        fusion_table.writelines(new_rows)
-
+    merged = pd.concat([existing, pd.DataFrame(new_rows)], ignore_index=True).fillna("")
+    merged.to_csv(fusion_table_path, sep="\t", index=False)
     logger.info(
         f"data_sv.txt now has {len(new_rows)} new splice variant row(s) "
-        f"(plus {len(existing_lines)} pre-existing non-splice row(s) carried "
+        f"(plus {len(existing)} pre-existing non-splice row(s) carried "
         "over from the fusion step above, if any).")
 
 
@@ -312,22 +368,37 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
     # value applies regardless of which fusion source produced the table.
     thr_fus = config.get("FUSION", "THRESHOLD_FUSION")
 
+    # Fusion source: a fusion file (FUSIONS/*.tsv) has priority over the
+    # CombinedVariantOutput [Fusions] sections - when both are there, the
+    # samples on which they disagree are logged. Splice variants only ever
+    # come from CombinedVariantOutput (below).
     combined_output_folder = Path(ctx.input_folder) / "CombinedOutput"
     if (
         combined_output_folder.exists()
         and any(f.is_file() for f in combined_output_folder.iterdir())):
-        logger.info("Getting Fusions infos from CombinedOutput...")
         combined_dict = get_combined_variant_output_from_folder(
             ctx.input_folder, ctx.clin_file, ctx.isinputfile)
-        fill_fusion_from_combined(fusion_table_file, combined_dict, thr_fus)
+    fusion_files = (
+        [f for f in fusion_folder.iterdir() if f.suffix == ".tsv"]
+        if fusion_folder.exists() else [])
 
-    elif fusion_folder.exists() and any(fusion_folder.iterdir()):
-        fusion_files = [f for f in fusion_folder.iterdir() if f.suffix == ".tsv"]
-        if fusion_files:
-            logger.info(f"Getting Fusions infos from {fusion_files[0].name} file.")
-            fill_fusion_from_temp(
-                ctx.input_folder, fusion_table_file, ctx.clin_file, fusion_files,
-                thr_fus)
+    if fusion_files:
+        if combined_dict:
+            logger.info(
+                f"Fusions taken from {fusion_files[0].name}: a fusion file has "
+                "priority over the CombinedVariantOutput [Fusions] sections "
+                "(still used for splice variants).")
+            _warn_fusion_conflicts(fusion_folder, fusion_files, combined_dict)
+        else:
+            logger.info(f"Fusions taken from {fusion_files[0].name} (the only fusion source).")
+        fill_fusion_from_temp(
+            ctx.input_folder, fusion_table_file, ctx.clin_file, fusion_files,
+            thr_fus)
+    elif combined_dict:
+        logger.info(
+            "Fusions taken from the CombinedVariantOutput [Fusions] sections "
+            "(no fusion file given).")
+        fill_fusion_from_combined(fusion_table_file, combined_dict, thr_fus)
 
     # Report the fusion outcome on its own - fusions and splice variants
     # (below) are two independent CombinedOutput data types that happen to

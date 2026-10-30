@@ -112,7 +112,8 @@ def _study_sample_ids(folder: str) -> set[str] | None:
 
 # data_sv.txt's header as Varan writes it (see walk.fill_fusion_from_combined).
 SV_HEADER = ("Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\t"
-             "Normal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n")
+             "Normal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\t"
+             "Site1_Chromosome\tSite1_Position\tSite2_Chromosome\tSite2_Position\n")
 
 
 def profiled_in_study(folder: str, profiled: list[str] | None) -> list[str]:

@@ -698,6 +698,11 @@ def run_preflight_checks(
     sample_tsv, patient_tsv, fusion_tsv = _resolve_sample_tsv(varan_input)
     cnvkit_algorithm = check_bool(config.get("Cna", "CNVKIT_algorithm", fallback=""))
     sample_df = _check_sample_tsv(issues, sample_tsv, cnvkit_algorithm)
+    if sample_df is not None:
+        from walk_common import describe_unknown_oncotree_codes, unknown_oncotree_codes
+        unknown_codes = unknown_oncotree_codes(sample_df)
+        if unknown_codes:
+            _warn(issues, describe_unknown_oncotree_codes(unknown_codes))
     _check_patient_tsv(issues, patient_tsv, sample_df)
     _check_fusion_tsv(issues, fusion_tsv, sample_df)
     if sample_df is not None:

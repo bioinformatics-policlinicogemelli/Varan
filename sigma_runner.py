@@ -40,13 +40,12 @@ construction, not due to a bug).
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
-from config_loader import config, get_config
+from config_loader import config
 from filter_clinvar import check_bool
 from sigma_cancer_type_map import get_sigma_call_params, is_mva_safe_for_panel_data
 from sigma_filter import prepare_sigma_maf
