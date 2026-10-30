@@ -27,7 +27,8 @@ from pathlib import Path
 from loguru import logger
 
 from config_loader import get_config
-from populate_case_lists import (pad_unaltered_cna_samples, populate_cases_cna,
+from populate_case_lists import (ensure_sv_file, pad_unaltered_cna_samples,
+                                 populate_cases_cna,
                                  populate_cases_sequenced, populate_cases_sv,
                                  read_profiled_samples)
 from ValidateFolder import remove_meta
@@ -425,6 +426,11 @@ def meta_case_main(
     # (already used by Update/Delete/Extract for the same reason) clears
     # those out first; a no-op on a fresh, single-shot run since no meta
     # file exists yet to be orphaned.
+    if profiled is None:
+        profiled = read_profiled_samples(output_folder)
+    # Before any meta file is written: a header-only data_sv.txt (samples
+    # tested for fusions, none found) still needs its meta_sv.txt.
+    ensure_sv_file(output_folder, profiled.get("sv"))
     remove_meta(output_folder)
 
     project_id = create_meta_study(
@@ -467,8 +473,6 @@ def meta_case_main(
 
     ########### CASE LIST FUNCTION ###########
 
-    if profiled is None:
-        profiled = read_profiled_samples(output_folder)
     pad_unaltered_cna_samples(output_folder, profiled.get("cna"))
 
     if (Path(output_folder) / "data_mutations_extended.txt").exists():

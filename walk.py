@@ -45,7 +45,7 @@ import vcf2tab_cnv
 import vcf_filter
 from config_loader import get_config
 from filter_clinvar import check_bool, filter_oncokb, read_maf
-from populate_case_lists import write_profiled_samples
+from populate_case_lists import read_profiled_samples, write_profiled_samples
 from versioning import get_newest_version, get_version_list
 
 config = get_config()
@@ -3312,14 +3312,24 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
     # Only now, after both fusions and splice variants have had their
     # chance to write something, remove data_sv.txt if it ended up with no
     # rows at all - covers both "neither found anything" and "fusions were
-    # found but all got filtered out by the OncoKB filter above".
+    # found but all got filtered out by the OncoKB filter above". Kept
+    # header-only instead when samples were tested for them (see
+    # populate_case_lists.ensure_sv_file()): that's the study's "0 of N
+    # tested" structural-variant profile.
     if fusion_table_file.exists():
         with fusion_table_file.open() as data_sv:
             if len(data_sv.readlines()) == 1:
-                fusion_table_file.unlink()
-                logger.warning(
-                    "No fusions or splice variants found for this batch - "
-                    "data_sv.txt removed.")
+                tested = read_profiled_samples(ctx.output_folder).get("sv")
+                if tested:
+                    logger.warning(
+                        "No fusions or splice variants found for this batch - "
+                        f"data_sv.txt kept header-only: {len(tested)} sample(s) "
+                        "were tested for them.")
+                else:
+                    fusion_table_file.unlink()
+                    logger.warning(
+                        "No fusions or splice variants found for this batch - "
+                        "data_sv.txt removed.")
 
 
 def _walk_write_clinical_tables(ctx: WalkContext) -> None:

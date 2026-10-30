@@ -110,6 +110,36 @@ def _study_sample_ids(folder: str) -> set[str] | None:
     return set(clin["SAMPLE_ID"].dropna().str.strip())
 
 
+# data_sv.txt's header as Varan writes it (see walk.fill_fusion_from_combined).
+SV_HEADER = ("Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\t"
+             "Normal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n")
+
+
+def sv_profiled_in_study(folder: str, profiled: list[str] | None) -> list[str]:
+    """The samples of `profiled` that the study still contains."""
+    in_study = _study_sample_ids(folder)
+    return [s for s in (profiled or []) if in_study is None or s in in_study]
+
+
+def ensure_sv_file(folder: str, profiled: list[str] | None) -> None:
+    """Write a header-only data_sv.txt when the study has samples tested for
+    fusions/splice variants but none had any: without the file there's no
+    structural-variant profile at all, so cBioPortal can't show "0 of N
+    tested" - an empty file plus cases_sv.txt is how it says that (checked
+    with cBioPortal's own validator). No-op when data_sv.txt exists."""
+    path = Path(folder) / "data_sv.txt"
+    if path.exists():
+        return
+    tested = sv_profiled_in_study(folder, profiled)
+    if not tested:
+        return
+    path.write_text(SV_HEADER)
+    logger.info(
+        f"No fusions or splice variants in this study, but {len(tested)} "
+        "sample(s) were tested for them: wrote a header-only data_sv.txt so "
+        "they're shown as tested without events.")
+
+
 def pad_unaltered_cna_samples(folder: str, profiled: list[str] | None) -> None:
     """Add an all-0 column to data_cna.txt for every CNV-profiled sample
     of the study that has no call at all: cBioPortal expects the discrete
