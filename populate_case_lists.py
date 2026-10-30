@@ -115,10 +115,11 @@ SV_HEADER = ("Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\
              "Normal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n")
 
 
-def sv_profiled_in_study(folder: str, profiled: list[str] | None) -> list[str]:
+def profiled_in_study(folder: str, profiled: list[str] | None) -> list[str]:
     """The samples of `profiled` that the study still contains."""
     in_study = _study_sample_ids(folder)
-    return [s for s in (profiled or []) if in_study is None or s in in_study]
+    return [s for s in dict.fromkeys(profiled or [])
+            if in_study is None or s in in_study]
 
 
 def ensure_sv_file(folder: str, profiled: list[str] | None) -> None:
@@ -130,7 +131,7 @@ def ensure_sv_file(folder: str, profiled: list[str] | None) -> None:
     path = Path(folder) / "data_sv.txt"
     if path.exists():
         return
-    tested = sv_profiled_in_study(folder, profiled)
+    tested = profiled_in_study(folder, profiled)
     if not tested:
         return
     path.write_text(SV_HEADER)
@@ -138,6 +139,26 @@ def ensure_sv_file(folder: str, profiled: list[str] | None) -> None:
         f"No fusions or splice variants in this study, but {len(tested)} "
         "sample(s) were tested for them: wrote a header-only data_sv.txt so "
         "they're shown as tested without events.")
+
+
+def ensure_cna_file(folder: str, profiled: list[str] | None) -> None:
+    """Same as ensure_sv_file(), for CNAs: when the study has samples tested
+    for CNVs but data_cna.txt is gone - no sample had any call, or
+    extract/remove only kept samples without one - write it with just its
+    header (Hugo_Symbol + one column per tested sample) and no gene row,
+    so the CNA profile still exists with 0 alterations over them (checked
+    with cBioPortal's own validator). No-op when data_cna.txt exists."""
+    path = Path(folder) / "data_cna.txt"
+    if path.exists():
+        return
+    tested = profiled_in_study(folder, profiled)
+    if not tested:
+        return
+    path.write_text("\t".join(["Hugo_Symbol", *tested]) + "\n")
+    logger.info(
+        f"No CNV call in this study, but {len(tested)} sample(s) were tested "
+        "for CNVs: wrote a data_cna.txt with only its header so they're "
+        "shown as tested without alterations.")
 
 
 def pad_unaltered_cna_samples(folder: str, profiled: list[str] | None) -> None:

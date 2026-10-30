@@ -29,7 +29,8 @@ from loguru import logger
 from config_loader import get_config
 from gene_panels import (build_gene_panel_matrix, create_meta_gene_panel_matrix,
                          finalize_gene_panel_matrix)
-from populate_case_lists import (ensure_sv_file, pad_unaltered_cna_samples,
+from populate_case_lists import (ensure_cna_file, ensure_sv_file,
+                                 pad_unaltered_cna_samples,
                                  populate_cases_cna,
                                  populate_cases_sequenced, populate_cases_sv,
                                  read_profiled_samples)
@@ -433,9 +434,10 @@ def meta_case_main(
     creating = profiled is None
     if creating:
         profiled = read_profiled_samples(output_folder)
-    # Before any meta file is written: a header-only data_sv.txt (samples
-    # tested for fusions, none found) still needs its meta_sv.txt.
+    # Before any meta file is written: a header-only data_sv.txt /
+    # data_cna.txt (samples tested, nothing found) still needs its meta.
     ensure_sv_file(output_folder, profiled.get("sv"))
+    ensure_cna_file(output_folder, profiled.get("cna"))
     if creating:
         build_gene_panel_matrix(output_folder, profiled)
     finalize_gene_panel_matrix(output_folder)
