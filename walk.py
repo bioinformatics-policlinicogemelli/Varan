@@ -283,10 +283,10 @@ def cnv_type_from_folder(input_path: str,
     check_data_cna(segfc_path)
 
     if seg_path.exists():
-        logger.info("Writing data_cna_hg19.seg succefully completed!")
+        logger.info("Writing data_cna_hg19.seg successfully completed!")
 
     if segfc_path.exists():
-        logger.info("Writing data_cna_hg19.seg.fc.txt succefully completed!")
+        logger.info("Writing data_cna_hg19.seg.fc.txt successfully completed!")
 
     ############################
     ### MANAGE DISCRETE TABLE ##
@@ -330,7 +330,7 @@ def cnv_type_from_folder(input_path: str,
                 nan_sbj = input_file[input_file["TC"].isna()]
                 nan_sbj = list(nan_sbj["SAMPLE_ID"])
                 logger.warning(
-                    f"Some subject have NaN TC in tsv input file: {nan_sbj}!")
+                    f"Some samples have a NaN TC in the input sample.tsv: {nan_sbj}!")
 
             if "ONCOTREE_CODE" not in input_file.columns:
                 input_file["ONCOTREE_CODE"] = cancer
@@ -3100,7 +3100,7 @@ def _walk_snv_samples(ctx: WalkContext) -> dict[str, str]:
     logger.info("Checking maf folder...")
     maf_path = Path(ctx.output_folder) / "maf"
     if maf_path.is_dir() and any(f.suffix == ".maf" for f in maf_path.iterdir()):
-        logger.info("A non empty maf folder already exists!")
+        logger.info("A non-empty maf folder already exists!")
 
     if ctx.resume:
         return {}
