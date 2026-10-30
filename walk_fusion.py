@@ -18,14 +18,15 @@
 from __future__ import annotations
 
 import contextlib
-import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
 import tsv
-from config_loader import config
+from config_loader import VARAN_DIR, config
 from filter_clinvar import filter_oncokb
 from populate_case_lists import read_profiled_samples
 from thresholds import meets_threshold
@@ -198,17 +199,19 @@ def annotate_fusion(
             right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
         fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
-        os.system(
-            f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file} "
-            f"-o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
-
+        extra_args = []
     else:
         fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
-        os.system(
-            f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file} "
-            f"-o {fusion_table_file_out} -t {cancer.upper()}  "
-            f"-b {config.get('OncoKB', 'ONCOKB')}")
+        extra_args = ["-t", cancer.upper()]
 
+    # Same interpreter as Varan, script found from Varan's folder, no shell
+    # (paths with spaces, the API key not in a shell command line), and a
+    # failure stops the stage instead of leaving data_sv.txt unannotated.
+    subprocess.run(
+        [sys.executable, str(VARAN_DIR / "oncokb-annotator" / "FusionAnnotator.py"),
+         "-i", str(fusion_table_file), "-o", str(fusion_table_file_out),
+         *extra_args, "-b", config.get("OncoKB", "ONCOKB")],
+        check=True)
     return fusion_table_file_out
 
 
