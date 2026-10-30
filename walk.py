@@ -31,8 +31,8 @@ job through it).
 """
 from __future__ import annotations
 
-import os
 import shutil
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -261,6 +261,22 @@ def check_multiple_file(input_file: str, multiple: bool) -> None:
         logger.warning("SNV and/or CNV columns in sample.tsv were not filled.")
 
 
+def _vcf_sample_count(vcf: Path | None) -> int | None:
+    """Number of sample columns in a VCF (vcf-query -l), 0 without a VCF,
+    None when vcf-query isn't available (the check is then skipped). Read
+    straight from vcf-query's output: nothing is written next to the
+    user's input files."""
+    if vcf is None:
+        return 0
+    try:
+        out = subprocess.run(
+            ["vcf-query", "-l", str(vcf)], capture_output=True, text=True, check=False).stdout
+    except FileNotFoundError:
+        logger.warning(f"vcf-query not found: can't check whether {vcf.name} is multi-sample.")
+        return None
+    return len([line for line in out.splitlines() if line.strip()])
+
+
 def check_multiple_folder(input_dir: str, multiple: bool) -> None:
     """Validate whether SNV/CNV VCFs are single or multi-sample based on -m option.
 
@@ -277,51 +293,33 @@ def check_multiple_folder(input_dir: str, multiple: bool) -> None:
     try:
         vcf_files = (f.name for f in snv_folder.iterdir() if f.suffix == ".vcf")
         multiple_vcf_snv = next(vcf_files)
-    except StopIteration:
+    except (StopIteration, FileNotFoundError):
         multiple_vcf_snv = ""
-        snv_folder.mkdir(parents=True, exist_ok=True)
-
-    snv_file = Path(input_dir) / "sample_id_snv.txt"
-    cmd_snv = f"vcf-query -l {(snv_folder / multiple_vcf_snv)} > {snv_file}"
-    os.system(cmd_snv)
-
-    with snv_file.open() as file:
-        lines = file.readlines()
 
     minimum_lines_for_multiple = 2
 
-    if len(lines) >= minimum_lines_for_multiple and not multiple:
+    n_snv = _vcf_sample_count(snv_folder / multiple_vcf_snv if multiple_vcf_snv else None)
+    if n_snv is not None and n_snv >= minimum_lines_for_multiple and not multiple:
         snv_mulitple = True
         logger.error("-m option was not selected but the SNV file is multiple!")
-    elif len(lines) < minimum_lines_for_multiple and multiple:
+    elif n_snv is not None and n_snv < minimum_lines_for_multiple and multiple:
         snv_single = True
         logger.error("-m option was selected but the SNV file is not multiple!")
-
-    snv_file.unlink()
 
     cnv_folder = Path(input_dir) / "CNV"
     try:
         vcf_files = (f.name for f in cnv_folder.iterdir() if f.suffix == ".vcf")
         multiple_vcf_cnv = next(vcf_files)
-    except StopIteration:
+    except (StopIteration, FileNotFoundError):
         multiple_vcf_cnv = ""
-        cnv_folder.mkdir(parents=True, exist_ok=True)
 
-    cnv_file = Path(input_dir) / "sample_id_cnv.txt"
-    cmd_cnv = f"vcf-query -l {(Path(cnv_folder) / multiple_vcf_cnv)} > {cnv_file}"
-    os.system(cmd_cnv)
-
-    with cnv_file.open() as file:
-        lines = file.readlines()
-
-    if len(lines) >= minimum_lines_for_multiple and not multiple:
+    n_cnv = _vcf_sample_count(cnv_folder / multiple_vcf_cnv if multiple_vcf_cnv else None)
+    if n_cnv is not None and n_cnv >= minimum_lines_for_multiple and not multiple:
         cnv_mulitple = True
         logger.error("-m option was not selected but the CNV file is multiple!")
-    elif len(lines) < minimum_lines_for_multiple and multiple:
+    elif n_cnv is not None and n_cnv < minimum_lines_for_multiple and multiple:
         cnv_single = True
         logger.error("-m option was selected but the CNV file is not multiple!")
-
-    cnv_file.unlink()
 
     msg = "Input error"
     if cnv_mulitple or snv_mulitple:
