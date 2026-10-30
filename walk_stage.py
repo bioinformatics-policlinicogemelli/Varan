@@ -107,16 +107,14 @@ def prepare_process(config_path: str) -> str:
 
 def load_ctx(ctx_path: Path):
     """Load setup's pickled WalkContext, restoring from it the module-level
-    globals setup's process set: walk.isinputfile and
-    versioning.old_version_exists. They do not survive into this process,
-    so they must be restored before calling any stage function. See
-    WalkContext's docstring in walk.py."""
+    global setup's process set: versioning.old_version_exists. It does not
+    survive into this process, so it must be restored before calling any
+    stage function. See WalkContext's docstring in walk.py."""
     import versioning
     import walk
 
     with ctx_path.open("rb") as f:
         ctx: walk.WalkContext = pickle.load(f)
-    walk.isinputfile = ctx.isinputfile
     versioning.old_version_exists = ctx.old_version_exists
     # write_report.py prints " ".join(sys.argv) as the report's "Command
     # Line": show the run's equivalent varan.py command, not this stage's.
