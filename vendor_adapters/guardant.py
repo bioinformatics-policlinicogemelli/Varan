@@ -76,6 +76,7 @@ here - see MULTIVENDOR_INTEGRATION_NOTES.md):
 
 import csv
 import os
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -109,13 +110,16 @@ SAMPLE_TYPE = "Liquid"
 # CNA calls come from Guardant's own copy numbers instead.
 PROVIDES_TUMOR_CONTENT = False
 
-# --- DEFAULT PATHS (deployment-specific; override via run()'s kwargs for
-# a different environment/test setup rather than editing these) ---
-# Varan's own copy by default; [Vendor.guardant] dict_path overrides it.
+# --- DEFAULT PATHS ---
+# Fallbacks for calling run() directly. varan.py always passes its own
+# per-run scratch folders instead, and a [Vendor.guardant] section in
+# conf.ini (dict_path, report_base_dir, vcf_base_dir, temp_local_dir)
+# overrides both - e.g. to keep the converted files on persistent storage.
 DICT_PATH = str(Path(__file__).resolve().parent.parent / "dict.csv")
-REPORT_BASE_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/Varan_Input"
-VCF_BASE_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/processed_VCF"
-TEMP_LOCAL_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/tmp"
+_DEFAULT_WORK_DIR = Path(tempfile.gettempdir()) / "varan_guardant"
+REPORT_BASE_DIR = str(_DEFAULT_WORK_DIR / "sample_tsv")
+VCF_BASE_DIR = str(_DEFAULT_WORK_DIR / "vcf")
+TEMP_LOCAL_DIR = str(_DEFAULT_WORK_DIR / "tmp")
 
 # --- VCF HEADER TEMPLATES ---
 COMMON_HEADER = [
