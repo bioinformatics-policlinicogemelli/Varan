@@ -48,9 +48,8 @@ from versioning import (
     extract_info_from_meta,
     get_version_list)
 from write_report import write_report_extract, write_report_failure
-from config_loader import get_config
+from config_loader import config, get_config
 
-config = get_config()
 
 def extract_main(oldpath: str,
                  extract_path: str,

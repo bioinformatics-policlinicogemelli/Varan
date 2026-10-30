@@ -55,9 +55,8 @@ from versioning import (
     extract_info_from_meta,
     get_version_list)
 from write_report import write_report_failure, write_report_remove
-from config_loader import get_config
+from config_loader import config, get_config
 
-config = get_config()
 
 
 def delete_main(oldpath: str, removepath: str, output: str,

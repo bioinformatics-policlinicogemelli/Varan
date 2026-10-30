@@ -41,9 +41,8 @@ from Update_functions import (
 from ValidateFolder import copy_maf, remove_meta, validate_output
 from versioning import extract_info_from_meta
 from write_report import write_report_failure, write_report_update
-from config_loader import get_config
+from config_loader import config, get_config
 
-config = get_config()
 
 
 def update_main(oldpath: str, newpath: str,

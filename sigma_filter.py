@@ -54,11 +54,10 @@ import ast
 import pandas as pd
 from loguru import logger
 
-from config_loader import get_config
+from config_loader import config, get_config
 from filter_clinvar import check_bool, filter_vaf_exclude_bands
 from thresholds import meets_threshold_series
 
-config = get_config()
 
 
 def prepare_sigma_maf(maf_df: pd.DataFrame, sample_id: str) -> pd.DataFrame:

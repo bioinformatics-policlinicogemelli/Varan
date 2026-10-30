@@ -36,10 +36,9 @@ import pandas as pd
 from loguru import logger
 
 import concatenate
-from config_loader import get_config
+from config_loader import config, get_config
 from thresholds import meets_threshold_series
 
-config = get_config()
 
 def check_bool(key_value: str) -> bool:
     """Convert a string into a Python boolean.

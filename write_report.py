@@ -39,17 +39,17 @@ import pandas as pd
 from loguru import logger
 
 import versioning
-from config_loader import get_config
+from config_loader import config, get_config
 from filter_clinvar import check_bool
 from versioning import get_git_version
 
-config = get_config()
 
-annotations_list = ast.literal_eval(config.get("Annotations", "ANNOTATIONS"))
-vep_cache_version = int(config.get("Paths", "CACHE"))
-vep_path = config.get("Paths", "VEP_PATH")
-sample_type = config.get("Sample_Type", "TYPE")
-ref_genome = config.get("Paths", "REF_FASTA")
+
+
+def _annotations_list() -> list:
+    """conf.ini's [Annotations] ANNOTATIONS, read when used (not at import -
+    see config_loader.py)."""
+    return ast.literal_eval(config.get("Annotations", "ANNOTATIONS"))
 
 
 def get_python_version() -> str:
@@ -632,6 +632,10 @@ def write_report_main(
 
     my_filters = write_filters_report()
     cancer = cancer.capitalize()
+    vep_cache_version = int(config.get("Paths", "CACHE"))
+    vep_path = config.get("Paths", "VEP_PATH")
+    sample_type = config.get("Sample_Type", "TYPE")
+    ref_genome = config.get("Paths", "REF_FASTA")
 
     graph_expression = get_graph_expression(number_for_graph)
 
@@ -1012,18 +1016,18 @@ def write_report_main(
     or (Path(output_folder) / genes_graph_path).exists():
         html_content += """</section>"""
 
-    if annotations_list != []:
+    if _annotations_list() != []:
         html_content += """
             <section class="annotations">
                 <div class="section-title">Annotations</div>
                     <div class="content">
                         <ul>"""
 
-        for annotation in annotations_list:
+        for annotation in _annotations_list():
             html_content += f"""
                          <li><p>{annotation}</p></li>"""
 
-    if annotations_list != []:
+    if _annotations_list() != []:
         html_content += """
                     </ul>
                 </div>
@@ -1706,18 +1710,18 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
     ):
         html_content += """</section>"""
 
-    if annotations_list != []:
+    if _annotations_list() != []:
         html_content += """
             <section class="annotations">
                 <div class="section-title">Annotations</div>
                     <div class="content">
                         <ul>"""
 
-        for annotation in annotations_list:
+        for annotation in _annotations_list():
             html_content += f"""
                          <li><p>{annotation}</p></li>"""
 
-    if annotations_list != []:
+    if _annotations_list() != []:
         html_content += """
                     </ul>
                 </div>
@@ -2151,18 +2155,18 @@ def write_report_extract(original_study: str, new_study: str,
     ):
         html_content += """</section>"""
 
-    if annotations_list != []:
+    if _annotations_list() != []:
         html_content += """
             <section class="annotations">
                 <div class="section-title">Annotations</div>
                     <div class="content">
                         <ul>"""
 
-        for annotation in annotations_list:
+        for annotation in _annotations_list():
             html_content += f"""
                          <li><p>{annotation}</p></li>"""
 
-    if annotations_list != []:
+    if _annotations_list() != []:
         html_content += """
                     </ul>
                 </div>
@@ -2584,18 +2588,18 @@ def write_report_remove(
         or (Path(new_study) / genes_graph_path).exists()):
         html_content += """</section>"""
 
-    if annotations_list != []:
+    if _annotations_list() != []:
         html_content += """
             <section class="annotations">
                 <div class="section-title">Annotations</div>
                     <div class="content">
                         <ul>"""
 
-        for annotation in annotations_list:
+        for annotation in _annotations_list():
             html_content += f"""
                          <li><p>{annotation}</p></li>"""
 
-    if annotations_list != []:
+    if _annotations_list() != []:
         html_content += """
                     </ul>
                 </div>

@@ -43,22 +43,29 @@ import sigma_runner
 import tsv
 import vcf2tab_cnv
 import vcf_filter
-from config_loader import get_config
+from config_loader import config, get_config
 from filter_clinvar import check_bool, filter_oncokb, read_maf
 from populate_case_lists import read_profiled_samples, write_profiled_samples
 from thresholds import meets_threshold
 from versioning import get_newest_version, get_version_list
 
-config = get_config()
 
-VCF2MAF = config.get("Paths", "VCF2MAF")
-REF_FASTA = config.get("Paths", "REF_FASTA")
-VEP_PATH = config.get("Paths", "VEP_PATH")
-VEP_DATA = config.get("Paths", "VEP_DATA")
-CLINV = config.get("Paths", "CLINV")
-PLOIDY = int(config.get("Cna", "PLOIDY"))
-SAMPLE_TYPE = (config.get("Sample_Type", "TYPE").strip().strip('"').strip("'").upper())
-THRESHOLD_MSI_LIQUID = float(config.get("MSI", "THRESHOLD_MSI_LIQUID"))
+# conf.ini settings, read when used (not at import - see config_loader.py).
+def _path_setting(key: str) -> str:
+    return config.get("Paths", key)
+
+
+def sample_type() -> str:
+    """[Sample_Type] TYPE, upper-cased: "SOLID" or "LIQUID"."""
+    return config.get("Sample_Type", "TYPE").strip().strip('"').strip("'").upper()
+
+
+def ploidy() -> int:
+    return int(config.get("Cna", "PLOIDY"))
+
+
+def threshold_msi_liquid() -> float:
+    return float(config.get("MSI", "THRESHOLD_MSI_LIQUID"))
 
 output_filtered = "snv_filtered"
 
@@ -435,7 +442,7 @@ def cnv_type_from_folder(input_path: str,
 
                 purity = tc / 100
                 copy_nums = np.arange(6)
-                thresholds = 2 ** (np.log2((1 - purity) + purity * (copy_nums + .5) / PLOIDY))
+                thresholds = 2 ** (np.log2((1 - purity) + purity * (copy_nums + .5) / ploidy()))
 
                 sample_mask = cna["Tumor_Sample_Barcode"] == sample_id
 
@@ -614,37 +621,37 @@ def vcf2maf_constructor(v: str,
             f"({err}) - vcf2maf will be run with an empty --tumor-id.")
         tum_id = ""
 
-    if VCF2MAF == "" or REF_FASTA == "" or VEP_PATH == "" or VEP_DATA == "":
+    if _path_setting("VCF2MAF") == "" or _path_setting("REF_FASTA") == "" or _path_setting("VEP_PATH") == "" or _path_setting("VEP_DATA") == "":
         logger.critical("[Paths] section in conf.ini is not correctly compiled. "
         "Please check again!")
         msg = "Input error"
         raise Exception (msg)
 
     cl = ["perl"]
-    cl.append(VCF2MAF)
+    cl.append(_path_setting("VCF2MAF"))
     cl.append("--input-vcf")
     cl.append(v)
     _, file_vcf = os.path.split(v)
 
     out_file = Path(output_folder) / "maf" / (file_vcf + ".maf")
-    if CLINV.strip() != "":
+    if _path_setting("CLINV").strip() != "":
         cl.append("--vep-custom")
-        cl.append(CLINV)
+        cl.append(_path_setting("CLINV"))
     else:
         logger.warning("CLINV section in [Paths] in conf.ini is not compiled. "
         "This step will be skipped")
     cl.append("--output-maf")
     cl.append(str(out_file))
     cl.append("--ref-fasta")
-    cl.append(REF_FASTA)
+    cl.append(_path_setting("REF_FASTA"))
     cl.append("--tmp-dir")
     cl.append(str(temporary))
     cl.append("--retain-fmt")
     cl.append("GT,GQ,AD,DP,VF,AF")
     cl.append("--vep-path")
-    cl.append(VEP_PATH)
+    cl.append(_path_setting("VEP_PATH"))
     cl.append("--vep-data")
-    cl.append(VEP_DATA)
+    cl.append(_path_setting("VEP_DATA"))
     cl.append("--tumor-id")
     cl.append(tum_id)
     cl.append("--cache-version")
@@ -2114,7 +2121,7 @@ def fill_from_combined(
     """
     for k, v in combined_dict.items():
         try:
-            tmv_msi = tsv.get_msi_tmb(Path(v), SAMPLE_TYPE)
+            tmv_msi = tsv.get_msi_tmb(Path(v), sample_type())
         except Exception as err:
             logger.error(f"Something went wrong reading CombinedOutput for sample "
                          f"{k} ({err})! MSI/TMB set to NA for this sample.")
@@ -2137,13 +2144,13 @@ def fill_from_combined(
         if (tmv_msi["MSI"][1][1] != "NA" and table_dict_patient[k][-2] != "NA"):
                 msi_value = float(tmv_msi["MSI"][1][1])
 
-                if SAMPLE_TYPE == "LIQUID":
-                    if msi_value >= THRESHOLD_MSI_LIQUID:
+                if sample_type() == "LIQUID":
+                    if msi_value >= threshold_msi_liquid():
                         table_dict_patient[k].append("Unstable")
                     else:
                         table_dict_patient[k].append("Stable")
 
-                elif SAMPLE_TYPE == "SOLID":
+                elif sample_type() == "SOLID":
                     if meets_threshold(msi_value, msi_thr):
                         table_dict_patient[k].append("Stable")
                     else:
@@ -2276,14 +2283,14 @@ def validate_input(
             msg = f"Missing conf.ini option: [{section}] {key}"
             raise ValueError(msg)
 
-    if SAMPLE_TYPE not in {"SOLID", "LIQUID"}:
+    if sample_type() not in {"SOLID", "LIQUID"}:
         raise ValueError('Please select a sample type between "Solid" and "Liquid" in conf.ini.')
 
-    if (vcf_type is None or "snv" in vcf_type) and (not VEP_PATH or not VEP_DATA):
+    if (vcf_type is None or "snv" in vcf_type) and (not _path_setting("VEP_PATH") or not _path_setting("VEP_DATA")):
         msg = "VEP_PATH and/or VEP_DATA field in conf.ini is empty!"
         raise ValueError(msg)
 
-    if not REF_FASTA:
+    if not _path_setting("REF_FASTA"):
         msg = "REF_FASTA field in conf.ini is empty!"
         raise ValueError(msg)
 

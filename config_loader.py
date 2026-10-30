@@ -21,20 +21,17 @@ That made a `--config` CLI flag pointless: by the time the flag was read,
 every already-imported module had already read (or failed to find)
 "./conf.ini" on its own.
 
-The fix is two-part:
-1. This module holds the *one* ConfigParser instance for the whole process,
-   built lazily on first use via `get_config()`.
-2. `varan.py` calls `set_config_path()` immediately after parsing `--config`,
-   and only *then* imports the other Varan modules - so their first call to
-   `get_config()` (still at their own module level, that part didn't need to
-   change) reads the path the user actually asked for.
+This module holds the *one* ConfigParser instance for the whole process,
+built lazily on first use via `get_config()`, from the path set by
+`set_config_path()` (varan.py, walk_stage.py and pipeline_stage.py call it
+right after parsing `-C/--config`).
 
-Any module that today does `config = ConfigParser(); config.read("conf.ini")`
-should instead do `from config_loader import get_config` and use
-`get_config()` wherever it used to use `config` - either assigning it to a
-module-level name right after the import (safe *only* as long as varan.py
-keeps importing that module after `set_config_path()`, as it now does), or
-calling `get_config()` directly inside each function for extra safety.
+Modules use either `get_config()` inside their functions, or the module-
+level `config` proxy below (`from config_loader import config`), which
+resolves `get_config()` on every attribute access. Neither reads conf.ini
+at import time, so importing a Varan module before `set_config_path()`
+(or before varan.py's [Sample_Type] reconciliation) is harmless: nothing
+is read until a function actually runs.
 """
 
 from __future__ import annotations
@@ -86,3 +83,30 @@ def get_config() -> ConfigParser:
                 "no configuration loaded. Use --config <path> to point at "
                 "the right file if this wasn't expected.")
     return _config
+
+
+class _LazyConfig:
+    """Stand-in for get_config()'s ConfigParser, looked up on every use
+    (`config.get(...)`, `config.has_section(...)`, ...), so a module can keep
+    a module-level `config` name without reading conf.ini at import time."""
+
+    def __getattr__(self, name: str):
+        return getattr(get_config(), name)
+
+    # Special methods are looked up on the class, never via __getattr__:
+    # delegate the ones ConfigParser users rely on ("x" in config,
+    # config["Section"], iterating sections) explicitly.
+    def __contains__(self, key: object) -> bool:
+        return key in get_config()
+
+    def __getitem__(self, key: str):
+        return get_config()[key]
+
+    def __iter__(self):
+        return iter(get_config())
+
+    def __len__(self) -> int:
+        return len(get_config())
+
+
+config = _LazyConfig()
