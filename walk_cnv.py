@@ -70,7 +70,8 @@ def cnv_type_from_folder(input_path: str,
                          oncokb: bool,
                          cancer: str,
                          multiple: bool,
-                         filters: str = "") -> dict:
+                         filters: str = "",
+                         id_map: dict[str, str] | None = None) -> dict:
     """Process CNV, converting them in CNA tables and performing annotation.
 
     Args:
@@ -93,6 +94,10 @@ def cnv_type_from_folder(input_path: str,
         are only filtered down to Oncogenic/Likely Oncogenic when "o" is
         also present here, mirroring the SNV and fusion behavior.
         Defaults to "" (annotate but do not filter).
+    id_map : dict, optional
+        CNV VCF file name -> sample.tsv SAMPLE_ID (see
+        walk.sample_ids_by_file()). A file not in it gets an id derived
+        from its own name (get_sample_id_from_cnv()).
 
     Returns:
     dict
@@ -130,7 +135,11 @@ def cnv_type_from_folder(input_path: str,
     for case_folder in cnv_vcf_files:
         try:
             cnv_vcf = case_folder
-            sample_id = get_sample_id_from_cnv(case_folder)
+            # The id vcf2tab_cnv writes is everything before the first ".":
+            # "<SAMPLE_ID>.bam" from sample.tsv's own SAMPLE_ID when id_map
+            # ties this file to one, else derived from the file name.
+            mapped = (id_map or {}).get(Path(case_folder).name)
+            sample_id = f"{mapped}.bam" if mapped else get_sample_id_from_cnv(case_folder)
 
             if sample_id in sid_path:
                 with (Path(output_folder) / "sampleID_dup.log").open("a") as dup_path:
@@ -668,7 +677,7 @@ def _walk_process_cnv(ctx: WalkContext) -> None:
         logger.info("Managing CNV files...")
         cnv_type_from_folder(
             ctx.input_folder, ctx.case_folder_arr_cnv, ctx.output_folder,
-            ctx.oncokb, ctx.cancer, ctx.multiple, ctx.filters)
+            ctx.oncokb, ctx.cancer, ctx.multiple, ctx.filters, ctx.cnv_sample_ids)
 
     combined_output_folder = Path(ctx.input_folder) / "CombinedOutput"
     if (combined_output_folder.exists()

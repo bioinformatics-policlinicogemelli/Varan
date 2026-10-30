@@ -73,7 +73,8 @@ def get_sample_id_from_snv(snv_vcf: str) -> str:
 
 def snv_type_from_folder(input_pat: str,
                          snv_vcf_files: list,
-                         output_folder: str) -> dict:
+                         output_folder: str,
+                         id_map: dict[str, str] | None = None) -> dict:
     """Map sample IDs to their full SNV paths, handling duplicates.
 
     Args:
@@ -82,9 +83,12 @@ def snv_type_from_folder(input_pat: str,
         output_folder (str): The study's output folder, where sampleID_dup.log
             and noParsed_snv.log are written (read back into the report's
             Warnings section).
+        id_map (dict, optional): VCF file name -> sample.tsv SAMPLE_ID (see
+            walk.sample_ids_by_file()). A file not in it gets an id derived
+            from its own name (get_sample_id_from_snv()).
 
     Returns:
-        dict: Mapping from sample ID (as BAM filename) to full SNV file path.
+        dict: Mapping from sample ID to full SNV file path.
 
     """
     c = 0
@@ -92,7 +96,7 @@ def snv_type_from_folder(input_pat: str,
     for case_folder in snv_vcf_files:
         try:
             snv_vcf = case_folder
-            sample_id = get_sample_id_from_snv(case_folder)
+            sample_id = (id_map or {}).get(Path(case_folder).name)                 or get_sample_id_from_snv(case_folder)
             if sample_id in sid_path:
                 with (Path(output_folder) / "sampleID_dup.log").open("a") as dup:
                     dup.write(sample_id + "\t" + "snv_vcf\n")
@@ -139,13 +143,19 @@ def vcf_filtering(sid_path: dict,
 
 def vcf2maf_constructor(v: str,
                         temporary: str,
-                        output_folder: str) -> list:
+                        output_folder: str,
+                        sample_id: str | None = None) -> list:
     """Construct the vcf2maf command line based on input parameters and config file.
 
     Args:
         v (str): Path to the input VCF file.
         temporary (str): Temporary directory for intermediate files.
         output_folder (str): Base output folder.
+        sample_id (str, optional): The sample.tsv SAMPLE_ID this VCF belongs
+            to. When given, it becomes the MAF's Tumor_Sample_Barcode
+            (--tumor-id) even if the VCF's own genotype column is named
+            otherwise (e.g. a DRAGEN library id, then passed as
+            --vcf-tumor-id) - so mutations line up with the clinical data.
 
     Returns:
         list: A list representing the command-line call to vcf2maf.
@@ -193,7 +203,15 @@ def vcf2maf_constructor(v: str,
     cl.append("--vep-data")
     cl.append(_path_setting("VEP_DATA"))
     cl.append("--tumor-id")
-    cl.append(tum_id)
+    if sample_id and tum_id:
+        cl.append(sample_id)
+        if tum_id != sample_id:
+            cl.append("--vcf-tumor-id")
+            cl.append(tum_id)
+    else:
+        # Without the VCF's own column name vcf2maf couldn't find the
+        # genotypes under SAMPLE_ID: keep its column name as the barcode.
+        cl.append(tum_id)
     cl.append("--cache-version")
     cl.append(cache)
     # Same value the Snakefile declares as each SNV job's threads.
@@ -292,7 +310,7 @@ def split_colocated_variants(vcf_path: str, work_dir: str) -> list[str]:
 
 
 def recover_colocated_variants(v: str, temporary: str, output_folder: str,
-                               sample: str) -> None:
+                               sample: str, tumor_id: str | None = None) -> None:
     """Call after the normal vcf2maf run for sample `sample` on VCF `v`:
     detects any variant(s) that shared a POS with another valid call in
     the same VCF (see split_colocated_variants) and, for each one, runs
@@ -318,7 +336,7 @@ def recover_colocated_variants(v: str, temporary: str, output_folder: str,
         "for each extra one; its MAF will be picked up by the normal "
         "OncoKB-annotation/concatenation stage like any other.")
     for extra_vcf in extra_vcfs:
-        cl_extra = vcf2maf_constructor(extra_vcf, temporary, output_folder)
+        cl_extra = vcf2maf_constructor(extra_vcf, temporary, output_folder, tumor_id)
         run_vcf2maf(cl_extra, sample)
 
 
@@ -389,7 +407,8 @@ def _walk_snv_samples(ctx: WalkContext) -> dict[str, str]:
 
     logger.info("Managing SNV files...")
     s_id_path_snv = snv_type_from_folder(
-        ctx.input_folder_snv, ctx.case_folder_arr, ctx.output_folder)
+        ctx.input_folder_snv, ctx.case_folder_arr, ctx.output_folder,
+        ctx.snv_sample_ids)
 
     logger.info("Checking maf folder...")
     maf_path = Path(ctx.output_folder) / "maf"
@@ -403,8 +422,9 @@ def _walk_snv_samples(ctx: WalkContext) -> dict[str, str]:
 
 def snv_job_keys(sample_ids: list[str]) -> list[str]:
     """One short, filename-safe key per SNV sample, in order: the sample
-    IDs snv_type_from_folder() returns are whole paths (".../S1.snv.bam"),
-    unusable as file names or Snakemake job names. Used by
+    IDs snv_type_from_folder() returns are SAMPLE_IDs, but a file it
+    couldn't tie to one keeps a whole-path id (".../S1.snv.bam"), and
+    either may hold characters unusable in file or Snakemake job names. Used by
     _walk_process_snv_sample()/_walk_snv_finish() and walk_stage.py."""
     keys = []
     for i, sample_id in enumerate(sample_ids, start=1):
@@ -432,9 +452,13 @@ def _walk_process_snv_sample(
             {sample_id: vcf_path}, ctx.output_folder, output_filtered)[sample_id]
 
     temporary = create_random_name_folder(ctx.output_folder)
-    cl = vcf2maf_constructor(vcf_path, temporary, ctx.output_folder)
+    # SAMPLE_ID as the MAF barcode only when sample.tsv really tied this
+    # file to it (otherwise sample_id is just derived from the file name).
+    tumor_id = sample_id if sample_id in ctx.snv_sample_ids.values() else None
+    cl = vcf2maf_constructor(vcf_path, temporary, ctx.output_folder, tumor_id)
     run_vcf2maf(cl, sample_id)
-    recover_colocated_variants(vcf_path, temporary, ctx.output_folder, sample_id)
+    recover_colocated_variants(
+        vcf_path, temporary, ctx.output_folder, sample_id, tumor_id)
 
     if ctx.sigma:
         row = _run_sigma_for_snv_sample(ctx, cl, sample_id)

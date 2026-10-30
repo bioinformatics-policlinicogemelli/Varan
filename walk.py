@@ -908,6 +908,8 @@ def _walk_setup(
         isinputfile=isinputfile,
         sigma=sigma,
     )
+    ctx.snv_sample_ids = sample_ids_by_file(ctx, "snv_path", "SNV")
+    ctx.cnv_sample_ids = sample_ids_by_file(ctx, "cnv_path", "CNV")
     write_profiled_samples(ctx.output_folder, _profiled_samples(ctx))
     return ctx
 
@@ -944,9 +946,9 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
 
     def has_input(column: str, folder: str, flag_column: str = "") -> list[str]:
         type_dir = Path(ctx.input_folder) / folder
-        files = [f for f in type_dir.iterdir() if f.is_file()] if type_dir.is_dir() else []
-        if ctx.multiple and files:
+        if ctx.multiple and type_dir.is_dir() and any(f.is_file() for f in type_dir.iterdir()):
             return sample_ids
+        by_sample = input_files_by_sample(ctx, column, folder)
         tested = []
         for row in rows:
             sample_id = str(row.get("SAMPLE_ID", "")).strip()
@@ -957,10 +959,7 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
                 if flag:
                     tested.append(sample_id)
                 continue
-            path = _resolve_input_file(str(row.get(column, "")).strip(), type_dir)
-            if path is not None or (
-                not str(row.get(column, "")).strip()
-                and any(_named_after(sample_id, f.name) for f in files)):
+            if sample_id in by_sample:
                 tested.append(sample_id)
         return tested
 
@@ -989,6 +988,46 @@ def _profiled_samples(ctx: WalkContext) -> dict[str, list[str]]:
                 tested.append(sample_id)
         profiled["sv"] = tested
     return profiled
+
+
+def input_files_by_sample(ctx: WalkContext, column: str, folder: str) -> dict[str, Path]:
+    """SAMPLE_ID -> that sample's own input file of one type: sample.tsv's
+    path column (column, e.g. "snv_path"), or - folder input with that
+    column blank - the file in <input>/<folder>/ named after the sample.
+    The one place a sample's identity is tied to its input files."""
+    type_dir = Path(ctx.input_folder) / folder
+    files = [f for f in type_dir.iterdir() if f.is_file()] if type_dir.is_dir() else []
+    by_sample = {}
+    for row in ctx.clin_file.fillna("").to_dict("records"):
+        sample_id = str(row.get("SAMPLE_ID", "")).strip()
+        if not sample_id:
+            continue
+        value = str(row.get(column, "")).strip()
+        path = _resolve_input_file(value, type_dir)
+        if path is None and not value:
+            path = next((f for f in files if _named_after(sample_id, f.name)), None)
+        if path is not None:
+            by_sample[sample_id] = path
+    return by_sample
+
+
+def sample_ids_by_file(ctx: WalkContext, column: str, folder: str) -> dict[str, str]:
+    """Input file name -> SAMPLE_ID for one data type (see
+    input_files_by_sample()), so the SNV/CNV stages label each file with
+    the sample.tsv SAMPLE_ID it belongs to instead of guessing it from the
+    file name (e.g. a DRAGEN library id). Empty with -m/--multiple (one
+    multi-sample VCF); a file name shared by several samples is left out."""
+    if ctx.multiple:
+        return {}
+    by_sample = input_files_by_sample(ctx, column, folder)
+    names = [p.name for p in by_sample.values()]
+    shared = {n for n in names if names.count(n) > 1}
+    if shared:
+        logger.warning(
+            f"{folder} input file name(s) shared by several samples: "
+            f"{', '.join(sorted(shared))} - their sample ids are taken from "
+            "the file names instead.")
+    return {p.name: s for s, p in by_sample.items() if p.name not in shared}
 
 
 def _tested_flag(row: dict, column: str) -> bool | None:

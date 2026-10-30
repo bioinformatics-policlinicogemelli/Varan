@@ -23,7 +23,7 @@ import secrets
 import shutil
 import string
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
@@ -222,6 +222,9 @@ class WalkContext:
     gates filter/concatenate and the report's sections on the CLI value.
     command_line is the varan.py command equivalent to this run, shown as
     the report's "Command Line" (see walk_stage.py's setup).
+    snv_sample_ids / cnv_sample_ids map each SNV / CNV input file name to
+    its sample.tsv SAMPLE_ID (see walk.sample_ids_by_file()); files not in
+    them fall back to the id derived from the file name.
     """
 
     output_folder: str
@@ -248,6 +251,8 @@ class WalkContext:
     old_version_exists: bool = False
     analysis_type: str | None = None
     command_line: list | None = None
+    snv_sample_ids: dict = field(default_factory=dict)
+    cnv_sample_ids: dict = field(default_factory=dict)
 
 
 def get_table_from_folder(tsvpath: str) -> dict[str, list[str]]:

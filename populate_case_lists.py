@@ -182,6 +182,39 @@ def drop_unusable_data_files(folder: str, profiled: dict[str, list[str]]) -> Non
                 "list of tested samples for it).")
 
 
+def warn_unknown_sample_ids(folder: str) -> None:
+    """Warn about sample ids in the mutation/CNA/SV data that
+    data_clinical_sample.txt doesn't define - e.g. a VCF whose genotype
+    column is a library id Varan couldn't tie to its SAMPLE_ID: cBioPortal
+    rejects them, and they'd be missing from every clinical filter."""
+    in_study = _study_sample_ids(folder)
+    if in_study is None:
+        return
+    found: dict[str, set[str]] = {}
+    path = Path(folder) / "data_mutations_extended.txt"
+    if path.exists():
+        from filter_clinvar import read_maf
+        maf = read_maf(path)
+        if "Tumor_Sample_Barcode" in maf.columns:
+            found[path.name] = set(maf["Tumor_Sample_Barcode"].dropna().astype(str))
+    path = Path(folder) / "data_cna.txt"
+    if path.exists():
+        found[path.name] = set(pd.read_csv(path, sep="\t", nrows=0).columns[1:])
+    path = Path(folder) / "data_sv.txt"
+    if path.exists():
+        sv = pd.read_csv(path, sep="\t", dtype=str)
+        if "Sample_Id" in sv.columns:
+            found[path.name] = set(sv["Sample_Id"].dropna())
+    for name, ids in found.items():
+        unknown = sorted(ids - in_study)
+        if unknown:
+            logger.warning(
+                f"{name} has sample id(s) not in data_clinical_sample.txt: "
+                f"{', '.join(unknown)}. Check that each input file is tied to "
+                "its sample.tsv SAMPLE_ID (snv_path/cnv_path columns, or file "
+                "names starting with the SAMPLE_ID in folder input).")
+
+
 def ensure_cna_file(folder: str, profiled: list[str] | None) -> None:
     """Same as ensure_sv_file(), for CNAs: when the study has samples tested
     for CNVs but data_cna.txt is gone - no sample had any call, or

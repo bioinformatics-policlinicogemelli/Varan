@@ -34,7 +34,7 @@ from populate_case_lists import (drop_unusable_data_files, ensure_cna_file,
                                  pad_unaltered_cna_samples,
                                  populate_cases_cna,
                                  populate_cases_sequenced, populate_cases_sv,
-                                 read_profiled_samples)
+                                 read_profiled_samples, warn_unknown_sample_ids)
 from ValidateFolder import remove_meta
 from versioning import extract_version_str
 
@@ -444,6 +444,7 @@ def meta_case_main(
     ensure_sv_file(output_folder, profiled.get("sv"))
     ensure_cna_file(output_folder, profiled.get("cna"))
     drop_unusable_data_files(output_folder, profiled)
+    warn_unknown_sample_ids(output_folder)
     if creating:
         build_gene_panel_matrix(output_folder, profiled)
     finalize_gene_panel_matrix(output_folder)
