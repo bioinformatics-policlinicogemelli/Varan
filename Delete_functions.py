@@ -192,6 +192,9 @@ def delete_cna(file_path: str, sample_ids: list[str], output_folder: str) -> Non
     file = pd.read_csv(file_path, sep="\t", index_col=0)
     filtered = file.drop(columns=sample_ids, axis=1, errors="ignore")
     filtered = filtered.loc[(filtered != 0).any(axis=1)]
+    # Integers, as cBioPortal requires (and update_cna writes): also turns
+    # an older study's "2.0"-style values into "2".
+    filtered = filtered.fillna(0).astype(int)
     output_path = Path(output_folder) / "data_cna.txt"
     filtered.to_csv(output_path, sep="\t")
 

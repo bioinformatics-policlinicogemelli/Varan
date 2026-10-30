@@ -464,10 +464,12 @@ def cnv_type_from_folder(input_path: str,
                 "Tumor_Sample_Barcode"].str.replace(
                     ".cnv.bam", "", regex=False)
 
+            # astype(int): cBioPortal only accepts discrete CNA values
+            # written as integers ("2", not "2.0") - same as the branch below.
             data_cna = cna.pivot_table(
                 index="Hugo_Symbol",
                 columns="Tumor_Sample_Barcode",
-                values="Copy_Number_Alteration", fill_value=0)
+                values="Copy_Number_Alteration", fill_value=0).astype(int)
             data_cna.to_csv(Path(output_folder) / "data_cna.txt",
                             index=True, sep="\t")
 

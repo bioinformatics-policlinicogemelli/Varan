@@ -173,6 +173,9 @@ def extract_cna(file_path: str,
     columns_to_keep = [sample for sample in sample_ids if sample in file.columns]
     extracted = file.loc[:, columns_to_keep]
     extracted = extracted.loc[(extracted != 0).any(axis=1)]
+    # Integers, as cBioPortal requires (and update_cna writes): also turns
+    # an older study's "2.0"-style values into "2".
+    extracted = extracted.fillna(0).astype(int)
     outpath=Path(output_folder) / "data_cna.txt"
     extracted.to_csv(outpath, index=True, sep="\t")
 
