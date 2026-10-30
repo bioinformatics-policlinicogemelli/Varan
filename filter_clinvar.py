@@ -252,6 +252,20 @@ def check_sift(row: pd.Series) -> bool:
     return any(output)
 
 
+def read_maf(file_path: str | Path) -> pd.DataFrame:
+    """Read a MAF file as strings, skipping its leading "#" lines (vcf2maf
+    writes "#version 2.4" first). Reading it as-is doesn't fail - pandas
+    just takes "#version 2.4" as a one-column header - so a "try plain
+    read, fall back to skiprows=1 on error" never reached its fallback."""
+    with Path(file_path).open() as f:
+        n_comment = 0
+        for line in f:
+            if not line.startswith("#"):
+                break
+            n_comment += 1
+    return pd.read_csv(file_path, sep="\t", dtype=object, skiprows=n_comment)
+
+
 def write_csv_with_info(df: pd.DataFrame, file_path: str) -> None:
     """Write a pandas DataFrame to a CSV file with a custom version header.
 
@@ -423,10 +437,7 @@ def filter_main(input_path: str,folder: str,
         out_filter.mkdir(parents=True, exist_ok=True)
 
         for file in file_list:
-            try:
-                file_to_filter = pd.read_csv(file, sep="\t", dtype=object)
-            except Exception:
-                file_to_filter = pd.read_csv(file, sep="\t", dtype=object, skiprows=1)
+            file_to_filter = read_maf(file)
 
             if "i" in filters:
                 file_to_filter = file_to_filter[

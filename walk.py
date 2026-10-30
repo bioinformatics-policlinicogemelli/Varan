@@ -44,7 +44,7 @@ import tsv
 import vcf2tab_cnv
 import vcf_filter
 from config_loader import get_config
-from filter_clinvar import check_bool, filter_oncokb
+from filter_clinvar import check_bool, filter_oncokb, read_maf
 from populate_case_lists import write_profiled_samples
 from versioning import get_newest_version, get_version_list
 
@@ -3175,10 +3175,7 @@ def _run_sigma_for_snv_sample(ctx: WalkContext, cl: list, sample_id: str) -> dic
             "SigMA for this sample.")
         return sigma_runner.blank_result(sample_id, "ERROR")
 
-    try:
-        maf_df = pd.read_csv(maf_out_path, sep="\t", dtype=object)
-    except Exception:
-        maf_df = pd.read_csv(maf_out_path, sep="\t", dtype=object, skiprows=1)
+    maf_df = read_maf(maf_out_path)
 
     oncotree_code = ""
     match = ctx.clin_file.loc[ctx.clin_file["SAMPLE_ID"].astype(str) == str(sample_id)]
