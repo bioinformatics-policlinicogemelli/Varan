@@ -147,7 +147,7 @@ def cnv_type_from_folder(input_path: str,
             sample_id = f"{mapped}.bam" if mapped else get_sample_id_from_cnv(case_folder)
 
             if sample_id in sid_path:
-                with (Path(output_folder) / "sampleID_dup.log").open("a") as dup_path:
+                with (Path(output_folder) / "sampleID_dup.log").open("a", encoding="utf-8") as dup_path:
                     dup_path.write(sample_id + "\t" + "cnv_vcf\n")
             else:
                 if cnv_dir is not None:
@@ -170,7 +170,7 @@ def cnv_type_from_folder(input_path: str,
 
         except Exception as err:
             logger.warning(f"Error while reading {case_folder}: {err}")
-            with (Path(output_folder) / "noParsed_cnv.log").open("a") as log_noparsed:
+            with (Path(output_folder) / "noParsed_cnv.log").open("a", encoding="utf-8") as log_noparsed:
                 log_noparsed.write("[WARNING] " + case_folder + "\n")
 
         counter += 1
@@ -340,7 +340,7 @@ def cnv_type_from_folder(input_path: str,
                     continue
 
                 try:
-                    tc = int(tc_val)
+                    tc = float(tc_val)
                 except (ValueError, TypeError):
                     logger.warning(f"Skipping sample {sample_id} due to invalid TC value: {tc_val}")
                     continue
@@ -455,13 +455,13 @@ def extract_multiple_cnv(multiple_vcf: str, input_dir: str) -> None:
 
     cmd_extract = ["vcf-query", "-l", str(multiple_vcf)]
     try:
-        with sample_id_txt.open("w") as f:
+        with sample_id_txt.open("w", encoding="utf-8") as f:
             subprocess.run(cmd_extract, stdout=f, check=True)
     except subprocess.CalledProcessError as e:
         msg = f"Error during vcf-query: {e}"
         raise RuntimeError(msg) from e
 
-    with sample_id_txt.open() as f:
+    with sample_id_txt.open(encoding="utf-8") as f:
         for line in f:
             sample_id = line.strip()
             output_vcf = single_sample_vcf_dir / f"{sample_id}.vcf"
@@ -473,7 +473,7 @@ def extract_multiple_cnv(multiple_vcf: str, input_dir: str) -> None:
                 "--recode-INFO-all",
                 "--stdout"]
             try:
-                with output_vcf.open("w") as out_f:
+                with output_vcf.open("w", encoding="utf-8") as out_f:
                     subprocess.run(cmd_vcf, stdout=out_f, check=True)
             except subprocess.CalledProcessError as e:
                 logger.warning(f"Error during VCF creation for {sample_id}: {e}")
@@ -492,7 +492,7 @@ def check_data_cna(data_cna_path: str) -> None:
     input_file = Path(data_cna_path).name
     logger.info(f"Checking {input_file} file...")
     try:
-        with Path(data_cna_path).open() as data_cna:
+        with Path(data_cna_path).open(encoding="utf-8") as data_cna:
             all_data_cna = data_cna.readlines()
             if len(all_data_cna) == 1:
                 Path(data_cna_path).unlink()
@@ -574,7 +574,7 @@ def write_exon_brca(
 
     try:
         output_file_path = Path(output_file)
-        with output_file_path.open("w") as exonic_table:
+        with output_file_path.open("w", encoding="utf-8") as exonic_table:
             exonic_table.write(header)
             exonic_table.writelines(rows_to_write)
         logger.info(f"Successfully created {output_file_path.name} with {len(rows_to_write)} records.")
@@ -634,7 +634,7 @@ def write_exon_brca_generic_assay(
 
     out_path = Path(output_folder) / "data_exon_brca_cna.txt"
     try:
-        with out_path.open("w") as f:
+        with out_path.open("w", encoding="utf-8") as f:
             f.writelines(lines)
         logger.info(f"Successfully created {out_path.name} for {len(samples)} sample(s).")
     except Exception as e:

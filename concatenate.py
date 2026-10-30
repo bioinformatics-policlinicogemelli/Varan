@@ -49,9 +49,9 @@ def concatenate_files(file_list: list[str], output_file: str) -> None:
     """
     header_written = False
 
-    with Path(output_file).open("w") as out_file:
+    with Path(output_file).open("w", encoding="utf-8") as out_file:
         for file_name in file_list:
-            with Path(file_name).open() as in_file:
+            with Path(file_name).open(encoding="utf-8") as in_file:
                 lines = in_file.readlines()
                 
                 clean_lines = []
@@ -202,7 +202,7 @@ def concatenate_main(
     concatenate_files(file_list, output_file)
 
     logger.info("Checking data_mutations_extended...")
-    with output_file.open() as data_mut:
+    with output_file.open(encoding="utf-8") as data_mut:
         all_data_mut = data_mut.readlines()
         if (len(all_data_mut) <= 1):
             output_file.unlink()

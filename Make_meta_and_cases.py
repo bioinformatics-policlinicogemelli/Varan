@@ -82,7 +82,7 @@ def create_meta_study(cancer: str, project_name: str, project_id: str,
     meta_file_path = Path(output_dir) / "meta_study.txt"
     logger.info("Writing meta_study.txt file...")
 
-    with meta_file_path.open("w") as meta_file:
+    with meta_file_path.open("w", encoding="utf-8") as meta_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=meta_file)
 
@@ -114,7 +114,7 @@ def create_meta_clinical_patient(project_id: str, output_dir: str) -> None:
 
     file_path = Path(output_dir) / "meta_clinical_patient.txt"
     logger.info("Writing meta_clinical_patient.txt file...")
-    with file_path.open("w") as meta_file:
+    with file_path.open("w", encoding="utf-8") as meta_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=meta_file)
 
@@ -142,7 +142,7 @@ def create_meta_clinical_sample(project_id: str, output_dir: str) -> None:
 
     file_path = Path(output_dir) / "meta_clinical_sample.txt"
     logger.info("Writing meta_clinical_sample.txt file...")
-    with file_path.open("w") as meta_file:
+    with file_path.open("w", encoding="utf-8") as meta_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=meta_file)
 
@@ -185,7 +185,7 @@ def create_meta_mutations(cancer: str, project_id: str, profile: str,
 
     file_path = Path(output_dir) / "meta_mutations_extended.txt"
     logger.info("Writing meta_mutations_extended.txt file...")
-    with file_path.open("w") as meta_file:
+    with file_path.open("w", encoding="utf-8") as meta_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=meta_file)
 
@@ -226,7 +226,7 @@ def create_meta_sv(project_id: str, profile: str, output_dir: str) -> None:
 
     file_path = Path(output_dir) / "meta_sv.txt"
     logger.info("Writing meta_sv.txt file...")
-    with file_path.open("w") as meta_file:
+    with file_path.open("w", encoding="utf-8") as meta_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=meta_file)
 
@@ -270,7 +270,7 @@ def create_meta_cna(cancer: str, project_id: str, profile: str,
     }
 
     meta_file_path = Path(output_dir) / "meta_cna.txt"
-    with meta_file_path.open("w") as meta_file:
+    with meta_file_path.open("w", encoding="utf-8") as meta_file:
         logger.info("Writing meta_cna.txt file...")
         for key, value in dictionary_file.items():
             meta_file.write(f"{key}: {value}\n")
@@ -307,7 +307,7 @@ def create_meta_cna_hg19(project_id: str, profile: str, output_dir: str) -> None
     }
 
     meta_file_path = Path(output_dir) / "meta_cna_hg19_seg.txt"
-    with meta_file_path.open("w") as meta_file:
+    with meta_file_path.open("w", encoding="utf-8") as meta_file:
         logger.info("Writing meta_cna_hg19_seg.txt file...")
         for key, value in dictionary_file.items():
             meta_file.write(f"{key}: {value}\n")
@@ -349,7 +349,7 @@ def create_meta_generic_assay_exon_brca(project_id: str, output_dir: str) -> Non
     }
 
     meta_file_path = Path(output_dir) / "meta_exon_brca_cna.txt"
-    with meta_file_path.open("w") as meta_file:
+    with meta_file_path.open("w", encoding="utf-8") as meta_file:
         logger.info("Writing meta_exon_brca_cna.txt file...")
         for key, value in dictionary_file.items():
             meta_file.write(f"{key}: {value}\n")
@@ -530,7 +530,7 @@ def check_cases(output_folder: str) -> None:
     cases_path = Path(output_folder) / "case_lists"
     for case_file in cases_path.iterdir():
         if case_file.is_file():
-            with case_file.open() as file:
+            with case_file.open(encoding="utf-8") as file:
                 lines = file.readlines()
                 if lines and lines[-1].strip() == "case_list_ids:":
                     case_file.unlink()

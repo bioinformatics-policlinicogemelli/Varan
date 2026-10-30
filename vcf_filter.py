@@ -40,7 +40,7 @@ def parsing_vcf(file_input: str, file_output: str) -> None:
         None: Writes the filtered data to the specified output file.
 
     """
-    with Path(file_input).open() as f:
+    with Path(file_input).open(encoding="utf-8") as f:
         correct_data=[line.strip().split("\t")
                       for line in f if not line.startswith("##")]
 
@@ -61,7 +61,7 @@ def write_header_lines(input_vcf: str, output_vcf: str) -> None:
         None: Writes the header lines to the specified output file.
 
     """
-    with Path(input_vcf).open() as f_in, Path(output_vcf).open("w") as f_out:
+    with Path(input_vcf).open(encoding="utf-8") as f_in, Path(output_vcf).open("w", encoding="utf-8") as f_out:
         for line in f_in:
             if line.startswith("##"):
                 f_out.write(line)

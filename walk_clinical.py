@@ -287,7 +287,7 @@ def write_default_clinical_patient(output_folder: str, table_dict: dict) -> None
     output_folder = Path(output_folder)
     data_clin_samp = output_folder / "data_clinical_patient.txt"
 
-    with data_clin_samp.open("w") as cil_sample:
+    with data_clin_samp.open("w", encoding="utf-8") as cil_sample:
         cil_sample.write("#Patient Identifier\tAge\tGender\n")
         cil_sample.write("#Patient identifier\tAge\tGender\n")
         cil_sample.write("#STRING\tNUMBER\tSTRING\n")
@@ -644,7 +644,7 @@ def update_data_clinical_with_exon_info(
         if all_exon_dfs:
             all_exon_dfs = pd.concat(all_exon_dfs, ignore_index=True)
 
-            with open(data_clin_path, "r") as f:
+            with open(data_clin_path, "r", encoding="utf-8") as f:
                 header_lines = [next(f) for _ in range(4)]
 
             data_clin_df = pd.read_csv(
@@ -663,7 +663,7 @@ def update_data_clinical_with_exon_info(
             updated_headers.append(header_lines[2].rstrip("\n") + "\t" + "\t".join(["STRING"] * len(new_columns)) + "\n")
             updated_headers.append(header_lines[3].rstrip("\n") + "\t" + "\t".join(["1"] * len(new_columns)) + "\n")
 
-            with open(data_clin_path, "w") as f:
+            with open(data_clin_path, "w", encoding="utf-8") as f:
                 f.writelines(updated_headers)
                 # lineterminator="\n": f is a text-mode handle that already
                 # turns "\n" into the platform's line ending - pandas' own
@@ -715,7 +715,7 @@ def update_data_clinical_with_hrd_info(
         if all_gis_rows:
             all_gis_df = pd.DataFrame(all_gis_rows)
 
-            with open(data_clin_path, "r") as f:
+            with open(data_clin_path, "r", encoding="utf-8") as f:
                 header_lines = [next(f) for _ in range(4)]
 
             data_clin_df = pd.read_csv(
@@ -735,7 +735,7 @@ def update_data_clinical_with_hrd_info(
                 header_lines[3].rstrip("\n") + "\t" + "\t".join(["1"] * len(new_columns)) + "\n",
             ]
 
-            with open(data_clin_path, "w") as f:
+            with open(data_clin_path, "w", encoding="utf-8") as f:
                 f.writelines(updated_headers)
                 # lineterminator="\n": f is a text-mode handle that already
                 # turns "\n" into the platform's line ending - pandas' own

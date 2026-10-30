@@ -189,7 +189,7 @@ def append_fusions_to_table(fusion_table_path: str, sample_id: str,
     vendor, which is why this lives here instead of in guardant.py.
     """
     is_new = not os.path.exists(fusion_table_path)
-    with open(fusion_table_path, "a") as f:
+    with open(fusion_table_path, "a", encoding="utf-8") as f:
         if is_new:
             f.write(FUSION_TABLE_HEADER)
         for fus in fusions:
@@ -231,7 +231,7 @@ def write_sample_tsv(rows: Sequence[SampleRow], path: str) -> None:
                 extra_cols.append(key)
 
     header = SAMPLE_TSV_COLUMNS + extra_cols
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write("\t".join(header) + "\n")
         for row in rows:
             base = [

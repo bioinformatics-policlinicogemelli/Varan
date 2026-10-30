@@ -46,7 +46,7 @@ def check_sample_list(extract_path: str, oldpath: str) -> None:
         None
 
     """
-    with Path(extract_path).open() as sample_list:
+    with Path(extract_path).open(encoding="utf-8") as sample_list:
         first_line = sample_list.readline()
         if len(first_line.split("\t")) > 1:
             logger.critical(
@@ -54,7 +54,7 @@ def check_sample_list(extract_path: str, oldpath: str) -> None:
                 f"It may not be in the correct format!")
             sys.exit(1)
 
-    with Path(extract_path).open() as sample_list:
+    with Path(extract_path).open(encoding="utf-8") as sample_list:
         all_samples_to_extract = {sample.strip() for sample in sample_list}
 
         sample = pd.read_csv(

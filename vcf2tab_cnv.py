@@ -59,7 +59,7 @@ def is_positive(number: float, sample: str) -> bool:
     """
     if number > 0:
         return True
-    with Path("negative_FC.log").open("a") as n:
+    with Path("negative_FC.log").open("a", encoding="utf-8") as n:
         n.write(f"[WARNING] the sample {sample} has a Fold change in CNV with "
         "negative value\n")
     return False
@@ -195,7 +195,7 @@ def vcf_to_table(vcf_file: str, table_file: str, sample: str, mode: str) -> None
     vcf_path = Path(vcf_file)
     mode = "a" if table_path.exists() else "w"
 
-    with vcf_path.open() as vcf, table_path.open(mode) as table:
+    with vcf_path.open(encoding="utf-8") as vcf, table_path.open(mode) as table:
         if mode != "a":
             table.write("ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\n")
 
@@ -353,7 +353,7 @@ def vcf_to_table_fc(tc_lookup: Dict[str, float], vcf_file: str, table_file: str,
     sample_tc = tc_lookup.get(sample)
 
     mode = "a" if table_path.exists() else "w"
-    with vcf_path.open() as vcf, table_path.open(mode) as table:
+    with vcf_path.open(encoding="utf-8") as vcf, table_path.open(mode) as table:
         if mode != "a":
             table.write(
                 "ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\tFC\tgene\t"

@@ -1109,7 +1109,7 @@ def _tests_fusions(combined_output: Path) -> bool:
     content isn't "NA" - read the same way tsv.get_fusions() and
     tsv.get_splice_variants() read them."""
     try:
-        lines = combined_output.read_text(errors="replace").splitlines()
+        lines = combined_output.read_text(errors="replace", encoding="utf-8").splitlines()
     except OSError:
         return False
     for i, line in enumerate(lines):

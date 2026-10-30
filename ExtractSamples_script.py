@@ -126,7 +126,7 @@ def extract_main(oldpath: str,
         for file in meta_files:
             shutil.copy(file, output)
 
-        with Path(extract_path).open() as f:
+        with Path(extract_path).open(encoding="utf-8") as f:
             sample_ids = [line.strip() for line in f]
 
         extract_all_data(oldpath, sample_ids, output)

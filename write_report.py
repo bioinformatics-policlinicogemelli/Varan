@@ -164,7 +164,7 @@ def write_provenance(output_folder: str, **fields: str | None) -> None:
     """
     service_dir = Path(output_folder) / "service"
     service_dir.mkdir(parents=True, exist_ok=True)
-    with (service_dir / "provenance.json").open("w") as f:
+    with (service_dir / "provenance.json").open("w", encoding="utf-8") as f:
         json.dump(fields, f, indent=2, default=str)
 
 
@@ -184,7 +184,7 @@ def read_provenance(study_folder: str) -> dict | None:
     if not path.exists():
         return None
     try:
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
         return None
@@ -390,7 +390,7 @@ def write_report_failure(
     </html>
     """
 
-    (output_path / "report_VARAN.html").write_text(html_content)
+    (output_path / "report_VARAN.html").write_text(html_content, encoding="utf-8")
 
 
 def extract_sample_list(filecase: str) -> list[str]:
@@ -414,7 +414,7 @@ def extract_sample_list(filecase: str) -> list[str]:
     sample_list = []
     file_path = Path(filecase)
 
-    with file_path.open() as meta:
+    with file_path.open(encoding="utf-8") as meta:
         for line in meta:
             if line.startswith("case_list_ids:"):
                 sample_part = line.split(":")[1]
@@ -515,7 +515,7 @@ def build_warnings_section(
     ]:
         log_path = output_path / log_name
         if log_path.exists():
-            content = log_path.read_text().strip()
+            content = log_path.read_text(encoding="utf-8").strip()
             if content:
                 entries = "; ".join(line for line in content.splitlines() if line)
                 items.append(
@@ -1041,7 +1041,7 @@ def write_report_main(
     """
 
     output_path = Path(output_folder) / "report_VARAN.html"
-    with output_path.open("w") as f:
+    with output_path.open("w", encoding="utf-8") as f:
         f.write(html_content)
 
 
@@ -1735,7 +1735,7 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
     """
 
     output_file = Path(output_file)
-    with output_file.open("w") as f:
+    with output_file.open("w", encoding="utf-8") as f:
         f.write(html_content)
 
 
@@ -2180,7 +2180,7 @@ def write_report_extract(original_study: str, new_study: str,
     """
 
     report_path = Path(new_study) / "report_VARAN.html"
-    with report_path.open("w") as f:
+    with report_path.open("w", encoding="utf-8") as f:
         f.write(html_content)
 
 
@@ -2613,7 +2613,7 @@ def write_report_remove(
     """
 
     report_path = Path(new_study) / "report_VARAN.html"
-    with report_path.open("w") as f:
+    with report_path.open("w", encoding="utf-8") as f:
         f.write(html_content)
 
 

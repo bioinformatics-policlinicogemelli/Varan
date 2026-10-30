@@ -210,7 +210,7 @@ def get_msi_data(msi_path: Optional[str]) -> Dict[str, str]:
     data = {"run_id": "UNKNOWN_RUN", "msi_score": "", "msi_thr": ""}
     if msi_path and os.path.exists(msi_path):
         try:
-            with open(msi_path, "r") as f:
+            with open(msi_path, "r", encoding="utf-8") as f:
                 r = csv.DictReader(f, delimiter="\t")
                 for row in r:
                     row = {k.strip(): v.strip() for k, v in row.items() if k}
@@ -241,7 +241,7 @@ def load_fusions(fusion_path: Optional[str]) -> Optional[List[Dict[str, str]]]:
         return None
     fusions: List[Dict[str, str]] = []
     try:
-        with open(fusion_path, "r") as f:
+        with open(fusion_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f, delimiter="\t")
             for row in reader:
                 if row.get("call") == "1":
@@ -315,7 +315,7 @@ def load_cnv_tsv_ordered(tsv_path: Optional[str]) -> Dict[str, Dict]:
     cnv_by_gene: Dict[str, Dict] = {}
     if not tsv_path or not os.path.exists(tsv_path):
         return cnv_by_gene
-    with open(tsv_path, "r") as f:
+    with open(tsv_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
         start = next(
             (i for i, l in enumerate(lines)
@@ -363,7 +363,7 @@ def process_vcf(vcf_in: str, cnv_tsv_in: Optional[str], snv_out: str,
     cnv_by_gene = load_cnv_tsv_ordered(cnv_tsv_in)
     col_header = f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{sample_id}\n"
 
-    with open(vcf_in, "r") as f_in, open(snv_out, "w") as f_snv, open(cnv_out, "w") as f_cnv:
+    with open(vcf_in, "r", encoding="utf-8") as f_in, open(snv_out, "w", encoding="utf-8") as f_snv, open(cnv_out, "w", encoding="utf-8") as f_cnv:
         f_snv.writelines(COMMON_HEADER + SNV_SPECIFIC + [col_header])
         f_cnv.writelines(COMMON_HEADER + CNV_SPECIFIC + [col_header])
 
@@ -826,7 +826,7 @@ def run(
         logger.info(f"Analyzing selection: {selection}")
         main_run_id = Path(selection).stem
         fusion_table_path = os.path.join(report_base_dir, f"{main_run_id}_fusions.tsv")
-        with open(selection, "r") as f:
+        with open(selection, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f, delimiter="\t")
             for raw_row in reader:
                 # Case-insensitive column names (SAMPLE_ID == sample_id).

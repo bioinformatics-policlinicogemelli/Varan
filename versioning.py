@@ -212,7 +212,7 @@ def extract_info_from_meta(folder: str) -> tuple:
 
     """
     file_meta = Path(folder) / "meta_study.txt"
-    with file_meta.open() as meta:
+    with file_meta.open(encoding="utf-8") as meta:
         for line in meta:
             if line.startswith("type_of_cancer"):
                 cancer = line.split(" ")[1].strip()

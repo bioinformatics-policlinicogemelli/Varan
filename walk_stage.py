@@ -224,12 +224,12 @@ def _cmd_setup(args: argparse.Namespace, pipeline: str) -> None:
         # Plain-text copy of the real study path, for the Snakefile's
         # onsuccess handler (which can't unpickle ctx: it runs in
         # Snakemake's own environment, without Varan's dependencies).
-        (ctx_out.parent / ".study_path").write_text(str(ctx.output_folder))
+        (ctx_out.parent / ".study_path").write_text(str(ctx.output_folder), encoding="utf-8")
         snv_samples = walk._walk_snv_samples(ctx)
         job_keys = walk.snv_job_keys(list(snv_samples))
         (ctx_out.parent / SNV_SAMPLES_FILE).write_text("".join(
             f"{job_key}\t{sample_id}\t{vcf}\n"
-            for job_key, (sample_id, vcf) in zip(job_keys, snv_samples.items())))
+            for job_key, (sample_id, vcf) in zip(job_keys, snv_samples.items())), encoding="utf-8")
         logger.info(f"{len(snv_samples)} SNV sample(s) to convert.")
         logger.success(f"walk_stage setup complete, context written to {ctx_out}")
 
@@ -272,7 +272,7 @@ def _cmd_stage(stage_name: str, args: argparse.Namespace) -> None:
 def read_snv_samples(ctx_path: Path) -> dict[str, tuple[str, str]]:
     """Read setup's SNV sample list (see SNV_SAMPLES_FILE), in sample order:
     {job_key: (sample_id, vcf)}."""
-    lines = (ctx_path.parent / SNV_SAMPLES_FILE).read_text().splitlines()
+    lines = (ctx_path.parent / SNV_SAMPLES_FILE).read_text(encoding="utf-8").splitlines()
     rows = [line.split("\t", 2) for line in lines if line.strip()]
     return {job_key: (sample_id, vcf) for job_key, sample_id, vcf in rows}
 

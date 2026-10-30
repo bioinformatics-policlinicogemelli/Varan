@@ -96,7 +96,7 @@ def _warn_fusion_conflicts(
 def _reports_fusions(combined_output: Path) -> bool:
     """Whether a CombinedVariantOutput's [Fusions] section holds an
     analysis (rows or an empty list) rather than "NA" (RNA not run)."""
-    lines = combined_output.read_text(errors="replace").splitlines()
+    lines = combined_output.read_text(errors="replace", encoding="utf-8").splitlines()
     for i, line in enumerate(lines):
         if "[Fusions]" in line or "[Data Fusions]" in line:
             return not (i + 2 < len(lines) and lines[i + 2].strip() == "NA")
@@ -129,10 +129,10 @@ def fill_fusion_from_temp(
     logger.info(f"Found {len(fusion_files)} Fusion file(s)")
 
     fusion_input = Path(input_path) / "FUSIONS" / fusion_files[0]
-    with fusion_input.open() as template:
+    with fusion_input.open(encoding="utf-8") as template:
         header = template.readline()
 
-    with Path(fusion_table_file).open("w") as fusion_table:
+    with Path(fusion_table_file).open("w", encoding="utf-8") as fusion_table:
         fusion_table.write(header)
 
         for fusion_file in fusion_files:
@@ -233,7 +233,7 @@ def fill_fusion_from_combined(
     logger.info("Writing data_sv.txt file...")
 
     fusion_table_path = Path(fusion_table_file)
-    with fusion_table_path.open("w") as fusion_table:
+    with fusion_table_path.open("w", encoding="utf-8") as fusion_table:
         fusion_table.write("\t".join(SV_COLUMNS) + "\n")
 
         for k, v in combined_dict.items():
@@ -410,7 +410,7 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
     # both have had their chance to write to it.
     n_fusions = 0
     if fusion_table_file.exists():
-        with fusion_table_file.open() as data_sv:
+        with fusion_table_file.open(encoding="utf-8") as data_sv:
             n_fusions = max(len(data_sv.readlines()) - 1, 0)
     if n_fusions:
         logger.info(f"{n_fusions} fusion call(s) found for this batch.")
@@ -473,7 +473,7 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
     if fusion_table_file.exists():
         # Counted first, file closed before it may be removed below (an
         # open file can't be deleted on Windows).
-        with fusion_table_file.open() as data_sv:
+        with fusion_table_file.open(encoding="utf-8") as data_sv:
             header_only = len(data_sv.readlines()) == 1
         if header_only:
             tested = read_profiled_samples(ctx.output_folder).get("sv")

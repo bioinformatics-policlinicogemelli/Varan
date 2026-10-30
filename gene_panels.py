@@ -98,7 +98,7 @@ def read_gene_list(panel_id: str) -> list[str] | None:
     if not path.is_file():
         return None
     genes = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line and not line.startswith("#"):
             genes.extend(g for g in line.replace(",", "\t").split("\t") if g.strip())
@@ -154,7 +154,7 @@ def _export_panel(folder: str, panel_id: str, genes: list[str]) -> None:
     out.write_text(
         f"stable_id: {panel_id}\n"
         f"description: {panel_id} ({len(genes)} genes, exported by Varan)\n"
-        f"gene_list: {chr(9).join(genes)}\n")
+        f"gene_list: {chr(9).join(genes)}\n", encoding="utf-8")
     logger.info(f"Gene panel '{panel_id}' ({len(genes)} genes) exported to {out}")
 
 
@@ -254,7 +254,7 @@ def create_meta_gene_panel_matrix(project_id: str, folder: str) -> None:
         f"cancer_study_identifier: {project_id}\n"
         "genetic_alteration_type: GENE_PANEL_MATRIX\n"
         "datatype: GENE_PANEL_MATRIX\n"
-        f"data_filename: {MATRIX_FILE}\n")
+        f"data_filename: {MATRIX_FILE}\n", encoding="utf-8")
     logger.info(f"{META_FILE} created!")
 
 

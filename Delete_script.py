@@ -124,13 +124,13 @@ def delete_main(oldpath: str, removepath: str, output: str,
     stage = "Removing samples"
     cancer = None
     try:
-        with Path(removepath).open() as sample_list:
+        with Path(removepath).open(encoding="utf-8") as sample_list:
             first_line = sample_list.readline()
             if len(first_line.split("\t")) > 1:
                 logger.warning(f"The file {removepath} contains more than a column. "
                 "It may not be in the correct format!")
 
-        with Path(removepath).open("r") as f:
+        with Path(removepath).open("r", encoding="utf-8") as f:
             sample_ids = [line.strip() for line in f]
 
         delete_all_data(oldpath, sample_ids, output)

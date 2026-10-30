@@ -262,7 +262,7 @@ def _check_output_folder(issues: Issues, output_folder: str,
         segfc = latest / "data_cna_hg19.seg.fc.txt"
         if segfc.exists():
             try:
-                with segfc.open() as f:
+                with segfc.open(encoding="utf-8") as f:
                     header = f.readline().rstrip("\n").split("\t")
                 if len(header) not in (10, 11):
                     _warn(
@@ -488,7 +488,7 @@ def _check_vcf_header(path: Path) -> Optional[str]:
     couldn't be read/has no recognizable header - callers decide severity.
     """
     try:
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             for line in f:
                 if line.startswith("##fileformat"):
                     return line.split("=")[-1].strip()
@@ -513,7 +513,7 @@ def _check_cnv_vcf_rows(issues: Issues, path: Path, sample_id: str) -> None:
 
     bad_rows = 0
     try:
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             for line in f:
                 if line.startswith("#"):
                     continue
@@ -582,7 +582,7 @@ def _check_sample_list_file(issues: Issues, sample_list: str, path: str,
         _fail(issues, f"{label}: SampleList not found: {sample_list}")
         return
     try:
-        with Path(sample_list).open() as f:
+        with Path(sample_list).open(encoding="utf-8") as f:
             first_line = f.readline()
             if len(first_line.split("\t")) > 1:
                 _fail(
@@ -590,7 +590,7 @@ def _check_sample_list_file(issues: Issues, sample_list: str, path: str,
                     f"{label}: SampleList '{sample_list}' has more than one "
                     "column - it should be one sample ID per line")
                 return
-        with Path(sample_list).open() as f:
+        with Path(sample_list).open(encoding="utf-8") as f:
             requested = {s.strip() for s in f if s.strip()}
     except OSError as err:
         _fail(issues, f"{label}: couldn't read SampleList '{sample_list}': {err}")

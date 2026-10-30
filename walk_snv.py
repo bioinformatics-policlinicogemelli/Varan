@@ -98,13 +98,13 @@ def snv_type_from_folder(input_pat: str,
             snv_vcf = case_folder
             sample_id = (id_map or {}).get(Path(case_folder).name)                 or get_sample_id_from_snv(case_folder)
             if sample_id in sid_path:
-                with (Path(output_folder) / "sampleID_dup.log").open("a") as dup:
+                with (Path(output_folder) / "sampleID_dup.log").open("a", encoding="utf-8") as dup:
                     dup.write(sample_id + "\t" + "snv_vcf\n")
             else:
                 sid_path[sample_id] = str(Path(input_pat) / snv_vcf)
         except Exception as err:
             logger.warning(f"Error while reading {case_folder}: {err}")
-            with (Path(output_folder) / "noParsed_snv.log").open("a") as log_noparsed:
+            with (Path(output_folder) / "noParsed_snv.log").open("a", encoding="utf-8") as log_noparsed:
                 log_noparsed.write("[WARNING]" + case_folder + "\n")
         c = c + 1
 
@@ -265,7 +265,7 @@ def run_vcf2maf(cl: list, sample: str) -> bool:
 
 def _read_vcf_header_and_data(vcf_path: str) -> tuple[list[str], list[str]]:
     """Split a VCF's lines into (header lines incl. #CHROM row, data rows)."""
-    with open(vcf_path) as f:
+    with open(vcf_path, encoding="utf-8") as f:
         lines = f.readlines()
     header_lines = [ln for ln in lines if ln.startswith("#")]
     data_lines = [ln for ln in lines if not ln.startswith("#")]
@@ -304,7 +304,7 @@ def split_colocated_variants(vcf_path: str, work_dir: str) -> list[str]:
             continue
         for i, row in enumerate(rows[1:], start=1):
             extra_path = Path(work_dir) / f"{base.stem}.colocated_{chrom}_{pos}_{i}{base.suffix}"
-            with open(extra_path, "w") as f:
+            with open(extra_path, "w", encoding="utf-8") as f:
                 f.writelines(header_lines)
                 f.write(row)
             extra_paths.append(str(extra_path))
@@ -357,7 +357,7 @@ def extract_multiple_snv(multiple_vcf: str, input_dir: str) -> None:
 
     sample_id_path = input_dir / "sample_id.txt"
     try:
-        with sample_id_path.open("w") as f:
+        with sample_id_path.open("w", encoding="utf-8") as f:
             subprocess.run(["vcf-query", "-l", str(multiple_vcf)], stdout=f, check=True)
     except subprocess.CalledProcessError as e:
         msg = f"Error during vcf-query: {e}"
@@ -365,13 +365,13 @@ def extract_multiple_snv(multiple_vcf: str, input_dir: str) -> None:
 
     sample_id_file = input_dir / "sample_id.txt"
 
-    with sample_id_file.open() as file:
+    with sample_id_file.open(encoding="utf-8") as file:
         lines = file.readlines()
         for sample_line in lines:
             sample = sample_line.strip()
             output_vcf = vcf_dir / f"{sample}.vcf"
 
-            with output_vcf.open("w") as out_f:
+            with output_vcf.open("w", encoding="utf-8") as out_f:
                 try:
                     subprocess.run(
                         [

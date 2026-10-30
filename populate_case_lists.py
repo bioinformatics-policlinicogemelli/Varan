@@ -56,7 +56,7 @@ def write_profiled_samples(folder: str, profiled: dict[str, list[str]]) -> None:
     """Write PROFILED_SAMPLES_FILE under the study folder `folder`."""
     path = Path(folder) / PROFILED_SAMPLES_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w") as f:
+    with path.open("w", encoding="utf-8") as f:
         for profile, sample_ids in profiled.items():
             for sample_id in sample_ids:
                 f.write(f"{profile}\t{sample_id}\n")
@@ -69,7 +69,7 @@ def read_profiled_samples(folder: str) -> dict[str, list[str]]:
     profiled: dict[str, list[str]] = {}
     if not path.exists():
         return profiled
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         if "\t" in line:
             profile, sample_id = line.split("\t", 1)
             profiled.setdefault(profile, []).append(sample_id)
@@ -87,7 +87,7 @@ def profiled_from_case_lists(study_folders: list[str]) -> dict[str, list[str]]:
             path = Path(folder) / "case_lists" / case_file
             if not path.exists():
                 continue
-            for line in path.read_text().splitlines():
+            for line in path.read_text(encoding="utf-8").splitlines():
                 if line.startswith("case_list_ids:"):
                     ids = profiled.setdefault(profile, [])
                     ids.extend(s.strip() for s in line.split(":", 1)[1].split("\t")
@@ -135,7 +135,7 @@ def ensure_sv_file(folder: str, profiled: list[str] | None) -> None:
     tested = profiled_in_study(folder, profiled)
     if not tested:
         return
-    path.write_text(SV_HEADER)
+    path.write_text(SV_HEADER, encoding="utf-8")
     logger.info(
         f"No fusions or splice variants in this study, but {len(tested)} "
         "sample(s) were tested for them: wrote a header-only data_sv.txt so "
@@ -229,7 +229,7 @@ def ensure_cna_file(folder: str, profiled: list[str] | None) -> None:
     tested = profiled_in_study(folder, profiled)
     if not tested:
         return
-    path.write_text("\t".join(["Hugo_Symbol", *tested]) + "\n")
+    path.write_text("\t".join(["Hugo_Symbol", *tested]) + "\n", encoding="utf-8")
     logger.info(
         f"No CNV call in this study, but {len(tested)} sample(s) were tested "
         "for CNVs: wrote a data_cna.txt with only its header so they're "
@@ -328,7 +328,7 @@ def populate_cases_sv(project_id: str, folder: str, cases_list_dir: str,
         "case_list_ids": case_list_ids,
     }
 
-    with (Path(cases_list_dir) / "cases_sv.txt").open("w") as case_sv_file:
+    with (Path(cases_list_dir) / "cases_sv.txt").open("w", encoding="utf-8") as case_sv_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=case_sv_file)
 
@@ -379,7 +379,7 @@ def populate_cases_cna(project_id: str, folder: str, cases_list_dir: str,
         "case_list_ids": case_list_ids,
     }
 
-    with (Path(cases_list_dir) / "cases_cna.txt").open("w") as case_cna_file:
+    with (Path(cases_list_dir) / "cases_cna.txt").open("w", encoding="utf-8") as case_cna_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=case_cna_file)
 
@@ -430,6 +430,6 @@ def populate_cases_sequenced(project_id: str, folder: str, cases_list_dir: str,
         "case_list_ids": case_list_ids,
     }
 
-    with (Path(cases_list_dir) / "cases_sequenced.txt").open("w") as case_sequence_file:
+    with (Path(cases_list_dir) / "cases_sequenced.txt").open("w", encoding="utf-8") as case_sequence_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=case_sequence_file)

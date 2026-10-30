@@ -102,7 +102,7 @@ def acquire_project_lock(configfile: Path):
     lock_dir.mkdir(exist_ok=True)
     key = hashlib.sha1(str(configfile.resolve()).encode()).hexdigest()[:16]
     lock_path = lock_dir / f"{key}.lock"
-    fh = open(lock_path, "w")
+    fh = open(lock_path, "w", encoding="utf-8")
     try:
         fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -175,7 +175,7 @@ def load_config(configfile: Path) -> Dict[str, Any]:
         return {}
 
     try:
-        with configfile.open("r") as handle:
+        with configfile.open("r", encoding="utf-8") as handle:
             data = yaml.safe_load(handle)
     except Exception as exc:
         warn(f"Could not parse config file for summary: {exc}")

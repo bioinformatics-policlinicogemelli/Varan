@@ -256,7 +256,7 @@ def read_maf(file_path: str | Path) -> pd.DataFrame:
     writes "#version 2.4" first). Reading it as-is doesn't fail - pandas
     just takes "#version 2.4" as a one-column header - so a "try plain
     read, fall back to skiprows=1 on error" never reached its fallback."""
-    with Path(file_path).open() as f:
+    with Path(file_path).open(encoding="utf-8") as f:
         n_comment = 0
         for line in f:
             if not line.startswith("#"):

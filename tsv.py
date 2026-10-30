@@ -44,7 +44,7 @@ def get_msi_tmb(input_file: str, sample_type: str) -> dict:
     data = {"TMB_Total": "NA", "MSI": []}
     msi_dic = {"Usable_MSI": "NA", "Tot_MSI_unstable": "NA"}
         
-    with input_file.open() as tsv_file:
+    with input_file.open(encoding="utf-8") as tsv_file:
         righe = tsv_file.read().splitlines()
         
         for riga in righe:
@@ -99,7 +99,7 @@ def get_gis(input_file: str) -> dict:
     """
     data = {"GIS": "NA", "Tumor_Fraction": "NA", "Ploidy": "NA"}
 
-    with input_file.open() as tsv_file:
+    with input_file.open(encoding="utf-8") as tsv_file:
         for riga in tsv_file.read().splitlines():
             campi = riga.split(sep="\t")
             if len(campi) < 2:
@@ -164,7 +164,7 @@ def get_fusions(input_file: str) -> list[dict[str, str]]:
         chromosomes, positions, and read counts.
 
     """
-    with input_file.open() as file:
+    with input_file.open(encoding="utf-8") as file:
         fusions = []
         lines = file.readlines()
         for i in range(len(lines)):
@@ -232,7 +232,7 @@ def get_splice_variants(input_file: str) -> list[dict[str, str]]:
         "Splice_Supporting_Reads" and "Reference_Reads_Transcript".
 
     """
-    with input_file.open() as file:
+    with input_file.open(encoding="utf-8") as file:
         lines = file.readlines()
         splice_variants = []
         for i in range(len(lines)):
@@ -272,7 +272,7 @@ def get_exons(input_file: str) -> list[dict[str, str]]:
             "Affected_Exon(s)", "Fold_Change", and "CNV_Type".
 
     """
-    with input_file.open() as file:
+    with input_file.open(encoding="utf-8") as file:
         lines = file.readlines()
 
         has_exon_section = any("[Exon-Level CNVs]" in line for line in lines)
