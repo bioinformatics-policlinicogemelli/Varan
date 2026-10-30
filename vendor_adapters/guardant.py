@@ -102,13 +102,6 @@ NAME = "guardant"
 # See varan.reconcile_sample_type() and MULTIVENDOR_INTEGRATION_NOTES.md.
 SAMPLE_TYPE = "Liquid"
 
-# Guardant360 tests every sample for fusions, but the fusions file this
-# adapter writes only lists the ones found - so a sample without fusions
-# can't be told apart from an untested one there. Declaring it here makes
-# walk.py list every sample of a Guardant run in cases_sv.txt (cBioPortal's
-# "profiled for structural variants"), not only those with a fusion.
-PROFILES_FUSIONS = True
-
 # --- DEFAULT PATHS (deployment-specific; override via run()'s kwargs for
 # a different environment/test setup rather than editing these) ---
 DICT_PATH = "/data/data_storage/research/Kulesko_Michele/Varan-Sviluppo/dict.csv"
@@ -227,23 +220,26 @@ def get_msi_data(msi_path: Optional[str]) -> Dict[str, str]:
     return data
 
 
-def load_fusions(fusion_path: Optional[str]) -> List[Dict[str, str]]:
+def load_fusions(fusion_path: Optional[str]) -> Optional[List[Dict[str, str]]]:
     """Read Guardant's .fusion_call.hdr.tsv, keeping only `call == "1"`
-    (Guardant-confirmed) rows."""
+    (Guardant-confirmed) rows. None - not [] - when there's no readable
+    fusion report: the sample wasn't tested for fusions, as opposed to
+    tested without any (see the fusion_tested column it decides)."""
+    if not fusion_path or not os.path.exists(fusion_path):
+        return None
     fusions: List[Dict[str, str]] = []
-    if fusion_path and os.path.exists(fusion_path):
-        try:
-            with open(fusion_path, "r") as f:
-                reader = csv.DictReader(f, delimiter="\t")
-                for row in reader:
-                    if row.get("call") == "1":
-                        fusions.append({
-                            "gene_a": row["gene_a"],
-                            "gene_b": row["gene_b"],
-                            "supp": row.get("fusion_molecule_count_ab", "0"),
-                        })
-        except Exception:
-            pass
+    try:
+        with open(fusion_path, "r") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            for row in reader:
+                if row.get("call") == "1":
+                    fusions.append({
+                        "gene_a": row["gene_a"],
+                        "gene_b": row["gene_b"],
+                        "supp": row.get("fusion_molecule_count_ab", "0"),
+                    })
+    except Exception:
+        return None
     return fusions
 
 
@@ -627,7 +623,7 @@ def process_single_sample(
     process_vcf(vcf_local, cnv_local, snv_f, cnv_f, sid)
 
     fusions_list = load_fusions(fus_local)
-    append_fusions_to_table(fusion_table_path, sid, fusions_list)
+    append_fusions_to_table(fusion_table_path, sid, fusions_list or [])
 
     for p in owned_paths:
         if os.path.exists(p):
@@ -644,6 +640,9 @@ def process_single_sample(
         sample_id=sid, patient_id=p_id, run_id=run_id_final,
         oncotree_code=o_code, snv_path=snv_f, cnv_path=cnv_f, comb_path="",
         msi=m_info["msi_score"], tmb="", msi_thr=m_info["msi_thr"], tmb_thr="",
+        # The fusions file only lists positives: this is how Varan knows a
+        # sample without any was still tested (cases_sv.txt).
+        fusion_tested="no" if fusions_list is None else "yes",
         # Passed through as a plain sample.tsv extra column (see SampleRow's
         # own docstring on `run_id` vs `extra`) so it ends up as a RUN_ID
         # column in data_clinical_sample.txt via write_clinical_sample()'s
@@ -658,10 +657,13 @@ def process_single_sample(
 # "fus_path") since this is meant to be a forgiving, samplesheet-style
 # contract, not a rigid one - any column not listed here is simply
 # ignored (not an error), so a selection.tsv can carry its own extra
-# bookkeeping columns (notes, batch name, etc.) freely.
+# bookkeeping columns (notes, batch name, etc.) freely. Column names are
+# matched case-insensitively, so Illumina's sample.tsv names work as-is
+# (SAMPLE_ID, PATIENT_ID, ONCOTREE_CODE, snv_path, cnv_path) - see
+# Templates/selection_guardant_example.tsv.
 _SELECTION_PATH_COLUMNS = {
     "xml": ("xml_path", "metadata_path", "finalmetadata_path"),
-    "vcf": ("vcf_path", "snv_vcf_path"),
+    "vcf": ("snv_path", "vcf_path", "snv_vcf_path"),
     "msi": ("msi_path", "msi_call_path"),
     "cnv": ("cnv_path", "cnv_call_path"),
     "fus": ("fusion_path", "fus_path", "fusion_call_path"),
@@ -692,15 +694,18 @@ def run(
     sample.tsv + fusions.tsv pair.
 
     `selection`'s only strictly required column is `sample_id`. Every
-    other column is optional and independently recognized when present:
+    other column is optional and independently recognized when present.
+    Column names are case-insensitive, so Illumina sample.tsv's own names
+    (SAMPLE_ID, PATIENT_ID, ONCOTREE_CODE, snv_path, cnv_path) work too -
+    see Templates/selection_guardant_example.tsv:
 
     - `s3_path_run`: an S3 run folder to auto-discover this sample's
       files from (Guardant's usual filename/suffix convention) - the
       original, still fully backward-compatible column. Optional now: a
       row that supplies every file type it needs via the explicit path
       columns below doesn't need one.
-    - `xml_path` (or `metadata_path`/`finalmetadata_path`), `vcf_path`
-      (or `snv_vcf_path`), `msi_path` (or `msi_call_path`), `cnv_path`
+    - `xml_path` (or `metadata_path`/`finalmetadata_path`), `snv_path`
+      (or `vcf_path`/`snv_vcf_path`), `msi_path` (or `msi_call_path`), `cnv_path`
       (or `cnv_call_path`), `fusion_path` (or `fus_path`/
       `fusion_call_path`): an explicit path to that one file - a local
       filesystem path, or an "s3://..." URI - overriding auto-discovery
@@ -802,7 +807,9 @@ def run(
         fusion_table_path = os.path.join(report_base_dir, f"{main_run_id}_fusions.tsv")
         with open(selection, "r") as f:
             reader = csv.DictReader(f, delimiter="\t")
-            for row in reader:
+            for raw_row in reader:
+                # Case-insensitive column names (SAMPLE_ID == sample_id).
+                row = {(k or "").strip().lower(): v for k, v in raw_row.items()}
                 sid = (row.get("sample_id") or "").strip()
                 if not sid:
                     print("Skipping a selection row with no sample_id.")

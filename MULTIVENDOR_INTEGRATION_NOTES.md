@@ -156,15 +156,30 @@ files that don't follow the usual convention.
 optional and independently recognized - see `_SELECTION_PATH_COLUMNS` and
 `run()`'s docstring in `guardant.py`):
 
+Column names are case-insensitive, so Illumina sample.tsv's own names
+work as-is: `SAMPLE_ID`, `PATIENT_ID`, `ONCOTREE_CODE`, `snv_path`,
+`cnv_path` (see `Templates/selection_guardant_example.tsv`, written that
+way). The older names below keep working.
+
 | Column | Required | Purpose |
 |---|---|---|
-| `sample_id` | Yes | Row is skipped (logged) if blank. |
+| `sample_id` / `SAMPLE_ID` | Yes | Row is skipped (logged) if blank. |
 | `s3_path_run` | No | A run folder to auto-discover this sample's files from (round 1's original column, still fully backward compatible) - optional now: a row supplying every file it needs via the explicit columns below doesn't need one. |
 | `xml_path` (or `metadata_path`/`finalmetadata_path`) | No | Explicit path to this sample's metadata XML - local path or `s3://...` - overrides auto-discovery for this file only. |
-| `vcf_path` (or `snv_vcf_path`) | No | Explicit path to this sample's somatic VCF. |
+| `snv_path` (or `vcf_path`/`snv_vcf_path`) | No | Explicit path to this sample's somatic VCF. |
 | `cnv_path` (or `cnv_call_path`) | No | Explicit path to this sample's `.cnv_call.hdr.tsv`. |
 | `msi_path` (or `msi_call_path`) | No | Explicit path to this sample's `.msi_call.hdr.tsv`. |
 | `fusion_path` (or `fus_path`/`fusion_call_path`) | No | Explicit path to this sample's `.fusion_call.hdr.tsv`. |
+| `patient_id` / `PATIENT_ID`, `oncotree_code` / `ONCOTREE_CODE` (or `oncotree`), `diagnosis` | No | Identity values for a row without a metadata XML - see `run()`'s docstring. |
+
+**Fusion testing is reported per sample.** The fusions file the adapter
+writes only lists positives, so the generated sample.tsv also has a
+`fusion_tested` column: `yes` when the sample's `.fusion_call.hdr.tsv`
+was found and read (even with no fusion in it), `no` otherwise (e.g. a
+samplesheet row with `fusion_path` blank and nothing to auto-discover).
+Varan lists only the `yes` samples in `cases_sv.txt` (cBioPortal's
+"tested for structural variants") - see `walk._profiled_samples()`. The
+column never reaches `data_clinical_sample.txt`.
 
 Any column not in this table (e.g. a `notes` or `batch_name` column a lab
 wants to keep for its own bookkeeping) is simply ignored, not an error -

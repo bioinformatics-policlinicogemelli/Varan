@@ -1,4 +1,5 @@
-sample_id	s3_path_run	xml_path	vcf_path	cnv_path	msi_path	fusion_path
-20250630_30ng_22	s3://fpg360-runs/20250630_30ng_22					
-52084217_00102139		/data/guardant/52084217_00102139_finalmetadata.xml	/data/guardant/52084217_00102139.snv.vcf	/data/guardant/52084217_00102139.cnv.vcf	/data/guardant/52084217_00102139.msi_call.hdr.tsv	/data/guardant/52084217_00102139.fusion_call.hdr.tsv
-30112400_10ng_05		/data/guardant/30112400_10ng_05_finalmetadata.xml	/data/guardant/30112400_10ng_05.snv.vcf			
+SAMPLE_ID	PATIENT_ID	ONCOTREE_CODE	snv_path	cnv_path	msi_path	fusion_path	xml_path	s3_path_run
+20250630_30ng_22								s3://fpg360-runs/20250630_30ng_22
+52084217_00102139			/data/guardant/52084217_00102139.snv.vcf	/data/guardant/52084217_00102139.cnv.vcf	/data/guardant/52084217_00102139.msi_call.hdr.tsv	/data/guardant/52084217_00102139.fusion_call.hdr.tsv	/data/guardant/52084217_00102139_finalmetadata.xml	
+30112400_10ng_05			/data/guardant/30112400_10ng_05.snv.vcf				/data/guardant/30112400_10ng_05_finalmetadata.xml	
+41230987_00123456	PT_41230987	LUAD	/data/guardant/41230987_00123456.snv.vcf	/data/guardant/41230987_00123456.cnv.vcf		/data/guardant/41230987_00123456.fusion_call.hdr.tsv		

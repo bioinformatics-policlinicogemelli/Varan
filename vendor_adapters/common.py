@@ -42,9 +42,15 @@ FUSION_TABLE_HEADER = ("Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\t"
 # that don't populate it - write_clinical_sample() in Update_functions.py
 # already carries unknown extra sample.tsv columns straight through into
 # data_clinical_sample.txt with no extra code required on the Varan side.
+#
+# fusion_tested ("yes"/"no") is an optional sample.tsv column Varan reads
+# to know which samples were tested for fusions - a vendor's fusions file
+# only lists the positives - see walk._profiled_samples(). Like the *_path
+# columns, it's input control, not a clinical attribute: it never reaches
+# data_clinical_sample.txt.
 SAMPLE_TSV_COLUMNS = [
     "SAMPLE_ID", "PATIENT_ID", "ONCOTREE_CODE", "snv_path", "cnv_path",
-    "comb_path", "MSI", "TMB", "MSI_THR", "TMB_THR",
+    "comb_path", "MSI", "TMB", "MSI_THR", "TMB_THR", "fusion_tested",
 ]
 
 
@@ -75,6 +81,7 @@ class SampleRow:
     tmb: str = ""
     msi_thr: str = ""
     tmb_thr: str = ""
+    fusion_tested: str = ""
     extra: Dict[str, str] = field(default_factory=dict)
 
 
@@ -209,7 +216,7 @@ def get_incremental_report_path(base_dir: str, run_id: str) -> str:
 def write_sample_tsv(rows: Sequence[SampleRow], path: str) -> None:
     """Write `rows` out in Varan's Templates/sample.tsv column order,
     appending any vendor-populated `extra` columns (union across all rows,
-    stable-sorted) after the standard ten, blank where a given row doesn't
+    stable-sorted) after the standard columns, blank where a given row doesn't
     set that key.
     """
     extra_cols: List[str] = []
@@ -227,7 +234,7 @@ def write_sample_tsv(rows: Sequence[SampleRow], path: str) -> None:
             base = [
                 row.sample_id, row.patient_id, row.oncotree_code,
                 row.snv_path, row.cnv_path, row.comb_path,
-                row.msi, row.tmb, row.msi_thr, row.tmb_thr,
+                row.msi, row.tmb, row.msi_thr, row.tmb_thr, row.fusion_tested,
             ]
             extras = [row.extra.get(col, "") for col in extra_cols]
             f.write("\t".join(map(str, base + extras)) + "\n")
