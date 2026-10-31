@@ -65,6 +65,10 @@ Every operation validates its output against cBioPortal's own `validateData.py` 
 
 Plasma variants that may come from white blood cell clones rather than the tumor are flagged, never removed, in `data_mutations_extended.txt` (`CH.EVIDENCE`, `CH.REASON`, shown in cBioPortal's mutation tables) and counted per sample (`N_CH_SUSPECT`, `CH_SUSPECT_GENES`). Evidence comes from an optional matched white blood cell VCF (`wbc_path` column in `sample.tsv`), tissue samples of the same patient in the study, serial plasma samples, and the gene list in [`ch_genes.tsv`](ch_genes.tsv) - see `[CH]` in `conf.ini` and [`clonal_hematopoiesis.py`](clonal_hematopoiesis.py). Without white blood cell sequencing the origin can't be confirmed: research use only.
 
+### Serial ctDNA
+
+With an optional `COLLECTION_DATE` column in `sample.tsv` (and optionally `BASELINE`), the plasma samples of each patient are compared over time ([`serial_ctdna.py`](serial_ctdna.py), `[Serial]` in `conf.ini`): ctDNA level (max or mean VAF, clonal hematopoiesis and germline-like variants left out), change from baseline and molecular response (thresholds from the ctMoniTR analyses, configurable), new and lost variants, and known acquired-resistance mutations from [`resistance_mutations.tsv`](resistance_mutations.tsv) with their references. Samples are ordered in cBioPortal's patient view through `data_timeline_specimen.txt`; the dates themselves stay in the study's `service/` folder - cBioPortal only gets days from the patient's first sample. Research use only.
+
 ## Documentation
 
 | | |

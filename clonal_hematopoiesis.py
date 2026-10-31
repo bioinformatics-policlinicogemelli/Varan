@@ -60,6 +60,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
+import gene_panels
 import specimen
 from clinical_file import drop_sample_columns, set_sample_column
 from config_loader import VARAN_DIR, config
@@ -246,23 +247,6 @@ def samples_from_table(table: pd.DataFrame | None, types: dict[str, str]) -> Sam
     return Samples(types, patients, wbc)
 
 
-def _covered_genes(folder: Path | None, sample_id: str, kind: str | None) -> set[str] | None:
-    """Genes of the panel `sample_id` was sequenced with, None if unknown."""
-    import gene_panels
-    panel_id = None
-    matrix = folder / gene_panels.MATRIX_FILE if folder else None
-    if matrix and matrix.exists():
-        table = gene_panels._read_matrix(matrix).set_index("SAMPLE_ID")
-        if "mutations" in table.columns and sample_id in table.index:
-            panel_id = table.at[sample_id, "mutations"]
-    if not panel_id or panel_id == "NA":
-        panel_id = gene_panels.panel_of(kind, "mutations")
-    if not panel_id:
-        return None
-    genes = gene_panels.read_gene_list(panel_id)
-    return set(genes) if genes is not None else None
-
-
 def _pct(value: float) -> str:
     return f"{value * 100:.2g}%"
 
@@ -336,7 +320,7 @@ def classify(maf: pd.DataFrame, samples: Samples, folder: Path | None = None,
             continue
         for o in tissue:
             if o not in coverage_cache:
-                coverage_cache[o] = _covered_genes(folder, o, specimen.TISSUE)
+                coverage_cache[o] = gene_panels.sample_genes(folder, o, specimen.TISSUE)
             covered = coverage_cache[o]
             if covered is None:
                 reasons.append(f"absent in tissue {o} (coverage unknown)")
@@ -372,8 +356,8 @@ def classify(maf: pd.DataFrame, samples: Samples, folder: Path | None = None,
 def flag_study(folder: str | Path, sample_table: pd.DataFrame | None = None) -> None:
     """Write CH.EVIDENCE / CH.REASON into the study's data_mutations_
     extended.txt. Specimen types come from `sample_table` (sample.tsv, at
-    creation) or from data_clinical_sample.txt (update). A variant already
-    "CH confirmed (WBC)" keeps it when its WBC VCF isn't given again."""
+    creation) or from data_clinical_sample.txt (update). What a matched WBC
+    VCF showed (in it or not) is kept when that VCF isn't given again."""
     folder = Path(folder)
     maf_path = folder / MAF_FILE
     if not maf_path.exists():
@@ -397,7 +381,8 @@ def flag_study(folder: str | Path, sample_table: pd.DataFrame | None = None) -> 
     samples = samples_from_table(sample_table, types)
     flags = classify(maf, samples, folder)
     if previous is not None:
-        keep = (previous[EVIDENCE] == CONFIRMED) & ~maf["Tumor_Sample_Barcode"].isin(samples.wbc)
+        from_wbc = previous[REASON].fillna("").str.contains("matched WBC", regex=False)
+        keep = from_wbc & ~maf["Tumor_Sample_Barcode"].isin(samples.wbc)
         flags.loc[keep] = previous.loc[keep].to_numpy()
     maf[EVIDENCE] = flags[EVIDENCE]
     maf[REASON] = flags[REASON]

@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+import serial_ctdna
 import specimen
 import tsv
 from clinical_file import set_sample_column
@@ -91,6 +92,9 @@ def write_clinical_sample(
     # Optional input column (matched white blood cells' VCF, see
     # clonal_hematopoiesis.py), not a clinical attribute.
     data_clin_samp = data_clin_samp.drop(columns=["WBC_PATH"], errors="ignore")
+    # Collection dates stay out of cBioPortal's files (only days from the
+    # first sample go there - see serial_ctdna.py).
+    data_clin_samp = data_clin_samp.drop(columns=["COLLECTION_DATE", "BASELINE"], errors="ignore")
 
     combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
     combout_df = combout_df.rename(columns={"index": "SAMPLE_ID", 0: "PATIENT_ID"})
@@ -858,6 +862,7 @@ def _walk_write_clinical_tables(ctx: WalkContext) -> None:
                            combined_output_used=bool(combined_dict))
 
     write_specimen_type(ctx.output_folder, types)
+    serial_ctdna.write_collection_dates(ctx.output_folder, ctx.clin_file)
 
     update_data_clinical_with_exon_info(combined_output, combined_dict, ctx.output_folder)
 

@@ -26,10 +26,13 @@ from pathlib import Path
 
 from loguru import logger
 
-from clonal_hematopoiesis import NAMESPACE, has_namespace, write_sample_attributes
+from clonal_hematopoiesis import NAMESPACE as CH_NAMESPACE
+from clonal_hematopoiesis import write_sample_attributes
 from config_loader import get_config
 from gene_panels import (build_gene_panel_matrix, create_meta_gene_panel_matrix,
                          finalize_gene_panel_matrix)
+from serial_ctdna import NAMESPACE as SERIAL_NAMESPACE
+from serial_ctdna import annotate_study, create_meta_timeline
 from populate_case_lists import (drop_unusable_data_files, ensure_cna_file,
                                  ensure_sv_file,
                                  pad_unaltered_cna_samples,
@@ -184,16 +187,29 @@ def create_meta_mutations(cancer: str, project_id: str, profile: str,
         "data_filename": data_filename,
     }
 
-    # The clonal hematopoiesis columns (CH.EVIDENCE, CH.REASON): imported
-    # and shown in cBioPortal's mutation tables only under a namespace.
-    if has_namespace(output_dir):
-        dictionary_file["namespaces"] = NAMESPACE
+    # Varan's own MAF columns (CH.*, see clonal_hematopoiesis.py; SERIAL.*,
+    # see serial_ctdna.py): imported and shown in cBioPortal's mutation
+    # tables only under a namespace.
+    namespaces = maf_namespaces(output_dir)
+    if namespaces:
+        dictionary_file["namespaces"] = ",".join(namespaces)
 
     file_path = Path(output_dir) / "meta_mutations_extended.txt"
     logger.info("Writing meta_mutations_extended.txt file...")
     with file_path.open("w", encoding="utf-8") as meta_file:
         for key, value in dictionary_file.items():
             print(f"{key}: {value}", file=meta_file)
+
+
+def maf_namespaces(output_dir: str) -> list[str]:
+    """Varan's namespaces whose columns data_mutations_extended.txt has."""
+    path = Path(output_dir) / "data_mutations_extended.txt"
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as f:
+        header = next((line for line in f if not line.startswith("#")), "")
+    prefixes = {c.split(".", 1)[0] for c in header.rstrip("\n").split("\t") if "." in c}
+    return [n for n in (CH_NAMESPACE, SERIAL_NAMESPACE) if n in prefixes]
 
 
 def create_meta_sv(project_id: str, profile: str, output_dir: str) -> None:
@@ -452,6 +468,7 @@ def meta_case_main(
     drop_unusable_data_files(output_folder, profiled)
     warn_unknown_sample_ids(output_folder)
     write_sample_attributes(output_folder)
+    annotate_study(output_folder)
     if creating:
         build_gene_panel_matrix(output_folder, profiled)
     finalize_gene_panel_matrix(output_folder)
@@ -496,6 +513,7 @@ def meta_case_main(
         logger.info("meta_exon_brca_cna.txt created!")
 
     create_meta_gene_panel_matrix(project_id, output_folder)
+    create_meta_timeline(project_id, output_folder)
 
     ########### CASE LIST FUNCTION ###########
 

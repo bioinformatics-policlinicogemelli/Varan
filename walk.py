@@ -43,6 +43,7 @@ from loguru import logger
 from config_loader import VARAN_DIR, config
 from filter_clinvar import check_bool
 from populate_case_lists import write_profiled_samples
+import serial_ctdna
 import specimen
 from versioning import get_newest_version, get_version_list
 
@@ -667,6 +668,8 @@ def validate_input(
     types = specimen.specimen_types(file_tsv, log=True)
     specimen.check_pipeline(types, config.get("Vendor", "PIPELINE", fallback="").strip())
     specimen.warn_missing_overrides(types)
+    # Serial ctDNA input (optional COLLECTION_DATE / BASELINE columns).
+    serial_ctdna.check_input(file_tsv, types)
 
     if (vcf_type is None or "snv" in vcf_type) and (not _path_setting("VEP_PATH") or not _path_setting("VEP_DATA")):
         msg = "VEP_PATH and/or VEP_DATA field in conf.ini is empty!"

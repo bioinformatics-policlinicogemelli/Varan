@@ -40,6 +40,7 @@ import pandas as pd
 from loguru import logger
 
 import clonal_hematopoiesis
+import serial_ctdna
 import specimen
 import versioning
 from config_loader import VARAN_DIR, config
@@ -185,6 +186,76 @@ def specimen_settings_html() -> str:
                 <p>[{section}] {items}</p>"""
     return out + """
             </div>"""
+
+
+def study_flags_html(folder: str | Path) -> str:
+    """The clonal hematopoiesis and serial ctDNA sections, when the study
+    has them (create, update, extract and remove reports)."""
+    return clonal_hematopoiesis_html(str(folder)) + serial_ctdna_html(folder)
+
+
+def serial_ctdna_html(folder: str | Path) -> str:
+    """Serial ctDNA section (see serial_ctdna.py): method, thresholds and
+    their sources, per-patient table and known resistance mutations."""
+    summary = serial_ctdna.read_summary(folder)
+    if not summary:
+        return ""
+    st = summary.get("settings", {})
+    esc = html.escape
+    out = f"""
+        <section class="filters">
+            <div class="section-title">Serial ctDNA (plasma samples over time)</div>
+            <div class="content">
+                <p><strong>{esc(serial_ctdna.DISCLAIMER)}</strong></p>
+                <p>For every patient with two or more plasma samples with a collection date, each sample's
+                ctDNA level is the <strong>{esc(st.get("METRIC", "max"))} VAF</strong> of its variants, leaving
+                out variants flagged as clonal hematopoiesis (EXCLUDE_CH = {esc(st.get("EXCLUDE_CH", ""))})
+                and germline-like VAFs ({esc(st.get("GERMLINE_VAF_BANDS", ""))}). The change is computed against
+                the baseline plasma sample (the earliest, unless BASELINE marks another one).</p>
+                <p>Molecular response: <strong>Decrease</strong> = drop of more than
+                {esc(st.get("DECREASE_PCT", ""))}%, <strong>Increase</strong> = rise of more than
+                {esc(st.get("INCREASE_PCT", ""))}%, <strong>Intermediate</strong> otherwise;
+                <strong>Not detected</strong> = no variant left; <strong>Not evaluable</strong> = no variant at
+                baseline. Thresholds from the ctMoniTR aggregate analysis of TKI-treated NSCLC (Friends of Cancer
+                Research; Clin Cancer Res 2025;31(11):2162, "ctDNA Clearance as an Early Indicator of Improved
+                Clinical Outcomes in Advanced NSCLC Treated with TKI"); a 50% drop of the maximum VAF is also the
+                cut-off of the ctMoniTR immunotherapy analysis (Vega et al., JCO Precis Oncol 2022,
+                doi:10.1200/PO.21.00372). There is no consensus definition: all thresholds are configurable in
+                [Serial].</p>
+                <p>New = not detected in any earlier plasma sample of the patient (where the gene was covered);
+                Lost = detected in the previous plasma sample and no longer detected, gene covered.</p>"""
+    for patient, rows in summary.get("patients", {}).items():
+        out += f"""
+                <p><strong>Patient {esc(patient)}</strong></p>
+                <table>
+                    <tr><th>Sample</th><th>Day</th><th>Max VAF %</th><th>Mean VAF %</th><th>Variants</th>
+                    <th>Change %</th><th>Molecular response</th><th>New</th><th>Lost</th></tr>"""
+        for r in rows:
+            out += ("<tr>" + "".join(f"<td>{esc(str(r[k]))}</td>" for k in (
+                "sample", "day", "max", "mean", "n", "change", "category", "new", "lost")) + "</tr>")
+        out += """
+                </table>"""
+    hits = summary.get("resistance", [])
+    out += """
+                <p><strong>Known acquired-resistance mutations</strong> (list: """ + esc(
+        serial_ctdna.resistance_list_path().name) + """; each match says which therapy the mutation is a
+                known resistance mechanism to - check whether the patient received it).</p>"""
+    if hits:
+        out += """
+                <table>
+                    <tr><th>Patient</th><th>Sample</th><th>Day</th><th>Variant</th><th>Status</th>
+                    <th>Resistance to</th><th>DOI</th><th>Note</th></tr>"""
+        for h in hits:
+            out += ("<tr>" + "".join(f"<td>{esc(str(h.get(k, '')))}</td>" for k in (
+                "patient", "sample", "day", "variant", "status", "text", "doi", "note")) + "</tr>")
+        out += """
+                </table>"""
+    else:
+        out += """
+                <p>None found.</p>"""
+    return out + """
+            </div>
+        </section>"""
 
 
 def clonal_hematopoiesis_html(output_folder: str) -> str:
@@ -1030,7 +1101,7 @@ def write_report_main(
     html_content += """
         </section>"""
 
-    html_content += clonal_hematopoiesis_html(output_folder)
+    html_content += study_flags_html(output_folder)
 
     write_provenance(
         output_folder,
@@ -1797,6 +1868,8 @@ new_study: Path, number_for_graph: int, start_time: str = "") -> None:
             </div>
         </section>"""
 
+    html_content += study_flags_html(new_study)
+
     html_content += """
     </body>
     </html>
@@ -2242,6 +2315,8 @@ def write_report_extract(original_study: str, new_study: str,
             </div>
         </section>"""
 
+    html_content += study_flags_html(new_study)
+
     html_content += """
     </body>
     </html>
@@ -2674,6 +2749,8 @@ def write_report_remove(
                 </div>
             </div>
         </section>"""
+
+    html_content += study_flags_html(new_study)
 
     html_content += """
     </body>

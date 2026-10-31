@@ -1,0 +1,28 @@
+# Acquired-resistance mutations detectable in plasma ctDNA, used by serial_ctdna.py to annotate the variants of
+# patients with serial plasma samples. Research use only: Varan doesn't know which therapy the patient received,
+# so each match only says which therapy the mutation is a known resistance mechanism to.
+# Only variants named in each paper's abstract (checked against PubMed, DOI and PMID below) are listed.
+# hotspots: protein changes/positions matched against HGVSp_Short (G12 matches p.G12D, p.G12V...).
+# classes: any / truncating / missense; empty = hotspots only. exons: restrict classes to these exons.
+# only_new: yes = flagged only when the variant is new in a later plasma sample (not at baseline), for mutations
+# that are also common at diagnosis (e.g. KRAS hotspots) or patient-specific (BRCA reversions).
+# Left out on purpose: NRAS under anti-EGFR antibodies, the other EGFR ectodomain mutations (Arena 2015), ESR1 L536
+# and E380Q, other ALK mutations, NTRK3 G623R, FGFR2 secondary mutations other than V564F, AR W742C/H875Y, KIT
+# secondary mutations: the variant lists couldn't be checked in the sources. PIK3CA: no secondary-mutation
+# resistance reported for alpelisib (Razavi 2020 Nat Cancer doi:10.1038/s43018-020-0047-1 reports PTEN loss, ESR1).
+gene	label	hotspots	classes	exons	only_new	therapy	drugs	reference	doi	pmid	note
+EGFR	EGFR C797S	C797S				3rd-generation EGFR TKI	osimertinib	Thress 2015 Nat Med	10.1038/nm.3854	25939061	detected in plasma ctDNA
+EGFR	EGFR T790M	T790M				1st/2nd-generation EGFR TKI	gefitinib, erlotinib (afatinib by extension)	Pao 2005 PLoS Med; Kobayashi 2005 N Engl J Med	10.1371/journal.pmed.0020073; 10.1056/NEJMoa044238	15737014; 15728811	can also be germline
+EGFR	EGFR S492R	S492R				anti-EGFR antibody (colorectal)	cetuximab (spares panitumumab)	Montagut 2012 Nat Med	10.1038/nm.2609	22270724	ectodomain mutation
+KRAS	KRAS hotspot	G12,G13,Q61			yes	anti-EGFR antibody (colorectal)	cetuximab, panitumumab	Misale 2012 Nature; Diaz 2012 Nature	10.1038/nature11156; 10.1038/nature11219	22722830; 22722843	emerging in plasma; also a common primary driver, so only flagged when new
+KRAS	KRAS secondary	G12D,G12R,G12V,G12W,G13D,Q61H,R68S,H95D,H95Q,H95R,Y96C			yes	KRAS G12C inhibitor	adagrasib (sotorasib by extension)	Awad 2021 N Engl J Med	10.1056/NEJMoa2105281	34161704	tissue and plasma
+ESR1	ESR1 LBD	Y537S,Y537N,Y537C,D538G				aromatase inhibitor (breast)	letrozole, anastrozole, exemestane	Schiavon 2015 Sci Transl Med; Toy 2013 Nat Genet; Robinson 2013 Nat Genet	10.1126/scitranslmed.aac7551; 10.1038/ng.2822; 10.1038/ng.2823	26560360; 24185512; 24185510	plasma ddPCR (Schiavon)
+ALK	ALK G1202R	G1202R				ALK TKI	crizotinib, ceritinib, alectinib, brigatinib	Gainor 2016 Cancer Discov	10.1158/2159-8290.CD-16-0596	27432227	tissue-based study
+ROS1	ROS1 G2032R	G2032R				ROS1 TKI	crizotinib	Awad 2013 N Engl J Med	10.1056/NEJMoa1215530	23724914	single case, tissue
+RET	RET solvent front	G810R,G810S,G810C				selective RET inhibitor	selpercatinib (pralsetinib by extension)	Solomon 2020 J Thorac Oncol	10.1016/j.jtho.2020.01.006	31988000	plasma
+NTRK1	NTRK1 G595R/G667C	G595R,G667C				TRK inhibitor	entrectinib, larotrectinib	Russo 2016 Cancer Discov	10.1158/2159-8290.CD-15-0940	26546295	includes ctDNA
+FGFR2	FGFR2 V564F	V564F				FGFR inhibitor (cholangiocarcinoma)	infigratinib	Goyal 2017 Cancer Discov	10.1158/2159-8290.CD-16-1000	28034880	gatekeeper; cfDNA
+AR	AR L702H/T878A	L702H,T878A				AR pathway inhibitor (prostate)	abiraterone	Romanel 2015 Sci Transl Med	10.1126/scitranslmed.aac9511	26537258	plasma
+MET	MET D1228/Y1230	D1228,Y1230				type I MET TKI	crizotinib, capmatinib, tepotinib, savolitinib	Recondo 2020 Clin Cancer Res	10.1158/1078-0432.CCR-19-3608	32034073	MET exon 14 NSCLC
+BRCA1	BRCA1 new variant		any		yes	PARP inhibitor / platinum	olaparib, rucaparib, talazoparib	Lin 2019 Cancer Discov	10.1158/2159-8290.CD-18-0715	30425037	possible reversion: check that it restores the reading frame of the patient's pathogenic BRCA1 variant
+BRCA2	BRCA2 new variant		any		yes	PARP inhibitor / platinum	olaparib, rucaparib, talazoparib	Quigley 2017 Cancer Discov; Lin 2019 Cancer Discov	10.1158/2159-8290.CD-17-0146; 10.1158/2159-8290.CD-18-0715	28450426; 30425037	possible reversion: check that it restores the reading frame of the patient's pathogenic BRCA2 variant

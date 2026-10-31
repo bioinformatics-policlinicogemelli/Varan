@@ -38,6 +38,7 @@ from ExtractSamples_functions import (
 from filter_clinvar import check_bool
 from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
+from serial_ctdna import carry_collection_dates
 from populate_case_lists import profiled_from_case_lists
 from ValidateFolder import (
     copy_maf,
@@ -134,6 +135,7 @@ def extract_main(oldpath: str,
         remove_meta(output)
 
         stage = "Creating tables"
+        carry_collection_dates([oldpath], output)
         cancer, study_info = extract_info_from_meta(oldpath)
         study_info.append(oldpath)
         study_info.append(no_out)
