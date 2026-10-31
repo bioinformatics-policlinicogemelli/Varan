@@ -29,10 +29,12 @@ from pathlib import Path
 
 from loguru import logger
 
+from clonal_hematopoiesis import flag_study
 from filter_clinvar import check_bool
 from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
 from populate_case_lists import profiled_from_case_lists
+from specimen import backfill_specimen_type
 from study_files import STUDY_FILES
 from Update_functions import (
     copy_metadata_files,
@@ -104,6 +106,10 @@ def update_main(oldpath: str, newpath: str,
             safe_check_file(oldpath, newpath, output, study_file.name)
 
         remove_meta(output)
+
+        stage = "Flagging clonal hematopoiesis"
+        backfill_specimen_type(output, [oldpath, Path(newpath)])
+        flag_study(output)
 
         stage = "Creating tables"
         cancer, study_info = extract_info_from_meta(oldpath)

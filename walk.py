@@ -43,6 +43,7 @@ from loguru import logger
 from config_loader import VARAN_DIR, config
 from filter_clinvar import check_bool
 from populate_case_lists import write_profiled_samples
+import specimen
 from versioning import get_newest_version, get_version_list
 
 # Re-exported so `import walk` / `walk.<name>` keep working for every
@@ -60,8 +61,6 @@ from walk_common import (  # noqa: F401
     get_combined_variant_output_from_folder,
     output_filtered,
     ploidy,
-    sample_type,
-    threshold_msi_liquid,
 )
 from walk_cnv import (  # noqa: F401
     _walk_process_cnv,
@@ -661,8 +660,13 @@ def validate_input(
             msg = f"Missing conf.ini option: [{section}] {key}"
             raise ValueError(msg)
 
-    if sample_type() not in {"SOLID", "LIQUID"}:
-        raise ValueError('Please select a sample type between "Solid" and "Liquid" in conf.ini.')
+    # Tissue/Plasma: conf.ini's [Sample_Type] TYPE, overridden per sample by
+    # sample.tsv's optional SPECIMEN_TYPE column (see specimen.py). An
+    # unknown value, or a sample contradicting its vendor pipeline (e.g. a
+    # Guardant sample marked Tissue), stops the run here.
+    types = specimen.specimen_types(file_tsv, log=True)
+    specimen.check_pipeline(types, config.get("Vendor", "PIPELINE", fallback="").strip())
+    specimen.warn_missing_overrides(types)
 
     if (vcf_type is None or "snv" in vcf_type) and (not _path_setting("VEP_PATH") or not _path_setting("VEP_DATA")):
         msg = "VEP_PATH and/or VEP_DATA field in conf.ini is empty!"

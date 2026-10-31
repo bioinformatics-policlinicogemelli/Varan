@@ -37,17 +37,8 @@ def _path_setting(key: str) -> str:
     return config.get("Paths", key)
 
 
-def sample_type() -> str:
-    """[Sample_Type] TYPE, upper-cased: "SOLID" or "LIQUID"."""
-    return config.get("Sample_Type", "TYPE").strip().strip('"').strip("'").upper()
-
-
 def ploidy() -> int:
     return int(config.get("Cna", "PLOIDY"))
-
-
-def threshold_msi_liquid() -> float:
-    return float(config.get("MSI", "THRESHOLD_MSI_LIQUID"))
 
 
 output_filtered = "snv_filtered"

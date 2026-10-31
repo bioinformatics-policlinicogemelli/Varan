@@ -26,6 +26,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from clonal_hematopoiesis import NAMESPACE, has_namespace, write_sample_attributes
 from config_loader import get_config
 from gene_panels import (build_gene_panel_matrix, create_meta_gene_panel_matrix,
                          finalize_gene_panel_matrix)
@@ -182,6 +183,11 @@ def create_meta_mutations(cancer: str, project_id: str, profile: str,
         "profile_description": profile,
         "data_filename": data_filename,
     }
+
+    # The clonal hematopoiesis columns (CH.EVIDENCE, CH.REASON): imported
+    # and shown in cBioPortal's mutation tables only under a namespace.
+    if has_namespace(output_dir):
+        dictionary_file["namespaces"] = NAMESPACE
 
     file_path = Path(output_dir) / "meta_mutations_extended.txt"
     logger.info("Writing meta_mutations_extended.txt file...")
@@ -445,6 +451,7 @@ def meta_case_main(
     ensure_cna_file(output_folder, profiled.get("cna"))
     drop_unusable_data_files(output_folder, profiled)
     warn_unknown_sample_ids(output_folder)
+    write_sample_attributes(output_folder)
     if creating:
         build_gene_panel_matrix(output_folder, profiled)
     finalize_gene_panel_matrix(output_folder)

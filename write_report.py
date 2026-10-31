@@ -39,6 +39,8 @@ import subprocess
 import pandas as pd
 from loguru import logger
 
+import clonal_hematopoiesis
+import specimen
 import versioning
 from config_loader import VARAN_DIR, config
 from filter_clinvar import check_bool
@@ -166,6 +168,67 @@ def write_provenance(output_folder: str, **fields: str | None) -> None:
     service_dir.mkdir(parents=True, exist_ok=True)
     with (service_dir / "provenance.json").open("w", encoding="utf-8") as f:
         json.dump(fields, f, indent=2, default=str)
+
+
+def specimen_settings_html() -> str:
+    """The [<section>.Tissue] / [<section>.Plasma] overrides this run used
+    (see specimen.py), as a "Filters & Configuration" subsection."""
+    sections = specimen.overrides()
+    if not sections:
+        return ""
+    out = """
+            <div class="subtitle">Settings per Specimen Type</div>
+            <div class="content">"""
+    for section, values in sections.items():
+        items = ", ".join(f"<strong>{k}</strong> = {html.escape(v)}" for k, v in values.items())
+        out += f"""
+                <p>[{section}] {items}</p>"""
+    return out + """
+            </div>"""
+
+
+def clonal_hematopoiesis_html(output_folder: str) -> str:
+    """Section listing the plasma variants flagged as possible clonal
+    hematopoiesis (see clonal_hematopoiesis.py), with its disclaimer."""
+    maf_path = Path(output_folder) / clonal_hematopoiesis.MAF_FILE
+    if not clonal_hematopoiesis.has_namespace(output_folder):
+        return ""
+    from filter_clinvar import read_maf
+    maf = read_maf(maf_path)
+    flagged = maf[maf[clonal_hematopoiesis.EVIDENCE].fillna("") != ""]
+    out = f"""
+        <section class="filters">
+            <div class="section-title">Possible Clonal Hematopoiesis (plasma samples)</div>
+            <div class="content">
+                <p><strong>{html.escape(clonal_hematopoiesis.DISCLAIMER)}</strong></p>
+                <p>Variants are flagged, never removed. Gene list: {html.escape(
+                    clonal_hematopoiesis.gene_list_path().name)}; [CH] RELATIVE_VAF_MAX =
+                    {html.escape(config.get("CH", "RELATIVE_VAF_MAX", fallback="0.25"))},
+                    SERIAL_FOLD = {html.escape(config.get("CH", "SERIAL_FOLD", fallback="2"))},
+                    EXCLUDE_FROM_DOWNSTREAM = {html.escape(
+                    config.get("CH", "EXCLUDE_FROM_DOWNSTREAM", fallback="False"))}.</p>"""
+    if flagged.empty:
+        return out + """
+                <p>No plasma variant flagged.</p>
+            </div>
+        </section>"""
+    out += """
+                <table>
+                    <tr><th>Sample</th><th>Gene</th><th>Protein change</th>
+                    <th>Evidence</th><th>Reason</th></tr>"""
+    for row in flagged.to_dict("records"):
+        out += (
+            "<tr>"
+            f"<td>{html.escape(str(row.get('Tumor_Sample_Barcode', '')))}</td>"
+            f"<td>{html.escape(str(row.get('Hugo_Symbol', '')))}</td>"
+            f"<td>{html.escape(str(row.get('HGVSp_Short', '') or ''))}</td>"
+            f"<td>{html.escape(str(row[clonal_hematopoiesis.EVIDENCE]))}</td>"
+            f"<td>{html.escape(str(row[clonal_hematopoiesis.REASON]))}</td>"
+            "</tr>")
+    return out + """
+                </table>
+            </div>
+        </section>"""
 
 
 def read_provenance(study_folder: str) -> dict | None:
@@ -635,7 +698,8 @@ def write_report_main(
     cancer = cancer.capitalize()
     vep_cache_version = int(config.get("Paths", "CACHE"))
     vep_path = config.get("Paths", "VEP_PATH")
-    sample_type = config.get("Sample_Type", "TYPE")
+    sample_type = specimen.describe(specimen.study_types(output_folder)) or config.get(
+        "Sample_Type", "TYPE")
     ref_genome = config.get("Paths", "REF_FASTA")
 
     graph_expression = get_graph_expression(number_for_graph)
@@ -961,8 +1025,12 @@ def write_report_main(
         html_content += """
             </div>"""
 
+    html_content += specimen_settings_html()
+
     html_content += """
         </section>"""
+
+    html_content += clonal_hematopoiesis_html(output_folder)
 
     write_provenance(
         output_folder,

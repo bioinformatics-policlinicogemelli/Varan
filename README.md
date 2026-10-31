@@ -57,6 +57,14 @@ A [`Snakefile`](Snakefile) wraps Varan's four top-level operations (create/updat
 
 Every operation validates its output against cBioPortal's own `validateData.py` and produces `report_VARAN.html` / `report_validate.html` summarizing the run.
 
+### Tissue and plasma samples
+
+`[Sample_Type] TYPE` in `conf.ini` sets the run's specimen type, `Tissue` or `Plasma` (the older `Solid`/`Liquid` still work). An optional `SPECIMEN_TYPE` column in `sample.tsv` overrides it per sample, so one study can hold tissue and plasma samples - e.g. a tissue run and a plasma run merged with `-u`. Every sample's type is written to `data_clinical_sample.txt`. Settings that differ between the two go in `[Filters.Plasma]`, `[MSI.Plasma]`, `[TMB.Plasma]`, `[SigMA.Plasma]`, `[GenePanel.Plasma]` (and `.Tissue`) sections, read before the general ones.
+
+### Clonal hematopoiesis flags (plasma)
+
+Plasma variants that may come from white blood cell clones rather than the tumor are flagged, never removed, in `data_mutations_extended.txt` (`CH.EVIDENCE`, `CH.REASON`, shown in cBioPortal's mutation tables) and counted per sample (`N_CH_SUSPECT`, `CH_SUSPECT_GENES`). Evidence comes from an optional matched white blood cell VCF (`wbc_path` column in `sample.tsv`), tissue samples of the same patient in the study, serial plasma samples, and the gene list in [`ch_genes.tsv`](ch_genes.tsv) - see `[CH]` in `conf.ini` and [`clonal_hematopoiesis.py`](clonal_hematopoiesis.py). Without white blood cell sequencing the origin can't be confirmed: research use only.
+
 ## Documentation
 
 | | |

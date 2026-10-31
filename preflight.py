@@ -210,7 +210,10 @@ def _check_gene_panel_config(issues: Issues) -> None:
     """[GenePanel] is optional (see gene_panels.py): say what's missing,
     never fail the run over it."""
     from gene_panels import NO_PANEL_WARNING, configured_panels, read_gene_list
-    panels = configured_panels()
+    from specimen import SPECIMEN_TYPES
+    panels = {
+        f"{t or ''}{c}": p for t in (None, *SPECIMEN_TYPES)
+        for c, p in configured_panels(t).items()}
     if not panels:
         _warn(issues, NO_PANEL_WARNING)
         return

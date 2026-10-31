@@ -45,6 +45,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
+import specimen
 from config_loader import config
 from filter_clinvar import check_bool
 from sigma_cancer_type_map import get_sigma_call_params, is_mva_safe_for_panel_data
@@ -169,7 +170,8 @@ def run_sigma_for_sample(
     maf_df: pd.DataFrame,
     sample_id: str,
     oncotree_code: str,
-    sigma_dir: Path) -> dict:
+    sigma_dir: Path,
+    specimen_type: str | None = None) -> dict:
     """Run SigMA for one sample's freshly vcf2maf'd, unfiltered MAF.
 
     Args:
@@ -182,6 +184,8 @@ def run_sigma_for_sample(
         sigma_dir (Path): Intermediate working directory for this run's
             SigMA inputs/outputs (created by the caller), e.g.
             `<output_folder>/intermediate/sigma`.
+        specimen_type (str | None): Tissue/Plasma - [SigMA] settings are
+            read from [SigMA.<type>] when that section sets them.
 
     Returns:
         dict: A row of SIGMA_* columns plus SAMPLE_ID, always including
@@ -191,9 +195,9 @@ def run_sigma_for_sample(
             problem never takes down the batch.
 
     """
-    tumor_type_override = config.get("SigMA", "TUMOR_TYPE_OVERRIDE").strip()
-    fallback_to_other = check_bool(config.get("SigMA", "FALLBACK_TO_OTHER"))
-    data_platform = config.get("SigMA", "DATA_PLATFORM").strip()
+    tumor_type_override = specimen.setting("SigMA", "TUMOR_TYPE_OVERRIDE", specimen_type).strip()
+    fallback_to_other = check_bool(specimen.setting("SigMA", "FALLBACK_TO_OTHER", specimen_type))
+    data_platform = specimen.setting("SigMA", "DATA_PLATFORM", specimen_type).strip()
 
     if tumor_type_override:
         tumor_type = tumor_type_override
@@ -216,14 +220,14 @@ def run_sigma_for_sample(
         return blank_result(sample_id, "UNMAPPED_TUMOR_TYPE")
 
     try:
-        filtered_maf = prepare_sigma_maf(maf_df, sample_id)
+        filtered_maf = prepare_sigma_maf(maf_df, sample_id, specimen_type)
     except Exception as err:  # noqa: BLE001 - never let one sample crash the batch
         logger.warning(
             f"Sample {sample_id}: prepare_sigma_maf() failed ({err!r}) - "
             "skipping SigMA for this sample.")
         return blank_result(sample_id, "ERROR", SIGMA_TUMOR_TYPE=tumor_type)
 
-    snv_cutoff = int(config.get("SigMA", "SNV_CUTOFF"))
+    snv_cutoff = int(specimen.setting("SigMA", "SNV_CUTOFF", specimen_type))
     n_variants = len(filtered_maf)
     if n_variants < snv_cutoff:
         logger.info(
@@ -248,10 +252,10 @@ def run_sigma_for_sample(
     output_csv = results_dir / f"{sample_id}.sigma_output.csv"
 
     rscript_bin = config.get("Paths", "RSCRIPT") or "Rscript"
-    catalog_name = resolve_catalog_name(config.get("SigMA", "COSMIC_VERSION"))
-    data_platform = config.get("SigMA", "DATA_PLATFORM")
-    check_msi = check_bool(config.get("SigMA", "CHECK_MSI"))
-    lite_format = check_bool(config.get("SigMA", "LITE_FORMAT"))
+    catalog_name = resolve_catalog_name(specimen.setting("SigMA", "COSMIC_VERSION", specimen_type))
+    data_platform = specimen.setting("SigMA", "DATA_PLATFORM", specimen_type)
+    check_msi = check_bool(specimen.setting("SigMA", "CHECK_MSI", specimen_type))
+    lite_format = check_bool(specimen.setting("SigMA", "LITE_FORMAT", specimen_type))
 
     cmd = [
         rscript_bin, str(RUN_SIGMA_SCRIPT),
@@ -313,7 +317,7 @@ def run_sigma_for_sample(
 
     row = result_df.iloc[0]
     signature3_call = _classify_signature3(
-        row, do_mva, config.get("SigMA", "SIGNATURE3_POSITIVE_THRESHOLD"))
+        row, do_mva, specimen.setting("SigMA", "SIGNATURE3_POSITIVE_THRESHOLD", specimen_type))
 
     return {
         "SAMPLE_ID": sample_id,

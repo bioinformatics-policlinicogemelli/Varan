@@ -33,6 +33,9 @@ set Varan works exactly as before, only logging what it can't do:
   data type (see populate_case_lists.PROFILED_SAMPLES_FILE). Every panel id
   used must already be loaded in the target cBioPortal instance, or the
   study import fails.
+- [GenePanel.Tissue] / [GenePanel.Plasma]: the panel ids for that specimen
+  type's samples, when they differ (e.g. a tissue and a ctDNA assay merged
+  in one study) - see specimen.py.
 - PANEL_DIR: a folder with one plain gene list per panel, named
   <panel id>.txt (one HUGO symbol per line; "#" lines ignored). Optional:
   with it, Varan also writes each panel in cBioPortal's own gene panel
@@ -52,6 +55,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
+import specimen
 from config_loader import get_config
 
 MATRIX_FILE = "data_gene_panel_matrix.txt"
@@ -77,15 +81,21 @@ NO_PANEL_WARNING = (
     "<panel id>.txt gene lists.")
 
 
-def configured_panels() -> dict[str, str]:
-    """{matrix column: panel id} for every data type [GenePanel] sets."""
-    config = get_config()
+def configured_panels(specimen_type: str | None = None) -> dict[str, str]:
+    """{matrix column: panel id} for every data type [GenePanel] (or its
+    [GenePanel.<specimen_type>] override) sets."""
     panels = {}
     for column, (key, _, _) in PROFILES.items():
-        value = config.get("GenePanel", key, fallback="").strip().strip('"').strip("'")
+        value = specimen.setting("GenePanel", key, specimen_type, fallback="")
+        value = value.strip().strip('"').strip("'")
         if value:
             panels[column] = value
     return panels
+
+
+def panel_of(sample_type: str | None, column: str) -> str | None:
+    """The panel id a sample of `sample_type` was tested with for `column`."""
+    return configured_panels(sample_type).get(column)
 
 
 def read_gene_list(panel_id: str) -> list[str] | None:
@@ -110,28 +120,47 @@ def build_gene_panel_matrix(folder: str, profiled: dict[str, list[str]]) -> None
     and the samples tested per data type, export the panels' gene lists,
     and check events against them. Only logs NO_PANEL_WARNING when no
     panel is configured."""
-    panels = configured_panels()
-    if not panels:
+    sample_ids = _study_sample_ids(folder)
+    types = specimen.study_types(folder)
+    by_type = {t: configured_panels(t) for t in {*types.values(), None}}
+    if not any(by_type.values()):
         logger.warning(NO_PANEL_WARNING)
         return
 
-    sample_ids = _study_sample_ids(folder)
     if not sample_ids:
         logger.warning(
             f"{MATRIX_FILE} not written: no SAMPLE_ID found in "
             "data_clinical_sample.txt.")
         return
 
+    columns = [c for c in PROFILES if any(c in panels for panels in by_type.values())]
     matrix = pd.DataFrame({"SAMPLE_ID": sample_ids})
-    for column, panel_id in panels.items():
+    without_panel = []
+    for column in columns:
         tested = set(profiled.get(PROFILES[column][1], []))
-        matrix[column] = [panel_id if s in tested else "NA" for s in sample_ids]
+        values = []
+        for s in sample_ids:
+            panel_id = by_type[types.get(s)].get(column)
+            if s not in tested:
+                values.append("NA")
+            elif panel_id:
+                values.append(panel_id)
+            else:
+                values.append("NA")
+                without_panel.append(f"{s} ({column})")
+        matrix[column] = values
+    if without_panel:
+        logger.warning(
+            f"{MATRIX_FILE} not written: no gene panel configured for "
+            f"{', '.join(without_panel)} - set it in [GenePanel] or in the "
+            "[GenePanel.<specimen type>] section of these samples' type. "
+            "cBioPortal will assume every sample was tested for every gene.")
+        return
     matrix.to_csv(Path(folder) / MATRIX_FILE, sep="\t", index=False)
-    logger.info(
-        f"Wrote {MATRIX_FILE}: "
-        + ", ".join(f"{c} = {p}" for c, p in panels.items()))
+    used = {p for c in columns for p in matrix[c] if p != "NA"}
+    logger.info(f"Wrote {MATRIX_FILE}: panel(s) {', '.join(sorted(used))}")
 
-    for panel_id in dict.fromkeys(panels.values()):
+    for panel_id in sorted(used):
         genes = read_gene_list(panel_id)
         if genes is None:
             logger.warning(

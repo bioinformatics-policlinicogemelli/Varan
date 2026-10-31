@@ -83,6 +83,9 @@ def _cmd_concatenate(ctx) -> None:
         logger.info("Skipping MAF concatenation (no maf/ folder or no SNV analysis).")
         return
     concatenate_main(ctx.filters, ctx.output_folder, "maf", ctx.oncokb)
+    from clonal_hematopoiesis import flag_study
+    from specimen import read_sample_table
+    flag_study(ctx.output_folder, read_sample_table(ctx.input_path))
 
 
 def _cmd_tables(ctx) -> None:

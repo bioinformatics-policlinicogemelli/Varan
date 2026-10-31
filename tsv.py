@@ -23,7 +23,7 @@
 
 from loguru import logger
 
-def get_msi_tmb(input_file: str, sample_type: str) -> dict:
+def get_msi_tmb(input_file: str, specimen_type: str) -> dict:
     """Extract MSI and TMB data from an input_file file.
 
     This function parses a TSV file to extract the total TMB, usable MSI sites,
@@ -33,6 +33,9 @@ def get_msi_tmb(input_file: str, sample_type: str) -> dict:
     ----------
     input_file : str
         The path to the input_file file that contains the MSI and TMB data.
+    specimen_type : str
+        "Tissue" or "Plasma": TSO500 reports MSI in a different section for
+        each (see specimen.py).
 
     Returns
     -------
@@ -54,17 +57,17 @@ def get_msi_tmb(input_file: str, sample_type: str) -> dict:
             if "Total TMB" in riga:
                 data["TMB_Total"] = campi[1]
 
-            if sample_type == "SOLID":
+            if specimen_type == "Tissue":
                 if "SUM_JSD" in riga:
-                    logger.warning("Sample_Type on conf.ini is set to SOLID, but the sample appears to be LIQUID. MSI value could be empty!")
+                    logger.warning(f"{input_file.name}: specimen type is Tissue, but the sample appears to be Plasma. MSI value could be empty!")
                 if "Usable MSI Sites" in riga:
                     msi_dic["Usable_MSI"] = campi[1]
                 if "Percent Unstable MSI Sites" in riga:
                     msi_dic["Tot_MSI_unstable"] = campi[1]
             
-            elif sample_type == "LIQUID":
+            elif specimen_type == "Plasma":
                 if "Usable MSI Sites" in riga:
-                    logger.warning("Sample_Type on conf.ini is set to LIQUID, but the sample appears to be SOLID. MSI value could be empty!")
+                    logger.warning(f"{input_file.name}: specimen type is Plasma, but the sample appears to be Tissue. MSI value could be empty!")
                 if "SUM_JSD" in riga:
                     msi_dic["Usable_MSI"] = "50" # to bypass control
                     msi_dic["Tot_MSI_unstable"] = campi[1]

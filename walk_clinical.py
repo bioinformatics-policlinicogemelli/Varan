@@ -25,7 +25,9 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+import specimen
 import tsv
+from clinical_file import set_sample_column
 from config_loader import config
 from thresholds import meets_threshold
 from walk_cnv import build_exon_df
@@ -33,8 +35,6 @@ from walk_common import (
     flatten,
     get_combined_variant_output_from_folder,
     get_table_from_folder,
-    sample_type,
-    threshold_msi_liquid,
     WalkContext,
 )
 
@@ -88,6 +88,9 @@ def write_clinical_sample(
         columns=["cnv_tested", "fusion_tested"], errors="ignore")
 
     data_clin_samp.columns = data_clin_samp.columns.str.upper()
+    # Optional input column (matched white blood cells' VCF, see
+    # clonal_hematopoiesis.py), not a clinical attribute.
+    data_clin_samp = data_clin_samp.drop(columns=["WBC_PATH"], errors="ignore")
 
     combout_df = pd.DataFrame.from_dict(table_dict).transpose().reset_index()
     combout_df = combout_df.rename(columns={"index": "SAMPLE_ID", 0: "PATIENT_ID"})
@@ -272,6 +275,18 @@ def write_clinical_sample(
     output_folder = Path(output_folder)
     data_clin_txt = output_folder / "data_clinical_sample.txt"
     final_data_sample.to_csv(data_clin_txt, sep="\t", index=False, header=False)
+
+
+def write_specimen_type(output_folder: str, types: dict[str, str]) -> None:
+    """Write every sample's specimen type (Tissue/Plasma, see specimen.py)
+    to data_clinical_sample.txt's SPECIMEN_TYPE column - sample.tsv's own
+    SPECIMEN_TYPE column, if it had one, comes through with its raw values
+    (blank, "Solid"...), so it's rewritten here too."""
+    default = specimen.study_specimen_type()
+    set_sample_column(
+        output_folder, specimen.COLUMN, types, "Specimen Type",
+        "Specimen type of the sequenced sample (Tissue or Plasma)",
+        default=default)
 
 
 def write_default_clinical_patient(output_folder: str, table_dict: dict) -> None:
@@ -485,8 +500,7 @@ def _resolve_biomarker_threshold(
 def fill_from_file(
     table_dict_patient: dict[str, list],
     file_input_clinical: pd.DataFrame,
-    msi_thr: str,
-    tmb_thr: dict[str, str]) -> dict[str, list]:
+    types: dict[str, str] | None = None) -> dict[str, list]:
     """Populate clinical table dictionary with MSI and TMB values and statuses.
 
     Honors a pre-filled MSI_THR/TMB_THR column in the input (if present) over
@@ -500,8 +514,9 @@ def fill_from_file(
         table_dict_patient (dict): Patient clinical data dictionary.
         file_input_clinical (pd.DataFrame): Clinical input with SAMPLE_ID,
             MSI, TMB and, if present, MSI_THR/TMB_THR.
-        msi_thr (str): Threshold condition string for MSI (used with eval).
-        tmb_thr (dict): Map of TMB categories to threshold conditions.
+        types (dict | None): {SAMPLE_ID: Tissue/Plasma}; each sample's
+            thresholds are [MSI]/[TMB]'s, or its [MSI.<type>]/[TMB.<type>]
+            override (see specimen.setting()).
 
     Returns:
         dict: Updated clinical data dictionary.
@@ -510,18 +525,24 @@ def fill_from_file(
     has_msi_thr_col = "MSI_THR" in file_input_clinical.columns
     has_tmb_thr_col = "TMB_THR" in file_input_clinical.columns
 
-    def compute_msi(m: object) -> str:
-        return "Stable" if meets_threshold(m, msi_thr) else "Unstable"
-
-    def compute_tmb(t: object) -> str:
-        for _k, _v in tmb_thr.items():
-            if meets_threshold(t, _v):
-                return _k
-        logger.warning(f"TMB {t} out of range for {k}")
-        return "Out of threshold ranges"
+    types = types or {}
 
     for _, row in file_input_clinical.iterrows():
         k = row["SAMPLE_ID"]
+        kind = types.get(str(k).strip())
+        msi_thr = specimen.setting("MSI", "THRESHOLD_MSI", kind)
+        tmb_thr = ast.literal_eval(specimen.setting("TMB", "THRESHOLD_TMB", kind))
+
+        def compute_msi(m: object, msi_thr: str = msi_thr) -> str:
+            return "Stable" if meets_threshold(m, msi_thr) else "Unstable"
+
+        def compute_tmb(t: object, tmb_thr: dict = tmb_thr, k: str = k) -> str:
+            for _k, _v in tmb_thr.items():
+                if meets_threshold(t, _v):
+                    return _k
+            logger.warning(f"TMB {t} out of range for {k}")
+            return "Out of threshold ranges"
+
         m = row["MSI"]
         t = row["TMB"]
         table_dict_patient[k].append(m)
@@ -541,25 +562,36 @@ def fill_from_file(
 def fill_from_combined(
     combined_dict: dict[str, str],
     table_dict_patient: dict[str, list],
-    msi_sites_thr: str,
-    msi_thr: str,
-    tmb: dict[str, str]) -> dict[str, list]:
+    types: dict[str, str] | None = None) -> dict[str, list]:
     """Extract MSI and TMB from combined output files and update clinical dict.
+
+    Each sample's thresholds are [MSI]/[TMB]'s, or its [MSI.<type>]/
+    [TMB.<type>] override (see specimen.setting()). Plasma samples are
+    called with [MSI.Plasma] THRESHOLD_MSI when set (same syntax as
+    [MSI] THRESHOLD_MSI: the condition for "Stable"), otherwise with the
+    older [MSI] THRESHOLD_MSI_LIQUID (Unstable at or above it) when set,
+    otherwise with [MSI] THRESHOLD_MSI.
 
     Args:
         combined_dict (dict): Map sample ID to CombinedVariantOutput path.
         table_dict_patient (dict): Clinical data dictionary to update.
-        msi_sites_thr (str): Threshold condition for MSI sites (eval string).
-        msi_thr (str): Threshold condition for MSI stability (eval string).
-        tmb (dict): Map TMB categories to threshold conditions.
+        types (dict | None): {SAMPLE_ID: Tissue/Plasma}; samples not in it
+            take the study's [Sample_Type] TYPE.
 
     Returns:
         dict: Updated clinical data dictionary.
 
     """
+    types = types or {}
+    default_type = specimen.study_specimen_type()
+
     for k, v in combined_dict.items():
+        kind = types.get(str(k).strip(), default_type)
+        msi_sites_thr = specimen.setting("MSI", "THRESHOLD_SITES", kind)
+        msi_thr = specimen.setting("MSI", "THRESHOLD_MSI", kind)
+        tmb = ast.literal_eval(specimen.setting("TMB", "THRESHOLD_TMB", kind))
         try:
-            tmv_msi = tsv.get_msi_tmb(Path(v), sample_type())
+            tmv_msi = tsv.get_msi_tmb(Path(v), kind)
         except Exception as err:
             logger.error(f"Something went wrong reading CombinedOutput for sample "
                          f"{k} ({err})! MSI/TMB set to NA for this sample.")
@@ -582,13 +614,15 @@ def fill_from_combined(
         if (tmv_msi["MSI"][1][1] != "NA" and table_dict_patient[k][-2] != "NA"):
                 msi_value = float(tmv_msi["MSI"][1][1])
 
-                if sample_type() == "LIQUID":
-                    if msi_value >= threshold_msi_liquid():
+                if kind == specimen.PLASMA and not config.has_option(
+                        f"MSI.{specimen.PLASMA}", "THRESHOLD_MSI") and config.get(
+                        "MSI", "THRESHOLD_MSI_LIQUID", fallback="").strip():
+                    if msi_value >= float(config.get("MSI", "THRESHOLD_MSI_LIQUID")):
                         table_dict_patient[k].append("Unstable")
                     else:
                         table_dict_patient[k].append("Stable")
 
-                elif sample_type() == "SOLID":
+                else:
                     if meets_threshold(msi_value, msi_thr):
                         table_dict_patient[k].append("Stable")
                     else:
@@ -807,25 +841,23 @@ def _walk_write_clinical_tables(ctx: WalkContext) -> None:
     file_input_sample = pd.read_csv(
         ctx.clin_sample_path, sep="\t", index_col=False, dtype=str)
 
-    msi_thr = config.get("MSI", "THRESHOLD_MSI")
-    tmb_thr = ast.literal_eval(config.get("TMB", "THRESHOLD_TMB"))
+    types = specimen.specimen_types(ctx.clin_file)
 
     combined_output = Path(ctx.input_folder) / "CombinedOutput"
     if combined_output.exists() and len(list(combined_output.iterdir())) > 0:
-        msi_sites_thr = config.get("MSI", "THRESHOLD_SITES")
-
         combined_dict = get_combined_variant_output_from_folder(
             ctx.input_folder, ctx.clin_file, ctx.isinputfile)
         new_table_dict_patient = fill_from_combined(
-            combined_dict, table_dict_patient,
-            msi_sites_thr, msi_thr, tmb_thr)
+            combined_dict, table_dict_patient, types)
     else:
         new_table_dict_patient = fill_from_file(
-            table_dict_patient, file_input_sample, msi_thr, tmb_thr)
+            table_dict_patient, file_input_sample, types)
         combined_dict = {}
 
     write_clinical_sample(ctx.clin_sample_path, ctx.output_folder, new_table_dict_patient,
                            combined_output_used=bool(combined_dict))
+
+    write_specimen_type(ctx.output_folder, types)
 
     update_data_clinical_with_exon_info(combined_output, combined_dict, ctx.output_folder)
 

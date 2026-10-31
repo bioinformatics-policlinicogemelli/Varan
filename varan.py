@@ -36,6 +36,7 @@ from loguru import logger
 
 from config_loader import get_config, set_config_path
 from log_utils import attach_file_log_sink
+from specimen import ILLUMINA_PIPELINE_SAMPLE_TYPES, implied_by_pipeline, normalize
 from vendor_adapters import ADAPTERS
 from versioning import get_git_version
 
@@ -220,6 +221,7 @@ def varan(
             if maf_path.exists() and analysis_type not in ["cnv", "fus", "tab"]:
                 logger.info("Concatenating mutation file")
                 concatenate_main(filters, output_folder, "maf", oncokb)
+                flag_study(output_folder, read_sample_table(varan_input))
 
 
             ###########################################
@@ -285,25 +287,6 @@ def varan(
 
 #################################################################################################################
 
-# The two flavors of Varan's own pre-existing, no-adapter-needed input
-# path (see README.md's "TSO500-aware" feature and walk.py's own
-# "non-Illumina pipelines (e.g. Guardant)"/"native TSO500 CombinedOutput
-# ingestion" comments - "Illumina" and "TSO500" are this codebase's own,
-# already-established terms for this path, not invented for this feature).
-# Illumina ships two distinct, real TSO500 assay variants - the solid
-# tumor panel and the ctDNA/liquid-biopsy panel - which is exactly the
-# distinction conf.ini's own pre-existing [Sample_Type] TYPE setting
-# already encodes (see walk.py's SAMPLE_TYPE global and its two
-# LIQUID/SOLID-gated call sites around fill_from_combined()'s MSI
-# handling). Selecting one of these two PIPELINE values both confirms "no
-# vendor adapter needed" AND implies its sample type - see
-# reconcile_sample_type().
-ILLUMINA_PIPELINE_SAMPLE_TYPES = {
-    "illumina_solid": "Solid",
-    "illumina_liquid": "Liquid",
-}
-
-
 def resolve_pipeline() -> str:
     """Read conf.ini's `[Vendor] PIPELINE` - the sole vendor-selection
     surface (no CLI flag: this is intentionally conf.ini-only, so a
@@ -339,20 +322,18 @@ def resolve_pipeline() -> str:
 
 
 def implied_sample_type(pipeline: str) -> str | None:
-    """Return the sample type a given PIPELINE value implies, or None if
-    it doesn't imply one (the blank/legacy pipeline, or a hypothetical
-    future vendor adapter that supports both solid and liquid samples and
-    so declines to declare a fixed `SAMPLE_TYPE`).
+    """Return the specimen type (Tissue/Plasma) a given PIPELINE value
+    implies, or None if it doesn't imply one (the blank/legacy pipeline, or
+    a hypothetical future vendor adapter that supports both tissue and
+    plasma samples and so declines to declare a fixed `SAMPLE_TYPE`).
 
-    Vendor adapters declare this themselves as a module-level `SAMPLE_TYPE`
-    attribute (e.g. `vendor_adapters/guardant.py`'s `SAMPLE_TYPE =
-    "Liquid"`, since Guardant360 is ctDNA-only) - each vendor's own facts
-    belong in its own module, not hardcoded here.
+    "illumina_solid"/"illumina_liquid" name Illumina's two TSO500 assays
+    (solid tumor and ctDNA) and imply Tissue/Plasma; vendor adapters declare
+    theirs as a module-level `SAMPLE_TYPE` (e.g. `vendor_adapters/
+    guardant.py`'s `SAMPLE_TYPE = "Plasma"`, since Guardant360 is
+    ctDNA-only). See specimen.py.
     """
-    if pipeline in ILLUMINA_PIPELINE_SAMPLE_TYPES:
-        return ILLUMINA_PIPELINE_SAMPLE_TYPES[pipeline]
-    adapter = ADAPTERS.get(pipeline)
-    return getattr(adapter, "SAMPLE_TYPE", None) if adapter else None
+    return implied_by_pipeline(pipeline)
 
 
 def reconcile_sample_type(pipeline: str) -> None:
@@ -399,7 +380,7 @@ def reconcile_sample_type(pipeline: str) -> None:
             f"'{implied}', implied by [Vendor] PIPELINE={pipeline!r}.")
         return
 
-    if current.upper() != implied.upper():
+    if normalize(current, "conf.ini [Sample_Type] TYPE") != implied:
         msg = (
             f"conf.ini's [Sample_Type] TYPE is '{current}', but "
             f"[Vendor] PIPELINE={pipeline!r} is {implied}-only. Fix the "
@@ -758,7 +739,9 @@ if __name__ == "__main__":
         # and exited on by the `except ValueError` below.
         pipeline = resolve_and_reconcile_pipeline()
 
+        from clonal_hematopoiesis import flag_study
         from concatenate import concatenate_main
+        from specimen import read_sample_table
         from Delete_script import delete_main
         from ExtractSamples_script import extract_main
         from filter_clinvar import filter_main

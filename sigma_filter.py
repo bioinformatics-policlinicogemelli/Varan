@@ -54,13 +54,14 @@ import ast
 import pandas as pd
 from loguru import logger
 
-from config_loader import config
+import specimen
 from filter_clinvar import check_bool, filter_vaf_exclude_bands
 from thresholds import meets_threshold_series
 
 
 
-def prepare_sigma_maf(maf_df: pd.DataFrame, sample_id: str) -> pd.DataFrame:
+def prepare_sigma_maf(maf_df: pd.DataFrame, sample_id: str,
+                      specimen_type: str | None = None) -> pd.DataFrame:
     """Filter one sample's unfiltered MAF down to what SigMA should see.
 
     Applies, in order:
@@ -84,6 +85,8 @@ def prepare_sigma_maf(maf_df: pd.DataFrame, sample_id: str) -> pd.DataFrame:
             (same file `filter_main()` reads from the `maf/` folder before
             any clinical filtering).
         sample_id (str): For logging only.
+        specimen_type (str | None): Tissue/Plasma - each setting is read
+            from its [<section>.<type>] override when set (specimen.py).
 
     Returns:
         pd.DataFrame: The SigMA-ready subset of maf_df.
@@ -95,8 +98,8 @@ def prepare_sigma_maf(maf_df: pd.DataFrame, sample_id: str) -> pd.DataFrame:
         maf_df = maf_df[maf_df["FILTER"] == "PASS"]
 
     if "AF" in maf_df.columns:
-        af = config.get("Filters", "AF")
-        drop_na = check_bool(config.get("Filters", "drop_NA_AF"))
+        af = specimen.setting("Filters", "AF", specimen_type)
+        drop_na = check_bool(specimen.setting("Filters", "drop_NA_AF", specimen_type))
         af_numeric = pd.to_numeric(maf_df["AF"], errors="coerce")
         na_mask = af_numeric.isna()
         passes_af = meets_threshold_series(af_numeric, af)
@@ -111,11 +114,12 @@ def prepare_sigma_maf(maf_df: pd.DataFrame, sample_id: str) -> pd.DataFrame:
         if "t_AF" in maf_df.columns and maf_df["t_AF"].notna().any()
         else "t_VF")
     if vaf_colname in maf_df.columns:
-        vaf_min = float(config.get("SigMA", "VAF_MIN"))
+        vaf_min = float(specimen.setting("SigMA", "VAF_MIN", specimen_type))
         vaf_numeric = pd.to_numeric(maf_df[vaf_colname], errors="coerce")
         maf_df = maf_df[vaf_numeric.fillna(-1) >= vaf_min]
 
-        exclude_bands = ast.literal_eval(config.get("SigMA", "VAF_EXCLUDE_BANDS"))
+        exclude_bands = ast.literal_eval(
+            specimen.setting("SigMA", "VAF_EXCLUDE_BANDS", specimen_type))
         maf_df = filter_vaf_exclude_bands(maf_df, vaf_colname, exclude_bands)
     else:
         logger.warning(

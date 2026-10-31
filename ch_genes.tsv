@@ -1,0 +1,32 @@
+# Genes and variants recurrently mutated in clonal hematopoiesis (CH), used by clonal_hematopoiesis.py
+# to flag plasma variants that may come from white blood cells instead of the tumor. Research use only.
+# tier 1: typically CH - flagged "CH suspected" on their own.
+# tier 2: mutated in both CH and tumors - "CH compatible", "CH suspected" only with one more piece of evidence.
+# classes: any (non-synonymous) / truncating / missense, comma-separated; empty = hotspots only.
+# hotspots: protein positions or changes matched against HGVSp_Short (R882 matches p.R882H, p.R882C...).
+# exons: restrict "classes" to these exons (MAF EXON / Exon_Number column); empty = any exon.
+# Sources: Razavi et al. 2019 Nat Med doi:10.1038/s41591-019-0652-7; Hu et al. 2018 Clin Cancer Res
+# doi:10.1158/1078-0432.CCR-18-0143; Bolton et al. 2020 Nat Genet doi:10.1038/s41588-020-00710-0.
+gene	tier	classes	hotspots	exons	note
+DNMT3A	1	any	R882		most frequent CH gene
+TET2	1	truncating,missense
+ASXL1	1	truncating
+PPM1D	1	truncating		5,6	enriched after chemotherapy/radiotherapy
+JAK2	1		V617F		mostly from white blood cells in plasma (Hu 2018)
+SRSF2	1		P95
+SF3B1	1		K700,K666,R625,H662,E622
+U2AF1	1		S34,Q157
+ZRSR2	1	truncating
+GNB1	1		K57
+CBL	1	missense		8,9	RING finger domain
+BCOR	1	truncating
+BCORL1	1	truncating
+STAG2	1	truncating
+TP53	2	any			also a tumor driver; CH enriched after therapy
+CHEK2	2	any			also germline
+ATM	2	any			CH ATM can be misread as a PARP-inhibitor indication
+KRAS	2		G12,G13,Q61		rare G12X from white blood cells (Hu 2018)
+NRAS	2		G12,G13,Q61
+IDH1	2		R132		also tumor (glioma, cholangiocarcinoma)
+IDH2	2		R140,R172		also tumor
+GNAS	2		R201		also tumor

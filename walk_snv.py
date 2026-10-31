@@ -28,7 +28,9 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
+import clonal_hematopoiesis
 import sigma_runner
+import specimen
 import vcf_filter
 from config_loader import config
 from filter_clinvar import read_maf
@@ -561,9 +563,14 @@ def _run_sigma_for_snv_sample(ctx: WalkContext, cl: list, sample_id: str) -> dic
             "SigMA's tumor_type mapping will fall through to its "
             "fallback/'other' handling (see get_sigma_call_params).")
 
+    kind = specimen.specimen_types(ctx.clin_file).get(str(sample_id).strip())
+    if clonal_hematopoiesis.exclude_downstream():
+        wbc = clonal_hematopoiesis.samples_from_table(ctx.clin_file, {}).wbc.get(str(sample_id))
+        maf_df = clonal_hematopoiesis.drop_flagged(maf_df, sample_id, kind, wbc)
+
     sigma_dir = Path(ctx.output_folder) / "intermediate" / "sigma"
     return sigma_runner.run_sigma_for_sample(
-        maf_df, sample_id, oncotree_code, sigma_dir)
+        maf_df, sample_id, oncotree_code, sigma_dir, kind)
 
 
 def _write_sigma_intermediate(output_folder: str, sigma_results: list[dict]) -> None:

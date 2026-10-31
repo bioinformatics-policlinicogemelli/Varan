@@ -35,6 +35,7 @@ import pandas as pd
 from loguru import logger
 
 import concatenate
+import specimen
 from config_loader import VARAN_DIR, config
 from thresholds import meets_threshold_series
 
@@ -68,7 +69,8 @@ def check_bool(key_value: str) -> bool:
     return bool_key_value
 
 
-def filter_oncokb(df: pd.DataFrame, section: str, key: str) -> pd.DataFrame:
+def filter_oncokb(df: pd.DataFrame, section: str, key: str,
+                  specimen_type: str | None = None) -> pd.DataFrame:
     """Filter the input based on 'ONCOGENIC' column.
 
     This function is intended to retain only rows with oncogenicity
@@ -86,6 +88,8 @@ def filter_oncokb(df: pd.DataFrame, section: str, key: str) -> pd.DataFrame:
             "Cna", "FUSION").
         key (str): conf.ini key holding the filter within that section (e.g.
             "ONCOKB_FILTER_SNV", "ONCOKB_FILTER_CNV", "ONCOKB_FILTER_FUSION").
+        specimen_type (str | None): Tissue/Plasma - read the filter from
+            [<section>.<type>] when that section sets it (specimen.setting()).
 
     Returns:
         pd.DataFrame: A filtered DataFrame containing only rows where 'ONCOGENIC'
@@ -93,7 +97,7 @@ def filter_oncokb(df: pd.DataFrame, section: str, key: str) -> pd.DataFrame:
 
     """
     try:
-        oncokb_filter = ast.literal_eval(config.get(section, key))
+        oncokb_filter = ast.literal_eval(specimen.setting(section, key, specimen_type))
     except (configparser.NoOptionError, configparser.NoSectionError) as err:
         logger.critical(
             f"conf.ini is missing '{key}' under [{section}] - required to "
@@ -153,7 +157,7 @@ def filter_vaf_exclude_bands(
     return df[~in_any_band.fillna(False)]
 
 
-def check_clin_sig(row: pd.Series) -> bool:
+def check_clin_sig(row: pd.Series, specimen_type: str | None = None) -> bool:
     """Check clinical significance annotations in the 'CLIN_SIG' field.
 
     This function is used as a row-wise filter to identify variants with
@@ -170,7 +174,7 @@ def check_clin_sig(row: pd.Series) -> bool:
               [Filters]); False otherwise.
 
     """
-    clin_sig = ast.literal_eval(config.get("Filters", "CLIN_SIG"))
+    clin_sig = ast.literal_eval(specimen.setting("Filters", "CLIN_SIG", specimen_type))
     output = []
     for _e in str(row["CLIN_SIG"]).split(","):
         if _e not in clin_sig:
@@ -180,7 +184,7 @@ def check_clin_sig(row: pd.Series) -> bool:
     return any(output)
 
 
-def check_consequences(row: pd.Series) -> bool:
+def check_consequences(row: pd.Series, specimen_type: str | None = None) -> bool:
     """Check whether any of consequence annotations in the 'Consequence' field.
 
     This function is typically used to filter variants based on their
@@ -195,7 +199,7 @@ def check_consequences(row: pd.Series) -> bool:
               from the config ('CONSEQUENCES' field under [Filters]); False otherwise.
 
     """
-    consequences = ast.literal_eval(config.get("Filters", "CONSEQUENCES"))
+    consequences = ast.literal_eval(specimen.setting("Filters", "CONSEQUENCES", specimen_type))
     output = []
     for _e in str(row["Consequence"]).split(","):
         if _e in consequences:
@@ -205,7 +209,7 @@ def check_consequences(row: pd.Series) -> bool:
     return any(output)
 
 
-def check_polyphen(row: pd.Series) -> None:
+def check_polyphen(row: pd.Series, specimen_type: str | None = None) -> None:
     """Check if the PolyPhen is among the accepted ones.
 
     The value of 'PolyPhen' is split on the character '(', and
@@ -219,7 +223,7 @@ def check_polyphen(row: pd.Series) -> None:
         False otherwise.
 
     """
-    consequences = ast.literal_eval(config.get("Filters", "POLYPHEN"))
+    consequences = ast.literal_eval(specimen.setting("Filters", "POLYPHEN", specimen_type))
     output = []
     if str(row["PolyPhen"]).split("(")[0] in consequences:
         output.append(True)
@@ -228,7 +232,7 @@ def check_polyphen(row: pd.Series) -> None:
     return any(output)
 
 
-def check_sift(row: pd.Series) -> bool:
+def check_sift(row: pd.Series, specimen_type: str | None = None) -> bool:
     """Check if the SIFT prediction is among the accepted values.
 
     The value in the 'SIFT' column is split on the character '(',
@@ -242,7 +246,7 @@ def check_sift(row: pd.Series) -> bool:
         False otherwise.
 
     """
-    consequences = ast.literal_eval(config.get("Filters", "SIFT"))
+    consequences = ast.literal_eval(specimen.setting("Filters", "SIFT", specimen_type))
     output = []
     if str(row["SIFT"]).split("(")[0] in consequences:
         output.append(True)
@@ -414,19 +418,31 @@ def filter_main(input_path: str,folder: str,
         logger.info("Start filtering vcf...")
         out_filter.mkdir(parents=True, exist_ok=True)
 
+        # Each MAF holds one sample (Tumor_Sample_Barcode = its SAMPLE_ID):
+        # its [Filters] settings can be overridden by [Filters.Tissue] /
+        # [Filters.Plasma] (see specimen.py).
+        types = specimen.specimen_types(specimen.read_sample_table(input_path))
+        default_type = specimen.study_specimen_type()
+
         for file in file_list:
             file_to_filter = read_maf(file)
+            barcodes = file_to_filter.get("Tumor_Sample_Barcode", pd.Series(dtype=str)).dropna()
+            kind = (types.get(str(barcodes.iloc[0]).strip(), default_type)
+                    if len(barcodes) else default_type)
+
+            def opt(key: str, kind: str = kind) -> str:
+                return specimen.setting("Filters", key, kind)
 
             if "i" in filters:
                 file_to_filter = file_to_filter[
-                    ~file_to_filter["IMPACT"].isin(
-                        ast.literal_eval(config.get("Filters", "IMPACT")))]
+                    ~file_to_filter["IMPACT"].isin(ast.literal_eval(opt("IMPACT")))]
 
             if "p" in filters:
                 file_to_filter = file_to_filter[file_to_filter["FILTER"]=="PASS"]
 
             if oncokb and "o" in filters:
-                file_to_filter = filter_oncokb(file_to_filter, "Filters", "ONCOKB_FILTER_SNV")
+                file_to_filter = filter_oncokb(
+                    file_to_filter, "Filters", "ONCOKB_FILTER_SNV", kind)
 
             if "v" in filters and "t_AF" not in file_to_filter.columns \
                     and "t_VF" not in file_to_filter.columns:
@@ -435,8 +451,8 @@ def filter_main(input_path: str,folder: str,
                     "VAF filter for this file instead of crashing the whole batch.")
 
             elif "v" in filters:
-                t_vaf_min = float(config.get("Filters", "t_VAF_min"))
-                t_vaf_max = float(config.get("Filters", "t_VAF_max"))
+                t_vaf_min = float(opt("t_VAF_min"))
+                t_vaf_max = float(opt("t_VAF_max"))
 
                 temp = (file_to_filter.dropna(subset=["t_AF"])
                         if "t_AF" in file_to_filter.columns else pd.DataFrame())
@@ -452,7 +468,7 @@ def filter_main(input_path: str,folder: str,
                 file_to_filter[vaf_colname] = pd.to_numeric(file_to_filter[vaf_colname])
 
                 if "n" in filters:
-                    t_vaf_min_novel = float(config.get("Filters", "t_VAF_min_novel"))
+                    t_vaf_min_novel = float(opt("t_VAF_min_novel"))
                     file_to_filter = file_to_filter.dropna(subset=["dbSNP_RS"])
 
                     file_to_filter[vaf_colname] = pd.to_numeric(
@@ -480,14 +496,13 @@ def filter_main(input_path: str,folder: str,
                 # opt-in beyond 'v' itself). Empty list (the default) is a
                 # no-op. See filter_vaf_exclude_bands()'s docstring for why
                 # a list of bands, not another single min/max pair.
-                exclude_bands = ast.literal_eval(
-                    config.get("Filters", "VAF_EXCLUDE_BANDS"))
+                exclude_bands = ast.literal_eval(opt("VAF_EXCLUDE_BANDS"))
                 file_to_filter = filter_vaf_exclude_bands(
                     file_to_filter, vaf_colname, exclude_bands)
 
             if "a" in filters:
-                af = config.get("Filters", "AF")
-                drop_na = config.get("Filters", "drop_NA_AF")
+                af = opt("AF")
+                drop_na = opt("drop_NA_AF")
                 drop_na = check_bool(drop_na)
                 file_to_filter["AF"] = pd.to_numeric(
                     file_to_filter["AF"], errors="coerce")
@@ -503,19 +518,19 @@ def filter_main(input_path: str,folder: str,
 
             if "c" in filters:
                 file_to_filter = file_to_filter[
-                    file_to_filter.apply(check_clin_sig,axis=1)]
+                    file_to_filter.apply(check_clin_sig, axis=1, specimen_type=kind)]
 
             if "q" in filters:
                 file_to_filter = file_to_filter[
-                    file_to_filter.apply(check_consequences,axis=1)]
+                    file_to_filter.apply(check_consequences, axis=1, specimen_type=kind)]
 
             if "y" in filters:
                 file_to_filter = file_to_filter[
-                    file_to_filter.apply(check_polyphen,axis=1)]
+                    file_to_filter.apply(check_polyphen, axis=1, specimen_type=kind)]
 
             if "s" in filters:
                 file_to_filter = file_to_filter[
-                    file_to_filter.apply(check_sift,axis=1)]
+                    file_to_filter.apply(check_sift, axis=1, specimen_type=kind)]
 
             file_out = Path(out_filter) / Path(file).name
             file_to_filter.to_csv(file_out, sep="\t", index=False)

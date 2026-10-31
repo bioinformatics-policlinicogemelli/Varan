@@ -102,7 +102,7 @@ NAME = "guardant"
 # selected vendor, instead of requiring it to be set independently and
 # risking drift (PIPELINE=guardant with a forgotten/mismatched TYPE=Solid).
 # See varan.reconcile_sample_type() and MULTIVENDOR_INTEGRATION_NOTES.md.
-SAMPLE_TYPE = "Liquid"
+SAMPLE_TYPE = "Plasma"
 
 # Guardant reports carry no tumor content (TC) / tumor fraction, which
 # [Cna] CNVKIT_algorithm = True needs for its discrete CNA calls - so
