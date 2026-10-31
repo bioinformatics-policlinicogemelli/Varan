@@ -26,6 +26,10 @@ from pathlib import Path
 
 from loguru import logger
 
+import actionability
+import civic
+import escat
+import tumor_agnostic
 from clinical_timeline import create_meta_timelines
 from clonal_hematopoiesis import NAMESPACE as CH_NAMESPACE
 from clonal_hematopoiesis import write_sample_attributes
@@ -210,7 +214,8 @@ def maf_namespaces(output_dir: str) -> list[str]:
     with path.open(encoding="utf-8") as f:
         header = next((line for line in f if not line.startswith("#")), "")
     prefixes = {c.split(".", 1)[0] for c in header.rstrip("\n").split("\t") if "." in c}
-    return [n for n in (CH_NAMESPACE, SERIAL_NAMESPACE) if n in prefixes]
+    return [n for n in (CH_NAMESPACE, SERIAL_NAMESPACE, civic.NAMESPACE, escat.NAMESPACE)
+            if n in prefixes]
 
 
 def create_meta_sv(project_id: str, profile: str, output_dir: str) -> None:
@@ -470,6 +475,13 @@ def meta_case_main(
     warn_unknown_sample_ids(output_folder)
     write_sample_attributes(output_folder)
     annotate_study(output_folder)
+    # Knowledge-base annotations (see each module).
+    if creating:
+        actionability.save_cna_levels(output_folder)
+    tumor_agnostic.annotate_study(output_folder, profiled)
+    actionability.annotate_study(output_folder)
+    civic.annotate_study(output_folder)
+    escat.annotate_study(output_folder)
     if creating:
         build_gene_panel_matrix(output_folder, profiled)
     finalize_gene_panel_matrix(output_folder)
@@ -540,6 +552,7 @@ def meta_case_main(
     else:
         logger.warning("data_sv.txt file not found, not writing cases_sv.txt!")
 
+    actionability.write_case_lists(project_id, output_folder)
     check_cases(output_folder)
     logger.success("Make_meta_and_cases script completed!\n")
 

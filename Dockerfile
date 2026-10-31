@@ -86,4 +86,9 @@ RUN R -e 'install.packages("BiocManager", repos="https://cloud.r-project.org")' 
 
 COPY . /
 
+#CIViC clinical evidence (CC0, ~5 MB) into /civic, dated in /civic/release.json -
+#refresh with `python3 /civic.py --download`; without it Varan downloads it on
+#first use (see civic.py).
+RUN python3 /civic.py --download || echo "CIViC download skipped: Varan will retry on first use"
+
 ENTRYPOINT [ "python3", "/varan.py"]

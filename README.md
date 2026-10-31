@@ -73,6 +73,16 @@ With an optional `COLLECTION_DATE` column in `sample.tsv` (and optionally `BASEL
 
 An optional `treatments.tsv` (next to `patient.tsv` or `sample.tsv`, or `[Timeline] TREATMENTS` in `conf.ini`) lists each patient's treatments - agent, line and a therapy class from [`therapy_classes.tsv`](therapy_classes.tsv) - and status events (progression, RECIST response, death), with dates; `patient.tsv` can add a `DIAGNOSIS_DATE`. They become `data_timeline_treatment.txt` and `data_timeline_status.txt`, shown with the sample collections in cBioPortal's patient view, on one day 0 (the diagnosis when every patient has one, otherwise each patient's first event) - see [`clinical_timeline.py`](clinical_timeline.py). Unreadable dates, treatments ending before they start and values outside the allowed ones stop the run. With treatments, serial ctDNA compares each plasma sample with the last one before the treatment it is on, and flags a resistance mutation only if the patient received a treatment of its class. Dates stay in `service/`, as above.
 
+### Actionability and knowledge bases
+
+- **OncoKB actionability** (with `-k`): per sample highest therapeutic and resistance level and the alterations at the `[Actionability] ONCOKB_LEVELS` levels (default 1-2), over mutations, fusions and CNAs; the OncoKB data version is recorded and shown in the report, with a cohort summary by level and tumour type - [`actionability.py`](actionability.py).
+- **CIViC** (on by default, no token): CIViC's open evidence (CC0) for every study, downloaded on first use (about 5 MB, seconds to match) and dated in the report. Kept in separate columns (`CIVIC.*` in the MAF, `CIVIC_*` per sample); levels are for any tumour type, each item names its disease - [`civic.py`](civic.py).
+- **Tumour-agnostic biomarkers**: NTRK/RET fusions, BRAF V600E, MSI-H, TMB-H (tumour-agnostic approvals) kept apart from pan-tumour biomarkers (ALK, ROS1, FGFR, ERBB2, HRD), each Detected / Not detected / Not tested, with FDA and EMA approvals in [`tumor_agnostic.tsv`](tumor_agnostic.tsv) - [`tumor_agnostic.py`](tumor_agnostic.py).
+- **ESCAT**: tiers from a table the lab curates (`[ESCAT] FILE`, format in [`escat_template.tsv`](escat_template.tsv)), matched to each sample's OncoTree code and its parents - [`escat.py`](escat.py).
+- **Case lists** for OncoKB-actionable, CIViC A-B, tumour-agnostic biomarker, MSI-H, TMB-high, tissue and plasma samples.
+
+Research use only.
+
 ## Documentation
 
 | | |

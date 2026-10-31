@@ -1,0 +1,22 @@
+# Biomarkers of tumour-agnostic approvals ("agnostic") and biomarkers relevant across tumour types without one
+# ("pan-tumour"), used by tumor_agnostic.py. Last checked: 2026-10-31. Research use only - check current labels.
+# Sources: NCI PDQ "Agnostic cancer therapies"; FDA approvals (selpercatinib traditional approval for RET
+# fusion-positive solid tumours, July 2026); EMA EPARs of Vitrakvi, Rozlytrek, Augtyro (conditional, 13 Jan 2025)
+# and Retsevmo (RET fusion-positive solid tumours, CHMP opinion 21 Mar 2024); Mosele et al., Ann Oncol 2024,
+# doi:10.1016/j.annonc.2024.04.005 (ESMO tumour-agnostic classifier); Marabelle et al., Lancet Oncol 2020,
+# doi:10.1016/S1470-2045(20)30445-9 (TMB-high, KEYNOTE-158).
+# kind: fusion / mutation / amplification (genes) or msi / tmb / gis (data_clinical_sample.txt).
+# alteration: for mutations, the syntax of study_alterations.py. threshold: tmb (mut/Mb) and gis.
+biomarker	group	kind	genes	alteration	threshold	fda	ema	note
+NTRK fusion	agnostic	fusion	NTRK1,NTRK2,NTRK3			larotrectinib (2018), entrectinib (2019), repotrectinib (2024)	larotrectinib (2019), entrectinib (2020), repotrectinib (2025, conditional)	fusions need RNA (or DNA intron coverage) to be detected
+RET fusion	agnostic	fusion	RET			selpercatinib (2022; traditional approval 2026)	selpercatinib (2024; when options not targeting RET are limited or exhausted)
+BRAF V600E	agnostic	mutation	BRAF	V600E		dabrafenib + trametinib (2022)	none (tumour-specific indications)	the FDA indication excludes colorectal cancer
+MSI-H	agnostic	msi				pembrolizumab (2017), dostarlimab (dMMR, 2021)	none (pembrolizumab MSI-H: selected tumour types only)	from the sample's MSI status (MSI_THR); dMMR is assessed by immunohistochemistry
+TMB-H	agnostic	tmb			10	pembrolizumab (2020)	none	FDA cut-off of 10 mut/Mb validated on FoundationOne CDx: other panels' TMB isn't harmonised with it
+ALK fusion	pan-tumour	fusion	ALK			NSCLC and other tumour-specific indications	tumour-specific indications	no tumour-agnostic approval
+ROS1 fusion	pan-tumour	fusion	ROS1			tumour-specific indications	tumour-specific indications	no tumour-agnostic approval
+FGFR fusion	pan-tumour	fusion	FGFR1,FGFR2,FGFR3			tumour-specific indications	tumour-specific indications	no tumour-agnostic approval
+FGFR3 hotspot mutation	pan-tumour	mutation	FGFR3	R248C,S249C,G370C,Y373C		tumour-specific indications (urothelial)	tumour-specific indications (urothelial)
+ERBB2 amplification	pan-tumour	amplification	ERBB2			tumour-specific indications	tumour-specific indications	the tumour-agnostic trastuzumab deruxtecan approval (FDA 2024) is for HER2 IHC 3+, which DNA sequencing can't assess
+ERBB2 activating mutation	pan-tumour	mutation	ERBB2	S310F,S310Y,L755S,V777L,exon 20 insertion		tumour-specific indications (NSCLC)	tumour-specific indications (NSCLC)
+HRD (high GIS)	pan-tumour	gis			42	tumour-specific indications (PARP inhibitors)	tumour-specific indications (PARP inhibitors)	Genomic Instability Score from TSO500 HRD; 42 is the cut-off used for ovarian cancer

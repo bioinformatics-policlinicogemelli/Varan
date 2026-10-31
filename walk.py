@@ -44,6 +44,7 @@ from config_loader import VARAN_DIR, config
 from filter_clinvar import check_bool
 from populate_case_lists import write_profiled_samples
 import clinical_timeline
+import escat
 import serial_ctdna
 import specimen
 from versioning import get_newest_version, get_version_list
@@ -679,6 +680,8 @@ def validate_input(
     # Clinical timeline input (optional treatments.tsv / DIAGNOSIS_DATE).
     clinical_timeline.check_input(sample_path, patient_tsv, file_tsv,
                                   serial_ctdna.collection_dates(file_tsv))
+    # A wrong [ESCAT] FILE table stops the run now, not at the end.
+    escat.check_table()
 
     if (vcf_type is None or "snv" in vcf_type) and (not _path_setting("VEP_PATH") or not _path_setting("VEP_DATA")):
         msg = "VEP_PATH and/or VEP_DATA field in conf.ini is empty!"

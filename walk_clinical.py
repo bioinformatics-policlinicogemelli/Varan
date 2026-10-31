@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+import actionability
 import clinical_timeline
 import serial_ctdna
 import specimen
@@ -865,6 +866,8 @@ def _walk_write_clinical_tables(ctx: WalkContext) -> None:
     write_specimen_type(ctx.output_folder, types)
     serial_ctdna.write_collection_dates(ctx.output_folder, ctx.clin_file)
     clinical_timeline.write_events(ctx.output_folder, ctx.input_path, ctx.patient_tsv)
+    if ctx.oncokb:
+        actionability.record_oncokb_info(ctx.output_folder)
 
     update_data_clinical_with_exon_info(combined_output, combined_dict, ctx.output_folder)
 

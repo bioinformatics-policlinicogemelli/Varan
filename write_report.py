@@ -39,8 +39,12 @@ import subprocess
 import pandas as pd
 from loguru import logger
 
+import actionability
+import civic
 import clinical_timeline
 import clonal_hematopoiesis
+import escat
+import tumor_agnostic
 import serial_ctdna
 import specimen
 import versioning
@@ -194,7 +198,157 @@ def study_flags_html(folder: str | Path) -> str:
     sections, when the study has them (create, update, extract and remove
     reports)."""
     return (clonal_hematopoiesis_html(str(folder)) + clinical_timeline_html(folder)
-            + serial_ctdna_html(folder))
+            + serial_ctdna_html(folder) + knowledge_html(folder))
+
+
+def _cohort_tables(summary: dict, order: list[str]) -> str:
+    """Highest level and per-tumour-type counts of a cohort summary
+    (actionability.cohort_summary)."""
+    esc = html.escape
+    n = summary["n_samples"] or 1
+    out = """
+                <table><tr><th>Highest level</th><th>Samples</th><th>%</th></tr>"""
+    for level in [*order, "None"]:
+        count = summary["by_level"].get(level, 0)
+        if count:
+            out += f"<tr><td>{esc(level)}</td><td>{count}</td><td>{100 * count / n:.0f}</td></tr>"
+    out += """
+                </table>
+                <table><tr><th>Tumour type</th><th>Samples</th><th>Actionable</th><th>%</th></tr>"""
+    for code, (total, hits) in sorted(summary["by_tumour"].items()):
+        out += (f"<tr><td>{esc(code)}</td><td>{total}</td><td>{hits}</td>"
+                f"<td>{100 * hits / (total or 1):.0f}</td></tr>")
+    return out + """
+                </table>"""
+
+
+def knowledge_html(folder: str | Path) -> str:
+    """Actionability (OncoKB), CIViC, tumour-agnostic biomarkers and ESCAT
+    sections, when the study has them."""
+    return (_oncokb_html(folder) + _civic_html(folder) + _agnostic_html(folder)
+            + _escat_html(folder))
+
+
+def _oncokb_html(folder: str | Path) -> str:
+    summary = actionability.read_summary(folder)
+    if not summary:
+        return ""
+    esc = html.escape
+    versions = ", ".join(f"{v.get('data_version', 'unknown')} ({v.get('data_date', '')})"
+                         for v in summary.get("versions", [])) or "not recorded"
+    mixed = (" <strong>Merged batches were annotated with different OncoKB versions.</strong>"
+             if len(summary.get("versions", [])) > 1 else "")
+    n = summary["n_samples"] or 1
+    left_out = summary.get("n_total", summary["n_samples"]) - summary["n_samples"]
+    if left_out:
+        mixed += (f" {left_out} sample(s) without OncoKB annotation (merged from a run without -k) "
+                  "aren't counted.")
+    return f"""
+        <section class="filters">
+            <div class="section-title">Actionability (OncoKB)</div>
+            <div class="content">
+                <p>OncoKB data version: {esc(versions)}.{mixed} Levels are those OncoKB gives for each sample's
+                ONCOTREE_CODE, over mutations, fusions and amplifications/deep deletions (Chakravarty et al.,
+                JCO Precis Oncol 2017, doi:10.1200/PO.17.00011). Research use only.</p>
+                <p><strong>{summary["n_actionable"]} of {summary["n_samples"]} samples
+                ({100 * summary["n_actionable"] / n:.0f}%)</strong> have an alteration at level
+                {esc("/".join(summary["levels"]))} ([Actionability] ONCOKB_LEVELS).</p>
+                {_cohort_tables(summary, actionability.SENSITIVE)}
+            </div>
+        </section>"""
+
+
+def _civic_html(folder: str | Path) -> str:
+    summary = civic.read_summary(folder)
+    if not summary:
+        return ""
+    esc = html.escape
+    n = summary["n_samples"] or 1
+    rows = ""
+    for sample, data in summary["samples"].items():
+        for h in data["hits"]:
+            if h["sensitivity"] in ("A", "B") or h["resistance"] in ("A", "B") or h["assertions"]:
+                rows += ("<tr>" + "".join(f"<td>{esc(str(v))}</td>" for v in (
+                    sample, h["alteration"], h["sensitivity"], h["resistance"], h["evidence"],
+                    h["assertions"])) + "</tr>")
+    downloaded = summary.get("release", {}).get("downloaded", "unknown date")
+    return f"""
+        <section class="filters">
+            <div class="section-title">CIViC clinical evidence</div>
+            <div class="content">
+                <p>CIViC data downloaded on {esc(downloaded)} (civicdb.org, CC0; Griffith et al., Nat Genet
+                2017, doi:10.1038/ng.3774). Levels: A validated, B clinical, C case study, D preclinical,
+                E inferential. <strong>CIViC diseases aren't matched to the samples' tumour type: each item
+                names its disease.</strong> Kept separate from OncoKB's levels, with no comparison between the
+                two. Research use only.</p>
+                <p><strong>{summary["n_actionable"]} of {summary["n_samples"]} samples
+                ({100 * summary["n_actionable"] / n:.0f}%)</strong> have an alteration with predictive
+                sensitivity evidence at level {esc("/".join(summary["levels"]))} (any tumour type).</p>
+                {_cohort_tables(summary, civic.LEVELS)}
+                <table><tr><th>Sample</th><th>Alteration</th><th>Sensitivity</th><th>Resistance</th>
+                <th>Level A-B evidence</th><th>AMP/ASCO/CAP assertions</th></tr>{rows}</table>
+            </div>
+        </section>"""
+
+
+def _agnostic_html(folder: str | Path) -> str:
+    summary = tumor_agnostic.read_summary(folder)
+    if not summary:
+        return ""
+    esc = html.escape
+    rules = summary["rules"]
+    approvals = "".join(
+        "<tr>" + "".join(f"<td>{esc(str(r[k]))}</td>" for k in ("biomarker", "group", "fda", "ema", "note"))
+        + "</tr>" for r in rules)
+    short = {tumor_agnostic.DETECTED: "Detected", tumor_agnostic.NOT_DETECTED: "-",
+             tumor_agnostic.NOT_TESTED: "Not tested"}
+    head = "".join(f"<th>{esc(r['biomarker'])}</th>" for r in rules)
+    body = ""
+    for sample, found in summary["samples"].items():
+        cells = "".join(
+            f'<td title="{esc(found[r["biomarker"]]["detail"])}">{esc(short[found[r["biomarker"]]["status"]])}</td>'
+            for r in rules)
+        body += f"<tr><td>{esc(sample)}</td>{cells}</tr>"
+    detected = "".join(
+        f"<li>{esc(sample)}: {esc(b)} - {esc(item['detail'])}</li>"
+        for sample, found in summary["samples"].items() for b, item in found.items()
+        if item["status"] == tumor_agnostic.DETECTED)
+    return f"""
+        <section class="filters">
+            <div class="section-title">Tumour-agnostic biomarkers</div>
+            <div class="content">
+                <p><strong>{esc(tumor_agnostic.DISCLAIMER)}</strong> Approvals checked on
+                {esc(summary.get("checked", ""))} (tumor_agnostic.tsv). "agnostic" = a tumour-agnostic approval;
+                "pan-tumour" = relevant across tumour types, without one. "Not tested" = no data of that kind
+                for the sample, or the gene isn't in its panel (hover a cell for details).</p>
+                <table><tr><th>Biomarker</th><th>Group</th><th>FDA</th><th>EMA</th><th>Note</th></tr>{approvals}</table>
+                <table><tr><th>Sample</th>{head}</tr>{body}</table>
+                <p>Detected:</p><ul>{detected or "<li>none</li>"}</ul>
+            </div>
+        </section>"""
+
+
+def _escat_html(folder: str | Path) -> str:
+    summary = escat.read_summary(folder)
+    if not summary:
+        return ""
+    esc = html.escape
+    info = summary.get("info", {})
+    rows = "".join(
+        f"<tr><td>{esc(sample)}</td><td>{esc(h['alteration'])}</td><td>{esc(h['level'])}</td>"
+        f"<td>{esc('; '.join(h['rows']))}</td></tr>"
+        for sample, hits in summary["samples"].items() for h in hits)
+    return f"""
+        <section class="filters">
+            <div class="section-title">ESCAT tiers</div>
+            <div class="content">
+                <p>From the lab's table {esc(summary["file"])} ({summary["rows"]} rows; version
+                {esc(info.get("version", "not stated"))}, date {esc(info.get("date", "not stated"))}, source
+                {esc(info.get("source", "not stated"))}), matched to each sample's ONCOTREE_CODE and its parent
+                codes. ESCAT: Mateo et al., Ann Oncol 2018, doi:10.1093/annonc/mdy263. Research use only.</p>
+                <table><tr><th>Sample</th><th>Alteration</th><th>Tier</th><th>Table rows</th></tr>{rows}</table>
+            </div>
+        </section>"""
 
 
 def clinical_timeline_html(folder: str | Path) -> str:

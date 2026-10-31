@@ -99,19 +99,19 @@ def panel_of(sample_type: str | None, column: str) -> str | None:
 
 
 def sample_genes(folder: str | Path | None, sample_id: str,
-                 specimen_type: str | None) -> set[str] | None:
-    """Genes `sample_id` was sequenced for (mutations): its panel in the
-    study's data_gene_panel_matrix.txt, or the one [GenePanel] (or its
-    per-type override) assigns - None when the panel or its gene list
-    isn't known."""
+                 specimen_type: str | None, column: str = "mutations") -> set[str] | None:
+    """Genes `sample_id` was tested for (mutations, or `column`: cna /
+    structural_variants): its panel in the study's
+    data_gene_panel_matrix.txt, or the one [GenePanel] (or its per-type
+    override) assigns - None when the panel or its gene list isn't known."""
     panel_id = None
     matrix = Path(folder) / MATRIX_FILE if folder else None
     if matrix and matrix.exists():
         table = _read_matrix(matrix).set_index("SAMPLE_ID")
-        if "mutations" in table.columns and sample_id in table.index:
-            panel_id = table.at[sample_id, "mutations"]
+        if column in table.columns and sample_id in table.index:
+            panel_id = table.at[sample_id, column]
     if not panel_id or panel_id == "NA":
-        panel_id = panel_of(specimen_type, "mutations")
+        panel_id = panel_of(specimen_type, column)
     if not panel_id:
         return None
     genes = read_gene_list(panel_id)

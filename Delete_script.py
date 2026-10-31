@@ -45,6 +45,7 @@ from Delete_functions import (
 from filter_clinvar import check_bool
 from log_utils import attach_file_log_sink
 from Make_meta_and_cases import meta_case_main
+from actionability import carry_service
 from clinical_timeline import carry_events
 from serial_ctdna import carry_collection_dates
 from populate_case_lists import profiled_from_case_lists
@@ -146,6 +147,7 @@ def delete_main(oldpath: str, removepath: str, output: str,
         stage = "Creating tables"
         carry_collection_dates([oldpath], output)
         carry_events([oldpath], output)
+        carry_service([oldpath], output)
         cancer, study_info = extract_info_from_meta(oldpath)
         study_info.append(oldpath)
         study_info.append(no_out)

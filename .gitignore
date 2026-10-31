@@ -7,3 +7,6 @@ __pycache__/
 
 # PBS job logs written by run.py's cluster mode
 logs/pbs/
+
+# CIViC data downloaded by civic.py (dated in civic/release.json)
+civic/

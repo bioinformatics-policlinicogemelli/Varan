@@ -1,0 +1,14 @@
+# ESCAT table format for Varan (escat.py) - set its path in conf.ini [ESCAT] FILE. Varan ships no ESCAT content:
+# fill this from your lab's curated ESCAT table and keep it dated.
+# version: your table's version
+# date: YYYY-MM-DD
+# source: e.g. ESMO Precision Medicine Working Group tables; Mateo et al., Ann Oncol 2018, doi:10.1093/annonc/mdy263
+#
+# GENE: HUGO symbol. ALTERATION: V600E / G12 / C77fs / exon 19 deletion / exon 20 insertion / exon 18 mutation /
+#   mutation / truncating / missense / oncogenic (OncoKB) / fusion / amplification / deletion - several with ",".
+# TUMOR: OncoTree codes (","), matching their descendants too (NSCLC matches LUAD and LUSC), or * for any tumour.
+# LEVEL: I-A, I-B, I-C, II-A, II-B, III-A, III-B, IV, V, X. NOTE and SOURCE are optional.
+# Example rows (remove the leading "#" to use a row; check the tier against your own table):
+# EGFR	exon 19 deletion, L858R	NSCLC	I-A	EGFR TKI	ESMO NSCLC table
+# ALK	fusion	NSCLC	I-A	ALK TKI	ESMO NSCLC table
+GENE	ALTERATION	TUMOR	LEVEL	NOTE	SOURCE
