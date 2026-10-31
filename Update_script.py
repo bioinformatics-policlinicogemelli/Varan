@@ -29,6 +29,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from clinical_timeline import carry_events
 from clonal_hematopoiesis import flag_study
 from filter_clinvar import check_bool
 from log_utils import attach_file_log_sink
@@ -114,6 +115,7 @@ def update_main(oldpath: str, newpath: str,
 
         stage = "Creating tables"
         carry_collection_dates([oldpath, Path(newpath)], output)
+        carry_events([oldpath, Path(newpath)], output)
         cancer, study_info = extract_info_from_meta(oldpath)
         study_info.append(oldpath)
         study_info.append(no_out)

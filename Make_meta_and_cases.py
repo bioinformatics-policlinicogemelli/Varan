@@ -26,6 +26,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from clinical_timeline import create_meta_timelines
 from clonal_hematopoiesis import NAMESPACE as CH_NAMESPACE
 from clonal_hematopoiesis import write_sample_attributes
 from config_loader import get_config
@@ -514,6 +515,7 @@ def meta_case_main(
 
     create_meta_gene_panel_matrix(project_id, output_folder)
     create_meta_timeline(project_id, output_folder)
+    create_meta_timelines(project_id, output_folder)
 
     ########### CASE LIST FUNCTION ###########
 

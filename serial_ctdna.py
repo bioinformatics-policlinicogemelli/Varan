@@ -40,10 +40,19 @@ Intermediate otherwise. There is no consensus definition of molecular
 response; the thresholds are configurable. "Not detected" (no variant left)
 is kept apart from Decrease. Research use only.
 
+Treatments (treatments.tsv, see clinical_timeline.py), when the patient
+has them and no BASELINE is marked: each plasma sample is compared with the
+last plasma sample collected up to the start of the treatment it is on
+("Not evaluable (no pre-treatment sample)" if there is none); samples off
+treatment are "Baseline" when a treatment's response is measured against
+them, "No treatment ongoing" otherwise.
+
 Resistance: plasma variants of serial patients matching
 resistance_mutations.tsv - acquired-resistance mutations with their therapy
-and reference - are annotated. Whether the patient received that therapy
-isn't known to Varan: the annotation says which therapy it concerns.
+class and reference - are annotated. When the patient's treatments are
+known, a match is kept only if the patient received a treatment of that
+class before the sample (the others are listed in the report only);
+without treatments the annotation just says which therapy it concerns.
 """
 
 from __future__ import annotations
@@ -57,6 +66,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
+import clinical_timeline
 import clonal_hematopoiesis as ch
 import gene_panels
 import specimen
@@ -106,7 +116,7 @@ SAMPLE_COLUMNS = {
                          "NUMBER"),
     "MOLECULAR_RESPONSE": ("Molecular Response",
                            "Baseline / Decrease / Intermediate / Increase / Not detected / "
-                           "Not evaluable (research use)", "STRING"),
+                           "Not evaluable / No treatment ongoing (research use)", "STRING"),
     "CTDNA_N_NEW": ("ctDNA New Variants",
                     "Variants not detected in any earlier plasma sample of the patient", "NUMBER"),
     "CTDNA_N_LOST": ("ctDNA Lost Variants",
@@ -114,12 +124,17 @@ SAMPLE_COLUMNS = {
                      "NUMBER"),
     "RESISTANCE_VARIANTS": ("Resistance Variants",
                             "Known acquired-resistance mutations detected (see report)", "STRING"),
+    "RESPONSE_BASELINE": ("Molecular Response Baseline",
+                          "Plasma sample the molecular response is measured against", "STRING"),
+    "TREATMENT_AT_SAMPLE": ("Treatment At Sample",
+                            "Treatment the patient was on when the sample was collected", "STRING"),
+    "DAYS_ON_TREATMENT": ("Days On Treatment",
+                          "Days from the start of that treatment to the sample", "NUMBER"),
 }
 
 DISCLAIMER = (
     "Molecular response from serial ctDNA is a research tool: there is no "
-    "consensus definition, and Varan doesn't know which therapy the patient "
-    "received. Research use only.")
+    "consensus definition. Research use only.")
 
 
 # ------------------------------------------------------------ settings
@@ -252,8 +267,13 @@ class ResistanceRule:
     doi: str = ""
     note: str = ""
 
+    @property
+    def classes(self) -> list[str]:
+        return clinical_timeline.split_classes(self.therapy)
+
     def text(self) -> str:
-        return f"{self.label}: resistance to {self.therapy} ({self.drugs}) - {self.reference}"
+        return (f"{self.label}: resistance to {' or '.join(self.classes)} ({self.drugs})"
+                f" - {self.reference}")
 
 
 def resistance_list_path() -> Path:
@@ -262,10 +282,16 @@ def resistance_list_path() -> Path:
 
 
 def load_resistance_list(path: Path | None = None) -> list[ResistanceRule]:
-    table = pd.read_csv(path or resistance_list_path(), sep="\t", comment="#",
-                        dtype=str, keep_default_na=False)
+    path = path or resistance_list_path()
+    table = pd.read_csv(path, sep="\t", comment="#", dtype=str, keep_default_na=False)
+    known = {c.lower() for c in clinical_timeline.therapy_classes()}
     rules = []
     for row in table.to_dict("records"):
+        unknown = [c for c in clinical_timeline.split_classes(row["therapy"]) if c.lower() not in known]
+        if unknown:
+            msg = (f"{path.name}, {row['label']}: therapy {', '.join(unknown)} isn't in "
+                   f"{clinical_timeline.THERAPY_CLASSES.name}.")
+            raise ValueError(msg)
         classes: set[str] = set()
         for name in filter(None, (c.strip().lower() for c in row["classes"].split(","))):
             classes |= ch.CLASSES[name]
@@ -333,15 +359,19 @@ def annotate_study(folder: str | Path) -> dict | None:
             maf = maf.drop(columns=stale)
             maf.to_csv(maf_path, sep="\t", index=False)
 
-    if not enabled() or dates is None or dates.empty:
+    types = specimen.study_types(folder)
+    patient_of = {} if samples is None else dict(zip(
+        samples["SAMPLE_ID"].astype(str).str.strip(), samples["PATIENT_ID"].astype(str).str.strip()))
+    when = {} if dates is None else {
+        r["SAMPLE_ID"]: date.fromisoformat(r[DATE_COLUMN]) for r in dates.to_dict("records")}
+    # Treatments and status: their own timelines, and day 0 for all of them.
+    timeline = clinical_timeline.annotate_study(folder, patient_of, when)
+
+    if not enabled() or not when:
         drop_sample_columns(folder, list(SAMPLE_COLUMNS))
         (folder / TIMELINE_FILE).unlink(missing_ok=True)
         return None
 
-    types = specimen.study_types(folder)
-    patient_of = dict(zip(samples["SAMPLE_ID"].astype(str).str.strip(),
-                          samples["PATIENT_ID"].astype(str).str.strip()))
-    when = {r["SAMPLE_ID"]: date.fromisoformat(r[DATE_COLUMN]) for r in dates.to_dict("records")}
     forced = {r["SAMPLE_ID"] for r in dates.to_dict("records") if r[BASELINE_COLUMN] == "yes"}
 
     by_patient: dict[str, list[str]] = {}
@@ -350,7 +380,8 @@ def annotate_study(folder: str | Path) -> dict | None:
     first_day = {p: when[s[0]] for p, s in by_patient.items()}
     days = {s: (when[s] - first_day[patient_of.get(s, s)]).days for s in when}
 
-    _write_timeline(folder, by_patient, days, types)
+    _write_timeline(folder, by_patient, {
+        s: timeline.day(patient_of.get(s, s), when[s]) for s in when}, types)
 
     # Per-sample ctDNA metrics (plasma samples with a date).
     metric_name = "mean" if setting("METRIC").lower() == "mean" else "max"
@@ -381,7 +412,9 @@ def annotate_study(folder: str | Path) -> dict | None:
     attrs: dict[str, dict[str, object]] = {c: {} for c in SAMPLE_COLUMNS}
     status = pd.Series("", index=maf.index if maf is not None else [])
     resist = pd.Series("", index=maf.index if maf is not None else [])
-    summary = {"metric": metric_name, "patients": {}, "resistance": []}
+    summary = {"metric": metric_name, "patients": {}, "resistance": [],
+               "timeline_reference": timeline.reference,
+               "treatments": bool(timeline.has_treatments())}
     coverage: dict[str, set[str] | None] = {}
 
     def covers(sample_id: str, gene: str) -> bool | None:
@@ -401,20 +434,26 @@ def annotate_study(folder: str | Path) -> dict | None:
         plasma = [s for s in sample_ids if s in values]
         if len(plasma) < 2:
             continue
-        baseline = next((s for s in plasma if s in forced), plasma[0])
-        base_value = values[baseline][metric_name]
+        treatments = timeline.treatments(patient)
+        forced_base = next((s for s in plasma if s in forced), None)
+        first = forced_base or plasma[0]
         rows_out = []
         for idx, sample_id in enumerate(plasma):
             value = values[sample_id][metric_name]
-            if plasma.index(sample_id) < plasma.index(baseline):
-                category, change = "Before baseline", None
-            elif sample_id == baseline:
-                category, change = "Baseline", None
-            else:
+            current = clinical_timeline.in_force(treatments, when[sample_id])
+            base, category = _reference(sample_id, plasma, when, forced_base, treatments, current)
+            change = None
+            if category is None:
+                base_value = values[base][metric_name]
                 change = ((value or 0.0) - base_value) / base_value * 100 if base_value else None
                 category = _category(change, base_value, value)
             attrs["MOLECULAR_RESPONSE"][sample_id] = category
             attrs["CTDNA_CHANGE_PCT"][sample_id] = "NA" if change is None else round(change, 1)
+            attrs["RESPONSE_BASELINE"][sample_id] = base or "NA"
+            if treatments:
+                attrs["TREATMENT_AT_SAMPLE"][sample_id] = current.label() if current else "None"
+                attrs["DAYS_ON_TREATMENT"][sample_id] = (
+                    (when[sample_id] - current.start).days if current else "NA")
 
             earlier = plasma[:idx]
             previous = earlier[-1] if earlier else None
@@ -422,8 +461,8 @@ def annotate_study(folder: str | Path) -> dict | None:
             if maf is not None:
                 for i, r in maf[maf["Tumor_Sample_Barcode"].astype(str).str.strip() == sample_id].iterrows():
                     key, gene = ch.maf_key(r), str(r.get("Hugo_Symbol", "")).strip()
-                    if sample_id == baseline or not earlier:
-                        state = "Baseline" if sample_id == baseline else "First sample"
+                    if sample_id == first or not earlier:
+                        state = "Baseline" if sample_id == first else "First sample"
                     elif any(key in _all_keys(maf, e) for e in earlier):
                         state = "Persistent"
                     elif any(covers(e, gene) is not False for e in earlier):
@@ -434,14 +473,26 @@ def annotate_study(folder: str | Path) -> dict | None:
                     hits = [res for res in resistance
                             if res.rule.gene == gene and res.rule.matches(r.to_dict())
                             and (not res.only_new or state.startswith("New"))]
-                    if hits:
-                        resist[i] = " | ".join(res.text() for res in hits)
+                    kept = []
+                    for res in hits:
+                        given = clinical_timeline.received(treatments, res.classes, when[sample_id])
+                        if not treatments:
+                            received = "unknown (no treatments given)"
+                        elif given:
+                            received = (f"yes: {given.label()} from day "
+                                        f"{timeline.day(patient, given.start)}")
+                        else:
+                            received = "no"
                         summary["resistance"].append({
-                            "patient": patient, "sample": sample_id, "day": days[sample_id],
+                            "patient": patient, "sample": sample_id,
+                            "day": timeline.day(patient, when[sample_id]),
                             "variant": f"{gene} {r.get('HGVSp_Short', '')}", "status": state,
-                            "text": resist[i],
-                            "doi": "; ".join(res.doi for res in hits if res.doi),
-                            "note": "; ".join(res.note for res in hits if res.note)})
+                            "text": res.text(), "received": received,
+                            "doi": res.doi, "note": res.note})
+                        if received != "no":
+                            kept.append(res.text() + (f" - received {received[5:]}"
+                                                      if received.startswith("yes") else ""))
+                    resist[i] = " | ".join(kept)
                 if previous:
                     for key in _all_keys(maf, previous) - _all_keys(maf, sample_id):
                         gene = _gene_of(maf, previous, key)
@@ -449,13 +500,16 @@ def annotate_study(folder: str | Path) -> dict | None:
                             lost += 1
             attrs["CTDNA_N_NEW"][sample_id] = new
             attrs["CTDNA_N_LOST"][sample_id] = lost
-            hits = sorted({h["variant"] for h in summary["resistance"] if h["sample"] == sample_id})
+            hits = sorted({h["variant"] for h in summary["resistance"]
+                           if h["sample"] == sample_id and h["received"] != "no"})
             attrs["RESISTANCE_VARIANTS"][sample_id] = ", ".join(hits) or "None"
             rows_out.append({
-                "sample": sample_id, "day": days[sample_id],
+                "sample": sample_id, "day": timeline.day(patient, when[sample_id]),
                 "max": _pct(values[sample_id]["max"]), "mean": _pct(values[sample_id]["mean"]),
                 "n": values[sample_id]["n"], "change": attrs["CTDNA_CHANGE_PCT"][sample_id],
-                "category": category, "new": new, "lost": lost})
+                "category": category, "baseline": base or "NA",
+                "treatment": current.label() if current else ("None" if treatments else "NA"),
+                "new": new, "lost": lost})
         summary["patients"][patient] = rows_out
 
     for column, (short, long, datatype) in SAMPLE_COLUMNS.items():
@@ -475,6 +529,28 @@ def annotate_study(folder: str | Path) -> dict | None:
         f"Serial ctDNA: {len(summary['patients'])} patient(s) with 2+ dated plasma samples, "
         f"{len(summary['resistance'])} known resistance variant(s). {DISCLAIMER}")
     return summary
+
+
+def _reference(sample_id: str, plasma: list[str], when: dict[str, date], forced_base: str | None,
+               treatments: list, current) -> tuple[str | None, str | None]:
+    """(baseline sample, fixed category) for a plasma sample; a None
+    category means "compare with the baseline". See the module docstring."""
+    if forced_base or not treatments:
+        base = forced_base or plasma[0]
+        if plasma.index(sample_id) < plasma.index(base):
+            return base, "Before baseline"
+        return base, "Baseline" if sample_id == base else None
+    if current is None:
+        bases = {_last_until(plasma, when, t.start) for t in treatments}
+        return None, "Baseline" if sample_id in bases else "No treatment ongoing"
+    base = _last_until(plasma, when, current.start)
+    return base, None if base else "Not evaluable (no pre-treatment sample)"
+
+
+def _last_until(plasma: list[str], when: dict[str, date], day: date) -> str | None:
+    """The last plasma sample collected on or before `day`."""
+    before = [s for s in plasma if when[s] <= day]
+    return before[-1] if before else None
 
 
 def _pct(value: float | None) -> object:

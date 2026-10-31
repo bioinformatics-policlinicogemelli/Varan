@@ -1,0 +1,32 @@
+# Therapy classes for treatments.tsv's THERAPY_CLASS column (see clinical_timeline.py). The class is what links a
+# treatment to resistance_mutations.tsv: a resistance mutation is flagged only for patients who received a
+# treatment of its class (when the patient's treatments are known). Several classes for one treatment (a
+# combination) are separated by ";". Pick the class by indication: crizotinib given for an ALK fusion is "ALK TKI",
+# for MET exon 14 skipping "MET TKI (type I)".
+class	examples
+Chemotherapy	non-platinum cytotoxic chemotherapy (e.g. paclitaxel, docetaxel, gemcitabine, pemetrexed, FOLFIRI)
+Platinum chemotherapy	cisplatin, carboplatin, oxaliplatin
+Immune checkpoint inhibitor	pembrolizumab, nivolumab, atezolizumab, durvalumab, ipilimumab
+1st/2nd-generation EGFR TKI	gefitinib, erlotinib, afatinib, dacomitinib
+3rd-generation EGFR TKI	osimertinib, lazertinib
+Anti-EGFR antibody	cetuximab, panitumumab
+KRAS G12C inhibitor	sotorasib, adagrasib
+ALK TKI	crizotinib, ceritinib, alectinib, brigatinib, lorlatinib
+ROS1 TKI	crizotinib, entrectinib, repotrectinib
+RET inhibitor	selpercatinib, pralsetinib
+TRK inhibitor	larotrectinib, entrectinib
+FGFR inhibitor	infigratinib, pemigatinib, futibatinib, erdafitinib
+MET TKI (type I)	crizotinib, capmatinib, tepotinib, savolitinib
+MET TKI (type II)	cabozantinib, glesatinib
+BRAF/MEK inhibitor	dabrafenib, trametinib, encorafenib, binimetinib
+Anti-HER2	trastuzumab, pertuzumab, tucatinib, lapatinib
+Antibody-drug conjugate	trastuzumab deruxtecan, sacituzumab govitecan
+PARP inhibitor	olaparib, niraparib, rucaparib, talazoparib
+CDK4/6 inhibitor	palbociclib, ribociclib, abemaciclib
+Aromatase inhibitor	letrozole, anastrozole, exemestane
+Other endocrine therapy	tamoxifen, fulvestrant, elacestrant
+AR pathway inhibitor	abiraterone, enzalutamide, apalutamide, darolutamide
+Androgen deprivation therapy	leuprolide, degarelix
+Anti-angiogenic	bevacizumab, ramucirumab, aflibercept
+Other targeted therapy	any targeted drug not in the classes above
+Other	anything else

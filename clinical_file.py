@@ -13,7 +13,7 @@
 #limitations under the License.
 
 """Add, overwrite or drop one attribute (column) of an existing
-data_clinical_sample.txt, keeping its four "#" header rows in step - the
+data_clinical_sample.txt (drop: also data_clinical_patient.txt), keeping its four "#" header rows in step - the
 same way walk_clinical.py layers the BRCA exon and HRD columns onto it."""
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 SAMPLE_FILE = "data_clinical_sample.txt"
+PATIENT_FILE = "data_clinical_patient.txt"
 
 
 def _read(path: Path) -> tuple[list[list[str]], pd.DataFrame]:
@@ -61,9 +62,11 @@ def set_sample_column(
     return True
 
 
-def drop_sample_columns(folder: str | Path, columns: list[str]) -> None:
-    """Remove `columns` (those present) from data_clinical_sample.txt."""
-    path = Path(folder) / SAMPLE_FILE
+def drop_sample_columns(folder: str | Path, columns: list[str],
+                        filename: str = SAMPLE_FILE) -> None:
+    """Remove `columns` (those present) from data_clinical_sample.txt - or
+    from `filename`, e.g. PATIENT_FILE, which has the same header rows."""
+    path = Path(folder) / filename
     if not path.exists():
         return
     header, body = _read(path)

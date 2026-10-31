@@ -39,6 +39,7 @@ import subprocess
 import pandas as pd
 from loguru import logger
 
+import clinical_timeline
 import clonal_hematopoiesis
 import serial_ctdna
 import specimen
@@ -189,9 +190,37 @@ def specimen_settings_html() -> str:
 
 
 def study_flags_html(folder: str | Path) -> str:
-    """The clonal hematopoiesis and serial ctDNA sections, when the study
-    has them (create, update, extract and remove reports)."""
-    return clonal_hematopoiesis_html(str(folder)) + serial_ctdna_html(folder)
+    """The clonal hematopoiesis, clinical timeline and serial ctDNA
+    sections, when the study has them (create, update, extract and remove
+    reports)."""
+    return (clonal_hematopoiesis_html(str(folder)) + clinical_timeline_html(folder)
+            + serial_ctdna_html(folder))
+
+
+def clinical_timeline_html(folder: str | Path) -> str:
+    """Clinical timeline section (see clinical_timeline.py): what was
+    loaded and which day 0 the timelines use."""
+    summary = clinical_timeline.read_summary(folder)
+    if not summary:
+        return ""
+    esc = html.escape
+    reference = ("each patient's diagnosis date (patient.tsv DIAGNOSIS_DATE)"
+                 if summary["reference"] == "diagnosis" else
+                 "each patient's first event (sample collection, treatment or status) - "
+                 "DIAGNOSIS_DATE is missing for some patients, so it isn't used for anyone")
+    return f"""
+        <section class="filters">
+            <div class="section-title">Clinical timeline</div>
+            <div class="content">
+                <p>{esc(str(summary["treatments"]))} treatment(s) and {esc(str(summary["status"]))} status
+                event(s) (progression, RECIST response, death) for {esc(str(summary["patients"]))} patient(s),
+                from treatments.tsv{" and patient.tsv's DIAGNOSIS_DATE" if summary["diagnosis"] else ""}:
+                data_timeline_treatment.txt and data_timeline_status.txt, shown with the sample collections in
+                cBioPortal's patient view.</p>
+                <p>Day 0 is {esc(reference)}. The dates themselves stay in the study's service/ folder;
+                cBioPortal only gets days.</p>
+            </div>
+        </section>"""
 
 
 def serial_ctdna_html(folder: str | Path) -> str:
@@ -211,7 +240,12 @@ def serial_ctdna_html(folder: str | Path) -> str:
                 ctDNA level is the <strong>{esc(st.get("METRIC", "max"))} VAF</strong> of its variants, leaving
                 out variants flagged as clonal hematopoiesis (EXCLUDE_CH = {esc(st.get("EXCLUDE_CH", ""))})
                 and germline-like VAFs ({esc(st.get("GERMLINE_VAF_BANDS", ""))}). The change is computed against
-                the baseline plasma sample (the earliest, unless BASELINE marks another one).</p>
+                the baseline plasma sample: the earliest, unless BASELINE marks another one; for patients with
+                treatments in treatments.tsv (and no BASELINE), the last plasma sample collected up to the start
+                of the treatment the sample is on - <strong>Not evaluable (no pre-treatment sample)</strong>
+                when there is none, <strong>No treatment ongoing</strong> for a sample off treatment that
+                isn't a baseline. Days are counted from day 0 of the clinical timeline
+                ({esc(summary.get("timeline_reference", "first sample"))}).</p>
                 <p>Molecular response: <strong>Decrease</strong> = drop of more than
                 {esc(st.get("DECREASE_PCT", ""))}%, <strong>Increase</strong> = rise of more than
                 {esc(st.get("INCREASE_PCT", ""))}%, <strong>Intermediate</strong> otherwise;
@@ -229,25 +263,31 @@ def serial_ctdna_html(folder: str | Path) -> str:
                 <p><strong>Patient {esc(patient)}</strong></p>
                 <table>
                     <tr><th>Sample</th><th>Day</th><th>Max VAF %</th><th>Mean VAF %</th><th>Variants</th>
-                    <th>Change %</th><th>Molecular response</th><th>New</th><th>Lost</th></tr>"""
+                    <th>Change %</th><th>Molecular response</th><th>Compared with</th><th>Treatment</th>
+                    <th>New</th><th>Lost</th></tr>"""
         for r in rows:
-            out += ("<tr>" + "".join(f"<td>{esc(str(r[k]))}</td>" for k in (
-                "sample", "day", "max", "mean", "n", "change", "category", "new", "lost")) + "</tr>")
+            out += ("<tr>" + "".join(f"<td>{esc(str(r.get(k, 'NA')))}</td>" for k in (
+                "sample", "day", "max", "mean", "n", "change", "category", "baseline", "treatment",
+                "new", "lost")) + "</tr>")
         out += """
                 </table>"""
     hits = summary.get("resistance", [])
     out += """
                 <p><strong>Known acquired-resistance mutations</strong> (list: """ + esc(
-        serial_ctdna.resistance_list_path().name) + """; each match says which therapy the mutation is a
-                known resistance mechanism to - check whether the patient received it).</p>"""
+        serial_ctdna.resistance_list_path().name) + """; each match says which therapy class the mutation is
+                a known resistance mechanism to. For patients with treatments in treatments.tsv, a match is
+                flagged in cBioPortal only if the patient received a treatment of that class before the sample
+                (Received = yes); matches with Received = no are listed here only. Without treatments
+                (Received = unknown), check whether the patient received it).</p>"""
     if hits:
         out += """
                 <table>
                     <tr><th>Patient</th><th>Sample</th><th>Day</th><th>Variant</th><th>Status</th>
-                    <th>Resistance to</th><th>DOI</th><th>Note</th></tr>"""
+                    <th>Resistance to</th><th>Received</th><th>DOI</th><th>Note</th></tr>"""
         for h in hits:
             out += ("<tr>" + "".join(f"<td>{esc(str(h.get(k, '')))}</td>" for k in (
-                "patient", "sample", "day", "variant", "status", "text", "doi", "note")) + "</tr>")
+                "patient", "sample", "day", "variant", "status", "text", "received", "doi", "note"))
+                + "</tr>")
         out += """
                 </table>"""
     else:

@@ -43,6 +43,7 @@ from loguru import logger
 from config_loader import VARAN_DIR, config
 from filter_clinvar import check_bool
 from populate_case_lists import write_profiled_samples
+import clinical_timeline
 import serial_ctdna
 import specimen
 from versioning import get_newest_version, get_version_list
@@ -596,7 +597,8 @@ def validate_input(
     vcf_type: str | None,
     filters: str,
     cancer: str,
-    input_path: str) -> None:
+    input_path: str,
+    patient_tsv: str = "") -> None:
     """Validate the input configuration and required files for the pipeline.
 
     Args:
@@ -605,6 +607,8 @@ def validate_input(
         filters (str): Filter options as string.
         cancer (str): Cancer ID to validate against cBioPortal.
         input_path (str): Path to input file or folder.
+        patient_tsv (str): patient.tsv given with a file input (a folder
+            input's own patient.tsv is found here).
 
     Raises:
         Exception: If required columns are missing or config fields are empty.
@@ -615,7 +619,9 @@ def validate_input(
     if not isinputfile:
         sample_path = Path(input_path) / "sample.tsv"
         file_tsv = pd.read_csv(sample_path, sep="\t", dtype=str)
+        patient_tsv = input_extraction_folder(input_path)[1]
     elif isinputfile:
+        sample_path = Path(input_path)
         file_tsv = pd.read_csv(input_path, sep="\t", dtype=str)
 
     column_list = [
@@ -670,6 +676,9 @@ def validate_input(
     specimen.warn_missing_overrides(types)
     # Serial ctDNA input (optional COLLECTION_DATE / BASELINE columns).
     serial_ctdna.check_input(file_tsv, types)
+    # Clinical timeline input (optional treatments.tsv / DIAGNOSIS_DATE).
+    clinical_timeline.check_input(sample_path, patient_tsv, file_tsv,
+                                  serial_ctdna.collection_dates(file_tsv))
 
     if (vcf_type is None or "snv" in vcf_type) and (not _path_setting("VEP_PATH") or not _path_setting("VEP_DATA")):
         msg = "VEP_PATH and/or VEP_DATA field in conf.ini is empty!"
@@ -741,7 +750,8 @@ def _walk_setup(
 
     path = Path(input_path[0])
     isinputfile = path.is_file()
-    validate_input(oncokb, vcf_type, filters, cancer, input_path[0])
+    validate_input(oncokb, vcf_type, filters, cancer, input_path[0],
+                   input_path[1].strip() if len(input_path) > 1 else "")
 
     if not resume or not (Path(output_folder) / "temp").exists():
         output_folder = create_folder(output_folder, overwrite_output, resume)

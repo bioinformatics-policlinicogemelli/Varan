@@ -69,6 +69,10 @@ Plasma variants that may come from white blood cell clones rather than the tumor
 
 With an optional `COLLECTION_DATE` column in `sample.tsv` (and optionally `BASELINE`), the plasma samples of each patient are compared over time ([`serial_ctdna.py`](serial_ctdna.py), `[Serial]` in `conf.ini`): ctDNA level (max or mean VAF, clonal hematopoiesis and germline-like variants left out), change from baseline and molecular response (thresholds from the ctMoniTR analyses, configurable), new and lost variants, and known acquired-resistance mutations from [`resistance_mutations.tsv`](resistance_mutations.tsv) with their references. Samples are ordered in cBioPortal's patient view through `data_timeline_specimen.txt`; the dates themselves stay in the study's `service/` folder - cBioPortal only gets days from the patient's first sample. Research use only.
 
+### Clinical timeline
+
+An optional `treatments.tsv` (next to `patient.tsv` or `sample.tsv`, or `[Timeline] TREATMENTS` in `conf.ini`) lists each patient's treatments - agent, line and a therapy class from [`therapy_classes.tsv`](therapy_classes.tsv) - and status events (progression, RECIST response, death), with dates; `patient.tsv` can add a `DIAGNOSIS_DATE`. They become `data_timeline_treatment.txt` and `data_timeline_status.txt`, shown with the sample collections in cBioPortal's patient view, on one day 0 (the diagnosis when every patient has one, otherwise each patient's first event) - see [`clinical_timeline.py`](clinical_timeline.py). Unreadable dates, treatments ending before they start and values outside the allowed ones stop the run. With treatments, serial ctDNA compares each plasma sample with the last one before the treatment it is on, and flags a resistance mutation only if the patient received a treatment of its class. Dates stay in `service/`, as above.
+
 ## Documentation
 
 | | |
