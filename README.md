@@ -42,6 +42,19 @@ Full walk-through with synthetic test data (raw files → validated study in und
 
 Every setting - reference files, filter thresholds, OncoKB annotation, clinical header customization - lives in a single `conf.ini` file, which can be pointed at explicitly with `-C <path>` if you keep several around (e.g. per assay type or per environment).
 
+### Varan app (no command line)
+
+For users who don't work in a terminal, the Varan app runs the same Docker image from a window, on Windows, macOS and Linux:
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or [Podman Desktop](https://podman-desktop.io/)) once.
+2. Download the app for your system from the [releases](https://github.com/bioinformatics-policlinicogemelli/Varan/releases) and double-click it. It starts Docker if needed, and downloads the Varan image on the first run (about 3 GB).
+3. In **Settings**, choose the VEP cache folder (with `homo_sapiens/<version>_GRCh37` inside) and the GRCh37 FASTA (with its `.fai`); optionally an OncoKB token and your own `conf.ini`.
+4. **New study**: choose `sample.tsv` (or an input folder), the cancer type and the output folder, then **Run Varan**. The report opens at the end. **Merge studies**, **Extract samples** and **Remove samples** work on existing study folders.
+
+Inputs can be anywhere on the computer: the app mounts the folders the files are in and rewrites `sample.tsv` and `conf.ini` with the paths the container sees (each run's copies and log are kept in the app's `runs` folder, see Settings). The results are those of the command line: same image, same `varan.py`.
+
+To run it from the sources: `python -m varan_gui` (Python 3.9+ with tkinter, no other package). To build the double-clickable app: `pip install pyinstaller pillow`, then `python -m varan_gui.build`. On every `v*` tag GitHub Actions publishes the image (`ghcr.io/bioinformatics-policlinicogemelli/varan`) and attaches the Windows, macOS and Linux apps to the release.
+
 ### Workflow orchestration (experimental)
 
 A [`Snakefile`](Snakefile) wraps Varan's four top-level operations (create/update/extract/remove) as Snakemake rules driven by [`config.yaml`](config.yaml), adding dependency tracking, per-run logs and conda-environment management on top of the existing CLI - without changing any pipeline logic. It's a starting point, not yet exercised against a real Snakemake install or cluster environment: review `config.yaml` and test before relying on it.

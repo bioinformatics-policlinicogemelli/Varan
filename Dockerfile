@@ -76,13 +76,17 @@ RUN apt-get update && \
 #is installed - Varan's own pipeline is hg19/GRCh37 end to end today (see
 #conf.ini's VEP_DATA cache and the CNA pipeline's data_cna_hg19.* naming);
 #add BSgenome.Hsapiens.UCSC.hg38 here too if Varan ever grows hg38 support.
-RUN R -e 'install.packages("BiocManager", repos="https://cloud.r-project.org")' && \
+#--build-arg WITH_SIGMA=0 skips it (no -g/--sigma in that image).
+ARG WITH_SIGMA=1
+RUN if [ "$WITH_SIGMA" = "1" ]; then \
+    R -e 'install.packages("BiocManager", repos="https://cloud.r-project.org")' && \
     R -e 'BiocManager::install(c( \
         "BSgenome", "BSgenome.Hsapiens.UCSC.hg19", "VariantAnnotation", \
         "GenomicRanges", "IRanges", "gbm", "nnls", "reshape2", "Rmisc", \
         "DT", "gridExtra", "ggplot2", "devtools"), update = FALSE, ask = FALSE)' && \
     R -e 'devtools::install_github("parklab/SigMA", dependencies = FALSE, upgrade = "never")' && \
-    R -e 'library(SigMA)'
+    R -e 'library(SigMA)'; \
+    fi
 
 COPY . /
 

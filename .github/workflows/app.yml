@@ -1,0 +1,54 @@
+# Builds the Varan app for Windows, macOS and Linux; on a v* tag the three
+# are attached to the GitHub release.
+name: Varan app
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            asset: Varan-windows.zip
+          - os: macos-latest
+            asset: Varan-macos.zip
+          - os: ubuntu-latest
+            asset: Varan-linux.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pyinstaller pillow
+      - run: python -m varan_gui.build
+      - name: Zip
+        shell: bash
+        run: |
+          cd dist
+          if [ "$RUNNER_OS" = "Windows" ]; then 7z a "../${{ matrix.asset }}" Varan.exe
+          elif [ "$RUNNER_OS" = "macOS" ]; then ditto -c -k --keepParent Varan.app "../${{ matrix.asset }}"
+          else zip "../${{ matrix.asset }}" Varan; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: Varan-*.zip
