@@ -45,6 +45,7 @@ class Settings:
     oncokb_token: str = ""
     conf_ini: str = ""
     last_dir: str = ""
+    intro: str = "yes"
 
     @classmethod
     def load(cls) -> Settings:

@@ -8,8 +8,10 @@ import re
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 import webbrowser
+import zipfile
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
@@ -99,6 +101,71 @@ class Scrollable(ttk.Frame):
         self.canvas.yview_scroll(step * (1 if sys.platform == "darwin" else 3), "units")
 
 
+class Intro(tk.Toplevel):
+    """The intro video (assets/intro_frames.zip, see make_intro.py) in a
+    borderless window; a click or Esc skips it."""
+
+    def __init__(self, master, frames: Path, on_done) -> None:
+        super().__init__(master)
+        self.archive = zipfile.ZipFile(frames)
+        self.names = sorted(n for n in self.archive.namelist() if n.endswith(".gif"))
+        try:
+            self.fps = float(self.archive.read("fps.txt"))
+        except (KeyError, ValueError):
+            self.fps = 12.0
+        self.on_done = on_done
+        self.overrideredirect(True)
+        self.configure(background="black")
+        self.attributes("-topmost", True)
+        self.screen = tk.Label(self, borderwidth=0, background="black", cursor="hand2")
+        self.screen.pack()
+        # tk images are in screen pixels: on a 150% / 200% display the frames
+        # are enlarged (zoom, then subsample) to look as big as on a 100% one.
+        scale = master.winfo_fpixels("1i") / 96
+        self.zoom = (1, 1) if scale < 1.25 else (3, 2) if scale < 1.75 else (2, 1)
+        self.frame = self._load(self.names[0])
+        self.screen.configure(image=self.frame)
+        w, h = self.frame.width(), self.frame.height()
+        self.geometry(f"{w}x{h}+{(self.winfo_screenwidth() - w) // 2}+{(self.winfo_screenheight() - h) // 2}")
+        for widget in (self, self.screen):
+            widget.bind("<Button-1>", lambda e: self.finish())
+        self.bind("<Escape>", lambda e: self.finish())
+        self.focus_force()
+        self.started = time.monotonic()
+        self.shown = 0
+        self.after(int(1000 / self.fps), self._next)
+
+    def _next(self) -> None:
+        if not self.winfo_exists():
+            return
+        # Paced on the clock: a slow computer drops frames instead of
+        # stretching the video.
+        index = int((time.monotonic() - self.started) * self.fps)
+        if index >= len(self.names):
+            self.finish()
+            return
+        if index != self.shown:
+            self.frame = self._load(self.names[index])
+            self.screen.configure(image=self.frame)
+            self.shown = index
+        self.after(max(1, int(1000 / self.fps / 2)), self._next)
+
+    def _load(self, name: str) -> tk.PhotoImage:
+        image = tk.PhotoImage(data=self.archive.read(name))
+        zoom, sub = self.zoom
+        if zoom > 1:
+            image = image.zoom(zoom)
+        return image.subsample(sub) if sub > 1 else image
+
+    def finish(self) -> None:
+        if self.on_done is None:
+            return
+        done, self.on_done = self.on_done, None
+        self.archive.close()
+        self.destroy()
+        done()
+
+
 def section(parent, title: str, row: int) -> ttk.LabelFrame:
     frame = ttk.LabelFrame(parent, text=title, padding=10)
     frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
@@ -120,19 +187,36 @@ class App(tk.Tk):
         self.stopping = False
 
         self.title("Varan")
-        height = min(860, self.winfo_screenheight() - 90)
-        self.geometry(f"1040x{height}+40+20")
-        self.minsize(820, 600)
+        # Sizes in screen pixels, scaled like the text on 150% / 200% displays.
+        scale = max(1.0, self.winfo_fpixels("1i") / 96)
+        width = min(int(1040 * scale), self.winfo_screenwidth() - 40)
+        height = min(int(860 * scale), self.winfo_screenheight() - int(90 * scale))
+        self.geometry(f"{width}x{height}+{(self.winfo_screenwidth() - width) // 2}+{int(20 * scale)}")
+        self.minsize(int(820 * scale), int(600 * scale))
         try:
             self.icon = tk.PhotoImage(file=str(resource("assets/varan.png")))
             self.iconphoto(True, self.icon)
         except tk.TclError:
             self.icon = None
 
+        # The intro plays while the window is built and Docker is checked.
+        frames = resource("assets/intro_frames.zip")
+        if self.settings.intro == "yes" and frames.is_file():
+            self.withdraw()
+            try:
+                Intro(self, frames, on_done=self._show).update()
+            except (OSError, zipfile.BadZipFile, tk.TclError, IndexError):
+                self.deiconify()
+
         self._build()
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.after(100, self._poll)
         self.check_engine(start=True)
+
+    def _show(self) -> None:
+        self.deiconify()
+        self.lift()
+        self.focus_force()
 
     # ------------------------------------------------------------- layout
 
@@ -147,6 +231,9 @@ class App(tk.Tk):
         head.pack(fill="x")
         try:
             self.logo = tk.PhotoImage(file=str(resource("assets/varan_header.png")))
+            scale = self.winfo_fpixels("1i") / 96
+            if scale >= 1.25:
+                self.logo = self.logo.zoom(3).subsample(2) if scale < 1.75 else self.logo.zoom(2)
             ttk.Label(head, image=self.logo).pack(side="left", padx=(0, 10))
         except tk.TclError:
             self.logo = None
@@ -372,7 +459,8 @@ class App(tk.Tk):
         body.columnconfigure(0, weight=1)
         s = self.settings
         self.set_vars = {k: tk.StringVar(value=getattr(s, k)) for k in
-                         ("engine", "image", "vep_cache", "vep_version", "ref_fasta", "oncokb_token", "conf_ini")}
+                         ("engine", "image", "vep_cache", "vep_version", "ref_fasta", "oncokb_token", "conf_ini",
+                          "intro")}
         v = self.set_vars
 
         box = section(body, "Container engine", 0)
@@ -416,6 +504,8 @@ class App(tk.Tk):
         tools.grid(row=2, column=1, sticky="w", pady=(6, 0))
         ttk.Button(tools, text="Make a conf.ini to edit...", command=self.export_conf).pack(side="left", padx=(0, 8))
         ttk.Button(tools, text="Open the runs folder", command=lambda: open_path(app_dir() / "runs")).pack(side="left")
+        ttk.Checkbutton(box, text="Show the intro video at start", variable=v["intro"], onvalue="yes",
+                        offvalue="no", command=self._save_settings).grid(row=3, column=1, sticky="w", pady=(8, 0))
         ttk.Label(body, text=f"Varan app {__version__}", foreground="gray50").grid(row=4, column=0, sticky="e")
 
     def _build_log(self, parent) -> ttk.Frame:

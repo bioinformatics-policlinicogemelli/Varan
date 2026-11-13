@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 build/
 dist/
+varan_gui/assets/intro_frames.zip
