@@ -40,6 +40,7 @@ from loguru import logger
 import tsv
 import vcf2tab_cnv
 import vcf_filter
+import vep_tools
 from filter_clinvar import check_bool, filter_oncokb
 from versioning import get_newest_version, get_version_list
 
@@ -611,7 +612,9 @@ def vcf2maf_constructor(v: str,
         msg = "Input error"
         raise Exception (msg)
 
-    cl = ["perl"]
+    # perl/samtools/tabix from the VEP installation, not from the active
+    # environment - see vep_tools.
+    cl = [vep_tools.vep_perl(VEP_PATH)]
     cl.append(VCF2MAF)
     cl.append("--input-vcf")
     cl.append(v)
@@ -634,6 +637,12 @@ def vcf2maf_constructor(v: str,
     cl.append("GT,GQ,AD,DP,VF,AF")
     cl.append("--vep-path")
     cl.append(VEP_PATH)
+    for tool, option in (("samtools", "--samtools-exec"),
+                         ("tabix", "--tabix-exec")):
+        tool_path = vep_tools.vep_tool(VEP_PATH, tool)
+        if tool_path:
+            cl.append(option)
+            cl.append(tool_path)
     cl.append("--vep-data")
     cl.append(VEP_DATA)
     cl.append("--tumor-id")
