@@ -37,6 +37,7 @@ import subprocess
 import pandas as pd
 
 import oncokb_runner
+import vep_tools
 import versioning
 from config_loader import get_config
 from filter_clinvar import check_bool
@@ -112,9 +113,16 @@ def get_vep_version(vep_executable: str = "vep") -> str | None:
     version : str or None
         The version string of VEP if successfully retrieved, otherwise None.
     """
+    # Run VEP with the perl of its own installation when there is one next
+    # to it (see vep_tools): the active environment's perl may lack VEP's
+    # modules, and then `vep --help` fails and the version goes missing.
+    vep_executable = Path(vep_executable)
+    perl = vep_tools.vep_tool(vep_executable.parent, "perl")
+    cmd = ([perl, str(vep_executable), "--help"] if perl
+           else [str(vep_executable), "--help"])
     try:
         result = subprocess.run(
-            [vep_executable, "--help"],
+            cmd,
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
