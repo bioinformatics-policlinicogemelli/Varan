@@ -37,6 +37,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+import oncokb_runner
 import sigma_runner
 import tsv
 import vcf2tab_cnv
@@ -375,8 +376,9 @@ def cnv_type_from_folder(input_path: str,
                         "-t", df_tmp["ONCOTREE_CODE"].unique()[0],
                         "-z"
                         ]
-                    
-                    subprocess.run(cmd, check=True)
+
+                    oncokb_runner.run_annotator(
+                        cmd, f"sample {sample_df} (CNA)", output_folder)
 
                     df_path.unlink(missing_ok=True)
 
@@ -1760,7 +1762,8 @@ def annotate_fusion(
     cancer: str,
     fusion_table_file: str,
     data_sv: pd.DataFrame,
-    input_file: pd.DataFrame) -> str:
+    input_file: pd.DataFrame,
+    output_folder: str) -> str:
     """Annotate fusion events with OncoKB FusionAnnotator.
 
     Args:
@@ -1769,6 +1772,8 @@ def annotate_fusion(
         data_sv (pd.DataFrame): DataFrame with fusion data.
         input_file (pd.DataFrame): Clinical data with SAMPLE_ID and optionally
         ONCOTREE_CODE.
+        output_folder (str): The study's output folder (the OncoKB data
+        release is recorded there, see oncokb_runner).
 
     Returns:
         str: Path to annotated fusion output file.
@@ -1782,16 +1787,22 @@ def annotate_fusion(
             right_on="SAMPLE_ID")
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
         fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
-        os.system(
-            f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file} "
-            f"-o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
+        cmd = [
+            sys.executable, "oncokb-annotator/FusionAnnotator.py",
+            "-i", str(fusion_table_file),
+            "-o", str(fusion_table_file_out),
+            "-b", config.get("OncoKB", "ONCOKB")]
 
     else:
         fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
-        os.system(
-            f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file} "
-            f"-o {fusion_table_file_out} -t {cancer.upper()}  "
-            f"-b {config.get('OncoKB', 'ONCOKB')}")
+        cmd = [
+            sys.executable, "oncokb-annotator/FusionAnnotator.py",
+            "-i", str(fusion_table_file),
+            "-o", str(fusion_table_file_out),
+            "-t", cancer.upper(),
+            "-b", config.get("OncoKB", "ONCOKB")]
+
+    oncokb_runner.run_annotator(cmd, "fusions", output_folder)
 
     return fusion_table_file_out
 
@@ -3107,7 +3118,8 @@ def _walk_process_fusion(ctx: WalkContext) -> None:
             data_sv = pd.read_csv(fusion_table_file, sep="\t", dtype=str)
             input_file = pd.read_csv(ctx.clin_sample_path, sep="\t", dtype=str)
             fusion_table_file_out = annotate_fusion(
-                ctx.cancer, fusion_table_file, data_sv, input_file)
+                ctx.cancer, fusion_table_file, data_sv, input_file,
+                ctx.output_folder)
 
             if "o" in ctx.filters:
                 fus_file = pd.read_csv(fusion_table_file_out, sep="\t", dtype=str)

@@ -36,6 +36,7 @@ import subprocess
 
 import pandas as pd
 
+import oncokb_runner
 import versioning
 from config_loader import get_config
 from filter_clinvar import check_bool
@@ -263,6 +264,7 @@ def render_provenance_html(label: str, provenance: dict | None) -> str:
         "clinvar_update": "ClinVar Last Update",
         "vep_version": "VEP Version",
         "vep_cache_version": "VEP Cache",
+        "oncokb_data_version": "OncoKB Data Version",
         "analysis_start_time": "Analysis Started",
         "report_generated": "Source Report Generated",
     }
@@ -631,6 +633,8 @@ def write_report_main(
     python_version = get_python_version()
     clinvar_update = get_clinvar_update_date(config)
     vep_version = get_vep_version(Path(vep_path, "vep"))
+    oncokb_data_version = (
+        oncokb_runner.read_data_version(output_folder) if oncokb else None)
 
     if versioning.old_version_exists:
         name = re.search(r"^(.+_v)[0-9]+$", output_folder.name).group(1)
@@ -705,6 +709,10 @@ def write_report_main(
     if isinstance(vep_cache_version, int):
         html_content += f"""
             <p><strong>VEP Cache:</strong> {vep_cache_version}</p>"""
+
+    if oncokb_data_version:
+        html_content += f"""
+            <p><strong>OncoKB Data Version:</strong> {oncokb_data_version}</p>"""
 
     html_content += f"""
                     <div class="subtitle">Study Metadata</div>
@@ -954,6 +962,7 @@ def write_report_main(
         clinvar_update=clinvar_update,
         vep_version=vep_version,
         vep_cache_version=vep_cache_version,
+        oncokb_data_version=oncokb_data_version,
         sample_type=sample_type,
         cancer_type=cancer,
         ref_genome=ref_genome,

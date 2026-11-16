@@ -27,7 +27,6 @@ flexible customization of thresholds and accepted values for each filter.
 import ast
 import configparser
 import os
-import subprocess
 import shutil
 import sys
 from pathlib import Path
@@ -36,6 +35,7 @@ import pandas as pd
 from loguru import logger
 
 import concatenate
+import oncokb_runner
 from config_loader import get_config
 
 config = get_config()
@@ -391,19 +391,21 @@ def filter_main(input_path: str,folder: str,
                             oncotree_value
                             if pd.notna(oncotree_value) and oncotree_value
                             else cancer)
-                        subprocess.run([
+                        oncokb_runner.run_annotator([
                             sys.executable, "oncokb-annotator/MafAnnotator.py",
                             "-i", str(f), "-o", str(file_path),
                             "-t", cancer_onco.upper(),
                             "-q", "Genomic_Change",
-                            "-b", config.get("OncoKB", "ONCOKB")], check=True)
+                            "-b", config.get("OncoKB", "ONCOKB")],
+                            f"{file} (MAF)", output_folder)
             else:
-                subprocess.run([
+                oncokb_runner.run_annotator([
                     sys.executable, "oncokb-annotator/MafAnnotator.py",
                     "-i", str(f), "-o", str(file_path),
                     "-t", cancer.upper(),
                     "-q", "Genomic_Change",
-                    "-b", config.get("OncoKB", "ONCOKB")], check=True)
+                    "-b", config.get("OncoKB", "ONCOKB")],
+                    f"{file} (MAF)", output_folder)
 
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
         out_filter = maf_oncokb_path
