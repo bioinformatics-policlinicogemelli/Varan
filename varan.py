@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import secrets
 import shutil
 import sys
 from collections.abc import Sequence
@@ -90,6 +91,35 @@ def move_log_to_study(output_folder: str) -> None:
     LOG_HANDLER = None
     LOG_FILE.unlink(missing_ok=True)
     logger.info(f"Log of this run: {study_log}")
+
+
+def reserve_log_file(log_dir: str | Path, start: datetime) -> Path:
+    """Create this run's start-up log file, with a name no other run uses.
+
+    Several runs can start in the same instant with the same log folder
+    (e.g. two PBS jobs submitted together): with a name made only of the
+    start time they would share one file, and the first run to move its log
+    into its study folder would delete it under the other. A random suffix
+    plus exclusive creation guarantees each run its own file.
+
+    Args:
+        log_dir (str | Path): Folder for start-up logs (VARAN_LOG_DIR).
+        start (datetime): Start time of the run, used in the file name.
+
+    Returns:
+        Path: The newly created, empty log file.
+
+    """
+    log_dir = Path(log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    stamp = f"{start:%Y-%m-%d_%H-%M-%S}.{start.microsecond // 10000:02d}"
+    while True:
+        path = log_dir / f"Varan_{stamp}_{secrets.token_hex(3)}.log"
+        try:
+            path.touch(exist_ok=False)
+        except FileExistsError:
+            continue
+        return path
 
 
 def logo() -> None:
@@ -289,8 +319,6 @@ if __name__ == "__main__":
 
     logger.remove()
     run_start = datetime.now()
-    logfile = (f"Varan_{run_start:%Y-%m-%d_%H-%M-%S}."
-               f"{run_start.microsecond // 10000:02d}.log")
     logger.level("INFO", color="<green>")
 
     logger.add(
@@ -303,11 +331,11 @@ if __name__ == "__main__":
     # folder exists the log is moved and continued there
     # (move_log_to_study). Line-buffered so the copy is complete.
     log_dir = os.environ.get("VARAN_LOG_DIR", "").strip() or "Logs"
-    LOG_FILE = Path(log_dir) / logfile
+    LOG_FILE = reserve_log_file(log_dir, run_start)
     LOG_HANDLER = logger.add(
         LOG_FILE,
         format=LOG_FORMAT,
-        mode="w",
+        mode="a",
         buffering=1)
 
     logo()
