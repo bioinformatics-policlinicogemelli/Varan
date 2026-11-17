@@ -1464,14 +1464,14 @@ def fill_fusion_from_temp(
         header_cols = template.readline().rstrip("\n").split("\t")
     # The supporting-read count is written as Tumor_Variant_Count; input
     # tables using the pre-2.1.4 name are still accepted (see sv_columns).
-    header_cols = sv_columns.normalise_header(header_cols)
+    header_cols = sv_columns.normalise_input_read_count(header_cols)
 
     with Path(fusion_table_file).open("w") as fusion_table:
         fusion_table.write("\t".join(header_cols) + "\n")
 
         for fusion_file in fusion_files:
-            ff = sv_columns.normalise_read_count_column(
-                pd.read_csv(fusion_input, sep="\t"))
+            ff = pd.read_csv(fusion_input, sep="\t")
+            ff.columns = sv_columns.normalise_input_read_count(list(ff.columns))
 
             required_columns = {
                 "Sample_Id",

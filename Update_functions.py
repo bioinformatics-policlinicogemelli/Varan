@@ -293,13 +293,15 @@ def update_sv(oldfile_path: str,
 
     """
     # Read as text so sample IDs like "00112624" keep their leading zeros and
-    # read counts are written back exactly as they were. Studies made before
-    # 2.1.4 carry the read count as Normal_Paired_End_Read_Count: renamed to
-    # Tumor_Variant_Count, so old and new studies merge into one column.
-    df_old = sv_columns.normalise_read_count_column(
-        pd.read_csv(oldfile_path, sep="\t", dtype=str))
-    df_new = sv_columns.normalise_read_count_column(
-        pd.read_csv(newfile_path, sep="\t", dtype=str))
+    # read counts are written back exactly as they were. Studies written by
+    # Varan before 2.1.4 carry the read count as Normal_Paired_End_Read_Count:
+    # renamed to Tumor_Variant_Count, so old and new studies merge into one
+    # column. Tables not written by Varan are left as they are (see
+    # sv_columns.normalise_study_read_count).
+    df_old = sv_columns.normalise_study_read_count(
+        pd.read_csv(oldfile_path, sep="\t", dtype=str), str(oldfile_path))
+    df_new = sv_columns.normalise_study_read_count(
+        pd.read_csv(newfile_path, sep="\t", dtype=str), str(newfile_path))
 
     # A sample present in both: the new analysis replaces its old SV rows.
     updated_samples = set(df_old["Sample_Id"]) & set(df_new["Sample_Id"])
