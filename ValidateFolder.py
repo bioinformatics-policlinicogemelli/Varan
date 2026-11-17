@@ -42,6 +42,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 from configparser import ConfigParser
 from conf_path import conf_path
@@ -332,35 +333,42 @@ def copy_maf(oldpath: str, output: str, copy_maf: bool, zip_maf: bool) -> None:
     output_maf_dir = Path(output) / "maf"
     final_zip = Path(output) / "maf.zip"
 
-    extract_maf_zip_if_needed(maf_zip_path, maf_dir)
-
-
-    if not maf_dir.exists():
-        logger.warning(f"Unable to locate the MAF folder in {oldpath}.")
-        logger.warning("MAF files will not be copied.")
-        return
-
     zip_maf = config.get("Zip", "ZIP_MAF")
     zip_maf = check_bool(zip_maf)
 
-    output_maf_dir.mkdir(parents=True, exist_ok=True)
-    if zip_maf and final_zip.exists():
-        with zipfile.ZipFile(final_zip, "r") as zip_existing:
-            zip_existing.extractall(output_maf_dir)
+    # The source study is only read. A zipped MAF folder is extracted into a
+    # temporary folder inside the output, removed afterwards. (It used to be
+    # extracted into <source>/maf and that folder deleted at the end: that
+    # wrote into the source study, failed on a read-only one, raced with
+    # other runs on the same study and could delete a maf/ folder the study
+    # already had.)
+    with tempfile.TemporaryDirectory(prefix=".maf_source_", dir=output) as tmp:
+        if maf_zip_path.exists():
+            source_maf_dir = Path(tmp)
+            extract_maf_zip_if_needed(maf_zip_path, source_maf_dir)
+        else:
+            source_maf_dir = maf_dir
 
-    #TODO bug 
-    # common_suffix = detect_common_suffix(maf_dir, sample_ids)
-    common_suffix = ".hard-filtered.FILTERED.vcf.maf"
+        if not source_maf_dir.exists():
+            logger.warning(f"Unable to locate the MAF folder in {oldpath}.")
+            logger.warning("MAF files will not be copied.")
+            return
 
-    for sample in sample_ids:
-        file_name = f"{sample}{common_suffix}"
-        old_file = maf_dir / file_name
-        new_file = output_maf_dir / file_name
-        if old_file.exists():
-            shutil.copy2(old_file, new_file)
+        output_maf_dir.mkdir(parents=True, exist_ok=True)
+        if zip_maf and final_zip.exists():
+            with zipfile.ZipFile(final_zip, "r") as zip_existing:
+                zip_existing.extractall(output_maf_dir)
 
-    if maf_zip_path.exists() and maf_dir.exists():
-        shutil.rmtree(maf_dir)
+        #TODO bug
+        # common_suffix = detect_common_suffix(source_maf_dir, sample_ids)
+        common_suffix = ".hard-filtered.FILTERED.vcf.maf"
+
+        for sample in sample_ids:
+            file_name = f"{sample}{common_suffix}"
+            old_file = source_maf_dir / file_name
+            new_file = output_maf_dir / file_name
+            if old_file.exists():
+                shutil.copy2(old_file, new_file)
 
     if zip_maf:
         logger.info(f"Zipping MAF files to {final_zip}...")
