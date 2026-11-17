@@ -56,7 +56,7 @@ def extract_main(oldpath: str,
                  extract_path: str,
                  output: str,
                  study_id: str,
-                 overwrite: str) -> None:
+                 overwrite: str) -> str:
     """Extract specified samples from an existing study folder.
 
     Validates inputs, creates a versioned output folder,
@@ -72,7 +72,7 @@ def extract_main(oldpath: str,
         overwrite (bool): Whether to overwrite the latest version folder if it exists.
 
     Returns:
-        None
+        str: The output study folder that was created.
 
     """
     logger.info(
@@ -141,3 +141,5 @@ def extract_main(oldpath: str,
 
     logger.success("The process ended without errors")
     logger.success("Successfully extracted sample(s)!")
+
+    return str(output)

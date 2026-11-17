@@ -48,7 +48,7 @@ config_file = config.read(conf_path())
 
 
 def update_main(oldpath: str, newpath: str,
-                output: str, study_id: str, overwrite: bool) -> None:
+                output: str, study_id: str, overwrite: bool) -> str:
     """Update a versioned study folder using new data.
 
     Args:
@@ -59,7 +59,7 @@ def update_main(oldpath: str, newpath: str,
         overwrite (bool): Whether to overwrite the last version if it exists.
 
     Returns:
-        None
+        str: The output study folder that was created.
 
     """
     logger.info("Starting update_main script:")
@@ -119,3 +119,5 @@ def update_main(oldpath: str, newpath: str,
 
     logger.success("The process ended without errors")
     logger.success("Successfully updated study!")
+
+    return str(output)

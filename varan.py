@@ -62,22 +62,25 @@ def move_log_to_study(output_folder: str) -> None:
     """Move this run's log into the study folder and keep logging there.
 
     The log is opened at start-up, before the study folder exists and before
-    its final name (with the _vN version suffix) is known. As soon as
-    walk_folder has created the folder, the log written so far is copied
-    into it, the rest of the run is appended to that copy, and the start-up
+    its final name (with the _vN version suffix) is known. As soon as the
+    folder exists (after walk_folder for a new analysis, at the end of an
+    update, remove or extract), the log written so far is copied into it,
+    the rest of the run is appended to that copy, and the start-up
     file is removed: every study folder holds the complete log of the run
     that produced it, and there is a single log per run. If the run stops
     before this point, or the copy fails, the start-up log is kept.
 
     Args:
-        output_folder (str): The study folder returned by walk_folder.
+        output_folder (str): The study folder created by this run (walk,
+            update, remove or extract).
 
     Returns:
         None
 
     """
     global LOG_HANDLER
-    if LOG_FILE is None or LOG_HANDLER is None or not LOG_FILE.exists():
+    if (not output_folder or LOG_FILE is None or LOG_HANDLER is None
+            or not LOG_FILE.exists()):
         return
     study_log = Path(output_folder) / LOG_FILE.name
     try:
@@ -277,7 +280,8 @@ def varan(
         new=args.NewPath
         new_name = args.Name
         output_folder=args.output_folder
-        update_main(oldpath, new, output_folder, new_name, overwrite_output)
+        study_folder = update_main(oldpath, new, output_folder, new_name, overwrite_output)
+        move_log_to_study(study_folder)
 
 
     ############################
@@ -290,7 +294,8 @@ def varan(
         removepath=args.SampleList
         new_name = args.Name
         output_folder=args.output_folder
-        delete_main(oldpath, removepath, output_folder, new_name, overwrite_output)
+        study_folder = delete_main(oldpath, removepath, output_folder, new_name, overwrite_output)
+        move_log_to_study(study_folder)
 
 
     ############################
@@ -303,7 +308,8 @@ def varan(
         removepath = args.SampleList
         new_name = args.Name
         output_folder = args.output_folder
-        extract_main(oldpath, removepath, output_folder, new_name, overwrite_output)
+        study_folder = extract_main(oldpath, removepath, output_folder, new_name, overwrite_output)
+        move_log_to_study(study_folder)
 
 
 #################################################################################################################

@@ -61,7 +61,7 @@ config_file = config.read(conf_path())
 
 
 def delete_main(oldpath: str, removepath: str, output: str,
-                study_id: str, overwrite: bool) -> None:
+                study_id: str, overwrite: bool) -> str:
     """Remove samples from a stdy and generate a cleaned new version.
 
     Args:
@@ -72,7 +72,7 @@ def delete_main(oldpath: str, removepath: str, output: str,
         overwrite (bool): If True, overwrites existing version folder.
 
     Returns:
-        None
+        str: The output study folder that was created.
 
     """
     logger.info(f"delete_main args [old_path:{oldpath}, remove_path:{removepath}, "
@@ -148,3 +148,5 @@ def delete_main(oldpath: str, removepath: str, output: str,
 
     logger.success("The process ended without errors")
     logger.success("Successfully removed sample(s)!")
+
+    return str(output)
