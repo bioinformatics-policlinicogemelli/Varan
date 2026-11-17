@@ -27,8 +27,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import sys
 from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 import subprocess
 from typing import TYPE_CHECKING, NoReturn
@@ -47,6 +49,40 @@ from Update_script import update_main
 from ValidateFolder import validate_output
 from walk import walk_folder
 from write_report import get_git_version
+
+LOG_FORMAT = "{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}"
+# This run's log file, set at start-up in __main__ (see copy_log_to_study).
+LOG_FILE: Path | None = None
+
+
+def copy_log_to_study(output_folder: str) -> None:
+    """Copy this run's log into the study folder and keep logging there too.
+
+    The log is opened at start-up, before the study folder exists and before
+    its final name (with the _vN version suffix) is known. As soon as
+    walk_folder has created the folder, the log written so far is copied
+    into it and the rest of the run is appended to that copy, so every study
+    folder holds the complete log of the run that produced it.
+
+    Args:
+        output_folder (str): The study folder returned by walk_folder.
+
+    Returns:
+        None
+
+    """
+    if LOG_FILE is None or not LOG_FILE.exists():
+        return
+    study_log = Path(output_folder) / LOG_FILE.name
+    try:
+        shutil.copyfile(LOG_FILE, study_log)
+        logger.add(study_log, format=LOG_FORMAT, mode="a", buffering=1)
+    except OSError as err:
+        logger.warning(f"Could not write the log into the study folder "
+                       f"{output_folder}: {err}")
+        return
+    logger.info(f"Log of this run: {study_log}")
+
 
 def logo() -> None:
     """Print the ASCII art logo for the Varan pipeline."""
@@ -139,6 +175,7 @@ def varan(
             varan_input, multiple, output_folder, oncokb, cancer,
             overwrite_output, resume, analysis_type, filters,
             )
+        copy_log_to_study(output_folder)
 
 
         ###########################
@@ -243,21 +280,27 @@ def error(self, message: str) -> NoReturn:
 if __name__ == "__main__":
 
     logger.remove()
-    logfile="Varan_{time:YYYY-MM-DD_HH-mm-ss.SS}.log"
+    run_start = datetime.now()
+    logfile = (f"Varan_{run_start:%Y-%m-%d_%H-%M-%S}."
+               f"{run_start.microsecond // 10000:02d}.log")
     logger.level("INFO", color="<green>")
 
     logger.add(
         sys.stderr,
-        format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
+        format=LOG_FORMAT,
         colorize=True,
         catch=True)
     # Log folder: ./Logs by default; VARAN_LOG_DIR moves it out of the code
-    # folder (needed when the code is installed read-only).
+    # folder (needed when the code is installed read-only). Once the study
+    # folder exists the log is also copied and continued there
+    # (copy_log_to_study). Line-buffered so the copy is complete.
     log_dir = os.environ.get("VARAN_LOG_DIR", "").strip() or "Logs"
+    LOG_FILE = Path(log_dir) / logfile
     logger.add(
-        Path(log_dir) / logfile,
-        format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
-        mode="w")
+        LOG_FILE,
+        format=LOG_FORMAT,
+        mode="w",
+        buffering=1)
 
     logo()
 
