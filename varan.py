@@ -51,18 +51,22 @@ from walk import walk_folder
 from write_report import get_git_version
 
 LOG_FORMAT = "{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}"
-# This run's log file, set at start-up in __main__ (see copy_log_to_study).
+# This run's start-up log file and its loguru handler, set in __main__
+# (see move_log_to_study).
 LOG_FILE: Path | None = None
+LOG_HANDLER: int | None = None
 
 
-def copy_log_to_study(output_folder: str) -> None:
-    """Copy this run's log into the study folder and keep logging there too.
+def move_log_to_study(output_folder: str) -> None:
+    """Move this run's log into the study folder and keep logging there.
 
     The log is opened at start-up, before the study folder exists and before
     its final name (with the _vN version suffix) is known. As soon as
     walk_folder has created the folder, the log written so far is copied
-    into it and the rest of the run is appended to that copy, so every study
-    folder holds the complete log of the run that produced it.
+    into it, the rest of the run is appended to that copy, and the start-up
+    file is removed: every study folder holds the complete log of the run
+    that produced it, and there is a single log per run. If the run stops
+    before this point, or the copy fails, the start-up log is kept.
 
     Args:
         output_folder (str): The study folder returned by walk_folder.
@@ -71,7 +75,8 @@ def copy_log_to_study(output_folder: str) -> None:
         None
 
     """
-    if LOG_FILE is None or not LOG_FILE.exists():
+    global LOG_HANDLER
+    if LOG_FILE is None or LOG_HANDLER is None or not LOG_FILE.exists():
         return
     study_log = Path(output_folder) / LOG_FILE.name
     try:
@@ -79,8 +84,11 @@ def copy_log_to_study(output_folder: str) -> None:
         logger.add(study_log, format=LOG_FORMAT, mode="a", buffering=1)
     except OSError as err:
         logger.warning(f"Could not write the log into the study folder "
-                       f"{output_folder}: {err}")
+                       f"{output_folder}: {err} - keeping it in {LOG_FILE}")
         return
+    logger.remove(LOG_HANDLER)
+    LOG_HANDLER = None
+    LOG_FILE.unlink(missing_ok=True)
     logger.info(f"Log of this run: {study_log}")
 
 
@@ -175,7 +183,7 @@ def varan(
             varan_input, multiple, output_folder, oncokb, cancer,
             overwrite_output, resume, analysis_type, filters,
             )
-        copy_log_to_study(output_folder)
+        move_log_to_study(output_folder)
 
 
         ###########################
@@ -292,11 +300,11 @@ if __name__ == "__main__":
         catch=True)
     # Log folder: ./Logs by default; VARAN_LOG_DIR moves it out of the code
     # folder (needed when the code is installed read-only). Once the study
-    # folder exists the log is also copied and continued there
-    # (copy_log_to_study). Line-buffered so the copy is complete.
+    # folder exists the log is moved and continued there
+    # (move_log_to_study). Line-buffered so the copy is complete.
     log_dir = os.environ.get("VARAN_LOG_DIR", "").strip() or "Logs"
     LOG_FILE = Path(log_dir) / logfile
-    logger.add(
+    LOG_HANDLER = logger.add(
         LOG_FILE,
         format=LOG_FORMAT,
         mode="w",
