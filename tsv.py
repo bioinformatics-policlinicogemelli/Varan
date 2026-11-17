@@ -131,7 +131,9 @@ def get_fusions(input_file: str) -> list[dict[str, str]]:
                         "Site2_Chromosome": site2_chromosome,
                         "Site1_Position": site1_position,
                         "Site2_Position": site2_position,
-                        "Normal_Paired_End_Read_Count": fsr,
+                        # Fusion Supporting Reads: tumor reads supporting
+                        # the call (cBioPortal's Tumor_Variant_Count).
+                        "Tumor_Variant_Count": fsr,
                         "Gene 1 Reference Reads": g1rr,
                         "Gene 2 Reference Reads": g2rr,
                         "Event_Info": gene_pair})

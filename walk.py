@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+import sv_columns
 import tsv
 import vcf2tab_cnv
 import vcf_filter
@@ -1460,13 +1461,17 @@ def fill_fusion_from_temp(
 
     fusion_input = Path(input_path) / "FUSIONS" / fusion_files[0]
     with fusion_input.open() as template:
-        header = template.readline()
+        header_cols = template.readline().rstrip("\n").split("\t")
+    # The supporting-read count is written as Tumor_Variant_Count; input
+    # tables using the pre-2.1.4 name are still accepted (see sv_columns).
+    header_cols = sv_columns.normalise_header(header_cols)
 
     with Path(fusion_table_file).open("w") as fusion_table:
-        fusion_table.write(header)
+        fusion_table.write("\t".join(header_cols) + "\n")
 
         for fusion_file in fusion_files:
-            ff = pd.read_csv(fusion_input, sep="\t")
+            ff = sv_columns.normalise_read_count_column(
+                pd.read_csv(fusion_input, sep="\t"))
 
             required_columns = {
                 "Sample_Id",
@@ -1482,10 +1487,18 @@ def fill_fusion_from_temp(
                 continue
             logger.info(f"Fusions found in {fusion_file}")
             min_read_count = 15
+            has_read_count = sv_columns.READ_COUNT in ff.columns
+            if not has_read_count:
+                logger.warning(
+                    f"{fusion_file} has no {sv_columns.READ_COUNT} column: "
+                    f"the minimum read count ({min_read_count}) is not applied")
             for fus in ff.itertuples(index=False):
-                if (fus.Sample_Id in clin_file["SAMPLE_ID"].to_numpy() and
-                int(fus.Normal_Paired_End_Read_Count) >= min_read_count):
-                    fusion_table.write("\t".join(map(str, fus)) + "\n")
+                if fus.Sample_Id not in clin_file["SAMPLE_ID"].to_numpy():
+                    continue
+                if (has_read_count and
+                        int(getattr(fus, sv_columns.READ_COUNT)) < min_read_count):
+                    continue
+                fusion_table.write("\t".join(map(str, fus)) + "\n")
 
 
 def annotate_fusion(
@@ -1547,10 +1560,7 @@ def fill_fusion_from_combined(
 
     fusion_table_path = Path(fusion_table_file)
     with fusion_table_path.open("w") as fusion_table:
-        header = (
-            "Sample_Id\tSV_Status\tClass\tSite1_Hugo_Symbol\tSite2_Hugo_Symbol\t"
-            "Normal_Paired_End_Read_Count\tEvent_Info\tRNA_Support\n")
-        fusion_table.write(header)
+        fusion_table.write("\t".join(sv_columns.FUSION_COLUMNS) + "\n")
 
         for k, v in combined_dict.items():
             fusions=[]
@@ -1573,13 +1583,15 @@ def fill_fusion_from_combined(
                     site1_Position = fus["Site1_Position"]
                     site2_Position = fus["Site2_Position"]
 
-                    if eval("int(fus['Normal_Paired_End_Read_Count'])" + thr_fus):
-                        fusion_table.write(
-                            k + "\tSOMATIC\tFUSION\t" +
-                            str(site1_hugo_symbol) + "\t" +
-                            str(site2_hugo_symbol) + "\t" +
-                            fus["Normal_Paired_End_Read_Count"] + "\t" +
-                            fus["Event_Info"] + " Fusion\tYes\n")
+                    if eval("int(fus['Tumor_Variant_Count'])" + thr_fus):
+                        # Same order as sv_columns.FUSION_COLUMNS
+                        row = [
+                            k, "SOMATIC", "FUSION",
+                            str(site1_hugo_symbol), site1_Chromosome, site1_Position,
+                            str(site2_hugo_symbol), site2_Chromosome, site2_Position,
+                            fus["Tumor_Variant_Count"],
+                            fus["Event_Info"] + " Fusion", "Yes"]
+                        fusion_table.write("\t".join(row) + "\n")
 
 
 def check_data_cna(data_cna_path: str) -> None:
