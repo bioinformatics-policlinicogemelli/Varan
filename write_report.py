@@ -2280,6 +2280,13 @@ def extract_filters_from_html(report: str) -> dict | None:
             alt_val = alt_match.group(1).strip()
             filters["ALT"] = f'!="{alt_val}"'
 
+    # The main report writes config keys upper-cased (write_filters_report),
+    # so the CNV setting appears as CNVKIT_ALGORITHM, while the update /
+    # extract / remove reports look it up as CNVKIT_algorithm (KeyError in
+    # extract and remove, CNV section silently skipped in update).
+    if "CNVKIT_ALGORITHM" in filters and "CNVKIT_algorithm" not in filters:
+        filters["CNVKIT_algorithm"] = filters["CNVKIT_ALGORITHM"]
+
     return filters
 
 
