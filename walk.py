@@ -667,7 +667,8 @@ def run_vcf2maf(cl: list, sample: str) -> None:
     logger.info(f"Starting vcf2maf conversion of {sample}... This may take several "
     "minutes (approx 5 minutes per sample).")
     logger.info(f"args={cl}")
-    sout = subprocess.run(cl, capture_output=True, check=False)
+    sout = subprocess.run(cl, capture_output=True, check=False,
+                          env=vep_tools.vep_environment(VEP_PATH))
 
     if sout.stderr is not None:
         if "ERROR" not in sout.stderr.decode("ascii"):

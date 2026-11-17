@@ -47,6 +47,32 @@ def vep_tool(vep_path: str | Path, name: str) -> str | None:
     return None
 
 
+def vep_environment(vep_path: str | Path) -> dict[str, str] | None:
+    """Return an environment for running VEP with VEP_PATH first on PATH.
+
+    VEP also looks up some programs on PATH by itself (for instance it runs
+    `which tabix` when it loads its variant cache, printing "which: no
+    tabix in ..." if it is missing). Putting VEP's own bin/ folder first
+    makes it find the programs of its own environment, as if that
+    environment were active.
+
+    Args:
+        vep_path (str | Path): conf.ini [Paths] VEP_PATH.
+
+    Returns:
+        dict[str, str] | None: A copy of the current environment with
+            VEP_PATH prepended to PATH, or None (= inherit the current
+            environment unchanged) when VEP_PATH is not a conda bin/ folder
+            with its own perl.
+
+    """
+    if not vep_tool(vep_path, "perl"):
+        return None
+    env = dict(os.environ)
+    env["PATH"] = os.pathsep.join([str(vep_path), env.get("PATH", "")])
+    return env
+
+
 def vep_perl(vep_path: str | Path) -> str:
     """Return the perl to run VEP and vcf2maf with.
 

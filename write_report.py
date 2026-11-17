@@ -135,7 +135,8 @@ def get_vep_version(vep_executable: str = "vep") -> str | None:
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            env=vep_tools.vep_environment(vep_executable.parent)
         )
         # Prendi la prima riga non vuota e cerca un numero di versione
         for line in result.stdout.splitlines():
