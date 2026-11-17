@@ -56,9 +56,10 @@ def is_positive(number: float, sample: str) -> bool:
     """
     if number > 0:
         return True
-    with Path("negative_FC.log").open("a") as n:
-        n.write(f"[WARNING] the sample {sample} has a Fold change in CNV with "
-        "negative value\n")
+    # Logged instead of appended to ./negative_FC.log, which landed in the
+    # code folder (read-only when installed as a release).
+    logger.warning(f"The sample {sample} has a Fold change in CNV with "
+                   "negative value")
     return False
 
 
