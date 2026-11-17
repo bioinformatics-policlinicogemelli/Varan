@@ -293,15 +293,12 @@ def update_sv(oldfile_path: str,
 
     """
     # Read as text so sample IDs like "00112624" keep their leading zeros and
-    # read counts are written back exactly as they were. Studies written by
-    # Varan before 2.1.4 carry the read count as Normal_Paired_End_Read_Count:
-    # renamed to Tumor_Variant_Count, so old and new studies merge into one
-    # column. Tables not written by Varan are left as they are (see
-    # sv_columns.normalise_study_read_count).
-    df_old = sv_columns.normalise_study_read_count(
-        pd.read_csv(oldfile_path, sep="\t", dtype=str), str(oldfile_path))
-    df_new = sv_columns.normalise_study_read_count(
-        pd.read_csv(newfile_path, sep="\t", dtype=str), str(newfile_path))
+    # values are written back exactly as they were. Columns are never renamed:
+    # a study made before 2.1.4 keeps its Normal_Paired_End_Read_Count and a
+    # newer one brings Tumor_Variant_Count, so the merged table has both, each
+    # row with its own values (see sv_columns).
+    df_old = pd.read_csv(oldfile_path, sep="\t", dtype=str)
+    df_new = pd.read_csv(newfile_path, sep="\t", dtype=str)
 
     # A sample present in both: the new analysis replaces its old SV rows.
     updated_samples = set(df_old["Sample_Id"]) & set(df_new["Sample_Id"])
@@ -313,17 +310,18 @@ def update_sv(oldfile_path: str,
     merged_df = pd.concat(
         [df_old, df_new], axis=0, join="outer", ignore_index=True)
 
-    # Drop only true duplicates - rows identical apart from the read count -
-    # keeping the one with the most reads. Rows that differ in breakpoint
-    # position are distinct events (cBioPortal's own uniqueness rule) and are
-    # all kept.
-    count = sv_columns.READ_COUNT
-    if count in merged_df.columns:
-        reads = pd.to_numeric(merged_df[count], errors="coerce")
+    # Drop only true duplicates - rows identical apart from the read count
+    # (old or new column) - keeping the one with the most reads. Rows that
+    # differ in breakpoint position are distinct events (cBioPortal's own
+    # uniqueness rule) and are all kept.
+    counts = [c for c in sv_columns.READ_COUNT_COLUMNS if c in merged_df.columns]
+    if counts:
+        reads = merged_df[counts].apply(
+            pd.to_numeric, errors="coerce").max(axis=1)
         merged_df = merged_df.loc[
             reads.sort_values(ascending=False, na_position="last",
                               kind="stable").index]
-        others = [c for c in merged_df.columns if c != count]
+        others = [c for c in merged_df.columns if c not in counts]
         merged_df = merged_df.drop_duplicates(
             subset=others, keep="first").sort_index()
     else:

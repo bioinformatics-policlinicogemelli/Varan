@@ -1461,17 +1461,13 @@ def fill_fusion_from_temp(
 
     fusion_input = Path(input_path) / "FUSIONS" / fusion_files[0]
     with fusion_input.open() as template:
-        header_cols = template.readline().rstrip("\n").split("\t")
-    # The supporting-read count is written as Tumor_Variant_Count; input
-    # tables using the pre-2.1.4 name are still accepted (see sv_columns).
-    header_cols = sv_columns.normalise_input_read_count(header_cols)
+        header = template.readline()
 
     with Path(fusion_table_file).open("w") as fusion_table:
-        fusion_table.write("\t".join(header_cols) + "\n")
+        fusion_table.write(header)
 
         for fusion_file in fusion_files:
             ff = pd.read_csv(fusion_input, sep="\t")
-            ff.columns = sv_columns.normalise_input_read_count(list(ff.columns))
 
             required_columns = {
                 "Sample_Id",
@@ -1486,12 +1482,19 @@ def fill_fusion_from_temp(
                 logger.info(f"No Fusions found in {fusion_file}")
                 continue
             logger.info(f"Fusions found in {fusion_file}")
+            # The minimum read count applies to tumor supporting reads
+            # (Tumor_Variant_Count) only - never to Normal_Paired_End_Read_Count,
+            # which in the cBioPortal format holds normal-sample reads.
             min_read_count = 15
             has_read_count = sv_columns.READ_COUNT in ff.columns
             if not has_read_count:
+                legacy = (f" ({sv_columns.LEGACY_READ_COUNT} is not used for "
+                          "filtering)"
+                          if sv_columns.LEGACY_READ_COUNT in ff.columns else "")
                 logger.warning(
                     f"{fusion_file} has no {sv_columns.READ_COUNT} column: "
-                    f"the minimum read count ({min_read_count}) is not applied")
+                    f"the minimum read count ({min_read_count}) is not "
+                    f"applied{legacy}")
             for fus in ff.itertuples(index=False):
                 if fus.Sample_Id not in clin_file["SAMPLE_ID"].to_numpy():
                     continue
