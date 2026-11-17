@@ -31,6 +31,8 @@ from configparser import ConfigParser
 from conf_path import conf_path
 from datetime import datetime
 from pathlib import Path
+
+from file_copy import copy_content
 import subprocess
 
 import pandas as pd
@@ -851,9 +853,9 @@ new_study: Path, number_for_graph: int) -> None:
         img_output_dir = Path(new_study) / "img"
         img_output_dir.mkdir(parents=True, exist_ok=True)
         new_img_path = img_output_dir / "logo_VARAN.png"
-        shutil.copy(old_img_path, new_img_path)
+        copy_content(old_img_path, new_img_path)
 
-    shutil.copy("styles.css", Path(new_study) / "img" / "styles.css")
+    copy_content("styles.css", Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -1398,9 +1400,9 @@ def write_report_extract(original_study: str, new_study: str,
         img_output_dir = Path(new_study) / "img"
         img_output_dir.mkdir(parents=True, exist_ok=True)
         new_img_path = img_output_dir / "logo_VARAN.png"
-        shutil.copy(old_img_path, new_img_path)
+        copy_content(old_img_path, new_img_path)
 
-    shutil.copy("styles.css", Path(new_study) / "img" / "styles.css")
+    copy_content("styles.css", Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -1827,9 +1829,9 @@ def write_report_remove(
         img_output_dir = Path(new_study) / "img"
         img_output_dir.mkdir(parents=True, exist_ok=True)
         new_img_path = img_output_dir / "logo_VARAN.png"
-        shutil.copy(old_img_path, new_img_path)
+        copy_content(old_img_path, new_img_path)
 
-    shutil.copy("styles.css", Path(new_study) / "img" / "styles.css")
+    copy_content("styles.css", Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")

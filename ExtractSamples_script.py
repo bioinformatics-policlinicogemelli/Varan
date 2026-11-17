@@ -31,6 +31,8 @@ from configparser import ConfigParser
 from conf_path import conf_path
 from pathlib import Path
 
+from file_copy import copy_content
+
 from loguru import logger
 
 from ExtractSamples_functions import (
@@ -112,7 +114,7 @@ def extract_main(oldpath: str,
 
     meta_files = Path(oldpath).glob("*meta*")
     for file in meta_files:
-        shutil.copy(file, output)
+        copy_content(file, output)
 
     with Path(extract_path).open() as f:
         sample_ids = [line.strip() for line in f]

@@ -31,6 +31,8 @@ as appropriate, and writes the result to the specified output folder.
 import re
 import shutil
 from pathlib import Path
+
+from file_copy import copy_content
 from typing import Callable
 
 import numpy as np
@@ -501,10 +503,10 @@ def check_files(oldpath: str,
             logger.warning(f"No updater function for '{file_name}'. Skipping merge.")
     elif o_data.exists():
         logger.warning(f"'{file_name}' only in old; copying forward.")
-        shutil.copy(o_data, dest)
+        copy_content(o_data, dest)
     elif n_data.exists():
         logger.warning(f"'{file_name}' only in new; copying forward.")
-        shutil.copy(n_data, dest)
+        copy_content(n_data, dest)
     else:
         logger.warning(f"'{file_name}' not found in either folder. Skipping.")
 
@@ -544,12 +546,12 @@ def check_files_cases(oldpath: str,
         logger.warning(
             f"{file_name} was not found in path 2 case_lists folder. "
                        "The file is being copied from path 1.")
-        shutil.copy(o_data, output_caseslists)
+        copy_content(o_data, output_caseslists)
     elif not o_data.exists() and n_data.exists():
         logger.warning(
             f"{file_name} was not found in path 1 case_lists folder. "
             "The file is being copied from path 2.")
-        shutil.copy(n_data, output_caseslists)
+        copy_content(n_data, output_caseslists)
     else:
         logger.warning(f"{file_name} not found in 'case_lists' folders. Skipping")
 
@@ -571,7 +573,7 @@ def copy_logo(oldpath: str, output: str) -> None:
     if Path(img_path).exists():
         img_output_dir = Path(output) / "img"
         img_output_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy(img_path, Path(img_output_dir) / "logo_VARAN.png")
+        copy_content(img_path, Path(img_output_dir) / "logo_VARAN.png")
 
 def safe_check_file(oldpath: Path, newpath: Path, output: Path, file: str) -> None:
     """Safely checks a file for consistency between old and new study folders.
@@ -615,7 +617,7 @@ def copy_metadata_files(oldpath: Path, output: Path) -> None:
     meta_files = list(oldpath.glob("*meta*"))
     if meta_files:
         for file in meta_files:
-            shutil.copy(file, output)
+            copy_content(file, output)
     else:
         logger.warning("No meta files found!")
 

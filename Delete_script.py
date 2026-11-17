@@ -38,6 +38,8 @@ from configparser import ConfigParser
 from conf_path import conf_path
 from pathlib import Path
 
+from file_copy import copy_content
+
 from loguru import logger
 
 from Delete_functions import (
@@ -125,7 +127,7 @@ def delete_main(oldpath: str, removepath: str, output: str,
 
     for file in Path(oldpath).glob("*meta*"):
         if file.is_file():
-            shutil.copy(file, Path(output))
+            copy_content(file, Path(output))
 
     check_all_data(output)
     remove_meta(output)

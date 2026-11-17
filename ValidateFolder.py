@@ -48,6 +48,8 @@ from configparser import ConfigParser
 from conf_path import conf_path
 from pathlib import Path
 
+from file_copy import copy_content
+
 import pandas as pd
 from loguru import logger
 
@@ -368,7 +370,7 @@ def copy_maf(oldpath: str, output: str, copy_maf: bool, zip_maf: bool) -> None:
             old_file = source_maf_dir / file_name
             new_file = output_maf_dir / file_name
             if old_file.exists():
-                shutil.copy2(old_file, new_file)
+                copy_content(old_file, new_file)
 
     if zip_maf:
         logger.info(f"Zipping MAF files to {final_zip}...")
