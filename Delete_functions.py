@@ -186,7 +186,13 @@ def delete_mutations(file_path: str, sample_ids: list[str], output_folder: str) 
 
 
 def delete_sv(file_path: str, sample_ids: list[str], output_folder: str) -> None:
-    """Remove structural variation records containing specific sample IDs.
+    """Remove the structural variation records of specific samples.
+
+    Filters on the Sample_Id column by exact match, like the other delete_*
+    functions. The previous line-based version dropped every line that merely
+    contained one of the IDs anywhere (so removing "S1" also removed "S10",
+    and an empty line in the sample list emptied the whole file), and
+    collapsed empty fields, shifting the columns of every remaining row.
 
     Args:
         file_path (str): Path to the structural variation file (TXT format).
@@ -197,16 +203,12 @@ def delete_sv(file_path: str, sample_ids: list[str], output_folder: str) -> None
         None
 
     """
-    file_path = Path(file_path)
+    # Text in, text out: empty fields stay empty and values are not
+    # reformatted.
+    sv = pd.read_csv(file_path, sep="\t", dtype=str, keep_default_na=False)
+    filtered = sv[~sv["Sample_Id"].isin(sample_ids)]
     output_file = Path(output_folder) / "data_sv.txt"
-
-    with file_path.open() as old_file, output_file.open("w") as of:
-        for line in old_file:
-            if not any(word in line for word in sample_ids):
-                list_split = line.split("\t\t")
-                list_strip = [elem.strip() for elem in list_split]
-                new_row = "\t".join(list_strip) + "\n"
-                of.write(new_row)
+    filtered.to_csv(output_file, sep="\t", index=False)
 
 
 def delete_caselist_cna(
