@@ -28,6 +28,7 @@ import re
 import shutil
 import sys
 from configparser import ConfigParser
+from conf_path import conf_path
 from datetime import datetime
 from pathlib import Path
 import subprocess
@@ -39,7 +40,7 @@ import versioning
 from filter_clinvar import check_bool
 
 config = ConfigParser()
-config.read("conf.ini")
+config.read(conf_path())
 
 annotations_list = ast.literal_eval(config.get("Annotations", "ANNOTATIONS"))
 vep_cache_version = int(config.get("Paths", "CACHE"))

@@ -26,6 +26,7 @@ It supports flexible options for analysis types, filters, and sample handling.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -250,8 +251,11 @@ if __name__ == "__main__":
         format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
         colorize=True,
         catch=True)
+    # Log folder: ./Logs by default; VARAN_LOG_DIR moves it out of the code
+    # folder (needed when the code is installed read-only).
+    log_dir = os.environ.get("VARAN_LOG_DIR", "").strip() or "Logs"
     logger.add(
-        Path("Logs") / logfile,
+        Path(log_dir) / logfile,
         format="{time:YYYY-MM-DD_HH-mm-ss.SS} | <lvl>{level} </lvl>| {message}",
         mode="w")
 

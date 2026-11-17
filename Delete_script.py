@@ -35,6 +35,7 @@ import re
 import shutil
 import sys
 from configparser import ConfigParser
+from conf_path import conf_path
 from pathlib import Path
 
 from loguru import logger
@@ -56,7 +57,7 @@ from versioning import (
 from write_report import write_report_remove
 
 config = ConfigParser()
-config_file = config.read("conf.ini")
+config_file = config.read(conf_path())
 
 
 def delete_main(oldpath: str, removepath: str, output: str,

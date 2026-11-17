@@ -28,6 +28,7 @@ import re
 import shutil
 import sys
 from configparser import ConfigParser
+from conf_path import conf_path
 from pathlib import Path
 
 from loguru import logger
@@ -49,7 +50,7 @@ from versioning import (
 from write_report import write_report_extract
 
 config = ConfigParser()
-config_file = config.read("conf.ini")
+config_file = config.read(conf_path())
 
 def extract_main(oldpath: str,
                  extract_path: str,

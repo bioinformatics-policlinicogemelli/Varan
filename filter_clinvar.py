@@ -29,6 +29,7 @@ import os
 import shutil
 import sys
 from configparser import ConfigParser
+from conf_path import conf_path
 from pathlib import Path
 
 import pandas as pd
@@ -37,7 +38,7 @@ from loguru import logger
 import concatenate
 
 config = ConfigParser()
-config_file = config.read("conf.ini")
+config_file = config.read(conf_path())
 
 def check_bool(key_value: str) -> bool:
     """Convert a string into a Python boolean.

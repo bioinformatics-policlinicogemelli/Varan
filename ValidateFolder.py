@@ -44,6 +44,7 @@ import subprocess
 import sys
 import zipfile
 from configparser import ConfigParser
+from conf_path import conf_path
 from pathlib import Path
 
 import pandas as pd
@@ -54,7 +55,7 @@ from filter_clinvar import check_bool
 from write_report import write_report_main
 
 config = ConfigParser()
-config_file = config.read("conf.ini")
+config_file = config.read(conf_path())
 
 def cbio_validation(output_folder: str) -> None:
     """Execute cBioPortal's validateData.py script on the specified output folder.
@@ -72,7 +73,7 @@ def cbio_validation(output_folder: str) -> None:
 
     """
     config = ConfigParser()
-    config.read("conf.ini")
+    config.read(conf_path())
 
     logger.info("Starting validation... ")
     logger.warning("Warning: succeeding files may still fail to load (correctly).")

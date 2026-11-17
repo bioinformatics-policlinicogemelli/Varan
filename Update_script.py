@@ -25,6 +25,7 @@ Includes:
 
 import sys
 from configparser import ConfigParser
+from conf_path import conf_path
 from pathlib import Path
 
 from loguru import logger
@@ -43,7 +44,7 @@ from versioning import extract_info_from_meta
 from write_report import write_report_update
 
 config = ConfigParser()
-config_file = config.read("conf.ini")
+config_file = config.read(conf_path())
 
 
 def update_main(oldpath: str, newpath: str,

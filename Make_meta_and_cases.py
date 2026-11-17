@@ -22,6 +22,7 @@ the output directory. Also handles study renaming and versioning from configurat
 from __future__ import annotations
 
 from configparser import ConfigParser
+from conf_path import conf_path
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -335,7 +336,7 @@ def meta_case_main(
     version = extract_version_str(output_folder)
 
     config = ConfigParser()
-    config.read("conf.ini")
+    config.read(conf_path())
 
     if old_study_info is None:
         old_study_info = []
