@@ -2158,9 +2158,6 @@ def walk_folder(
     input_folder_snv = Path(input_folder_snv)
 
     if input_folder_snv.exists() and vcf_type not in ["cnv", "fus", "tab"]:
-        tmp = Path("scratch")
-        tmp.mkdir(parents=True, exist_ok=True)
-
         if multiple:
             multivcf = next(f for f in input_folder_snv.iterdir() if f.suffix == ".vcf")
             extract_multiple_snv(multivcf, input_folder_snv)
