@@ -508,5 +508,7 @@ if __name__ == "__main__":
 
     except ValueError as err:
         logger.critical(f"ValueError: {err}", file=sys.stderr)
+        sys.exit(1)
     except FileNotFoundError as err:
         logger.critical(f"File not found: {err}", file=sys.stderr)
+        sys.exit(1)
