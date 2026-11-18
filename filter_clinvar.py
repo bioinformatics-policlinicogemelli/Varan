@@ -107,10 +107,13 @@ def check_clin_sig(row: pd.Series) -> bool:
               [Filters]); False otherwise.
 
     """
-    clin_sig = ast.literal_eval(config.get("Filters", "CLIN_SIG"))
+    # Case-insensitive: CLIN_SIG is spelled "benign" by the VEP cache and
+    # "Benign" by the ClinVar file (see clinvar_column).
+    clin_sig = {s.lower() for s in ast.literal_eval(
+        config.get("Filters", "CLIN_SIG"))}
     output = []
     for _e in str(row["CLIN_SIG"]).split(","):
-        if _e not in clin_sig:
+        if _e.strip().lower() not in clin_sig:
             output.append(True)
         else:
             output.append(False)

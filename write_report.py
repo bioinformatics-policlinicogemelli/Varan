@@ -398,6 +398,10 @@ def write_report_main(
     if isinstance(clinvar_update, str) and clinvar_update:
         html_content += f"""
             <p><strong>ClinVar last update:</strong> {clinvar_update}</p>"""
+    elif not config.get("Paths", "CLINV", fallback="").strip():
+        html_content += """
+            <p><strong>ClinVar:</strong> CLINV not set in conf.ini, CLIN_SIG
+            from the ClinVar data bundled in the VEP cache</p>"""
     
     if isinstance(vep_version, str) and vep_version.strip():
         html_content += f"""

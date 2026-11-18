@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+import clinvar_column
 import oncokb_token
 import sv_columns
 import tsv
@@ -623,6 +624,12 @@ def vcf2maf_constructor(v: str,
     if CLINV.strip() != "":
         cl.append("--vep-custom")
         cl.append(CLINV)
+        # Without --retain-ann vcf2maf drops the CLINV annotation from the
+        # MAF - see clinvar_column.
+        clinvar_col = clinvar_column.custom_column(CLINV)
+        if clinvar_col:
+            cl.append("--retain-ann")
+            cl.append(clinvar_col)
     else:
         logger.warning("CLINV section in [Paths] in conf.ini is not compiled. "
         "This step will be skipped")
@@ -2227,6 +2234,10 @@ def walk_folder(
             for k, v in s_id_path_snv.items():
                 cl = vcf2maf_constructor(v, temporary, output_folder)
                 run_vcf2maf(cl, k)
+                if "--retain-ann" in cl:
+                    clinvar_column.use_clinvar_file(
+                        cl[cl.index("--output-maf") + 1],
+                        cl[cl.index("--retain-ann") + 1])
 
     logger.info("Clearing scratch folder...")
     clear_scratch()
