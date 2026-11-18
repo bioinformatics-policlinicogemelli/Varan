@@ -1,11 +1,13 @@
-loguru==0.7.0
-pandas<2.10.0
-numpy<2
-PyVCF3==1.0.3
-dsnparse==0.2.1
-Jinja2==3.1.2
-mysqlclient==2.2.7
-matplotlib==3.7.1
-kiwisolver==1.4.4
-PyYAML==6.0.2
-Requests==2.32.3
+# Python packages of Varan 2.1.x, at the versions of the validated conda
+# environment varan_2.1 (Python 3.11). The conda environment also provides
+# vcftools; VEP, vcf2maf, samtools and tabix come from a separate VEP
+# environment (VEP_PATH in conf.ini).
+pandas==1.5.3
+numpy==1.26.4
+matplotlib==3.7.3
+loguru==0.8.0
+PyYAML==6.0.3
+requests==2.34.2
+urllib3==1.26.20
+Jinja2==3.1.6
+colorama==0.4.6
