@@ -35,6 +35,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
+import clinvar_column
 import concatenate
 
 config = ConfigParser()
@@ -90,29 +91,50 @@ def filter_oncokb(df: pd.DataFrame) -> None:
     return df[df["ONCOGENIC"].isin(oncokb_filter)]
 
 
-def check_clin_sig(row: pd.Series) -> bool:
-    """Check clinical significance annotations in the 'CLIN_SIG' field.
+def clin_sig_column(columns: pd.Index) -> str | None:
+    """Return the column the CLIN_SIG filter applies to.
 
-    This function is used as a row-wise filter to identify variants with
-    at least one non-accepted clinical significance annotation.
+    ClinVar's germline classification from the ClinVar file in conf.ini
+    (e.g. ClinVar_CLNSIG) when the MAF has it, otherwise CLIN_SIG from the
+    VEP cache (MAFs annotated without CLINV) - see clinvar_column.
 
     Args:
-        row (pd.Series): A row of a pandas DataFrame containing a 'CLIN_SIG'
-                        column, with comma-separated clinical significance
-                        annotations (e.g., "benign,likely_benign").
+        columns (pd.Index): The MAF columns.
 
     Returns:
-        bool: True if at least one annotation in 'CLIN_SIG' is NOT in
-              the allowed list from the config ('CLIN_SIG' field under
-              [Filters]); False otherwise.
+        str or None: The column, or None if the MAF has neither.
 
     """
-    # Case-insensitive: CLIN_SIG is spelled "benign" by the VEP cache and
-    # "Benign" by the ClinVar file (see clinvar_column).
+    clnsig = clinvar_column.clnsig_column(config.get("Paths", "CLINV",
+                                                     fallback=""))
+    if clnsig and clnsig in columns:
+        return clnsig
+    if clinvar_column.CACHE_COLUMN in columns:
+        return clinvar_column.CACHE_COLUMN
+    return None
+
+
+def check_clin_sig(row: pd.Series, column: str = "CLIN_SIG") -> bool:
+    """Check the clinical significance annotations of a variant.
+
+    This function is used as a row-wise filter: a variant is removed only
+    if all its annotations are in the CLIN_SIG list under [Filters].
+
+    Args:
+        row (pd.Series): A row of a pandas DataFrame.
+        column (str): The column with comma-separated clinical significance
+                      annotations, from clin_sig_column().
+
+    Returns:
+        bool: True if at least one annotation is NOT in the CLIN_SIG list
+              under [Filters] (the variant is kept); False otherwise.
+
+    """
+    # Case-insensitive: "benign" in the VEP cache, "Benign" in ClinVar.
     clin_sig = {s.lower() for s in ast.literal_eval(
         config.get("Filters", "CLIN_SIG"))}
     output = []
-    for _e in str(row["CLIN_SIG"]).split(","):
+    for _e in str(row[column]).replace("|", ",").split(","):
         if _e.strip().lower() not in clin_sig:
             output.append(True)
         else:
@@ -423,8 +445,16 @@ def filter_main(input_path: str,folder: str,
                             file_to_filter, na_file_to_filter], ignore_index=True)
 
             if "c" in filters:
-                file_to_filter = file_to_filter[
-                    file_to_filter.apply(check_clin_sig,axis=1)]
+                clin_col = clin_sig_column(file_to_filter.columns)
+                if clin_col is None:
+                    logger.warning(f"{Path(file).name}: no ClinVar column, "
+                    "CLIN_SIG filter not applied.")
+                else:
+                    if clin_col == clinvar_column.CACHE_COLUMN:
+                        logger.info(f"{Path(file).name}: CLIN_SIG filter on "
+                        "the VEP cache ClinVar (CLINV not used).")
+                    file_to_filter = file_to_filter[file_to_filter.apply(
+                        check_clin_sig, axis=1, column=clin_col)]
 
             if "q" in filters:
                 file_to_filter = file_to_filter[

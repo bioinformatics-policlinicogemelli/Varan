@@ -622,14 +622,14 @@ def vcf2maf_constructor(v: str,
 
     out_file = Path(output_folder) / "maf" / (file_vcf + ".maf")
     if CLINV.strip() != "":
+        # CLNSIG, ONC and SCI, kept in the MAF with --retain-ann (vcf2maf
+        # drops custom annotations otherwise) - see clinvar_column.
+        clinv, clinvar_cols = clinvar_column.custom_annotation(CLINV)
         cl.append("--vep-custom")
-        cl.append(CLINV)
-        # Without --retain-ann vcf2maf drops the CLINV annotation from the
-        # MAF - see clinvar_column.
-        clinvar_col = clinvar_column.custom_column(CLINV)
-        if clinvar_col:
+        cl.append(clinv)
+        if clinvar_cols:
             cl.append("--retain-ann")
-            cl.append(clinvar_col)
+            cl.append(",".join(clinvar_cols))
     else:
         logger.warning("CLINV section in [Paths] in conf.ini is not compiled. "
         "This step will be skipped")
@@ -2234,10 +2234,10 @@ def walk_folder(
             for k, v in s_id_path_snv.items():
                 cl = vcf2maf_constructor(v, temporary, output_folder)
                 run_vcf2maf(cl, k)
-                if "--retain-ann" in cl:
-                    clinvar_column.use_clinvar_file(
-                        cl[cl.index("--output-maf") + 1],
-                        cl[cl.index("--retain-ann") + 1])
+                clnsig = clinvar_column.clnsig_column(CLINV)
+                if clnsig:
+                    clinvar_column.drop_cache_column(
+                        cl[cl.index("--output-maf") + 1], clnsig)
 
     logger.info("Clearing scratch folder...")
     clear_scratch()

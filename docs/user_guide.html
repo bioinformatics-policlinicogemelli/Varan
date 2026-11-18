@@ -281,7 +281,8 @@ VEP_DATA = &lt; string &gt;
 CACHE = &lt; string &gt;</pre>
             
             <p>⚠️ The reference genome must be the same used for the secondary analysis and the VCFs annotation.</p>
-            <p>CLINV is passed to VEP as a custom annotation, in VEP's <code>--custom</code> format, e.g. <code>/path/clinvar_20261115.vcf.gz,ClinVar,vcf,exact,0,CLNSIG</code>. The CLIN_SIG column of the MAF files then holds the clinical significance from that ClinVar release, in ClinVar's own spelling (e.g. <code>Benign/Likely_benign</code>). If CLINV is empty, CLIN_SIG comes from the ClinVar data bundled in the VEP cache, which is older. The CLIN_SIG filter list in [Filters] is compared case-insensitively, so it works with both.</p>
+            <p>CLINV is passed to VEP as a custom annotation, in VEP's <code>--custom</code> format, e.g. <code>/path/clinvar_20261115.vcf.gz,ClinVar,vcf,exact,0,CLNSIG</code>. Varan annotates the three ClinVar classifications (CLNSIG, ONC and SCI are added to the field list if missing) and the MAF files get three columns from that ClinVar release: <code>ClinVar_CLNSIG</code> (germline classification), <code>ClinVar_ONC</code> (oncogenicity) and <code>ClinVar_SCI</code> (somatic clinical impact), in ClinVar's own spelling (e.g. <code>Benign/Likely_benign</code>). The CLIN_SIG column, which VEP fills from the older ClinVar data bundled in its cache, is then removed. If CLINV is empty, the MAF files keep CLIN_SIG from the VEP cache.</p>
+            <p>The CLIN_SIG list in [Filters] (filter <code>c</code>) is applied to <code>ClinVar_CLNSIG</code>, or to CLIN_SIG when CLINV is empty: a variant is removed only if all its classifications are in the list. The comparison is case-insensitive.</p>
 
             <h6>Multiple</h6>
             <p>In this section, it's possible to specify the paths in case of multiple SNV, CNV, and/or Combined Variant Output files analysis.</p>
