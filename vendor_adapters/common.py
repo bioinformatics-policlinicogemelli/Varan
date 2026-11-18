@@ -22,6 +22,7 @@ each vendor module is expected to implement, and
 import csv
 import os
 import subprocess
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -95,8 +96,24 @@ def run_cmd(cmd: str) -> Optional[str]:
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def is_local_folder(folder: str) -> bool:
+    """A run folder on disk (e.g. downloaded from S3) rather than an
+    "s3://" one: listed with os.scandir, its files used where they are."""
+    return not folder.startswith("s3://")
+
+
+def _local_files(folder: str) -> List[os.DirEntry]:
+    if not os.path.isdir(folder):
+        return []
+    with os.scandir(folder) as entries:
+        return sorted((e for e in entries if e.is_file()), key=lambda e: e.name)
+
+
 def list_s3_files(s3_folder: str) -> List[str]:
-    """List file names (not full paths) directly under an S3 folder."""
+    """List file names (not full paths) directly under an S3 folder - or a
+    local one."""
+    if is_local_folder(s3_folder):
+        return [e.name for e in _local_files(s3_folder)]
     output = run_cmd(f"aws s3 ls {s3_folder.rstrip('/')}/")
     if not output:
         return []
@@ -109,7 +126,11 @@ def list_s3_files_with_timestamp(s3_folder: str) -> List[Tuple[str, str]]:
     which sorts correctly with plain string comparison - used to pick the
     most recent of several same-sample files (e.g. a resequenced sample with
     more than one `_finalmetadata.xml`) without needing to parse it further.
+    A local folder gives each file's modification time in the same format.
     """
+    if is_local_folder(s3_folder):
+        return [(e.name, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(e.stat().st_mtime)))
+                for e in _local_files(s3_folder)]
     output = run_cmd(f"aws s3 ls {s3_folder.rstrip('/')}/")
     if not output:
         return []

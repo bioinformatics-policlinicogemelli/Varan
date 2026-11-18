@@ -85,6 +85,7 @@ from vendor_adapters.common import (
     SampleRow,
     append_fusions_to_table,
     get_incremental_report_path,
+    is_local_folder,
     list_s3_files,
     list_s3_files_with_timestamp,
     load_oncotree_dict,
@@ -104,7 +105,11 @@ SAMPLE_TYPE = "Liquid"
 
 # --- DEFAULT PATHS (deployment-specific; override via run()'s kwargs for
 # a different environment/test setup rather than editing these) ---
-DICT_PATH = "/data/data_storage/research/Kulesko_Michele/Varan-Sviluppo/dict.csv"
+# dict.csv: the deployment's own copy when there is one, else the one
+# shipped with Varan (repo root, /dict.csv in the Docker image).
+_SERVER_DICT_PATH = "/data/data_storage/research/Kulesko_Michele/Varan-Sviluppo/dict.csv"
+_BUNDLED_DICT_PATH = str(Path(__file__).resolve().parent.parent / "dict.csv")
+DICT_PATH = _SERVER_DICT_PATH if os.path.exists(_SERVER_DICT_PATH) else _BUNDLED_DICT_PATH
 REPORT_BASE_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/Varan_Input"
 VCF_BASE_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/processed_VCF"
 TEMP_LOCAL_DIR = "/data/data_storage/novaseq_results/research/CbioPortal/FPG360/tmp"
@@ -531,6 +536,13 @@ def process_single_sample(
         return None
 
     def fetch_auto(key: str, fname: str, folder: str) -> Optional[str]:
+        if is_local_folder(folder):
+            # Read in place: not in owned_paths, so never deleted.
+            path = os.path.join(folder, fname)
+            if os.path.isfile(path):
+                return path
+            print(f"[{sid}] Auto-discovered {key} file '{fname}' not found in {folder}")
+            return None
         local_p = os.path.join(temp_local_dir, f"{sid}_{fname}")
         if run_cmd(f"aws s3 cp {folder.rstrip('/')}/{fname} {local_p}"):
             owned_paths.add(local_p)

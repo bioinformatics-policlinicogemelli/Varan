@@ -64,7 +64,7 @@ class Settings:
 
 def vep_cache_root(folder: str | Path) -> Path | None:
     """The folder holding homo_sapiens/, given it, homo_sapiens itself or
-    the folder one level above (e.g. vep_cache/homo_sapiens_vep_111_GRCh37)."""
+    the folder one level above (e.g. vep_cache/homo_sapiens_vep_116_GRCh37)."""
     folder = Path(folder)
     if not folder.is_dir():
         return None
@@ -77,8 +77,8 @@ def vep_cache_root(folder: str | Path) -> Path | None:
 
 
 def vep_cache_versions(folder: str | Path) -> list[str]:
-    """GRCh37 cache versions in a VEP cache folder (homo_sapiens/111_GRCh37
-    gives "111"), newest first."""
+    """GRCh37 cache versions in a VEP cache folder (homo_sapiens/116_GRCh37
+    gives "116"), newest first."""
     root = vep_cache_root(folder)
     if root is None:
         return []

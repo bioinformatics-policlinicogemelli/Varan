@@ -110,13 +110,24 @@ def path_cells(table: Path) -> list[Path]:
     return found
 
 
+# The columns Varan reads files from: sample.tsv's, and the Guardant
+# adapter's selection.tsv aliases (vendor_adapters/guardant.py,
+# _SELECTION_PATH_COLUMNS). Other columns, even named *_path (e.g. a
+# RUN_PATH kept for bookkeeping), are never opened, so never checked.
+FILE_COLUMNS = {
+    "snv_path", "cnv_path", "comb_path",
+    "xml_path", "metadata_path", "finalmetadata_path", "vcf_path", "snv_vcf_path",
+    "msi_path", "msi_call_path", "cnv_call_path", "fusion_path", "fus_path", "fusion_call_path",
+}
+
+
 def missing_path_cells(table: Path) -> list[str]:
-    """Cells of the path columns (*_path) that point at nothing."""
+    """Cells of the file columns (FILE_COLUMNS) that point at nothing."""
     rows = _read_tsv(table)
     if not rows:
         return []
     header = [h.strip().lower() for h in rows[0]]
-    cols = [i for i, h in enumerate(header) if h.endswith("_path")]
+    cols = [i for i, h in enumerate(header) if h in FILE_COLUMNS]
     out = []
     for row in rows[1:]:
         for i in cols:

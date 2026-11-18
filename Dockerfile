@@ -1,4 +1,4 @@
-FROM ensemblorg/ensembl-vep:release_111.0
+FROM ensemblorg/ensembl-vep:release_116.3
 USER root
 ARG DEBIAN_FRONTEND=noninteractive
 

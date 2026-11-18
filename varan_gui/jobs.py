@@ -160,7 +160,7 @@ def _base_conf(settings: Settings) -> tuple:
         base = user.parent
     if settings.oncokb_token.strip():
         conf.set("OncoKB", "ONCOKB", settings.oncokb_token.strip())
-    conf.set("Paths", "CACHE", settings.vep_version.strip() or conf.get("Paths", "CACHE", fallback="111") or "111")
+    conf.set("Paths", "CACHE", settings.vep_version.strip() or conf.get("Paths", "CACHE", fallback="116") or "116")
     for key, value in staging.IMAGE_PATHS.items():
         conf.set("Paths", key, value)
     return conf, base
