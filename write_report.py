@@ -28,7 +28,7 @@ import re
 import shutil
 import sys
 from configparser import ConfigParser
-from conf_path import conf_path
+from conf_path import code_path, conf_path
 from datetime import datetime
 from pathlib import Path
 
@@ -310,7 +310,7 @@ def write_report_main(
         The function saves the HTML report to `output_folder` as 'report_VARAN.html'.
 
     """
-    shutil.copy("styles.css", Path(output_folder) / "img" / "styles.css")
+    shutil.copy(code_path("styles.css"), Path(output_folder) / "img" / "styles.css")
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
 
@@ -859,7 +859,7 @@ new_study: Path, number_for_graph: int) -> None:
         new_img_path = img_output_dir / "logo_VARAN.png"
         copy_content(old_img_path, new_img_path)
 
-    copy_content("styles.css", Path(new_study) / "img" / "styles.css")
+    copy_content(code_path("styles.css"), Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -1406,7 +1406,7 @@ def write_report_extract(original_study: str, new_study: str,
         new_img_path = img_output_dir / "logo_VARAN.png"
         copy_content(old_img_path, new_img_path)
 
-    copy_content("styles.css", Path(new_study) / "img" / "styles.css")
+    copy_content(code_path("styles.css"), Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -1835,7 +1835,7 @@ def write_report_remove(
         new_img_path = img_output_dir / "logo_VARAN.png"
         copy_content(old_img_path, new_img_path)
 
-    copy_content("styles.css", Path(new_study) / "img" / "styles.css")
+    copy_content(code_path("styles.css"), Path(new_study) / "img" / "styles.css")
 
     now = datetime.now().astimezone()
     date = now.strftime("%d/%m/%Y, %H:%M:%S")

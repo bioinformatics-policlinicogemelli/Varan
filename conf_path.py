@@ -12,15 +12,19 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-"""Path of the conf.ini file Varan reads.
+"""Paths of Varan's own files and of the conf.ini file it reads.
 
-By default Varan reads ./conf.ini, i.e. the one in the code folder it is
-run from. Setting the VARAN_CONF environment variable points it to a
-configuration kept elsewhere, so the code can be installed read-only and
-shared, while the configuration (paths and the OncoKB token) stays outside
-it. An environment variable rather than a command-line option because
-every module reads the configuration as soon as it is imported, before
-varan.py parses its arguments.
+Varan's support files (cancer_list.txt, styles.css, the OncoKB annotator,
+the cBioPortal validator...) are looked up in the folder where Varan is
+installed, not in the current directory, so Varan can be run from any
+folder (e.g. from a module that only puts it on the PATH).
+
+By default Varan reads the conf.ini in that same folder. Setting the
+VARAN_CONF environment variable points it to a configuration kept
+elsewhere, so the code can be installed read-only and shared, while the
+configuration stays outside it. An environment variable rather than a
+command-line option because every module reads the configuration as soon
+as it is imported, before varan.py parses its arguments.
 """
 
 from __future__ import annotations
@@ -28,12 +32,29 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+CODE_DIR = Path(__file__).resolve().parent
+
+
+def code_path(*parts: str) -> str:
+    """Return the path of a file of the Varan installation.
+
+    Args:
+        *parts (str): Path components relative to the Varan folder,
+            e.g. ("oncokb-annotator", "MafAnnotator.py").
+
+    Returns:
+        str: The absolute path.
+
+    """
+    return str(CODE_DIR.joinpath(*parts))
+
 
 def conf_path() -> str:
     """Return the conf.ini path to read.
 
     Returns:
-        str: The VARAN_CONF environment variable if set, else "conf.ini".
+        str: The VARAN_CONF environment variable if set, else the conf.ini
+            in the Varan folder.
 
     Raises:
         FileNotFoundError: If VARAN_CONF is set but the file does not exist
@@ -42,7 +63,7 @@ def conf_path() -> str:
     """
     path = os.environ.get("VARAN_CONF", "").strip()
     if not path:
-        return "conf.ini"
+        return code_path("conf.ini")
     if not Path(path).is_file():
         msg = f"VARAN_CONF points to a file that does not exist: {path}"
         raise FileNotFoundError(msg)

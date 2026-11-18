@@ -45,7 +45,7 @@ import sys
 import tempfile
 import zipfile
 from configparser import ConfigParser
-from conf_path import conf_path
+from conf_path import code_path, conf_path
 from pathlib import Path
 
 from file_copy import copy_content
@@ -88,7 +88,7 @@ def cbio_validation(output_folder: str) -> None:
         result = subprocess.run(
             [
                 sys.executable,
-                "importer/validateData.py",
+                code_path("importer", "validateData.py"),
                 "-s", str(output_path),
                 "-n",
                 "-html", str(report_path),

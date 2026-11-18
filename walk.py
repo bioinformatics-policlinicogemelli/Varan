@@ -25,13 +25,14 @@ import ast
 import contextlib
 import os
 import secrets
+import shlex
 import shutil
 import string
 import subprocess
 import sys
 import zipfile
 from configparser import ConfigParser
-from conf_path import conf_path
+from conf_path import code_path, conf_path
 from pathlib import Path
 
 import numpy as np
@@ -50,6 +51,11 @@ from versioning import get_newest_version, get_version_list
 
 config = ConfigParser()
 config_file = config.read(conf_path())
+
+# The OncoKB FusionAnnotator, run through oncokb_run.py (see oncokb_token).
+FUSION_ANNOTATOR = " ".join(shlex.quote(p) for p in (
+    sys.executable, code_path("oncokb_run.py"),
+    code_path("oncokb-annotator", "FusionAnnotator.py")))
 
 VCF2MAF = config.get("Paths", "VCF2MAF")
 REF_FASTA = config.get("Paths", "REF_FASTA")
@@ -188,7 +194,8 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
     """
     out = path_cna.replace(".txt", "2.txt")
     cmd = [
-        "python3", "oncokb_run.py", "./oncokb-annotator/CnaAnnotator.py",
+        sys.executable, code_path("oncokb_run.py"),
+        code_path("oncokb-annotator", "CnaAnnotator.py"),
         "-i", path_cna,
         "-o", out,
         "-f", "individual"]
@@ -372,8 +379,8 @@ def cnv_type_from_folder(input_path: str,
                     df_tmp.to_csv(df_path, sep="\t", index=False)
 
                     cmd = [
-                        "python3", "oncokb_run.py",
-                        "./oncokb-annotator/CnaAnnotator.py",
+                        sys.executable, code_path("oncokb_run.py"),
+                        code_path("oncokb-annotator", "CnaAnnotator.py"),
                         "-i", str(df_path),
                         "-o", str(out),
                         "-f", "individual",
@@ -1535,13 +1542,13 @@ def annotate_fusion(
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
         fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
         os.system(
-            f"python3 oncokb_run.py oncokb-annotator/FusionAnnotator.py "
+            f"{FUSION_ANNOTATOR} "
             f"-i {fusion_table_file} -o {fusion_table_file_out}")
 
     else:
         fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
         os.system(
-            f"python3 oncokb_run.py oncokb-annotator/FusionAnnotator.py "
+            f"{FUSION_ANNOTATOR} "
             f"-i {fusion_table_file} -o {fusion_table_file_out} "
             f"-t {cancer.upper()}")
 
@@ -1830,7 +1837,7 @@ def validate_input(
         logger.warning("OncoKB filter was selected in filters options but -k option "
         "was not set. This filtering will be ignored.")
 
-    cancer_cbio = pd.read_csv("cancer_list.txt", sep="\t")
+    cancer_cbio = pd.read_csv(code_path("cancer_list.txt"), sep="\t")
     cancer_cbio = cancer_cbio["TYPE_OF_CANCER_ID"].to_numpy().tolist()
 
     if cancer not in cancer_cbio:
@@ -2082,7 +2089,7 @@ def walk_folder(
         msg = "Exiting from walk script!"
         raise(FileNotFoundError(msg))
 
-    img_path = Path("docs") / "img" / "logo_VARAN.png"
+    img_path = Path(code_path("docs", "img", "logo_VARAN.png"))
     if img_path.exists():
         img_output_dir = Path(output_folder) / "img"
         img_output_dir.mkdir(parents=True, exist_ok=True)

@@ -26,10 +26,11 @@ flexible customization of thresholds and accepted values for each filter.
 
 import ast
 import os
+import shlex
 import shutil
 import sys
 from configparser import ConfigParser
-from conf_path import conf_path
+from conf_path import code_path, conf_path
 from pathlib import Path
 
 import pandas as pd
@@ -40,6 +41,11 @@ import concatenate
 
 config = ConfigParser()
 config_file = config.read(conf_path())
+
+# The OncoKB MafAnnotator, run through oncokb_run.py (see oncokb_token).
+MAF_ANNOTATOR = " ".join(shlex.quote(p) for p in (
+    sys.executable, code_path("oncokb_run.py"),
+    code_path("oncokb-annotator", "MafAnnotator.py")))
 
 def check_bool(key_value: str) -> bool:
     """Convert a string into a Python boolean.
@@ -344,13 +350,11 @@ def filter_main(input_path: str,folder: str,
                             oncotree_value
                             if pd.notna(oncotree_value) and oncotree_value
                             else cancer)
-                        os.system(f"python3 oncokb_run.py "
-                        f"oncokb-annotator/MafAnnotator.py "
+                        os.system(f"{MAF_ANNOTATOR} "
                         f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
                         f"-q Genomic_Change")
             else:
-                os.system(f"python3 oncokb_run.py "
-                f"oncokb-annotator/MafAnnotator.py "
+                os.system(f"{MAF_ANNOTATOR} "
                 f"-i {f} -o {file_path} -t {cancer.upper()} "
                 f"-q Genomic_Change")
 
