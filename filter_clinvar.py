@@ -319,15 +319,15 @@ def filter_main(input_path: str,folder: str,
                             oncotree_value
                             if pd.notna(oncotree_value) and oncotree_value
                             else cancer)
-                        os.system(f"python3 oncokb-annotator/MafAnnotator.py "
+                        os.system(f"python3 oncokb_run.py "
+                        f"oncokb-annotator/MafAnnotator.py "
                         f"-i {f} -o {file_path} -t {cancer_onco.upper()} "
-                        f"-q Genomic_Change "
-                        f"-b {config.get('OncoKB', 'ONCOKB')}")
+                        f"-q Genomic_Change")
             else:
-                os.system(f"python3 oncokb-annotator/MafAnnotator.py "
+                os.system(f"python3 oncokb_run.py "
+                f"oncokb-annotator/MafAnnotator.py "
                 f"-i {f} -o {file_path} -t {cancer.upper()} "
-                f"-q Genomic_Change "
-                f"-b {config.get('OncoKB', 'ONCOKB')}")
+                f"-q Genomic_Change")
 
         file_list = concatenate.get_files_by_ext(maf_oncokb_path, "maf")
         out_filter = maf_oncokb_path

@@ -298,10 +298,11 @@ ZIP_SNV_FILTERED = &lt; boolean &gt;</pre>
 
 
             <h6>OncoKB</h6>
-            <p>In this section, it's possible to insert the personal <a href="https://www.oncokb.org/">oncoKB</a> key. This key is required to execute the oncoKB annotation.</p>
-            <pre>[OncoKB]
-ONCOKB= &lt; string &gt;</pre>
-            <p>⚠️ You can request the oncoKB key <a href="https://www.oncokb.org/account/register">here</a></p>
+            <p>The <a href="https://www.oncokb.org/">OncoKB</a> annotation requires a personal OncoKB API token. It does not go in conf.ini: set it in the <code>ONCOKB_API_TOKEN</code> environment variable before running Varan.</p>
+            <pre>export ONCOKB_API_TOKEN=&lt; token &gt;</pre>
+            <p>Varan never writes the token to its logs or reports, and does not pass it on the command line of the annotator, so other users of the same machine cannot see it. To keep the token out of your scripts, you can store it in a file readable only by you and load it from there:</p>
+            <pre>export ONCOKB_API_TOKEN=$(cat ~/.config/varan/oncokb_token)</pre>
+            <p>⚠️ You can request the OncoKB API token <a href="https://www.oncokb.org/account/register">here</a></p>
 
             <h6>Project</h6>
             <p>In this section, it's possible to specify project info like study name, ID, description, and profile. These info will be inserted in meta files.</p>

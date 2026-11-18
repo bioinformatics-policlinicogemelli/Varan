@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+import oncokb_token
 import sv_columns
 import tsv
 import vcf2tab_cnv
@@ -185,13 +186,11 @@ def annotate_cna(path_cna: str, output_folder: str) -> None:
 
     """
     out = path_cna.replace(".txt", "2.txt")
-    oncokb_key = config.get("OncoKB", "ONCOKB")
     cmd = [
-        "python3", "./oncokb-annotator/CnaAnnotator.py",
+        "python3", "oncokb_run.py", "./oncokb-annotator/CnaAnnotator.py",
         "-i", path_cna,
         "-o", out,
-        "-f", "individual",
-        "-b", oncokb_key]
+        "-f", "individual"]
     subprocess.run(cmd, check=True)
 
     cna = pd.read_csv(out, sep="\t", dtype={"Copy_Number_Alteration":int})
@@ -359,8 +358,6 @@ def cnv_type_from_folder(input_path: str,
                 out_can_ann=Path(output_folder) / "CNV_ann"
                 out_can_ann.mkdir(exist_ok=True)
 
-                oncokb_key = config.get("OncoKB", "ONCOKB")
-
                 temppath_df=pd.read_csv(temppath, sep="\t")
                 
                 df_all=pd.DataFrame()
@@ -374,11 +371,11 @@ def cnv_type_from_folder(input_path: str,
                     df_tmp.to_csv(df_path, sep="\t", index=False)
 
                     cmd = [
-                        "python3", "./oncokb-annotator/CnaAnnotator.py",
+                        "python3", "oncokb_run.py",
+                        "./oncokb-annotator/CnaAnnotator.py",
                         "-i", str(df_path),
                         "-o", str(out),
                         "-f", "individual",
-                        "-b", oncokb_key,
                         "-t", df_tmp["ONCOTREE_CODE"].unique()[0],
                         "-z"
                         ]
@@ -1531,15 +1528,15 @@ def annotate_fusion(
         fusion_table_df.to_csv(fusion_table_file, sep="\t", index=False)
         fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
         os.system(
-            f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file} "
-            f"-o {fusion_table_file_out} -b {config.get('OncoKB', 'ONCOKB')}")
+            f"python3 oncokb_run.py oncokb-annotator/FusionAnnotator.py "
+            f"-i {fusion_table_file} -o {fusion_table_file_out}")
 
     else:
         fusion_table_file_out = fusion_table_file.with_suffix(".ann.txt")
         os.system(
-            f"python3 oncokb-annotator/FusionAnnotator.py -i {fusion_table_file} "
-            f"-o {fusion_table_file_out} -t {cancer.upper()}  "
-            f"-b {config.get('OncoKB', 'ONCOKB')}")
+            f"python3 oncokb_run.py oncokb-annotator/FusionAnnotator.py "
+            f"-i {fusion_table_file} -o {fusion_table_file_out} "
+            f"-t {cancer.upper()}")
 
     return fusion_table_file_out
 
@@ -1804,8 +1801,14 @@ def validate_input(
         msg = "The input file is missing some important columns!"
         raise(ValueError(msg))
 
-    if oncokb and config.get("OncoKB", "ONCOKB") == "":
-        msg = "oncokb option was set but ONCOKB field in conf.ini is empty!"
+    if config.get("OncoKB", "ONCOKB", fallback="").strip():
+        logger.warning("conf.ini still contains an OncoKB token ([OncoKB] "
+        "ONCOKB): Varan no longer reads it. Remove it from the file and set "
+        f"the {oncokb_token.TOKEN_ENV} environment variable instead.")
+
+    if oncokb and not oncokb_token.get_token():
+        msg = (f"oncokb option was set but the {oncokb_token.TOKEN_ENV} "
+               "environment variable is not set!")
         raise ValueError(msg)
 
     if (vcf_type is None or "snv" in vcf_type) and (not VEP_PATH or not VEP_DATA):
